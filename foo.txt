@@ -1,0 +1,2 @@
+set text -> "true"
+print -> 345.67+"true"/56-56
