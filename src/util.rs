@@ -1,8 +1,12 @@
 use std::process::exit;
 use colored::Colorize;
 
+
+
+
+
 pub fn error(index: i32, error: &str) {
-    println!("{}", "\nTURBO -- ERROR".red());
-    println!("LINE {} -> {}", index, error.blue());
+    println!("{}", format!("\nTURBO -- ERROR [LINE {}]", index).red().bold());
+    println!("{}", error.blue());
     exit(1);
 }

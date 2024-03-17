@@ -1,6 +1,7 @@
 mod process;
 mod util;
 mod types;
+mod operations;
 
 use std::fs::File;
 use std::io::{BufReader, prelude::*};
