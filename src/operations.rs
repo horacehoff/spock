@@ -1,8 +1,9 @@
 use once_cell::sync::Lazy;
 use regex::Regex;
-use crate::types::{convert_str_to_native_type, Types};
+use crate::types::{convert_str_to_native_type, Node, Types};
 use crate::util::error;
 use fancy_regex::Regex as FancyRegex;
+use crate::process::{get_function_args, process_args};
 
 
 #[inline(always)]
@@ -51,10 +52,10 @@ pub fn str_capitalize(s: &str) -> String {
 }
 
 pub fn process_object_props(content: &String, index: i32) -> Types {
-    // test regex ((?<=\")(?=\"))?((?<=\.)[^.\d]+(?:\.[^.\d]+))*$
-    // DEFINITELY => (?<=\.)(\w|\.)+(?=\.|$)
-    // NEW (letters) => (?<=\.)([a-zA-Z]|\.)+(?=\.|$)
-    // NEW TEST => (?<=\.)([a-zA-Z]|\.|\(.*\))+(?=\.|$)
+    // NEW PROPERTY => (?<=\.)([a-zA-Z]|\.|\(.*\))+(?=\.|$)
+
+    // test args parser -> (?:[^,"]+|"[^"]*")+
+    // other test -> \s*("[^"]*"|[^,]+)\s*
     static PROPERTY_REGEX: Lazy<FancyRegex> = Lazy::new(|| FancyRegex::new(r"(?<=\.)([a-zA-Z]|\.|\(.*\))+(?=\.|$)").unwrap());
     let mut rgx_split = Vec::new();
 
@@ -91,14 +92,16 @@ pub fn process_object_props(content: &String, index: i32) -> Types {
                     } else if value2 == "is_letters" {
                         result = Types::Boolean(value.chars().all(char::is_alphabetic))
                     } else if &value2[..7] == "replace" {
-                        static REPLACE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"replace\((.*?)\)").unwrap());
-                        static REPLACE_DATA: Lazy<Regex> = Lazy::new(|| Regex::new(r#""(.*)","(.*)""#).unwrap());
-                        let capt = REPLACE_DATA.captures(REPLACE_REGEX.captures(value2).unwrap().get(1).unwrap().as_str()).unwrap();
-                        result = Types::String(value.replace(capt.get(1).unwrap().as_str(), capt.get(2).unwrap().as_str()));
-
+                        let args = get_function_args("replace",value2, index);
+                        match (&args[0], &args[1]) {
+                            (Types::String(value1), Types::String(value2)) => {
+                                result = Types::String(value.replace(value1, value2));
+                            }
+                            _ => {
+                                error(index, format!("Could not replace the following types: {:?} - {:?}", &args[0], &args[1]).as_str());
+                            }
+                        }
                     }
-
-
                     else {
                         error(index, &format!("Unknown property => {:?}", value2))
                     }

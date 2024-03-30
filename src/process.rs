@@ -4,9 +4,11 @@ use std::sync::{Mutex, MutexGuard};
 use lazy_static::lazy_static;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use fancy_regex::Regex as FancyRegex;
+
 
 use crate::operations::{f32_add, f32_divide, f32_multiply, f32_str_add, f32_subtract, str_add, str_f32_add};
-use crate::{operations, types};
+use crate::{operations, types, util};
 use crate::types::{Node, Types};
 use crate::util::error;
 
@@ -27,24 +29,9 @@ pub fn get_variables() -> MutexGuard<'static, Vec<(String, Types)>> {
 
 
 fn process(content: String, index: i32) -> Types {
-    let mut split_tokens: Vec<String> = Vec::new();
-    let delimiters = ['+', '/', '*', '-'];
-    for part in content.split_inclusive(delimiters) {
-        split_tokens.push(part.parse().unwrap());
-    }
-    let mut tokens: Vec<String> = Vec::new();
-    for token in &split_tokens {
-        if delimiters.contains(&token.chars().last().unwrap()) {
-            let mut token_stripped = token.chars();
-            token_stripped.next_back();
-            tokens.push(token_stripped.clone().collect::<String>());
-            let token_last = token.chars().last().unwrap().to_string();
-            tokens.push(token_last);
-            //println!("{:?}", token_last);
-        } else {
-            tokens.push(token.to_owned());
-        }
-    }
+    static SPLIT_REGEX: Lazy<FancyRegex> = Lazy::new(|| FancyRegex::new(r#"(?![^(]*\))(?=(?:[^"]|"[^"]*")*$)[+\-*\/]"#).unwrap());
+    let mut tokens = util::split_keep(&SPLIT_REGEX, &content);
+
     let mut structs: Vec<Node> = Vec::new();
     for token in &tokens {
         if token == "+" {
@@ -60,6 +47,7 @@ fn process(content: String, index: i32) -> Types {
             structs.push(Node::Data(operations::process_object_props(token, index)));
         }
     }
+
     // iterate over each group of operations ( data + operation + ... + data)
     let mut result = Types::Number(0.0);
     let mut current_operation = types::Operations::Add;
@@ -168,6 +156,19 @@ pub fn process_line(line: String, index: i32) {
             error(index, "An error occurred during 'print'");
         }
     }
-    /*println!("{:?}", tokens);
-    println!("Global variable value: {:?}", get_variables());*/
+}
+
+
+pub fn get_function_args(functname: &str, functcall: &str, index: i32) -> Vec<Types> {
+    let REPLACE_REGEX = FancyRegex::new(&format!(r"{}\((.*?)\)", functname)).unwrap();
+    process_args(REPLACE_REGEX.captures(functcall).unwrap().expect("").get(1).unwrap().as_str(), index)
+}
+
+pub fn process_args(functcall: &str, index: i32) -> Vec<Types> {
+    let mut results :Vec<Types> = Vec::new();
+    static ARGS_REGEX: Lazy<FancyRegex> = Lazy::new(|| FancyRegex::new(r#"(?:[^,"]+|"[^"]*")+"#).unwrap());
+    for i in ARGS_REGEX.captures_iter(functcall) {
+        results.push(process(String::from(i.unwrap().get(0).unwrap().as_str().trim()), index));
+    }
+    results
 }

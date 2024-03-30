@@ -1,2 +1,1 @@
-set xo -> "56ool".replace("56","0")
-print -> xo
+print -> -5*5!
