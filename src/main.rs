@@ -1,4 +1,6 @@
+use std::fmt::format;
 use std::fs;
+use std::io::Write;
 use regex::Regex;
 
 fn main() {
@@ -25,13 +27,20 @@ fn main() {
         functions.push((function.get(1).unwrap().as_str(), function.get(2).unwrap().as_str(), function.get(3).unwrap().as_str()));
     }
 
+    let mut functions_file = fs::File::create(".functions").unwrap();
+    functions_file.write_all(format!("{:?}", functions).as_bytes()).unwrap();
+
 
 
     // Register main function
-    let main_regex = Regex::new(r"main\s*\{((?s:.)*)}").unwrap();
+    let main_regex = Regex::new(r"func main\((.*)\)\s*\{((?s:.)*)}").unwrap();
     let main_block_match = main_regex.captures(&content).unwrap();
-    let main_block = main_block_match.get(1).unwrap().as_str();
-    println!("{:?}", functions);
+
+    let main_block = main_block_match.get(2).unwrap().as_str();
+
+
+
+    println!("{:?}", main_block);
 
 
 
