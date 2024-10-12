@@ -1,1 +1,6 @@
-print -> -5*5!
+func test1(test1, test2, test3) {
+hi
+}
+main {
+test
+}

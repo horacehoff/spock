@@ -1,16 +1,12 @@
 [package]
-name = "turbo"
+name = "compute"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lazy_static = "1.4.0"
-regex = "1.10.3"
-fancy-regex = "0.13.0"
-once_cell = "1.19.0"
-colored = "2.1.0"
+regex = "1.11.0"
 
 [profile.release]
 opt-level = 3
