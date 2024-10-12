@@ -27,6 +27,7 @@ fn main() {
         functions.push((function.get(1).unwrap().as_str(), function.get(2).unwrap().as_str(), function.get(3).unwrap().as_str()));
     }
 
+    // Cache functions
     let mut functions_file = fs::File::create(".functions").unwrap();
     functions_file.write_all(format!("{:?}", functions).as_bytes()).unwrap();
 
