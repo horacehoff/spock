@@ -20,7 +20,7 @@ fn main() {
 
 
     // Register functions
-    let function_regex = Regex::new(r"func (.*)\((.*)\)\s*\{((?s:.)*)}").unwrap();
+    let function_regex = Regex::new(r"func (.*)\((.*)\)\s*\{((?s:.)*)\}\n").unwrap();
     let function_results: Vec<_> = function_regex.find_iter(&content).collect();
     for func_match in function_results.iter() {
         let function = function_regex.captures(func_match.as_str()).unwrap();
@@ -41,5 +41,5 @@ fn main() {
 
 
 
-    println!("{:?}", main_block);
+    println!("{:?}", functions);
 }
