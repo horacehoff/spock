@@ -1,7 +1,11 @@
+mod util;
+use util::error;
+
+
 use std::fs;
 use std::io::Write;
-use std::process::exit;
 use fancy_regex::Regex;
+
 
 fn main() {
     let mut functions: Vec<(&str, &str, &str)> = vec![];
@@ -31,9 +35,9 @@ fn main() {
     let mut functions_file = fs::File::create(".functions").unwrap();
     functions_file.write_all(format!("{:?}", functions).as_bytes()).unwrap();
 
-    if (functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, &str, &str)>>().len() == 0) {
-        println!("Error");
-        exit(1);
+    if functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, &str, &str)>>().len() == 0 {
+        error("No main function");
+        std::process::exit(1);
     }
 
 

@@ -5,9 +5,3 @@ then yes
 }
 so cool
 }
-
-
-
-func main() {
-test
-}
