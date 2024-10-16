@@ -1,6 +1,6 @@
-use std::fmt::format;
 use std::fs;
 use std::io::Write;
+use std::process::exit;
 use fancy_regex::Regex;
 
 fn main() {
@@ -30,6 +30,13 @@ fn main() {
     // Cache functions
     let mut functions_file = fs::File::create(".functions").unwrap();
     functions_file.write_all(format!("{:?}", functions).as_bytes()).unwrap();
+
+    if (functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, &str, &str)>>().len() == 0) {
+        println!("Error");
+        exit(1);
+    }
+
+
 
 
     println!("{:?}", functions);
