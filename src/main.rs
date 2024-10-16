@@ -36,7 +36,7 @@ fn main() {
     functions_file.write_all(format!("{:?}", functions).as_bytes()).unwrap();
 
     if functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, &str, &str)>>().len() == 0 {
-        error("No main function");
+        error("No main function", "Add 'func main() {}' to your file");
         std::process::exit(1);
     }
 
