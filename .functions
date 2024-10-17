@@ -1,1 +1,1 @@
-[("test1", "test1, test2, test3", ["hi;", "if (this is true) {", "then yes;", "}", "so cool;"]), ("main", "", ["do nothing;"])]
+[("test1", "test1, test2, test3", ["hi", "if (this is true) {", "then yes", "}", "so cool"]), ("main", "", ["do nothing"])]
