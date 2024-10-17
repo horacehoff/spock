@@ -25,15 +25,13 @@ fn main() {
     let function_regex = Regex::new(r"(?ms)^func\s+(\w+)\s*\((.*?)\)\s*\{(.*?)}(?=((\s*func|\z)))").unwrap();
     let function_results: Vec<_> = function_regex.captures_iter(&content).collect();
 
-    let line_regex = Regex::new(r"(?m)^(.*|})(?:;|\s*{|(?<=}))");
+    let line_regex = Regex::new(r"(?m)^(.*|})(?:;|\s*{|(?<=}))").unwrap();
 
     for func_match in function_results.iter() {
         let function = func_match.as_ref().unwrap();
-
-
-        // Separate lines by commas - not working
-        let line_results: Vec<_> = function_regex.captures_iter(function.get(3).unwrap().as_str()).map(|line| line.as_ref().unwrap().get(1).unwrap().as_str()).collect();
-        println!("{:?}", line_results);
+        
+        // Separate lines by commas
+        let line_results: Vec<_> = line_regex.captures_iter(function.get(3).unwrap().as_str().trim()).map(|line| line.as_ref().unwrap().get(0).unwrap().as_str()).collect();
         
         functions.push((function.get(1).unwrap().as_str(), function.get(2).unwrap().as_str(), line_results));
     }
