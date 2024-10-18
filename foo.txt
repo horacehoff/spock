@@ -7,5 +7,5 @@ so cool;
 }
 
 func main() {
-do nothing;
+let hi = 2+2;
 }
