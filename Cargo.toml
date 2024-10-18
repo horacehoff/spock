@@ -9,6 +9,7 @@ edition = "2021"
 fancy-regex = "0.13.0"
 pest = "2.7.14"
 pest_derive = "2.7.14"
+rayon = "1.10.0"
 sha2 = "0.10.8"
 
 [profile.release]

@@ -8,7 +8,9 @@ use crate::functions::parse_functions;
 
 
 #[derive(Parser)]
-#[grammar = "line_grammar.pest"] // relative to src
+#[grammar_inline = r#"
+field = { (ASCII_DIGIT | "." | "-")+ }
+"#] // relative to src
 struct LineParser;
 
 fn main() {
