@@ -6,7 +6,7 @@ pub enum Expr {
     Integer(i64),
     Float(f32),
     String(String),
-    Identifier(String),
+    Variable(String),
     BinaryOp(BasicOperator, Box<Expr>),
     Priority(Box<Vec<Expr>>),
     Operation(BasicOperator)

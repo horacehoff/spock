@@ -61,6 +61,5 @@ fn main() {
         for pair in LineParser::parse(Rule::expression, line).unwrap() {
             println!("{:?}", ast::build_ast(pair, 0));
         }
-
     }
 }
