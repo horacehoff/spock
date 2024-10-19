@@ -1,1 +1,1 @@
-[("test1", "test1, test2, test3", ["hi;\r\nif (this is true) {\r\nthen yes;\r\n}\r\nso cool"]), ("main", "", ["'hi'+'what the fuck!!'"])]
+[("test1", "test1, test2, test3", ["hi;\r\nif (this is true) {\r\nthen yes;\r\n}\r\nso cool"]), ("main", "", ["'hi'+'oops'+(47+7)"])]
