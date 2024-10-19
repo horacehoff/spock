@@ -54,11 +54,29 @@ struct LineParser;
 
 
 
-fn visualize_parse_tree(pair: Pair<Rule>, indent: usize) {
+fn visualize_parse_tree(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
     let rule = format!("{:?}", pair.as_rule());
     let span = pair.as_span();
     let text = span.as_str();
+    let mut output: Vec<Expr> = vec![];
 
+    match pair.as_rule() {
+        Rule::integer => {
+            output.push(Expr::Integer(pair.as_str().parse::<i64>().unwrap()))
+        },
+        Rule::ops => {
+            match pair.as_str() {
+                "+" => {
+                    output.push(Expr::Operation(BasicOperator::Add))
+                },
+                "-" => {
+                    output.push(Expr::Operation(BasicOperator::Add))
+                },
+                _ => {}
+            }
+        }
+        _ => {}
+    }
     // Print the current node with indentation
     println!(
         "{}{}: \"{}\"",
@@ -69,23 +87,10 @@ fn visualize_parse_tree(pair: Pair<Rule>, indent: usize) {
 
     // Recursively process the children
     for inner_pair in pair.into_inner() {
-        visualize_parse_tree(inner_pair, indent + 1);  // Increase indent for child nodes
+        output.append(&mut visualize_parse_tree(inner_pair, indent + 1));  // Increase indent for child nodes
     }
-}
 
-
-fn build_ast(pair: Pair<Rule>) -> () {
-    println!("{:?}", pair.as_rule());
-    let mut output: Vec<()> = vec![];
-    match pair.as_rule() {
-        Rule::expression => {
-            for expression in pair.into_inner() {
-                println!("TEST {:?}\n", expression)
-            }
-            // build_ast(pair.into_inner());
-        },
-        _ => todo!()
-    }
+    output
 }
 
 fn main() {
@@ -97,14 +102,9 @@ fn main() {
     let main_lines = &functions.iter().filter(|function| function.0 == "main").collect::<Vec<_>>()[0].2;
     println!("{:?}", main_lines);
     for line in main_lines {
-        let parsed = LineParser::parse(Rule::expression, line).unwrap().next().unwrap();
-        // for pair in parsed {
-        //     // visualize_parse_tree(pair, 0);
-        //
-        //
-        // }
-        // println!("NEXT{:?}", parsed);
-        build_ast(parsed)
+        for pair in LineParser::parse(Rule::expression, line).unwrap() {
+            println!("{:?}", visualize_parse_tree(pair, 0));
+        }
 
     }
 }

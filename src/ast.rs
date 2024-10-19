@@ -5,7 +5,8 @@ pub enum Expr {
     String(String),
     Identifier(String),
     BinaryOp(BasicOperator, Box<Expr>),
-    Priority(Box<Expr>)
+    Priority(Box<Expr>),
+    Operation(BasicOperator)
 }
 
 #[derive(Debug)]
