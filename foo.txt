@@ -7,5 +7,5 @@ so cool;
 }
 
 func main() {
-let hi = 5.6+1/8900;
+1+1/4;
 }

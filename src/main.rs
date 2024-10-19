@@ -76,10 +76,13 @@ fn visualize_parse_tree(pair: Pair<Rule>, indent: usize) {
 
 fn build_ast(pair: Pair<Rule>) -> () {
     println!("{:?}", pair.as_rule());
+    let mut output: Vec<()> = vec![];
     match pair.as_rule() {
         Rule::expression => {
-            println!("yeahhh {:?}", pair.into_inner());
-            build_ast(pair.into_inner());
+            for expression in pair.into_inner() {
+                println!("TEST {:?}\n", expression)
+            }
+            // build_ast(pair.into_inner());
         },
         _ => todo!()
     }
@@ -94,7 +97,7 @@ fn main() {
     let main_lines = &functions.iter().filter(|function| function.0 == "main").collect::<Vec<_>>()[0].2;
     println!("{:?}", main_lines);
     for line in main_lines {
-        let mut parsed = LineParser::parse(Rule::expression, line).unwrap().next().unwrap();
+        let parsed = LineParser::parse(Rule::expression, line).unwrap().next().unwrap();
         // for pair in parsed {
         //     // visualize_parse_tree(pair, 0);
         //
