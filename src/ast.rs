@@ -48,7 +48,7 @@ pub fn build_ast(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
             output.push(Expr::Float(pair.as_str().parse::<f32>().unwrap()))
         },
         Rule::string => {
-            output.push(Expr::String(pair.as_str().parse().unwrap()))
+            output.push(Expr::String(pair.as_str().trim_end_matches("\"").trim_start_matches("\"").parse().unwrap()))
         },
         Rule::priority => {
             recursive = false;

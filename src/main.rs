@@ -15,7 +15,7 @@ integer = @{ "-" ? ~ ASCII_DIGIT+ }
 
 float = @{ "-" ? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* }
 
-string = @{ "'" ~ ( "''" | (!"'" ~ ANY) )* ~ "'" }
+string = @{ "\"" ~ ( "\"\"" | (!"\"" ~ ANY) )* ~ "\"" }
 
 identifier = @{ASCII_ALPHA+}
 

@@ -7,5 +7,5 @@ so cool;
 }
 
 func main() {
-'hi'+'oops'+(47+7);
+"hi"+"oops"+(47+7);
 }
