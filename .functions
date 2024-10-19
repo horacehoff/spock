@@ -1,1 +1,1 @@
-[("test1", "test1, test2, test3", ["hi;\r\nif (this is true) {\r\nthen yes;\r\n}\r\nso cool"]), ("main", "", ["let hi = 2+2"])]
+[("test1", "test1, test2, test3", ["hi", "\nif (this is true) {\nthen yes", "\n}\nso cool"]), ("main", "", ["let hi = 5.6+1/8900"])]
