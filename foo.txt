@@ -7,5 +7,5 @@ so cool;
 }
 
 func main() {
-3+2+5;
+'hi'+'what the fuck!!';
 }

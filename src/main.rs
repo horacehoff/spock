@@ -64,14 +64,26 @@ fn visualize_parse_tree(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
         Rule::integer => {
             output.push(Expr::Integer(pair.as_str().parse::<i64>().unwrap()))
         },
+        Rule::float => {
+            output.push(Expr::Float(pair.as_str().parse::<f32>().unwrap()))
+        },
+        Rule::string => {
+            output.push(Expr::String(pair.as_str().parse().unwrap()))
+        }
         Rule::ops => {
             match pair.as_str() {
                 "+" => {
                     output.push(Expr::Operation(BasicOperator::Add))
                 },
                 "-" => {
-                    output.push(Expr::Operation(BasicOperator::Add))
+                    output.push(Expr::Operation(BasicOperator::Sub))
                 },
+                "/" => {
+                    output.push(Expr::Operation(BasicOperator::Divide))
+                },
+                "*" => {
+                    output.push(Expr::Operation(BasicOperator::Multiply))
+                }
                 _ => {}
             }
         }
