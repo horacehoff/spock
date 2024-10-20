@@ -14,9 +14,9 @@ pub fn parse_functions(content: &str) -> Vec<(&str, &str, Vec<&str>)> {
 
     for func_match in function_results.iter() {
         let function = func_match.as_ref().unwrap();
-
+        println!("LINE {:?}", function.get(3).unwrap().as_str());
         // Separate lines by commas
-        let line_results: Vec<_> = line_regex.captures_iter(function.get(3).unwrap().as_str().trim()).map(|line| line.as_ref().unwrap().get(0).unwrap().as_str().trim_end_matches(";")).collect();
+        let line_results: Vec<_> = line_regex.captures_iter(function.get(3).unwrap().as_str().trim()).map(|line| line.as_ref().unwrap().get(0).unwrap().as_str().trim_end_matches(";").trim()).collect();
         
         functions.push((function.get(1).unwrap().as_str(), function.get(2).unwrap().as_str(), line_results));
     }

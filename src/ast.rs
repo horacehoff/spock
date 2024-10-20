@@ -40,7 +40,7 @@ pub fn build_ast(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
     let text = span.as_str();
     let mut output: Vec<Expr> = vec![];
     let mut recursive = true;
-
+    println!("{:?}", pair.as_rule());
     match pair.as_rule() {
         Rule::integer => {
             output.push(Expr::Integer(pair.as_str().parse::<i64>().unwrap()))
@@ -84,14 +84,16 @@ pub fn build_ast(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
                 },
                 "*" => {
                     output.push(Expr::Operation(BasicOperator::Multiply))
+                },
+                "==" => {
+                    output.push(Expr::Operation(BasicOperator::EQUAL))
                 }
                 _ => {}
             }
         },
         Rule::variableDeclaration => {
-            // println!("{:?}", pair.clone().into_inner().next().unwrap().as_str());
             recursive = false;
-            println!("{:?}", pair.clone().into_inner().next().unwrap().as_str());
+            // println!("{:?}", pair.clone().into_inner().next().unwrap().as_str());
             let mut priority_calc: Vec<Expr> = vec![];
             for priority_pair in pair.clone().into_inner().into_iter().skip(1) {
                 priority_calc.append(&mut build_ast(priority_pair, 0));
@@ -102,12 +104,12 @@ pub fn build_ast(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
     }
 
     // Print the current node with indentation
-    // println!(
-    //     "{}{}: \"{}\"",
-    //     "  ".repeat(indent),  // Indentation based on depth
-    //     rule,
-    //     text
-    // );
+    println!(
+        "{}{}: \"{}\"",
+        "  ".repeat(indent),  // Indentation based on depth
+        rule,
+        text
+    );
 
 
     if recursive {

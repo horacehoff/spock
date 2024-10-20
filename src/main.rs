@@ -34,6 +34,10 @@ term = _{ float | integer | string | func_call | priority | identifier }
 operation = { ops ~ expression }
 
 
+
+
+
+
 variableIdentifier = { ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
 variableDeclaration = {"let" ~ variableIdentifier ~ "=" ~ expression}
 
@@ -44,6 +48,11 @@ expression_unit = _{
 }
 
 expression = {expression_unit+}
+// 
+// line = _{expression ~ ";"}
+// 
+// condition = {"if" ~ expression ~ "{" ~ line+ ~ "}"}
+
 
 
 WHITESPACE = _{ " " | "\t" | "\n" }
