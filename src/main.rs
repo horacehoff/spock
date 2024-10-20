@@ -27,7 +27,9 @@ terms = _{ term+ }
 
 priority = {"(" ~ expression ~ ")"}
 
-term = _{ float | integer | string | priority | identifier }
+func_call = {identifier ~ "(" ~ expression ~ ")"}
+
+term = _{ float | integer | string | func_call | priority | identifier }
 
 operation = { ops ~ expression }
 
@@ -58,7 +60,7 @@ fn main() {
     let main_lines = &functions.iter().filter(|function| function.0 == "main").collect::<Vec<_>>()[0].2;
     println!("{:?}", main_lines);
     for line in main_lines {
-        for pair in LineParser::parse(Rule::expression, line).unwrap() {
+        for pair in LineParser::parse(Rule::expression, line.trim()).unwrap() {
             println!("{:?}", ast::build_ast(pair, 0));
         }
     }

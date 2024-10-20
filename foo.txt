@@ -7,5 +7,7 @@ so cool;
 }
 
 func main() {
-"hi"+"oops"+(47+7/78);
+"hi"+"oops"+print("hi"+57+("does this work ?"/56));
+
+"hey";
 }

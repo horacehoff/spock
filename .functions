@@ -1,1 +1,1 @@
-[("test1", "test1, test2, test3", ["hi", "\nif (this is true) {\nthen yes", "\n}\nso cool"]), ("main", "", ["\"hi\"+\"oops\"+(47+7/78)"])]
+[("test1", "test1, test2, test3", ["hi", "\nif (this is true) {\nthen yes", "\n}\nso cool"]), ("main", "", ["\"hi\"+\"oops\"+print(\"hi\"+57+(\"does this work ?\"/56))", "\n\n\"hey\""])]

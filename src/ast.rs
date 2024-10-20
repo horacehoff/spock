@@ -7,6 +7,7 @@ pub enum Expr {
     Float(f32),
     String(String),
     Variable(String),
+    Function(String, Box<Vec<Expr>>),
     BinaryOp(BasicOperator, Box<Expr>),
     Priority(Box<Vec<Expr>>),
     Operation(BasicOperator)
@@ -33,7 +34,7 @@ pub struct VariableDeclaration {
     value: Expr,
 }
 
-pub fn build_ast(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
+pub fn build_ast(pair: Pair<Rule>, indent: usize, showTree: bool) -> Vec<Expr> {
     let rule = format!("{:?}", pair.as_rule());
     let span = pair.as_span();
     let text = span.as_str();
@@ -50,6 +51,18 @@ pub fn build_ast(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
         Rule::string => {
             output.push(Expr::String(pair.as_str().trim_end_matches("\"").trim_start_matches("\"").parse().unwrap()))
         },
+        Rule::func_call => {  
+            recursive = false;
+            let mut priority_calc: Vec<Expr> = vec![];
+            for priority_pair in pair.clone().into_inner().into_iter().skip(1) {
+                priority_calc.append(&mut build_ast(priority_pair, 0));
+            }
+            output.push(Expr::Function(pair.clone().into_inner().next().unwrap().as_str().parse().unwrap(), Box::from(priority_calc)));
+
+        }
+        Rule::identifier => {
+            output.push(Expr::Variable(pair.as_str().trim_end_matches("\"").trim_start_matches("\"").parse().unwrap()))
+        }
         Rule::priority => {
             recursive = false;
             let mut priority_calc: Vec<Expr> = vec![];
@@ -77,13 +90,16 @@ pub fn build_ast(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
         }
         _ => {}
     }
-    // Print the current node with indentation
-    println!(
-        "{}{}: \"{}\"",
-        "  ".repeat(indent),  // Indentation based on depth
-        rule,
-        text
-    );
+    
+    if showTree {
+        // Print the current node with indentation
+        println!(
+            "{}{}: \"{}\"",
+            "  ".repeat(indent),  // Indentation based on depth
+            rule,
+            text
+        );
+    }
 
     if recursive {
         // Recursively process the children
