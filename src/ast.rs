@@ -1,7 +1,9 @@
+use bitcode::Encode;
 use pest::iterators::Pair;
+use serde::Serialize;
 use crate::Rule;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum Expr {
     Integer(i64),
     Float(f32),
@@ -13,7 +15,7 @@ pub enum Expr {
     VariableDeclaration(String, Box<Vec<Expr>>)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum BasicOperator {
     AND,
     Sub,

@@ -22,8 +22,8 @@ pub fn parse_functions(content: &str) -> Vec<(&str, &str, Vec<&str>)> {
     }
 
     // Cache functions
-    let mut functions_file = fs::File::create(".functions").unwrap();
-    functions_file.write_all(format!("{:?}", functions).as_bytes()).unwrap();
+    // let mut functions_file = fs::File::create(".functions").unwrap();
+    // functions_file.write_all(format!("{:?}", functions).as_bytes()).unwrap();
 
     if functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, &str, Vec<&str>)>>().len() == 0 {
         error("No main function", "Add 'func main() {}' to your file");

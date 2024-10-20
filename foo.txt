@@ -1,6 +1,3 @@
 func main() {
-print("okay");
-if var==3 {
-    print("test");
-};
+1+1;
 }
