@@ -17,7 +17,7 @@ float = @{ "-" ? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* }
 
 string = @{ "\"" ~ ( "\"\"" | (!"\"" ~ ANY) )* ~ "\"" }
 
-identifier = @{ASCII_ALPHA+}
+identifier = @{(ASCII_ALPHA | ".")+}
 
 ops = {
     "&&" | "-"  | "%" | "+"  | "*"  | "<"  | "==" | "^" | "||" | ">" | "/"

@@ -8,9 +8,9 @@ pub enum Expr {
     String(String),
     Variable(String),
     Function(String, Box<Vec<Expr>>),
-    BinaryOp(BasicOperator, Box<Expr>),
     Priority(Box<Vec<Expr>>),
-    Operation(BasicOperator)
+    Operation(BasicOperator),
+    VariableDeclaration(String, Box<Vec<Expr>>)
 }
 
 #[derive(Debug)]
@@ -34,7 +34,7 @@ pub struct VariableDeclaration {
     value: Expr,
 }
 
-pub fn build_ast(pair: Pair<Rule>, indent: usize, showTree: bool) -> Vec<Expr> {
+pub fn build_ast(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
     let rule = format!("{:?}", pair.as_rule());
     let span = pair.as_span();
     let text = span.as_str();
@@ -51,7 +51,7 @@ pub fn build_ast(pair: Pair<Rule>, indent: usize, showTree: bool) -> Vec<Expr> {
         Rule::string => {
             output.push(Expr::String(pair.as_str().trim_end_matches("\"").trim_start_matches("\"").parse().unwrap()))
         },
-        Rule::func_call => {  
+        Rule::func_call => {
             recursive = false;
             let mut priority_calc: Vec<Expr> = vec![];
             for priority_pair in pair.clone().into_inner().into_iter().skip(1) {
@@ -70,7 +70,7 @@ pub fn build_ast(pair: Pair<Rule>, indent: usize, showTree: bool) -> Vec<Expr> {
                 priority_calc.append(&mut build_ast(priority_pair, 0));
             }
             output.push(Expr::Priority(Box::from(priority_calc)))
-        }
+        },
         Rule::ops => {
             match pair.as_str() {
                 "+" => {
@@ -87,19 +87,28 @@ pub fn build_ast(pair: Pair<Rule>, indent: usize, showTree: bool) -> Vec<Expr> {
                 }
                 _ => {}
             }
+        },
+        Rule::variableDeclaration => {
+            // println!("{:?}", pair.clone().into_inner().next().unwrap().as_str());
+            recursive = false;
+            println!("{:?}", pair.clone().into_inner().next().unwrap().as_str());
+            let mut priority_calc: Vec<Expr> = vec![];
+            for priority_pair in pair.clone().into_inner().into_iter().skip(1) {
+                priority_calc.append(&mut build_ast(priority_pair, 0));
+            }
+            output.push(Expr::VariableDeclaration(pair.clone().into_inner().next().unwrap().as_str().parse().unwrap(), Box::from(priority_calc)));
         }
         _ => {}
     }
-    
-    if showTree {
-        // Print the current node with indentation
-        println!(
-            "{}{}: \"{}\"",
-            "  ".repeat(indent),  // Indentation based on depth
-            rule,
-            text
-        );
-    }
+
+    // Print the current node with indentation
+    // println!(
+    //     "{}{}: \"{}\"",
+    //     "  ".repeat(indent),  // Indentation based on depth
+    //     rule,
+    //     text
+    // );
+
 
     if recursive {
         // Recursively process the children
@@ -107,6 +116,5 @@ pub fn build_ast(pair: Pair<Rule>, indent: usize, showTree: bool) -> Vec<Expr> {
             output.append(&mut build_ast(inner_pair, indent + 1));  // Increase indent for child nodes
         }
     }
-
     output
 }

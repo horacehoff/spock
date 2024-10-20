@@ -7,7 +7,6 @@ so cool;
 }
 
 func main() {
-"hi"+"oops"+print("hi"+57+("does this work ?"/56));
-
-"hey";
+let thisvar = "hi"+"oops"+std.print("hi"+57+("does this work ?"/56));
+let test = print("yes");
 }
