@@ -1,9 +1,13 @@
-use bitcode::Encode;
 use pest::iterators::Pair;
-use serde::Serialize;
-use crate::Rule;
+use serde::{Deserialize, Serialize};
+use pest_derive::Parser;
+use pest::Parser;
 
-#[derive(Debug, Serialize)]
+#[derive(Parser)]
+#[grammar = "parser_grammar.pest"]
+struct ComputeParser;
+
+#[derive(Debug, Serialize, Clone, Deserialize)]
 pub enum Expr {
     Integer(i64),
     Float(f32),
@@ -12,10 +16,11 @@ pub enum Expr {
     Function(String, Box<Vec<Expr>>),
     Priority(Box<Vec<Expr>>),
     Operation(BasicOperator),
-    VariableDeclaration(String, Box<Vec<Expr>>)
+    VariableDeclaration(String, Box<Vec<Expr>>),
+    Condition(Box<Vec<Expr>>, Box<Vec<Vec<Expr>>>)
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone, Deserialize)]
 pub enum BasicOperator {
     AND,
     Sub,
@@ -30,19 +35,12 @@ pub enum BasicOperator {
     Divide
 }
 
-#[derive(Debug)]
-pub struct VariableDeclaration {
-    variable: String,
-    value: Expr,
-}
-
-pub fn build_ast(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
-    let rule = format!("{:?}", pair.as_rule());
-    let span = pair.as_span();
-    let text = span.as_str();
+pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
     let mut output: Vec<Expr> = vec![];
     let mut recursive = true;
-    println!("{:?}", pair.as_rule());
+
+    // println!("{:?}", pair.as_rule());
+
     match pair.as_rule() {
         Rule::integer => {
             output.push(Expr::Integer(pair.as_str().parse::<i64>().unwrap()))
@@ -57,7 +55,7 @@ pub fn build_ast(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
             recursive = false;
             let mut priority_calc: Vec<Expr> = vec![];
             for priority_pair in pair.clone().into_inner().into_iter().skip(1) {
-                priority_calc.append(&mut build_ast(priority_pair, 0));
+                priority_calc.append(&mut parse_expression(priority_pair));
             }
             output.push(Expr::Function(pair.clone().into_inner().next().unwrap().as_str().parse().unwrap(), Box::from(priority_calc)));
 
@@ -69,7 +67,7 @@ pub fn build_ast(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
             recursive = false;
             let mut priority_calc: Vec<Expr> = vec![];
             for priority_pair in pair.clone().into_inner() {
-                priority_calc.append(&mut build_ast(priority_pair, 0));
+                priority_calc.append(&mut parse_expression(priority_pair));
             }
             output.push(Expr::Priority(Box::from(priority_calc)))
         },
@@ -98,27 +96,62 @@ pub fn build_ast(pair: Pair<Rule>, indent: usize) -> Vec<Expr> {
             // println!("{:?}", pair.clone().into_inner().next().unwrap().as_str());
             let mut priority_calc: Vec<Expr> = vec![];
             for priority_pair in pair.clone().into_inner().into_iter().skip(1) {
-                priority_calc.append(&mut build_ast(priority_pair, 0));
+                priority_calc.append(&mut parse_expression(priority_pair));
             }
-            output.push(Expr::VariableDeclaration(pair.clone().into_inner().next().unwrap().as_str().parse().unwrap(), Box::from(priority_calc)));
+            output.push(Expr::VariableDeclaration(pair.clone().into_inner().next().unwrap().as_str().trim().parse().unwrap(), Box::from(priority_calc)));
         }
         _ => {}
     }
 
-    // Print the current node with indentation
+    if recursive {
+        // Recursively process the children
+        for inner_pair in pair.into_inner() {
+            output.append(&mut parse_expression(inner_pair));  // Increase indent for child nodes
+        }
+    }
+    output
+}
+
+fn _visualize_parse_tree(pair: Pair<Rule>, indent: usize) {
+    let rule = format!("{:?}", pair.as_rule());
+    let span = pair.as_span();
+    let text = span.as_str();
     println!(
         "{}{}: \"{}\"",
-        "  ".repeat(indent),  // Indentation based on depth
+        "  ".repeat(indent),
         rule,
         text
     );
 
+    // Recursively process the children
+    for inner_pair in pair.into_inner() {
+        _visualize_parse_tree(inner_pair, indent + 1);
+    }
+}
 
-    if recursive {
-        // Recursively process the children
-        for inner_pair in pair.into_inner() {
-            output.append(&mut build_ast(inner_pair, indent + 1));  // Increase indent for child nodes
+pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
+    let mut instructions: Vec<Vec<Expr>> = vec![];
+
+    for pair in ComputeParser::parse(Rule::code, content).unwrap() {
+        for inside in pair.into_inner() {
+            let mut line_instructions: Vec<Expr> = vec![];
+            match inside.as_rule() {
+                Rule::expression => {
+                    for pair in ComputeParser::parse(Rule::expression, inside.as_str().trim()).unwrap() {
+                        line_instructions.append(&mut parse_expression(pair))
+                    }
+                },
+                Rule::if_statement => {
+                    let mut condition: Vec<Expr> = vec![];
+                    for pair in ComputeParser::parse(Rule::expression, inside.clone().into_inner().next().unwrap().into_inner().as_str().trim()).unwrap() {
+                        condition.append(&mut parse_expression(pair))
+                    }
+                    line_instructions.push(Expr::Condition(Box::from(condition), Box::from(parse_code(inside.into_inner().into_iter().skip(1).next().unwrap().as_str()))));
+                }
+                _ => {}
+            }
+            instructions.push(line_instructions);
         }
     }
-    output
+    instructions
 }
