@@ -15,15 +15,13 @@ pub fn parse_functions(content: &str, filename: String) -> Vec<(&str, &str, Vec<
 
     for func_match in function_results.iter() {
         let function = func_match.as_ref().unwrap();
-        // println!("LINE {:?}", function.get(3).unwrap().as_str());
-
         let parsed = parse_code(function.get(3).unwrap().as_str().trim());
         functions.push((function.get(1).unwrap().as_str(), function.get(2).unwrap().as_str(), parsed));
     }
 
     // Cache functions
     let data = bincode::serialize(&functions).unwrap();
-    File::create(format!(".compute.{}", filename)).unwrap().write_all(&data).unwrap();
+    File::create(format!(".compute.{}", blake3::hash(content.as_bytes()).to_string())).unwrap().write_all(&data).unwrap();
 
     if functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, &str, Vec<Vec<Expr>>)>>().len() == 0 {
         error("No main function", "Add 'func main() {}' to your file");
