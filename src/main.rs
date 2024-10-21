@@ -3,8 +3,6 @@ mod functions;
 mod parser;
 
 use std::fs;
-use std::fs::File;
-use std::io::Read;
 use crate::parser::Expr;
 use crate::functions::parse_functions;
 
