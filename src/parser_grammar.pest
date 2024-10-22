@@ -2,6 +2,8 @@ integer = @{ "-" ? ~ ASCII_DIGIT+ }
 
 float = @{ "-" ? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* }
 
+bool = @{"true" | "false" }
+
 string = @{ "\"" ~ ( "\"\"" | (!"\"" ~ ANY) )* ~ "\"" }
 
 identifier = @{(ASCII_ALPHA | ".")+}
@@ -16,7 +18,7 @@ priority = {"(" ~ expression ~ ")"}
 
 func_call = {identifier ~ "(" ~ expression ~ ")"}
 
-term = _{ float | integer | string | func_call | priority | identifier }
+term = _{ float | integer | string | bool | func_call | priority | identifier }
 
 operation = { ops ~ expression }
 
@@ -33,8 +35,9 @@ expression_unit = _{
 
 expression = {expression_unit+}
 
+return_term = {"return" ~ expression}
 
-line = _{expression ~ ";"}
+line = _{(return_term | expression) ~ ";"}
 
 code = {statement+}
 

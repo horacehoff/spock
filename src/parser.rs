@@ -7,32 +7,42 @@ use pest::Parser;
 #[grammar = "parser_grammar.pest"]
 struct ComputeParser;
 
-#[derive(Debug, Serialize, Clone, Deserialize)]
+#[derive(Debug, Serialize, Clone, Deserialize, PartialEq)]
 pub enum Expr {
+    Null,
     Integer(i64),
     Float(f32),
     String(String),
+    Bool(bool),
     Variable(String),
     Function(String, Box<Vec<Expr>>),
+    FunctionReturn(Box<Vec<Expr>>),
     Priority(Box<Vec<Expr>>),
     Operation(BasicOperator),
     VariableDeclaration(String, Box<Vec<Expr>>),
-    Condition(Box<Vec<Expr>>, Box<Vec<Vec<Expr>>>)
+    Condition(Box<Vec<Expr>>, Box<Vec<Vec<Expr>>>),
 }
 
-#[derive(Debug, Serialize, Clone, Deserialize)]
+#[derive(Debug, Serialize, Clone, Deserialize, PartialEq)]
 pub enum BasicOperator {
-    AND,
-    Sub,
-    Modulo,
+    Null,
     Add,
+    Sub,
+    Divide,
     Multiply,
-    Inferior,
     EQUAL,
     Power,
+    AND,
+    Modulo,
+    Inferior,
     OR,
-    Superior,
-    Divide
+    Superior
+}
+
+#[derive(Debug)]
+pub struct Variable {
+    pub(crate) name: String,
+    pub(crate) value: Expr
 }
 
 pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
@@ -51,6 +61,15 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
         Rule::string => {
             output.push(Expr::String(pair.as_str().trim_end_matches("\"").trim_start_matches("\"").parse().unwrap()))
         },
+        Rule::bool => {
+            output.push(Expr::Bool({
+                if (pair.as_str() == "true") {
+                    true
+                } else {
+                    false
+                }
+            }))
+        }
         Rule::func_call => {
             recursive = false;
             let mut priority_calc: Vec<Expr> = vec![];
@@ -87,8 +106,17 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                 },
                 "==" => {
                     output.push(Expr::Operation(BasicOperator::EQUAL))
+                },
+                "^" => {
+                    output.push(Expr::Operation(BasicOperator::Power))
+                },
+                "&&" => {
+                    output.push(Expr::Operation(BasicOperator::AND))
+                },
+                "%" => {
+                    output.push(Expr::Operation(BasicOperator::Modulo))
                 }
-                _ => {}
+                _ => todo!()
             }
         },
         Rule::variableDeclaration => {
@@ -133,6 +161,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
     let mut instructions: Vec<Vec<Expr>> = vec![];
 
     for pair in ComputeParser::parse(Rule::code, content).unwrap() {
+        // _visualize_parse_tree(pair.clone(), 0);
         for inside in pair.into_inner() {
             let mut line_instructions: Vec<Expr> = vec![];
             match inside.as_rule() {
@@ -147,8 +176,14 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                         condition.append(&mut parse_expression(pair))
                     }
                     line_instructions.push(Expr::Condition(Box::from(condition), Box::from(parse_code(inside.into_inner().into_iter().skip(1).next().unwrap().as_str()))));
+                },
+                Rule::return_term => {
+                    // println!("is thtfe{:?}", parse_expression(inside));
+                    line_instructions.push(Expr::FunctionReturn(Box::from(parse_expression(inside))))
+                },
+                _ => {
+
                 }
-                _ => {}
             }
             instructions.push(line_instructions);
         }
