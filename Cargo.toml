@@ -12,6 +12,7 @@ pest_derive = "2.7.14"
 bincode = "1.3.3"
 serde = { version = "1.0.210", features = ["derive"] }
 blake3 = "1.5.4"
+log = "0.4.22"
 
 
 [profile.release]

@@ -1,5 +1,5 @@
 func main() {
-    let x = 3^2;
+    let x = false;
 }
 
 func test(x, y) {

@@ -39,7 +39,7 @@ pub enum BasicOperator {
     Superior
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Variable {
     pub(crate) name: String,
     pub(crate) value: Expr
