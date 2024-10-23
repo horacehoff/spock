@@ -19,7 +19,7 @@ fn process_stack(stack: Vec<Expr>) -> Expr {
                     current_operator = op;
                 },
                 Expr::Float(x) => {
-                    if matches!(output, Expr::Integer(_)) {
+                    if matches!(output, Expr::Integer(value)) {
                         match current_operator {
                             BasicOperator::Add => {
                                 if let Expr::Integer(value) = output {
@@ -31,6 +31,11 @@ fn process_stack(stack: Vec<Expr>) -> Expr {
                                     output = Expr::Float(value as f32 - x);
                                 }
                             },
+                            BasicOperator::Divide => {
+                                if let Expr::Integer(value) = output {
+                                    output = Expr::Float(value as f32 / x);
+                                }
+                            },
                             BasicOperator::Multiply => {
                                 if let Expr::Integer(value) = output {
                                     output = Expr::Float(value as f32 * x);
@@ -40,7 +45,7 @@ fn process_stack(stack: Vec<Expr>) -> Expr {
                                 if let Expr::Integer(value) = output {
                                     output = Expr::Float((value as f32).powf(x));
                                 }
-                            }
+                            },
                             _ => todo!("")
                         }
                     }
@@ -56,6 +61,11 @@ fn process_stack(stack: Vec<Expr>) -> Expr {
                             BasicOperator::Sub => {
                                 if let Expr::Integer(value) = output {
                                     output = Expr::Integer(value - x);
+                                }
+                            },
+                            BasicOperator::Divide => {
+                                if let Expr::Integer(value) = output {
+                                    output = Expr::Float(value as f32 / x as f32);
                                 }
                             },
                             BasicOperator::Multiply => {

@@ -115,6 +115,15 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                 },
                 "%" => {
                     output.push(Expr::Operation(BasicOperator::Modulo))
+                },
+                "<" => {
+                    output.push(Expr::Operation(BasicOperator::Inferior))
+                },
+                "||" => {
+                    output.push(Expr::Operation(BasicOperator::OR))
+                },
+                ">" => {
+                    output.push(Expr::Operation(BasicOperator::Superior))
                 }
                 _ => todo!()
             }
