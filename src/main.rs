@@ -77,6 +77,21 @@ fn process_stack(stack: Vec<Expr>) -> Expr {
                                 if let Expr::Integer(value) = output {
                                     output = Expr::Integer(value.pow(x as u32));
                                 }
+                            },
+                            BasicOperator::EQUAL => {
+                                if let Expr::Integer(value) = output {
+                                    output = Expr::Bool(value == x);
+                                }
+                            },
+                            BasicOperator::Inferior => {
+                                if let Expr::Integer(value) = output {
+                                    output = Expr::Bool(value < x);
+                                }
+                            },
+                            BasicOperator::Superior => {
+                                if let Expr::Integer(value) = output {
+                                    output = Expr::Bool(value > x);
+                                }
                             }
                             _ => todo!("")
                         }
