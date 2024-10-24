@@ -16,7 +16,9 @@ terms = _{ term+ }
 
 priority = {"(" ~ expression ~ ")"}
 
-func_arg = { expression ~ ("," ~ expression)* }
+// func_arg = { expression ~ ("," ~ expression)* }
+
+func_arg = { expression ~ ("," ~ expression)* | "" }
 
 func_call = {identifier ~ "(" ~ func_arg ~ ")"}
 

@@ -5,7 +5,7 @@ mod parser;
 use std::fs;
 use crate::parser::{BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
-use crate::util::error;
+use crate::util::{assert_args_number, error};
 
 fn process_stack(mut stack: Vec<Expr>, variables: Vec<Variable>) -> Expr {
     let mut output: Expr = Expr::Null;
@@ -145,8 +145,8 @@ fn process_function(lines: Vec<Vec<Expr>>, included_variables: Vec<Variable>, ex
                 Expr::FunctionCall(x, y) => {
                     println!("{:?}", y);
                     let args: Vec<Expr> = y.iter().map(|arg| process_stack(arg.clone(), variables.clone())).collect();
-                    println!("{:?}", args);
                     if x == "print" {
+                        assert_args_number("print", args.len(), 1);
                         match &args[0] {
                             Expr::Float(val) => {
                                 println!("{}", val)
@@ -163,7 +163,9 @@ fn process_function(lines: Vec<Vec<Expr>>, included_variables: Vec<Variable>, ex
                             _ => error(&format!("Cannot print {:?} type", &args[0]),"Change type"),
                         }
                     } else {
-                        // let function =
+                        let target_function: (&str, Vec<&str>, Vec<Vec<Expr>>) = functions.clone().into_iter().filter(|func| func.0 == x).next().expect(&format!("Unknown function '{}'", x));
+                        assert_args_number(&x, args.len(), target_function.1.len());
+                        println!("{:?}", target_function)
                     
                     }
                 }
@@ -183,7 +185,7 @@ fn main() {
     let content = fs::read_to_string(filename).unwrap();
     
     let functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = parse_functions(&content, filename.parse().unwrap());
-    // println!("{:?}", functions);
+    println!("{:?}", functions);
 
     let main_instructions = functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>>().first().unwrap().clone().2;
     process_function(main_instructions, vec![], vec![], "main", functions);

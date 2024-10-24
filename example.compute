@@ -2,5 +2,8 @@ func main() {
     let x=2;
     let y=3;
     test(x+2,y);
-    print(x+2);
+}
+
+func test(x, y) {
+print(x);
 }
