@@ -14,7 +14,7 @@ pub enum Expr {
     Float(f32),
     String(String),
     Bool(bool),
-    Variable(String),
+    VariableIdentifier(String),
     FunctionCall(String, Box<Vec<Vec<Expr>>>),
     FunctionReturn(Box<Vec<Expr>>),
     Priority(Box<Vec<Expr>>),
@@ -82,7 +82,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
 
         }
         Rule::identifier => {
-            output.push(Expr::Variable(pair.as_str().trim_end_matches("\"").trim_start_matches("\"").parse().unwrap()))
+            output.push(Expr::VariableIdentifier(pair.as_str().trim_end_matches("\"").trim_start_matches("\"").parse().unwrap()))
         }
         Rule::priority => {
             recursive = false;

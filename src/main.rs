@@ -12,7 +12,7 @@ fn process_stack(mut stack: Vec<Expr>, variables: Vec<Variable>) -> Expr {
     let mut current_operator: BasicOperator = BasicOperator::Null;
     // println!("{:?}", stack);
     for item in stack.clone() {
-        if let Expr::Variable(ref var) = item {
+        if let Expr::VariableIdentifier(ref var) = item {
             for x in &mut stack {
                 if *x == item {
                     let variable = variables.iter().filter(|variable| variable.name == *var).next().unwrap();
@@ -165,7 +165,9 @@ fn process_function(lines: Vec<Vec<Expr>>, included_variables: Vec<Variable>, ex
                     } else {
                         let target_function: (&str, Vec<&str>, Vec<Vec<Expr>>) = functions.clone().into_iter().filter(|func| func.0 == x).next().expect(&format!("Unknown function '{}'", x));
                         assert_args_number(&x, args.len(), target_function.1.len());
-                        println!("{:?}", target_function)
+                        let target_args: Vec<Variable> = target_function.1.iter().enumerate().map(|(i, arg)| Variable{ name: arg.parse().unwrap(), value: args[i].clone() }).collect();
+                        process_function(target_function.2, target_args, target_function.1, target_function.0 ,functions.clone());
+                        // println!("{:?}", target_args)
                     
                     }
                 }
