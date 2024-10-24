@@ -1,9 +1,12 @@
-func main() {
-    let a=2;
-    let b=3;
-    test(a+2,b);
+func othertest(x) {
+print(x+2);
 }
 
-func test(x, y) {
-print(x/2);
+func main() {
+    test(1);
+}
+
+func test(x) {
+print(x+1);
+othertest(x);
 }
