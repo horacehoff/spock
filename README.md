@@ -1,5 +1,5 @@
 # Compute
-> Does NOT work currently; very WIP;
+> Very WIP
 
 - Does NOT support nested functions
 - Terrible error handling
