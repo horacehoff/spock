@@ -1,8 +1,6 @@
 func main() {
-    let x = false;
-}
-
-func test(x, y) {
-print("okay")
-return 5+7+abs(5-8);
+    let x=2;
+    let y=3;
+    test(x+2,y);
+    print(x+2);
 }

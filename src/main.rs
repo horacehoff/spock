@@ -130,7 +130,7 @@ fn process_stack(mut stack: Vec<Expr>, variables: Vec<Variable>) -> Expr {
 
 }
 
-fn process_function(lines: Vec<Vec<Expr>>, included_variables: Vec<Variable>, expected_variables: Vec<&str>, name: &str) {
+fn process_function(lines: Vec<Vec<Expr>>, included_variables: Vec<Variable>, expected_variables: Vec<&str>, name: &str, functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>) {
     if (included_variables.len() != expected_variables.len()) {
         error(&format!("Function '{}' expected {} arguments, but received {}", name, expected_variables.len(), included_variables.len()),"Remove the excess arguments")
     }
@@ -140,13 +140,14 @@ fn process_function(lines: Vec<Vec<Expr>>, included_variables: Vec<Variable>, ex
             println!("{:?}", instruction);
             match instruction {
                 Expr::VariableDeclaration(x, y) => {
-                    // println!("{:?}", y);
                     variables.push(Variable{name: x, value: process_stack(*y, variables.clone())})
                 },
-                Expr::Function(x, y) => {
-                    let value = process_stack(*y, variables.clone());
+                Expr::FunctionCall(x, y) => {
+                    println!("{:?}", y);
+                    let args: Vec<Expr> = y.iter().map(|arg| process_stack(arg.clone(), variables.clone())).collect();
+                    println!("{:?}", args);
                     if x == "print" {
-                        match value {
+                        match &args[0] {
                             Expr::Float(val) => {
                                 println!("{}", val)
                             }
@@ -159,8 +160,11 @@ fn process_function(lines: Vec<Vec<Expr>>, included_variables: Vec<Variable>, ex
                             Expr::Bool(val) => {
                                 println!("{}", val)
                             },
-                            _ => todo!("[PRINT FUNCTION] Data type")
+                            _ => error(&format!("Cannot print {:?} type", &args[0]),"Change type"),
                         }
+                    } else {
+                        // let function =
+                    
                     }
                 }
                 _ => todo!()
@@ -181,8 +185,8 @@ fn main() {
     let functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = parse_functions(&content, filename.parse().unwrap());
     // println!("{:?}", functions);
 
-    let main_instructions = functions.into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>>().first().unwrap().clone().2;
-    process_function(main_instructions, vec![], vec![], "main");
+    let main_instructions = functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>>().first().unwrap().clone().2;
+    process_function(main_instructions, vec![], vec![], "main", functions);
 
     // println!("{:?}", process_stack(vec![Expr::Integer(32), Expr::Operation(BasicOperator::Add), Expr::Float(5.6)]))
 }

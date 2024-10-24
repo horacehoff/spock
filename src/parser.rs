@@ -15,7 +15,7 @@ pub enum Expr {
     String(String),
     Bool(bool),
     Variable(String),
-    Function(String, Box<Vec<Expr>>),
+    FunctionCall(String, Box<Vec<Vec<Expr>>>),
     FunctionReturn(Box<Vec<Expr>>),
     Priority(Box<Vec<Expr>>),
     Operation(BasicOperator),
@@ -72,11 +72,13 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
         }
         Rule::func_call => {
             recursive = false;
-            let mut priority_calc: Vec<Expr> = vec![];
+            let mut priority_calc: Vec<Vec<Expr>> = vec![];
             for priority_pair in pair.clone().into_inner().into_iter().skip(1) {
-                priority_calc.append(&mut parse_expression(priority_pair));
+                for arg_pair in priority_pair.into_inner() {
+                    priority_calc.push(parse_expression(arg_pair));
+                }
             }
-            output.push(Expr::Function(pair.clone().into_inner().next().unwrap().as_str().parse().unwrap(), Box::from(priority_calc)));
+            output.push(Expr::FunctionCall(pair.clone().into_inner().next().unwrap().as_str().parse().unwrap(), Box::from(priority_calc)));
 
         }
         Rule::identifier => {
@@ -168,7 +170,6 @@ fn _visualize_parse_tree(pair: Pair<Rule>, indent: usize) {
 
 pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
     let mut instructions: Vec<Vec<Expr>> = vec![];
-
     for pair in ComputeParser::parse(Rule::code, content).unwrap() {
         // _visualize_parse_tree(pair.clone(), 0);
         for inside in pair.into_inner() {
