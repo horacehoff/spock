@@ -1,12 +1,9 @@
-func othertest(x) {
-print(x+2);
-}
-
 func main() {
-    test(1);
+    let x = test(2);
+    print(x);
 }
 
 func test(x) {
-print(x+1);
-othertest(x);
+print("IT WORKS");
+return x+2;
 }

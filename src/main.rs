@@ -7,7 +7,7 @@ use crate::parser::{BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
 use crate::util::{assert_args_number, error};
 
-fn process_stack(mut stack: Vec<Expr>, variables: Vec<Variable>) -> Expr {
+fn process_stack(mut stack: Vec<Expr>, variables: Vec<Variable>, functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>) -> Expr {
     let mut output: Expr = Expr::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
     // println!("{:?}", stack);
@@ -19,6 +19,19 @@ fn process_stack(mut stack: Vec<Expr>, variables: Vec<Variable>) -> Expr {
                     *x = variable.value.clone();
                 }
             }
+        } else if let Expr::FunctionCall(ref x,  ref y) = item {
+            // replace function call by its result (return value)
+            let args: Vec<Expr> = y.iter().map(|arg| process_stack(arg.clone(), variables.clone(), functions.clone())).collect();
+            let target_function: (&str, Vec<&str>, Vec<Vec<Expr>>) = functions.clone().into_iter().filter(|func| func.0 == x).next().expect(&format!("Unknown function '{}'", x));
+            assert_args_number(&x, args.len(), target_function.1.len());
+            let target_args: Vec<Variable> = target_function.1.iter().enumerate().map(|(i, arg)| Variable{ name: arg.parse().unwrap(), value: args[i].clone() }).collect();
+            let result = process_function(target_function.2, target_args, target_function.1, target_function.0 ,functions.clone());
+            for x in &mut stack {
+                if *x == item {
+                    *x = result.clone();
+                }
+            }
+
         }
     }
     for element in stack {
@@ -130,21 +143,21 @@ fn process_stack(mut stack: Vec<Expr>, variables: Vec<Variable>) -> Expr {
 
 }
 
-fn process_function(lines: Vec<Vec<Expr>>, included_variables: Vec<Variable>, expected_variables: Vec<&str>, name: &str, functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>) {
+fn process_function(lines: Vec<Vec<Expr>>, included_variables: Vec<Variable>, expected_variables: Vec<&str>, name: &str, functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>) -> Expr {
     if (included_variables.len() != expected_variables.len()) {
         error(&format!("Function '{}' expected {} arguments, but received {}", name, expected_variables.len(), included_variables.len()),"Remove the excess arguments")
     }
     let mut variables: Vec<Variable> = included_variables;
     for instructions in lines {
         for instruction in instructions {
-            println!("{:?}", instruction);
+            // println!("{:?}", instruction);
             match instruction {
                 Expr::VariableDeclaration(x, y) => {
-                    variables.push(Variable{name: x, value: process_stack(*y, variables.clone())})
+                    variables.push(Variable{name: x, value: process_stack(*y, variables.clone(), functions.clone())})
                 },
                 Expr::FunctionCall(x, y) => {
-                    println!("{:?}", y);
-                    let args: Vec<Expr> = y.iter().map(|arg| process_stack(arg.clone(), variables.clone())).collect();
+                    // println!("{:?}", y);
+                    let args: Vec<Expr> = y.iter().map(|arg| process_stack(arg.clone(), variables.clone(), functions.clone())).collect();
                     if x == "print" {
                         assert_args_number("print", args.len(), 1);
                         match &args[0] {
@@ -170,6 +183,9 @@ fn process_function(lines: Vec<Vec<Expr>>, included_variables: Vec<Variable>, ex
                         // println!("{:?}", target_args)
                     
                     }
+                },
+                Expr::FunctionReturn(x) => {
+                    return process_stack(*x, variables.clone(), functions.clone())
                 }
                 _ => todo!()
             }
@@ -178,6 +194,7 @@ fn process_function(lines: Vec<Vec<Expr>>, included_variables: Vec<Variable>, ex
         }
         // println!("{:?}", instructions)
     }
+    return Expr::Null
     // println!("{:?}", variables)
 }
 
@@ -187,7 +204,7 @@ fn main() {
     let content = fs::read_to_string(filename).unwrap();
     
     let functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = parse_functions(&content, filename.parse().unwrap());
-    println!("{:?}", functions);
+    // println!("{:?}", functions);
 
     let main_instructions = functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>>().first().unwrap().clone().2;
     process_function(main_instructions, vec![], vec![], "main", functions);

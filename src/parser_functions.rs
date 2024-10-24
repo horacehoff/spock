@@ -22,7 +22,8 @@ pub fn parse_functions(content: &str, filename: String) -> Vec<(&str, Vec<&str>,
     for func_match in function_results.iter() {
         let function = func_match.as_ref().unwrap();
         let parsed = parse_code(function.get(3).unwrap().as_str().trim());
-        functions.push((function.get(1).unwrap().as_str(), function.get(2).unwrap().as_str().split(",").map(|arg| arg.trim()).collect::<Vec<&str>>(), parsed));
+        let args = function.get(2).unwrap().as_str().split(",").map(|arg| arg.trim()).collect::<Vec<&str>>();
+        functions.push((function.get(1).unwrap().as_str(), if (args == vec![""]) {vec![]} else {args}, parsed));
     }
 
     // Cache functions
