@@ -6,23 +6,27 @@ bool = @{"true" | "false" }
 
 string = @{ "\"" ~ ( "\"\"" | (!"\"" ~ ANY) )* ~ "\"" }
 
-identifier = @{(ASCII_ALPHA | ".")+}
+identifier = @{ASCII_ALPHA+}
+
+property = {"." ~ ASCII_ALPHA+}
+
+property_function = {"." ~ func_call}
 
 ops = {
-    "&&" | "-"  | "%" | "+"  | "*"  | "<"  | "==" | "^" | "||" | ">" | "/"
+    "&&" | "-"  | "%" | "+"  | "*" | "<=" | "<"  | "==" | "^" | "||"| ">=" | ">"  | "/"
 }
 
-terms = _{ term+ }
-
 priority = {"(" ~ expression ~ ")"}
-
-// func_arg = { expression ~ ("," ~ expression)* }
 
 func_arg = { expression ~ ("," ~ expression)* | "" }
 
 func_call = {identifier ~ "(" ~ func_arg ~ ")"}
 
-term = _{ float | integer | string | bool | func_call | priority | identifier }
+
+term = _{ float | integer | string | bool | property_function | property | func_call | priority | identifier }
+
+terms = _{ term+ }
+
 
 operation = { ops ~ expression }
 
@@ -49,10 +53,8 @@ statement = _{ if_statement | line }
 
 if_statement = { "if" ~ "(" ~ condition ~ ")" ~ block ~ else_block? }
 
-// Condition is anything inside parentheses. Semicolons are allowed inside.
 condition = { (!")" ~ expression)+ }
 
-// Block is a sequence of statements within curly braces.
 block = _{ "{" ~ (!"}" ~ code)* ~ "}" }
 
 else_block = { "else" ~ block }

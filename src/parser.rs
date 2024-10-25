@@ -14,6 +14,8 @@ pub enum Expr {
     Float(f32),
     String(String),
     Bool(bool),
+    Property(String),
+    PropertyFunction(Box<Expr>),
     VariableIdentifier(String),
     FunctionCall(String, Box<Vec<Vec<Expr>>>),
     FunctionReturn(Box<Vec<Expr>>),
@@ -35,8 +37,10 @@ pub enum BasicOperator {
     AND,
     Modulo,
     Inferior,
+    InferiorEqual,
     OR,
-    Superior
+    Superior,
+    SuperiorEqual,
 }
 
 #[derive(Debug, Clone)]
@@ -69,6 +73,21 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                     false
                 }
             }))
+        },
+        Rule::property => {
+            recursive = false;
+            output.push(Expr::Property(pair.as_str().trim_start_matches(".").parse().unwrap()))
+        },
+        Rule::property_function => {
+            // DOESN'T WORK
+            recursive = false;
+            let mut priority_calc: Vec<Vec<Expr>> = vec![];
+            for priority_pair in pair.clone().into_inner().into_iter().skip(1) {
+                for arg_pair in priority_pair.into_inner() {
+                    priority_calc.push(parse_expression(arg_pair));
+                }
+            }
+            output.push(Expr::PropertyFunction(Box::from(Expr::FunctionCall(pair.as_str().trim_start_matches(".").parse().unwrap(), Box::from(priority_calc)))))
         }
         Rule::func_call => {
             recursive = false;
@@ -121,12 +140,18 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                 "<" => {
                     output.push(Expr::Operation(BasicOperator::Inferior))
                 },
+                "<=" => {
+                    output.push(Expr::Operation(BasicOperator::InferiorEqual))
+                },
                 "||" => {
                     output.push(Expr::Operation(BasicOperator::OR))
                 },
                 ">" => {
                     output.push(Expr::Operation(BasicOperator::Superior))
-                }
+                },
+                ">=" => {
+                    output.push(Expr::Operation(BasicOperator::SuperiorEqual))
+                },
                 _ => todo!()
             }
         },

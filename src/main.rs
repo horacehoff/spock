@@ -126,9 +126,19 @@ fn process_stack(mut stack: Vec<Expr>, variables: Vec<Variable>, functions: Vec<
                                     output = Expr::Bool(value < x);
                                 }
                             },
+                            BasicOperator::InferiorEqual => {
+                                if let Expr::Integer(value) = output {
+                                    output = Expr::Bool(value <= x);
+                                }
+                            },
                             BasicOperator::Superior => {
                                 if let Expr::Integer(value) = output {
                                     output = Expr::Bool(value > x);
+                                }
+                            },
+                            BasicOperator::SuperiorEqual => {
+                                if let Expr::Integer(value) = output {
+                                    output = Expr::Bool(value >= x);
                                 }
                             }
                             _ => todo!("")
@@ -181,11 +191,16 @@ fn process_function(lines: Vec<Vec<Expr>>, included_variables: Vec<Variable>, ex
                         let target_args: Vec<Variable> = target_function.1.iter().enumerate().map(|(i, arg)| Variable{ name: arg.parse().unwrap(), value: args[i].clone() }).collect();
                         process_function(target_function.2, target_args, target_function.1, target_function.0 ,functions.clone());
                         // println!("{:?}", target_args)
-                    
                     }
                 },
                 Expr::FunctionReturn(x) => {
                     return process_stack(*x, variables.clone(), functions.clone())
+                },
+                Expr::Condition(x, y) => {
+                    let condition = process_stack(*x, variables.clone(), functions.clone());
+                    if (condition == Expr::Bool(true)) {
+                        process_function(*y, variables.clone(), variables.iter().map(|variable| variable.name.as_str()).collect(), name, functions.clone());
+                    }
                 }
                 _ => todo!()
             }
@@ -204,7 +219,7 @@ fn main() {
     let content = fs::read_to_string(filename).unwrap();
     
     let functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = parse_functions(&content, filename.parse().unwrap());
-    // println!("{:?}", functions);
+    println!("{:?}", functions);
 
     let main_instructions = functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>>().first().unwrap().clone().2;
     process_function(main_instructions, vec![], vec![], "main", functions);
