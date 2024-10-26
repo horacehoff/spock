@@ -187,7 +187,7 @@ fn process_stack(
                                     output = Expr::Bool(value >= x);
                                 }
                             }
-                            _ => todo!(""),
+                            _ => todo!("This operator doesn't exist"),
                         }
                     }
                 }
@@ -384,7 +384,7 @@ fn main() {
 
     let functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> =
         parse_functions(content.trim(), filename.parse().unwrap());
-    // println!("{:?}", functions);
+    println!("{:?}", functions);
 
     let main_instructions = functions
         .clone()

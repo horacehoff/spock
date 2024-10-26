@@ -1,4 +1,4 @@
-integer = @{ "-" ? ~ ASCII_DIGIT+ }
+integer = @{ ASCII_DIGIT+ }
 
 float = @{ "-" ? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* }
 
@@ -53,13 +53,15 @@ code = {statement+}
 
 statement = _{ if_statement | line }
 
-if_statement = { "if" ~ "(" ~ condition ~ ")" ~ block ~ else_block? }
+if_statement = { "if" ~ "(" ~ condition ~ ")" ~ block ~ (else_block | else_if_block)? }
 
 condition = { (!")" ~ expression)+ }
 
 block = _{ "{" ~ (!"}" ~ code)* ~ "}" }
 
 else_block = { "else" ~ block }
+
+else_if_block = {"else" ~ if_statement}
 
 
 WHITESPACE = _{ " " | "\t" | "\n" }
