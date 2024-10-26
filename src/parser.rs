@@ -23,6 +23,8 @@ pub enum Expr {
     Operation(BasicOperator),
     VariableDeclaration(String, Box<Vec<Expr>>),
     Condition(Box<Vec<Expr>>, Box<Vec<Vec<Expr>>>),
+    OR(Box<Vec<Expr>>),
+    AND(Box<Vec<Expr>>),
 }
 
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Copy)]
@@ -162,6 +164,22 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
             output.push(Expr::VariableDeclaration(pair.clone().into_inner().next().unwrap().as_str().trim().parse().unwrap(), Box::from(priority_calc)));
+        },
+        Rule::and_operation => {
+            recursive = false;
+            let mut priority_calc: Vec<Expr> = vec![];
+            for priority_pair in pair.clone().into_inner().into_iter() {
+                priority_calc.append(&mut parse_expression(priority_pair));
+            }
+            output.push(Expr::AND(Box::from(priority_calc)));
+        }
+        Rule::or_operation => {
+            recursive = false;
+            let mut priority_calc: Vec<Expr> = vec![];
+            for priority_pair in pair.clone().into_inner().into_iter() {
+                priority_calc.append(&mut parse_expression(priority_pair));
+            }
+            output.push(Expr::OR(Box::from(priority_calc)));
         }
         _ => {}
     }
@@ -206,6 +224,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                 },
                 Rule::if_statement => {
                     let mut condition: Vec<Expr> = vec![];
+                    println!("{:?}", inside.clone());
                     for pair in ComputeParser::parse(Rule::expression, inside.clone().into_inner().next().unwrap().into_inner().as_str().trim()).unwrap() {
                         condition.append(&mut parse_expression(pair))
                     }

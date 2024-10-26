@@ -1,8 +1,7 @@
 func main() {
-   let x = 1;
-   print(test());
-}
-
-func test() {
-return "COOL";
+   if (2 > 1) {
+   print("COOL");
+   } else {
+   print("NOT COOL");
+   }
 }

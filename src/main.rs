@@ -4,7 +4,7 @@ mod util;
 
 use crate::parser::{BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
-use crate::util::{assert_args_number, check_and_or, error};
+use crate::util::{assert_args_number, error};
 use inflector::Inflector;
 use std::fs;
 use std::ops::Index;
@@ -16,7 +16,6 @@ fn process_stack(
 ) -> Expr {
     let mut output: Expr = Expr::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
-    let mut and_or_operator: BasicOperator = BasicOperator::Null;
     // println!("{:?}", stack);
     for x in &mut stack {
         if let Expr::VariableIdentifier(ref var) = x {
@@ -56,33 +55,39 @@ fn process_stack(
                 functions.clone(),
             );
             *x = result;
+        } else if let Expr::Priority(calc) = x {
+            *x = process_stack(*calc.clone(), variables.clone(), functions.clone());
         }
     }
-
-    // stack = stack.into_iter().map(|stackitem|
-    //     if let Expr::Priority(x) = stackitem {
-    //         return
-    //     } else {
-    //         return stackitem;
-    //     }
-    // ).collect();
 
     for element in stack {
         if output == Expr::Null {
             output = element
         } else {
             match element {
-                Expr::Operation(BasicOperator::AND) => {
-                    and_or_operator = BasicOperator::AND;
-                    println!("AND")
-                }
-                Expr::Operation(BasicOperator::OR) => {
-                    and_or_operator = BasicOperator::OR;
-                    println!("OR");
-                }
                 Expr::Operation(op) => {
                     current_operator = op;
                 }
+                Expr::OR(x) => {
+                    let parsed_exp = process_stack(*x, variables.clone(), functions.clone());
+                    if let Expr::Bool(inbool) = output {
+                        if let Expr::Bool(sidebool) = parsed_exp {
+                            output = Expr::Bool(inbool || sidebool)
+                        }
+                    } else {
+                        error("NOT A BOOL","");
+                    }
+                },
+                Expr::AND(x) => {
+                    let parsed_exp = process_stack(*x, variables.clone(), functions.clone());
+                    if let Expr::Bool(inbool) = output {
+                        if let Expr::Bool(sidebool) = parsed_exp {
+                            output = Expr::Bool(inbool && sidebool)
+                        }
+                    } else {
+                        error("NOT A BOOL","");
+                    }
+                },
                 Expr::String(x) => {
                     if matches!(output, Expr::String(ref value)) {
                         match current_operator {
@@ -159,12 +164,7 @@ fn process_stack(
                             }
                             BasicOperator::EQUAL => {
                                 if let Expr::Integer(value) = output {
-                                    output = check_and_or(
-                                        and_or_operator,
-                                        output,
-                                        Expr::Bool(value == x),
-                                    );
-                                    and_or_operator = BasicOperator::Null;
+                                    output = Expr::Bool(value == x)
                                 }
                             }
                             BasicOperator::Inferior => {
@@ -174,12 +174,7 @@ fn process_stack(
                             }
                             BasicOperator::InferiorEqual => {
                                 if let Expr::Integer(value) = output {
-                                    output = check_and_or(
-                                        and_or_operator,
-                                        output,
-                                        Expr::Bool(value <= x),
-                                    );
-                                    and_or_operator = BasicOperator::Null;
+                                    output = Expr::Bool(value <= x)
                                 }
                             }
                             BasicOperator::Superior => {
