@@ -144,6 +144,16 @@ fn process_stack(mut stack: Vec<Expr>, variables: Vec<Variable>, functions: Vec<
                             _ => todo!("")
                         }
                     }
+                },
+                Expr::Property(x) => {
+                    if matches!(output, Expr::String(_)) {
+                        match x.as_str() {
+                            "" => {
+                                
+                            },
+                            _ => {}
+                        }
+                    }
                 }
                 _ => todo!()
             }
@@ -222,7 +232,7 @@ fn main() {
     println!("{:?}", functions);
 
     let main_instructions = functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>>().first().unwrap().clone().2;
-    process_function(main_instructions, vec![], vec![], "main", functions);
+    // process_function(main_instructions, vec![], vec![], "main", functions);
 
     // println!("{:?}", process_stack(vec![Expr::Integer(32), Expr::Operation(BasicOperator::Add), Expr::Float(5.6)]))
 }
