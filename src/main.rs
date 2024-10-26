@@ -3,9 +3,11 @@ mod parser_functions;
 mod parser;
 
 use std::fs;
+use inflector::Inflector;
 use crate::parser::{BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
 use crate::util::{assert_args_number, error};
+
 
 fn process_stack(mut stack: Vec<Expr>, variables: Vec<Variable>, functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>) -> Expr {
     let mut output: Expr = Expr::Null;
@@ -169,6 +171,17 @@ fn process_stack(mut stack: Vec<Expr>, variables: Vec<Variable>, functions: Vec<
                                 "lowercase" => {
                                     assert_args_number("lowercase",args.len(), 0);
                                     output = Expr::String(str.to_lowercase());
+                                },
+                                "capitalize" => {
+                                    assert_args_number("capitalize",args.len(), 0);
+                                    output = Expr::String(str.to_title_case());
+                                },
+                                "replace" => {
+                                    assert_args_number("replace",args.len(), 2);
+                                    // if let Expr::String(toreplace) == args[0] {
+                                    //     
+                                    // }
+                                    // output = Expr::String(str.replace(args[0], args[1]))
                                 }
                                 _ => {}
                             }
