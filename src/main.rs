@@ -164,6 +164,7 @@ fn process_stack(mut stack: Vec<Expr>, variables: Vec<Variable>, functions: Vec<
                         // STR
                         if let Expr::String(str) = output.clone() {
                             match x.as_str(){
+                                // TRANSFORM
                                 "uppercase" => {
                                     assert_args_number("uppercase",args.len(), 0);
                                     output = Expr::String(str.to_uppercase());
@@ -178,10 +179,15 @@ fn process_stack(mut stack: Vec<Expr>, variables: Vec<Variable>, functions: Vec<
                                 },
                                 "replace" => {
                                     assert_args_number("replace",args.len(), 2);
-                                    // if let Expr::String(toreplace) == args[0] {
-                                    //     
-                                    // }
-                                    // output = Expr::String(str.replace(args[0], args[1]))
+                                    if let Expr::String(toreplace) = &args[0] {
+                                        if let Expr::String(replaced) = &args[1] {
+                                            output = Expr::String(str.replace(toreplace, replaced))
+                                        } else {
+                                            error(format!("{:?} is not a String", &args[1]).as_str(), format!("Convert {:?} to a String", &args[1]).as_str());
+                                        }
+                                    } else {
+                                        error(format!("{:?} is not a String", &args[0]).as_str(), format!("Convert {:?} to a String", &args[0]).as_str());
+                                    }
                                 }
                                 _ => {}
                             }
@@ -256,7 +262,7 @@ fn process_function(lines: Vec<Vec<Expr>>, included_variables: Vec<Variable>, ex
         }
         // println!("{:?}", instructions)
     }
-    return Expr::Null
+    Expr::Null
     // println!("{:?}", variables)
 }
 
@@ -266,7 +272,7 @@ fn main() {
     let content = fs::read_to_string(filename).unwrap();
     
     let functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = parse_functions(&content, filename.parse().unwrap());
-    println!("{:?}", functions);
+    // println!("{:?}", functions);
 
     let main_instructions = functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>>().first().unwrap().clone().2;
     process_function(main_instructions, vec![], vec![], "main", functions);

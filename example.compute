@@ -1,5 +1,5 @@
 func main() {
-    print(test().uppercase());
+    print(test().replace("te","WOW").uppercase());
 }
 
 func test() {
