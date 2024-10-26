@@ -25,7 +25,7 @@ pub enum Expr {
     Condition(Box<Vec<Expr>>, Box<Vec<Vec<Expr>>>),
 }
 
-#[derive(Debug, Serialize, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Copy)]
 pub enum BasicOperator {
     Null,
     Add,
