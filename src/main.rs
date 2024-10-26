@@ -335,7 +335,7 @@ fn process_function(
                 Expr::FunctionReturn(x) => {
                     return process_stack(*x, variables.clone(), functions.clone());
                 }
-                Expr::Condition(x, y, z) => {
+                Expr::Condition(x, y, z, w) => {
                     let condition = process_stack(*x, variables.clone(), functions.clone());
                     if (condition == Expr::Bool(true)) {
                         let out = process_function(
@@ -350,6 +350,23 @@ fn process_function(
                         );
                         if Expr::Null != out {
                             return out;
+                        }
+                    } else if *w != vec![] {
+                        let condition = process_stack(*w, variables.clone(), functions.clone());
+                        if (condition == Expr::Bool(true)) {
+                            let out = process_function(
+                                *z,
+                                variables.clone(),
+                                variables
+                                    .iter()
+                                    .map(|variable| variable.name.as_str())
+                                    .collect(),
+                                name,
+                                functions.clone(),
+                            );
+                            if Expr::Null != out {
+                                return out;
+                            }
                         }
                     } else {
                         let out = process_function(
@@ -384,7 +401,7 @@ fn main() {
 
     let functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> =
         parse_functions(content.trim(), filename.parse().unwrap());
-    println!("{:?}", functions);
+    // println!("{:?}", functions);
 
     let main_instructions = functions
         .clone()
