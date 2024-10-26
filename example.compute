@@ -1,3 +1,7 @@
 func main() {
-    print("IT WORKS".cool(5, 3));
+    print(test().uppercase());
+}
+
+func test() {
+return "TEST";
 }
