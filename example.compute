@@ -1,7 +1,12 @@
 func main() {
-   if (1 > 2) {
-   print("POSITIVE");
-   } else {
-    print("NEGATIVE");
+   print(fibonacci(1));
+}
+
+func fibonacci(n) {
+    if (n == 0) {
+        return 0;
+    } else {
+        return 1;
     }
 }
+

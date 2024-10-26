@@ -333,12 +333,12 @@ fn process_function(
                     }
                 }
                 Expr::FunctionReturn(x) => {
-                    return process_stack(*x, variables.clone(), functions.clone())
+                    return process_stack(*x, variables.clone(), functions.clone());
                 }
                 Expr::Condition(x, y, z) => {
                     let condition = process_stack(*x, variables.clone(), functions.clone());
                     if (condition == Expr::Bool(true)) {
-                        process_function(
+                        let out = process_function(
                             *y,
                             variables.clone(),
                             variables
@@ -348,8 +348,11 @@ fn process_function(
                             name,
                             functions.clone(),
                         );
+                        if Expr::Null != out {
+                            return out;
+                        }
                     } else {
-                        process_function(
+                        let out = process_function(
                             *z,
                             variables.clone(),
                             variables
@@ -359,6 +362,9 @@ fn process_function(
                             name,
                             functions.clone(),
                         );
+                        if Expr::Null != out {
+                            return out;
+                        }
                     }
                 }
                 _ => todo!(),
@@ -377,8 +383,8 @@ fn main() {
     let content = fs::read_to_string(filename).unwrap();
 
     let functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> =
-        parse_functions(&content, filename.parse().unwrap());
-    println!("{:?}", functions);
+        parse_functions(content.trim(), filename.parse().unwrap());
+    // println!("{:?}", functions);
 
     let main_instructions = functions
         .clone()
