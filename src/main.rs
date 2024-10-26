@@ -335,11 +335,22 @@ fn process_function(
                 Expr::FunctionReturn(x) => {
                     return process_stack(*x, variables.clone(), functions.clone())
                 }
-                Expr::Condition(x, y) => {
+                Expr::Condition(x, y, z) => {
                     let condition = process_stack(*x, variables.clone(), functions.clone());
                     if (condition == Expr::Bool(true)) {
                         process_function(
                             *y,
+                            variables.clone(),
+                            variables
+                                .iter()
+                                .map(|variable| variable.name.as_str())
+                                .collect(),
+                            name,
+                            functions.clone(),
+                        );
+                    } else {
+                        process_function(
+                            *z,
                             variables.clone(),
                             variables
                                 .iter()

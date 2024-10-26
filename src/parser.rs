@@ -22,7 +22,7 @@ pub enum Expr {
     Priority(Box<Vec<Expr>>),
     Operation(BasicOperator),
     VariableDeclaration(String, Box<Vec<Expr>>),
-    Condition(Box<Vec<Expr>>, Box<Vec<Vec<Expr>>>),
+    Condition(Box<Vec<Expr>>, Box<Vec<Vec<Expr>>>, Box<Vec<Vec<Expr>>>),
     OR(Box<Vec<Expr>>),
     AND(Box<Vec<Expr>>),
 }
@@ -224,14 +224,18 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                 },
                 Rule::if_statement => {
                     let mut condition: Vec<Expr> = vec![];
-                    println!("{:?}", inside.clone());
+                    let mut else_code: Vec<Vec<Expr>> = vec![];
+                    // else_code = parse_code(inside.clone().into_inner().into_iter().skip(2).next().unwrap().into_inner().as_str());
+                    // println!("{:?}", inside.clone().into_inner().into_iter().skip(2).next().unwrap().into_inner());
+                    if let Some(inner_value) = inside.clone().into_inner().into_iter().skip(2).next() {
+                        else_code = parse_code(inner_value.into_inner().as_str());
+                    }
                     for pair in ComputeParser::parse(Rule::expression, inside.clone().into_inner().next().unwrap().into_inner().as_str().trim()).unwrap() {
                         condition.append(&mut parse_expression(pair))
                     }
-                    line_instructions.push(Expr::Condition(Box::from(condition), Box::from(parse_code(inside.into_inner().into_iter().skip(1).next().unwrap().as_str()))));
+                    line_instructions.push(Expr::Condition(Box::from(condition), Box::from(parse_code(inside.into_inner().into_iter().skip(1).next().unwrap().as_str())), Box::from(else_code)));
                 },
                 Rule::return_term => {
-                    // println!("is thtfe{:?}", parse_expression(inside));
                     line_instructions.push(Expr::FunctionReturn(Box::from(parse_expression(inside))))
                 },
                 _ => {

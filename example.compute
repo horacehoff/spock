@@ -1,7 +1,7 @@
 func main() {
-   if (2 > 1) {
-   print("COOL");
+   if (1 > 2) {
+   print("POSITIVE");
    } else {
-   print("NOT COOL");
-   }
+    print("NEGATIVE");
+    }
 }
