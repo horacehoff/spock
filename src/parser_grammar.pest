@@ -30,8 +30,6 @@ terms = _{ term+ }
 
 operation = { ops ~ expression }
 
-and_or_terms = _{expression+}
-
 and_operation = {"&&" ~ expression}
 
 or_operation = {"||" ~ expression}
@@ -39,7 +37,6 @@ or_operation = {"||" ~ expression}
 
 variableIdentifier = { ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
 variableDeclaration = {"let" ~ variableIdentifier ~ "=" ~ expression}
-
 
 
 expression_unit = _{
