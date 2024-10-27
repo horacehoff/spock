@@ -464,7 +464,7 @@ fn main() {
     let content = fs::read_to_string(filename).unwrap();
 
     let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = parse_functions(content.trim());
-    println!("{:?}", functions);
+    // println!("{:?}", functions);
 
     let main_instructions = functions
         .clone()

@@ -24,6 +24,7 @@ debug = false
 rpath = false
 incremental = false
 strip = true
+debug-assertions = false
 
 [profile.release.package."*"]
 opt-level = 3
