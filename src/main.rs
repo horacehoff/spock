@@ -245,7 +245,7 @@ fn process_stack(
                                     }
                                 },
                                 "toInt" => {
-                                    assert_args_number("toInt", args.len(), 2);
+                                    assert_args_number("toInt", args.len(), 0);
                                     if str.parse::<i64>().is_ok() {
                                         output = Expr::Integer(str.parse::<i64>().unwrap())
                                     } else {
@@ -253,7 +253,7 @@ fn process_stack(
                                     }
                                 },
                                 "toFloat" => {
-                                    assert_args_number("toFloat", args.len(), 2);
+                                    assert_args_number("toFloat", args.len(), 0);
                                     if str.parse::<f64>().is_ok() {
                                         output = Expr::Float(str.parse::<f64>().unwrap())
                                     } else {
