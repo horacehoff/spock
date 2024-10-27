@@ -5,4 +5,4 @@
 - ~5-6x faster than Python
 - Does NOT support nested functions
 - Terrible error handling
-- Forgetting a comma at the end of a line will crash the whole program
+- Forgetting a semicolon at the end of a line will crash the whole program
