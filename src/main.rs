@@ -7,7 +7,6 @@ use crate::parser_functions::parse_functions;
 use crate::util::{assert_args_number, error};
 use inflector::Inflector;
 use std::fs;
-use std::ops::Index;
 
 fn process_stack(
     mut stack: Vec<Expr>,

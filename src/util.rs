@@ -1,5 +1,3 @@
-use crate::parser::{BasicOperator, Expr};
-
 pub fn error(message: &str, tip: &str) {
     if tip == "" {
         eprintln!("--------------\n{}\n{}\n--------------","\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m", message);
