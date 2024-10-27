@@ -125,34 +125,30 @@ fn process_stack(
                     if let Expr::Integer(value) = output {
                         match current_operator {
                             BasicOperator::Add => {
-                                    output = Expr::Integer(value + x);
+                                output = Expr::Integer(value + x);
                             }
                             BasicOperator::Sub => {
-                                    output = Expr::Integer(value - x);
+                                output = Expr::Integer(value - x);
                             }
                             BasicOperator::Divide => {
-                                    output = Expr::Float(value as f64 / x as f64);
+                                output = Expr::Float(value as f64 / x as f64);
                             }
                             BasicOperator::Multiply => {
-                                    output = Expr::Integer(value * x);
+                                output = Expr::Integer(value * x);
                             }
                             BasicOperator::Power => {
-                                    output = Expr::Integer(value.pow(x as u32));
+                                output = Expr::Integer(value.pow(x as u32));
                             }
-                            BasicOperator::EQUAL => {
-                                    output = Expr::Bool(value == x)
-                            }
+                            BasicOperator::EQUAL => output = Expr::Bool(value == x),
                             BasicOperator::Inferior => {
-                                    output = Expr::Bool(value < x);
+                                output = Expr::Bool(value < x);
                             }
-                            BasicOperator::InferiorEqual => {
-                                    output = Expr::Bool(value <= x)
-                            }
+                            BasicOperator::InferiorEqual => output = Expr::Bool(value <= x),
                             BasicOperator::Superior => {
-                                    output = Expr::Bool(value > x);
+                                output = Expr::Bool(value > x);
                             }
                             BasicOperator::SuperiorEqual => {
-                                    output = Expr::Bool(value >= x);
+                                output = Expr::Bool(value >= x);
                             }
                             _ => todo!("This operator doesn't exist"),
                         }
