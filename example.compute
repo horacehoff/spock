@@ -1,8 +1,7 @@
-func main() {
-let x = "shouldnotexist";
-x = 20;
+func test(x) {
+print(x);
 }
 
-func test() {
-print(x);
+func main() {
+test(10);
 }

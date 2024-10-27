@@ -13,6 +13,9 @@ pub fn error(message: &str, tip: &str) {
     ($x:expr) => {
         format!("--------------\n{}\n{}\n--------------","\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m", $x).as_str()
     };
+    ($x:expr, $y:expr) => {
+        format!("--------------\n{}\n{}\n{}\n{}\n--------------","\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m", $x, "\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m", $y).as_str()
+    };
 }
 pub fn assert_args_number(func_name: &str, received_args_len: usize, expected_args_len: usize) {
    if received_args_len != expected_args_len {

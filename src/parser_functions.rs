@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use fancy_regex::Regex;
+use crate::error_msg;
 use crate::parser::parse_code;
 use crate::parser::Expr;
 use crate::util::error;
@@ -18,7 +19,7 @@ pub fn parse_functions(content: &str) -> Vec<(String, Vec<String>, Vec<Vec<Expr>
         reader.read_to_end(&mut buffer).unwrap();
 
         let deserialized_data: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = bincode::deserialize(&buffer)
-            .expect("Failed to deserialize the file!");
+            .expect(error_msg!("Failed to read from cache", "Delete the .compute folder"));
         return deserialized_data;
     }
 
@@ -35,11 +36,9 @@ pub fn parse_functions(content: &str) -> Vec<(String, Vec<String>, Vec<Vec<Expr>
     }
 
     // Cache functions
-    // if should_cache {
     let data = bincode::serialize(&functions).unwrap();
     fs::create_dir_all(".compute/").unwrap();
     File::create(format!(".compute/{}", hash)).unwrap().write_all(&data).unwrap();
-    // }
 
     if functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>>().len() == 0 {
         error("No main function", "Add 'func main() {}' to your file");
