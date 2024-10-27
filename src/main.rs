@@ -7,6 +7,7 @@ use crate::parser_functions::parse_functions;
 use crate::util::{assert_args_number, error};
 use inflector::Inflector;
 use std::fs;
+use std::ops::Index;
 
 fn process_stack(
     mut stack: Vec<Expr>,
@@ -112,7 +113,41 @@ fn process_stack(
                     }
                 }
                 Expr::Float(x) => {
-                    if let Expr::Integer(value) = output {
+                    if let Expr::Float(value) = output {
+                        match current_operator {
+                            BasicOperator::Add => {
+                                output = Expr::Float(value + x);
+                            }
+                            BasicOperator::Sub => {
+                                output = Expr::Float(value - x);
+                            }
+                            BasicOperator::Divide => {
+                                output = Expr::Float(value / x);
+                            }
+                            BasicOperator::Multiply => {
+                                output = Expr::Float(value * x);
+                            }
+                            BasicOperator::Power => {
+                                output = Expr::Float(value.powf(x));
+                            }
+                            BasicOperator::Modulo => {
+                                output = Expr::Float(value % x);
+                            }
+                            BasicOperator::EQUAL => output = Expr::Bool(value == x),
+                            BasicOperator::Inferior => {
+                                output = Expr::Bool(value < x);
+                            }
+                            BasicOperator::InferiorEqual => output = Expr::Bool(value <= x),
+                            BasicOperator::Superior => {
+                                output = Expr::Bool(value > x);
+                            }
+                            BasicOperator::SuperiorEqual => {
+                                output = Expr::Bool(value >= x);
+                            }
+                            _ => todo!("[ERROR] FLOAT => FLOAT"),
+                        }
+                    }
+                    else if let Expr::Integer(value) = output {
                         match current_operator {
                             BasicOperator::Add => {
                                 output = Expr::Float(value as f64 + x);
@@ -166,6 +201,25 @@ fn process_stack(
                                 output = Expr::Bool(value >= x);
                             }
                             _ => todo!("[ERROR] INT => INT"),
+                        }
+                    } else if let Expr::Float(value) = output {
+                        match current_operator {
+                            BasicOperator::Add => {
+                                output = Expr::Float(value + x as f64);
+                            }
+                            BasicOperator::Sub => {
+                                output = Expr::Float(value - x as f64);
+                            }
+                            BasicOperator::Divide => {
+                                output = Expr::Float(value / x as f64);
+                            }
+                            BasicOperator::Multiply => {
+                                output = Expr::Float(value * x as f64);
+                            }
+                            BasicOperator::Power => {
+                                output = Expr::Float(value.powf(x as f64));
+                            }
+                            _ => todo!("[ERROR] FLOAT => INT"),
                         }
                     }
                 }
@@ -264,6 +318,42 @@ fn process_stack(
                                             "",
                                         );
                                     }
+                                },
+                                "index" => {
+                                    assert_args_number("index", args.len(), 1);
+                                    if let Expr::String(toindex) = &args[0] {
+                                        let indx = str.find(toindex).unwrap();
+                                        output = Expr::Integer(indx as i64);
+                                    } else {
+                                        error(
+                                            format!("{:?} is not a String", &args[0]).as_str(),
+                                            format!("Convert {:?} to a String", &args[0]).as_str(),
+                                        );
+                                    }
+                                }
+                                _ => {}
+                            }
+                        } else if let Expr::Float(num) = output {
+                            match x.as_str() {
+                                "toInt" => {
+                                    assert_args_number("toInt", args.len(), 0);
+                                    output = Expr::Integer(num as i64)
+                                }
+                                "toStr" => {
+                                    assert_args_number("toStr", args.len(), 0);
+                                    output = Expr::String(num.to_string())
+                                }
+                                _ => {}
+                            }
+                        } else if let Expr::Integer(num) = output {
+                            match x.as_str() {
+                                "toFloat" => {
+                                    assert_args_number("toFloat", args.len(), 0);
+                                    output = Expr::Float(num as f64)
+                                }
+                                "toStr" => {
+                                    assert_args_number("toStr", args.len(), 0);
+                                    output = Expr::String(num.to_string())
                                 }
                                 _ => {}
                             }
