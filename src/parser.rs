@@ -11,7 +11,7 @@ struct ComputeParser;
 pub enum Expr {
     Null,
     Integer(i64),
-    Float(f32),
+    Float(f64),
     String(String),
     Bool(bool),
     Property(String),
@@ -69,7 +69,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
             output.push(Expr::Integer(pair.as_str().parse::<i64>().unwrap()))
         },
         Rule::float => {
-            output.push(Expr::Float(pair.as_str().parse::<f32>().unwrap()))
+            output.push(Expr::Float(pair.as_str().parse::<f64>().unwrap()))
         },
         Rule::string => {
             output.push(Expr::String(pair.as_str().trim_end_matches("\"").trim_start_matches("\"").parse().unwrap()))

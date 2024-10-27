@@ -108,27 +108,27 @@ fn process_stack(
                         match current_operator {
                             BasicOperator::Add => {
                                 if let Expr::Integer(value) = output {
-                                    output = Expr::Float(value as f32 + x);
+                                    output = Expr::Float(value as f64 + x);
                                 }
                             }
                             BasicOperator::Sub => {
                                 if let Expr::Integer(value) = output {
-                                    output = Expr::Float(value as f32 - x);
+                                    output = Expr::Float(value as f64 - x);
                                 }
                             }
                             BasicOperator::Divide => {
                                 if let Expr::Integer(value) = output {
-                                    output = Expr::Float(value as f32 / x);
+                                    output = Expr::Float(value as f64 / x);
                                 }
                             }
                             BasicOperator::Multiply => {
                                 if let Expr::Integer(value) = output {
-                                    output = Expr::Float(value as f32 * x);
+                                    output = Expr::Float(value as f64 * x);
                                 }
                             }
                             BasicOperator::Power => {
                                 if let Expr::Integer(value) = output {
-                                    output = Expr::Float((value as f32).powf(x));
+                                    output = Expr::Float((value as f64).powf(x));
                                 }
                             }
                             _ => todo!(),
@@ -150,7 +150,7 @@ fn process_stack(
                             }
                             BasicOperator::Divide => {
                                 if let Expr::Integer(value) = output {
-                                    output = Expr::Float(value as f32 / x as f32);
+                                    output = Expr::Float(value as f64 / x as f64);
                                 }
                             }
                             BasicOperator::Multiply => {
@@ -243,7 +243,23 @@ fn process_stack(
                                             format!("Convert {:?} to a String", &args[0]).as_str(),
                                         );
                                     }
-                                }
+                                },
+                                "toInt" => {
+                                    assert_args_number("toInt", args.len(), 2);
+                                    if str.parse::<i64>().is_ok() {
+                                        output = Expr::Integer(str.parse::<i64>().unwrap())
+                                    } else {
+                                        error(&format!("String '{}' cannot be converted to an Integer", str), "");
+                                    }
+                                },
+                                "toFloat" => {
+                                    assert_args_number("toFloat", args.len(), 2);
+                                    if str.parse::<f64>().is_ok() {
+                                        output = Expr::Float(str.parse::<f64>().unwrap())
+                                    } else {
+                                        error(&format!("String '{}' cannot be converted to an Integer", str), "");
+                                    }
+                                },
                                 _ => {}
                             }
                         }
