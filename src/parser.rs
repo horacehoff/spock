@@ -52,7 +52,7 @@ pub enum BasicOperator {
     SuperiorEqual,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Variable {
     pub(crate) name: String,
     pub(crate) value: Expr

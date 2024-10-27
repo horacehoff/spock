@@ -7,13 +7,15 @@ use crate::parser_functions::parse_functions;
 use crate::util::{assert_args_number, error};
 use inflector::Inflector;
 use std::fs;
+use std::fs::File;
+use std::io::{BufReader, Read};
 use std::ops::Index;
-
+use std::path::Path;
 
 fn process_stack(
     mut stack: Vec<Expr>,
     variables: Vec<Variable>,
-    functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>,
+    functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
 ) -> Expr {
     let mut output: Expr = Expr::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
@@ -32,10 +34,10 @@ fn process_stack(
                 .iter()
                 .map(|arg| process_stack(arg.clone(), variables.clone(), functions.clone()))
                 .collect();
-            let target_function: (&str, Vec<&str>, Vec<Vec<Expr>>) = functions
+            let target_function: (String, Vec<String>, Vec<Vec<Expr>>) = functions
                 .clone()
                 .into_iter()
-                .filter(|func| func.0 == func_name)
+                .filter(|func| func.0 == *func_name)
                 .next()
                 .expect(&format!("Unknown function '{}'", func_name));
             assert_args_number(&func_name, args.len(), target_function.1.len());
@@ -52,7 +54,7 @@ fn process_stack(
                 target_function.2,
                 target_args,
                 target_function.1,
-                target_function.0,
+                target_function.0.as_str(),
                 functions.clone(),
             );
             *x = result;
@@ -275,9 +277,9 @@ fn process_stack(
 fn process_function(
     lines: Vec<Vec<Expr>>,
     included_variables: Vec<Variable>,
-    expected_variables: Vec<&str>,
+    expected_variables: Vec<String>,
     name: &str,
-    functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>,
+    functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
 ) -> Expr {
     if (included_variables.len() != expected_variables.len()) {
         error(
@@ -323,7 +325,7 @@ fn process_function(
                             _ => error(&format!("Cannot print {:?} type", &args[0]), "Change type"),
                         }
                     } else {
-                        let target_function: (&str, Vec<&str>, Vec<Vec<Expr>>) = functions
+                        let target_function: (String, Vec<String>, Vec<Vec<Expr>>) = functions
                             .clone()
                             .into_iter()
                             .filter(|func| func.0 == x)
@@ -343,7 +345,7 @@ fn process_function(
                             target_function.2,
                             target_args,
                             target_function.1,
-                            target_function.0,
+                            &target_function.0,
                             functions.clone(),
                         );
                         // println!("{:?}", target_args)
@@ -360,7 +362,7 @@ fn process_function(
                             variables.clone(),
                             variables
                                 .iter()
-                                .map(|variable| variable.name.as_str())
+                                .map(|variable| variable.name.clone())
                                 .collect(),
                             name,
                             functions.clone(),
@@ -376,7 +378,7 @@ fn process_function(
                                 variables.clone(),
                                 variables
                                     .iter()
-                                    .map(|variable| variable.name.as_str())
+                                    .map(|variable| variable.name.clone())
                                     .collect(),
                                 name,
                                 functions.clone(),
@@ -391,7 +393,7 @@ fn process_function(
                             variables.clone(),
                             variables
                                 .iter()
-                                .map(|variable| variable.name.as_str())
+                                .map(|variable| variable.name.clone())
                                 .collect(),
                             name,
                             functions.clone(),
@@ -416,7 +418,12 @@ fn main() {
 
     let content = fs::read_to_string(filename).unwrap();
 
-    let functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> =
+    // let hash = blake3::hash(content.as_bytes()).to_string();
+    // let mut should_cache = true;
+
+    // let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = vec![];
+
+    let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> =
         parse_functions(content.trim());
     // println!("{:?}", functions);
 
@@ -424,7 +431,7 @@ fn main() {
         .clone()
         .into_iter()
         .filter(|function| function.0 == "main")
-        .collect::<Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>>()
+        .collect::<Vec<(String, Vec<String>, Vec<Vec<Expr>>)>>()
         .first()
         .unwrap()
         .clone()
