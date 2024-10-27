@@ -268,12 +268,17 @@ fn process_function(
     let mut variables: Vec<Variable> = included_variables;
     for instructions in lines {
         for instruction in instructions {
-            // println!("{:?}", instruction);
             match instruction {
-                Expr::VariableDeclaration(x, y) => variables.push(Variable {
-                    name: x,
-                    value: process_stack(*y, variables.clone(), functions.clone()),
-                }),
+                Expr::VariableDeclaration(x, y) => {
+                    if variables.iter().filter(|var| var.name == x).collect::<Vec<&Variable>>().len() != 0 {
+                        let position = variables.clone().iter().position(|var| var.name == x).unwrap();
+                        variables[position].value = process_stack(*y.clone(), variables.clone(), functions.clone());
+                    }
+                    variables.push(Variable {
+                        name: x,
+                        value: process_stack(*y, variables.clone(), functions.clone()),
+                    })
+                },
                 Expr::VariableRedeclaration(x, y) => {
                     if variables.iter().filter(|var| var.name == x).collect::<Vec<&Variable>>().len() == 0 {
                         error(format!("Variable {} does not exist", x).as_str(),"");
