@@ -8,6 +8,7 @@ use crate::parser::parse_code;
 use crate::parser::Expr;
 use crate::util::error;
 
+
 pub fn parse_functions(content: &str) -> Vec<(String, Vec<String>, Vec<Vec<Expr>>)> {
     let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = vec![];
 

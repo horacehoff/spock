@@ -36,7 +36,7 @@ pub enum Expr {
     // Condition
     While(Box<Vec<Expr>>,
           // Code to execute while true
-          Box<Vec<Vec<Expr>>>,)
+          Box<Vec<Vec<Expr>>>)
 }
 
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Copy)]

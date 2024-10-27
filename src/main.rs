@@ -8,7 +8,6 @@ use crate::util::{assert_args_number, error};
 use inflector::Inflector;
 use std::fs;
 use std::ops::Index;
-use log::error;
 
 fn process_stack(
     mut stack: Vec<Expr>,
