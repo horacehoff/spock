@@ -1,5 +1,5 @@
 # Compute
-> Very WIP - Lots of bugs
+> Very WIP
 
 - Inspired by Rust & Python
 - Does NOT support nested functions

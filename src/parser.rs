@@ -22,8 +22,14 @@ pub enum Expr {
     Priority(Box<Vec<Expr>>),
     Operation(BasicOperator),
     VariableDeclaration(String, Box<Vec<Expr>>),
-    // condition        , code to execute if true, code to execute if not true
-    Condition(Box<Vec<Expr>>, Box<Vec<Vec<Expr>>>, Box<Vec<Vec<Expr>>>, Box<Vec<Expr>>),
+    //Condition
+    Condition(Box<Vec<Expr>>,
+              // Code to execute if true
+              Box<Vec<Vec<Expr>>>,
+              // (OPTIONAL) Code to execute if not true
+              Box<Vec<Vec<Expr>>>,
+              // (OPTIONAL) Condition of the code to execute if not true
+              Box<Vec<Expr>>),
     OR(Box<Vec<Expr>>),
     AND(Box<Vec<Expr>>),
 }

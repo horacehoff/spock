@@ -9,6 +9,7 @@ use inflector::Inflector;
 use std::fs;
 use std::ops::Index;
 
+
 fn process_stack(
     mut stack: Vec<Expr>,
     variables: Vec<Variable>,
@@ -400,7 +401,7 @@ fn main() {
     let content = fs::read_to_string(filename).unwrap();
 
     let functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> =
-        parse_functions(content.trim(), filename.parse().unwrap());
+        parse_functions(content.trim());
     // println!("{:?}", functions);
 
     let main_instructions = functions
