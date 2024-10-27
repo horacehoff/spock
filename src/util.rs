@@ -11,7 +11,7 @@ pub fn error(message: &str, tip: &str) {
 
 #[macro_export] macro_rules! error_msg {
     ($x:expr) => {
-        format!("--------------\n{}\n{}\n--------------","\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m", $x)
+        format!("--------------\n{}\n{}\n--------------","\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m", $x).as_str()
     };
 }
 pub fn assert_args_number(func_name: &str, received_args_len: usize, expected_args_len: usize) {

@@ -1,6 +1,6 @@
 func main() {
 let x = "shouldnotexist";
-test();
+x = 20;
 }
 
 func test() {

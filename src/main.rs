@@ -24,7 +24,7 @@ fn process_stack(
                 .iter()
                 .filter(|variable| variable.name == *var)
                 .next()
-                .expect(error_msg!(format!("Variable '{}' doesn't exist", var)).as_str());
+                .expect(error_msg!(format!("Variable '{}' doesn't exist", var)));
             *x = variable.value.clone();
         } else if let Expr::FunctionCall(ref func_name, ref func_args) = x {
             // replace function call by its result (return value)
@@ -110,7 +110,7 @@ fn process_stack(
                         }
                     }
                     else {
-                        error("oh", "");
+                        todo!("[ERROR] {:?} => STR", output);
                     }
                 }
                 Expr::Float(x) => {
@@ -312,12 +312,8 @@ fn process_function(
                     })
                 },
                 Expr::VariableRedeclaration(x, y) => {
-                    if variables.iter().filter(|var| var.name == x).collect::<Vec<&Variable>>().len() == 0 {
-                        error(format!("Variable {} does not exist", x).as_str(),"");
-                    } else {
-                        let position = variables.clone().iter().position(|var| var.name == x).unwrap();
-                        variables[position].value = process_stack(*y, variables.clone(), functions.clone());
-                    }
+                    let position = variables.clone().iter().position(|var| var.name == x).expect(error_msg!(format!("Variable '{}' does not exist", x)));
+                    variables[position].value = process_stack(*y, variables.clone(), functions.clone());
                 },
                 Expr::FunctionCall(x, y) => {
                     // println!("{:?}", y);
@@ -348,7 +344,7 @@ fn process_function(
                             .into_iter()
                             .filter(|func| func.0 == x)
                             .next()
-                            .expect(error_msg!(&format!("Unknown function '{}'", x)).as_str());
+                            .expect(error_msg!(&format!("Unknown function '{}'", x)));
                         assert_args_number(&x, args.len(), target_function.1.len());
                         let target_args: Vec<Variable> = target_function
                             .1
