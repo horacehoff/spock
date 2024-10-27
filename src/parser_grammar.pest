@@ -37,10 +37,11 @@ or_operation = {"||" ~ expression}
 
 variableIdentifier = { ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
 variableDeclaration = {"let" ~ variableIdentifier ~ "=" ~ expression}
+variableRedeclaration = {variableIdentifier ~ "=" ~ expression}
 
 
 expression_unit = _{
-    variableDeclaration | operation | and_operation | or_operation | terms
+    variableDeclaration | variableRedeclaration | operation | and_operation | or_operation | terms
 }
 
 expression = {expression_unit+}
