@@ -1,4 +1,4 @@
 func main() {
-   print(("10"+"1").toInt()+10);
+let x = 10;
+print(x);
 }
-

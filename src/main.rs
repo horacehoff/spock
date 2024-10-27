@@ -7,10 +7,6 @@ use crate::parser_functions::parse_functions;
 use crate::util::{assert_args_number, error};
 use inflector::Inflector;
 use std::fs;
-use std::fs::File;
-use std::io::{BufReader, Read};
-use std::ops::Index;
-use std::path::Path;
 
 fn process_stack(
     mut stack: Vec<Expr>,
@@ -78,9 +74,9 @@ fn process_stack(
                             output = Expr::Bool(inbool || sidebool)
                         }
                     } else {
-                        error("NOT A BOOL","");
+                        error("NOT A BOOL", "");
                     }
-                },
+                }
                 Expr::AND(x) => {
                     let parsed_exp = process_stack(*x, variables.clone(), functions.clone());
                     if let Expr::Bool(inbool) = output {
@@ -88,16 +84,14 @@ fn process_stack(
                             output = Expr::Bool(inbool && sidebool)
                         }
                     } else {
-                        error("NOT A BOOL","");
+                        error("NOT A BOOL", "");
                     }
-                },
+                }
                 Expr::String(x) => {
-                    if matches!(output, Expr::String(ref value)) {
+                    if let Expr::String(value) = output {
                         match current_operator {
                             BasicOperator::Add => {
-                                if let Expr::String(value) = output {
-                                    output = Expr::String(value + &x);
-                                }
+                                output = Expr::String(value + &x);
                             }
                             _ => todo!(),
                         }
@@ -106,89 +100,59 @@ fn process_stack(
                     }
                 }
                 Expr::Float(x) => {
-                    if matches!(output, Expr::Integer(value)) {
+                    if let Expr::Integer(value) = output {
                         match current_operator {
                             BasicOperator::Add => {
-                                if let Expr::Integer(value) = output {
-                                    output = Expr::Float(value as f64 + x);
-                                }
+                                output = Expr::Float(value as f64 + x);
                             }
                             BasicOperator::Sub => {
-                                if let Expr::Integer(value) = output {
-                                    output = Expr::Float(value as f64 - x);
-                                }
+                                output = Expr::Float(value as f64 - x);
                             }
                             BasicOperator::Divide => {
-                                if let Expr::Integer(value) = output {
-                                    output = Expr::Float(value as f64 / x);
-                                }
+                                output = Expr::Float(value as f64 / x);
                             }
                             BasicOperator::Multiply => {
-                                if let Expr::Integer(value) = output {
-                                    output = Expr::Float(value as f64 * x);
-                                }
+                                output = Expr::Float(value as f64 * x);
                             }
                             BasicOperator::Power => {
-                                if let Expr::Integer(value) = output {
-                                    output = Expr::Float((value as f64).powf(x));
-                                }
+                                output = Expr::Float((value as f64).powf(x));
                             }
                             _ => todo!(),
                         }
                     }
                 }
                 Expr::Integer(x) => {
-                    if matches!(output, Expr::Integer(_)) {
+                    if let Expr::Integer(value) = output {
                         match current_operator {
                             BasicOperator::Add => {
-                                if let Expr::Integer(value) = output {
                                     output = Expr::Integer(value + x);
-                                }
                             }
                             BasicOperator::Sub => {
-                                if let Expr::Integer(value) = output {
                                     output = Expr::Integer(value - x);
-                                }
                             }
                             BasicOperator::Divide => {
-                                if let Expr::Integer(value) = output {
                                     output = Expr::Float(value as f64 / x as f64);
-                                }
                             }
                             BasicOperator::Multiply => {
-                                if let Expr::Integer(value) = output {
                                     output = Expr::Integer(value * x);
-                                }
                             }
                             BasicOperator::Power => {
-                                if let Expr::Integer(value) = output {
                                     output = Expr::Integer(value.pow(x as u32));
-                                }
                             }
                             BasicOperator::EQUAL => {
-                                if let Expr::Integer(value) = output {
                                     output = Expr::Bool(value == x)
-                                }
                             }
                             BasicOperator::Inferior => {
-                                if let Expr::Integer(value) = output {
                                     output = Expr::Bool(value < x);
-                                }
                             }
                             BasicOperator::InferiorEqual => {
-                                if let Expr::Integer(value) = output {
                                     output = Expr::Bool(value <= x)
-                                }
                             }
                             BasicOperator::Superior => {
-                                if let Expr::Integer(value) = output {
                                     output = Expr::Bool(value > x);
-                                }
                             }
                             BasicOperator::SuperiorEqual => {
-                                if let Expr::Integer(value) = output {
                                     output = Expr::Bool(value >= x);
-                                }
                             }
                             _ => todo!("This operator doesn't exist"),
                         }
@@ -245,23 +209,35 @@ fn process_stack(
                                             format!("Convert {:?} to a String", &args[0]).as_str(),
                                         );
                                     }
-                                },
+                                }
                                 "toInt" => {
                                     assert_args_number("toInt", args.len(), 0);
                                     if str.parse::<i64>().is_ok() {
                                         output = Expr::Integer(str.parse::<i64>().unwrap())
                                     } else {
-                                        error(&format!("String '{}' cannot be converted to an Integer", str), "");
+                                        error(
+                                            &format!(
+                                                "String '{}' cannot be converted to an Integer",
+                                                str
+                                            ),
+                                            "",
+                                        );
                                     }
-                                },
+                                }
                                 "toFloat" => {
                                     assert_args_number("toFloat", args.len(), 0);
                                     if str.parse::<f64>().is_ok() {
                                         output = Expr::Float(str.parse::<f64>().unwrap())
                                     } else {
-                                        error(&format!("String '{}' cannot be converted to an Integer", str), "");
+                                        error(
+                                            &format!(
+                                                "String '{}' cannot be converted to an Integer",
+                                                str
+                                            ),
+                                            "",
+                                        );
                                     }
-                                },
+                                }
                                 _ => {}
                             }
                         }
@@ -281,7 +257,7 @@ fn process_function(
     name: &str,
     functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
 ) -> Expr {
-    if (included_variables.len() != expected_variables.len()) {
+    if included_variables.len() != expected_variables.len() {
         error(
             &format!(
                 "Function '{}' expected {} arguments, but received {}",
@@ -356,7 +332,7 @@ fn process_function(
                 }
                 Expr::Condition(x, y, z, w) => {
                     let condition = process_stack(*x, variables.clone(), functions.clone());
-                    if (condition == Expr::Bool(true)) {
+                    if condition == Expr::Bool(true) {
                         let out = process_function(
                             *y,
                             variables.clone(),
@@ -372,7 +348,7 @@ fn process_function(
                         }
                     } else if *w != vec![] {
                         let condition = process_stack(*w, variables.clone(), functions.clone());
-                        if (condition == Expr::Bool(true)) {
+                        if condition == Expr::Bool(true) {
                             let out = process_function(
                                 *z,
                                 variables.clone(),
@@ -418,14 +394,8 @@ fn main() {
 
     let content = fs::read_to_string(filename).unwrap();
 
-    // let hash = blake3::hash(content.as_bytes()).to_string();
-    // let mut should_cache = true;
-
-    // let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = vec![];
-
-    let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> =
-        parse_functions(content.trim());
-    // println!("{:?}", functions);
+    let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = parse_functions(content.trim());
+    println!("{:?}", functions);
 
     let main_instructions = functions
         .clone()
@@ -436,7 +406,5 @@ fn main() {
         .unwrap()
         .clone()
         .2;
-    process_function(main_instructions, vec![], vec![], "main", functions);
-
-    // println!("{:?}", process_stack(vec![Expr::Integer(32), Expr::Operation(BasicOperator::Add), Expr::Float(5.6)]))
+    // process_function(main_instructions, vec![], vec![], "main", functions);
 }

@@ -22,6 +22,7 @@ pub enum Expr {
     Priority(Box<Vec<Expr>>),
     Operation(BasicOperator),
     VariableDeclaration(String, Box<Vec<Expr>>),
+    VariableRedeclaration(String, Box<Vec<Expr>>),
     //Condition
     Condition(Box<Vec<Expr>>,
               // Code to execute if true
@@ -165,12 +166,19 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
         },
         Rule::variableDeclaration => {
             recursive = false;
-            // println!("{:?}", pair.clone().into_inner().next().unwrap().as_str());
             let mut priority_calc: Vec<Expr> = vec![];
             for priority_pair in pair.clone().into_inner().into_iter().skip(1) {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
             output.push(Expr::VariableDeclaration(pair.clone().into_inner().next().unwrap().as_str().trim().parse().unwrap(), Box::from(priority_calc)));
+        },
+        Rule::variableRedeclaration => {
+            recursive = false;
+            let mut priority_calc: Vec<Expr> = vec![];
+            for priority_pair in pair.clone().into_inner().into_iter().skip(1) {
+                priority_calc.append(&mut parse_expression(priority_pair));
+            }
+            output.push(Expr::VariableRedeclaration(pair.clone().into_inner().next().unwrap().as_str().trim().parse().unwrap(), Box::from(priority_calc)));
         },
         Rule::and_operation => {
             recursive = false;
