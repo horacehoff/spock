@@ -1,5 +1,8 @@
 func main() {
-let x = 10;
-let x = 20;
+let x = "shouldnotexist";
+test();
+}
+
+func test() {
 print(x);
 }

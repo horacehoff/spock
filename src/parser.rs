@@ -14,6 +14,8 @@ pub enum Expr {
     Float(f64),
     String(String),
     Bool(bool),
+    OR(Box<Vec<Expr>>),
+    AND(Box<Vec<Expr>>),
     Property(String),
     PropertyFunction(Box<Expr>),
     VariableIdentifier(String),
@@ -31,8 +33,6 @@ pub enum Expr {
               Box<Vec<Vec<Expr>>>,
               // (OPTIONAL) Condition of the code to execute if not true
               Box<Vec<Expr>>),
-    OR(Box<Vec<Expr>>),
-    AND(Box<Vec<Expr>>),
 }
 
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Copy)]
@@ -53,7 +53,7 @@ pub enum BasicOperator {
     SuperiorEqual,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Variable {
     pub(crate) name: String,
     pub(crate) value: Expr

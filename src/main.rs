@@ -8,6 +8,7 @@ use crate::util::{assert_args_number, error};
 use inflector::Inflector;
 use std::fs;
 use std::ops::Index;
+use log::error;
 
 fn process_stack(
     mut stack: Vec<Expr>,
@@ -23,7 +24,7 @@ fn process_stack(
                 .iter()
                 .filter(|variable| variable.name == *var)
                 .next()
-                .unwrap();
+                .expect(error_msg!(format!("Variable '{}' doesn't exist", var)).as_str());
             *x = variable.value.clone();
         } else if let Expr::FunctionCall(ref func_name, ref func_args) = x {
             // replace function call by its result (return value)
@@ -73,9 +74,11 @@ fn process_stack(
                     if let Expr::Bool(inbool) = output {
                         if let Expr::Bool(sidebool) = parsed_exp {
                             output = Expr::Bool(inbool || sidebool)
+                        } else {
+                            error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
                         }
                     } else {
-                        error("NOT A BOOL", "");
+                        error(format!("{:?} is not a Boolean", output).as_str(), "");
                     }
                 }
                 Expr::AND(x) => {
@@ -83,9 +86,11 @@ fn process_stack(
                     if let Expr::Bool(inbool) = output {
                         if let Expr::Bool(sidebool) = parsed_exp {
                             output = Expr::Bool(inbool && sidebool)
+                        } else {
+                            error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
                         }
                     } else {
-                        error("NOT A BOOL", "");
+                        error(format!("{:?} is not a Boolean", output).as_str(), "");
                     }
                 }
                 Expr::String(x) => {
@@ -94,9 +99,17 @@ fn process_stack(
                             BasicOperator::Add => {
                                 output = Expr::String(value + &x);
                             }
-                            _ => todo!(),
+                            _ => todo!("[ERROR] STR => STR"),
                         }
-                    } else {
+                    } else if let Expr::Integer(value) = output {
+                        match current_operator {
+                            BasicOperator::Multiply => {
+                                output = Expr::String(x.repeat(value as usize))
+                            },
+                            _ => todo!("[ERORR] INT => STR")
+                        }
+                    }
+                    else {
                         error("oh", "");
                     }
                 }
@@ -118,7 +131,7 @@ fn process_stack(
                             BasicOperator::Power => {
                                 output = Expr::Float((value as f64).powf(x));
                             }
-                            _ => todo!(),
+                            _ => todo!("[ERROR] INT => FLOAT"),
                         }
                     }
                 }
@@ -139,6 +152,9 @@ fn process_stack(
                             }
                             BasicOperator::Power => {
                                 output = Expr::Integer(value.pow(x as u32));
+                            },
+                            BasicOperator::Modulo => {
+                                output = Expr::Integer(value % x);
                             }
                             BasicOperator::EQUAL => output = Expr::Bool(value == x),
                             BasicOperator::Inferior => {
@@ -151,7 +167,7 @@ fn process_stack(
                             BasicOperator::SuperiorEqual => {
                                 output = Expr::Bool(value >= x);
                             }
-                            _ => todo!("This operator doesn't exist"),
+                            _ => todo!("[ERROR] INT => INT"),
                         }
                     }
                 }
@@ -229,6 +245,22 @@ fn process_stack(
                                         error(
                                             &format!(
                                                 "String '{}' cannot be converted to an Integer",
+                                                str
+                                            ),
+                                            "",
+                                        );
+                                    }
+                                }
+                                "toBool" => {
+                                    assert_args_number("toBool", args.len(), 0);
+                                    if str.to_lowercase() == "true" {
+                                        output = Expr::Bool(true)
+                                    } else if str.to_lowercase() == "false" {
+                                        output = Expr::Bool(false)
+                                    } else {
+                                        error(
+                                            &format!(
+                                                "String '{}' cannot be converted to a Boolean",
                                                 str
                                             ),
                                             "",
@@ -316,7 +348,7 @@ fn process_function(
                             .into_iter()
                             .filter(|func| func.0 == x)
                             .next()
-                            .expect(&format!("Unknown function '{}'", x));
+                            .expect(error_msg!(&format!("Unknown function '{}'", x)).as_str());
                         assert_args_number(&x, args.len(), target_function.1.len());
                         let target_args: Vec<Variable> = target_function
                             .1
