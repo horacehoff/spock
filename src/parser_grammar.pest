@@ -52,7 +52,7 @@ line = _{(return_term | expression) ~ ";"}
 
 code = {statement+}
 
-statement = _{ if_statement | line }
+statement = _{ if_statement | while_statement | line }
 
 if_statement = { "if" ~ "(" ~ condition ~ ")" ~ block ~ (else_block | else_if_block)? }
 
@@ -63,6 +63,8 @@ block = _{ "{" ~ (!"}" ~ code)* ~ "}" }
 else_block = { "else" ~ block }
 
 else_if_block = {"else" ~ if_statement}
+
+while_statement = { "while" ~ "(" ~ condition ~ ")" ~ block }
 
 
 WHITESPACE = _{ " " | "\t" | "\n" }

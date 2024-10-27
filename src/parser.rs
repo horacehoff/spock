@@ -33,6 +33,10 @@ pub enum Expr {
               Box<Vec<Vec<Expr>>>,
               // (OPTIONAL) Condition of the code to execute if not true
               Box<Vec<Expr>>),
+    // Condition
+    While(Box<Vec<Expr>>,
+          // Code to execute while true
+          Box<Vec<Vec<Expr>>>,)
 }
 
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Copy)]
@@ -263,6 +267,13 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                 Rule::return_term => {
                     line_instructions.push(Expr::FunctionReturn(Box::from(parse_expression(inside))))
                 },
+                Rule::while_statement => {
+                    let mut condition: Vec<Expr> = vec![];
+                    for pair in ComputeParser::parse(Rule::expression, inside.clone().into_inner().next().unwrap().into_inner().as_str().trim()).unwrap() {
+                        condition.append(&mut parse_expression(pair))
+                    }
+                    line_instructions.push(Expr::While(Box::from(condition), Box::from(parse_code(inside.into_inner().into_iter().skip(1).next().unwrap().as_str()))));
+                }
                 _ => {
 
                 }

@@ -55,7 +55,7 @@ fn process_stack(
                 target_function.0.as_str(),
                 functions.clone(),
             );
-            *x = result;
+            *x = result.0;
         } else if let Expr::Priority(calc) = x {
             *x = process_stack(*calc.clone(), variables.clone(), functions.clone());
         }
@@ -285,7 +285,7 @@ fn process_function(
     expected_variables: Vec<String>,
     name: &str,
     functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
-) -> Expr {
+) -> (Expr, Vec<Variable>) {
     if included_variables.len() != expected_variables.len() {
         error(
             &format!(
@@ -297,15 +297,18 @@ fn process_function(
             "Remove the excess arguments",
         )
     }
-    let mut variables: Vec<Variable> = included_variables;
+    let mut variables: Vec<Variable> = included_variables.clone();
+
+    let mut return_variables: Vec<Variable> = vec![];
+
     for instructions in lines {
         for instruction in instructions {
             match instruction {
                 Expr::VariableDeclaration(x, y) => {
-                    if variables.iter().filter(|var| var.name == x).collect::<Vec<&Variable>>().len() != 0 {
-                        let position = variables.clone().iter().position(|var| var.name == x).unwrap();
-                        variables[position].value = process_stack(*y.clone(), variables.clone(), functions.clone());
-                    }
+                    // if variables.iter().filter(|var| var.name == x).collect::<Vec<&Variable>>().len() != 0 {
+                    //     let position = variables.clone().iter().position(|var| var.name == x).unwrap();
+                    //     variables[position].value = process_stack(*y.clone(), variables.clone(), functions.clone());
+                    // }
                     variables.push(Variable {
                         name: x,
                         value: process_stack(*y, variables.clone(), functions.clone()),
@@ -313,7 +316,12 @@ fn process_function(
                 },
                 Expr::VariableRedeclaration(x, y) => {
                     let position = variables.clone().iter().position(|var| var.name == x).expect(error_msg!(format!("Variable '{}' does not exist", x)));
-                    variables[position].value = process_stack(*y, variables.clone(), functions.clone());
+                    let processed = process_stack(*y, variables.clone(), functions.clone());
+                    variables[position].value = processed.clone();
+
+                    if (included_variables.iter().filter(|var| var.name == x).collect::<Vec<_>>().len() > 0) {
+                        return_variables.push(Variable { name: x, value: processed });
+                    }
                 },
                 Expr::FunctionCall(x, y) => {
                     // println!("{:?}", y);
@@ -366,7 +374,7 @@ fn process_function(
                     }
                 }
                 Expr::FunctionReturn(x) => {
-                    return process_stack(*x, variables.clone(), functions.clone());
+                    return (process_stack(*x, variables.clone(), functions.clone()), return_variables);
                 }
                 Expr::Condition(x, y, z, w) => {
                     let condition = process_stack(*x, variables.clone(), functions.clone());
@@ -381,7 +389,7 @@ fn process_function(
                             name,
                             functions.clone(),
                         );
-                        if Expr::Null != out {
+                        if Expr::Null != out.0 {
                             return out;
                         }
                     } else if *w != vec![] {
@@ -397,7 +405,7 @@ fn process_function(
                                 name,
                                 functions.clone(),
                             );
-                            if Expr::Null != out {
+                            if Expr::Null != out.0 {
                                 return out;
                             }
                         }
@@ -412,10 +420,35 @@ fn process_function(
                             name,
                             functions.clone(),
                         );
-                        if Expr::Null != out {
+                        if Expr::Null != out.0 {
                             return out;
                         }
                     }
+                },
+                Expr::While(x, y) => {
+                    // let condition = process_stack(*x, variables.clone(), functions.clone());
+                    while process_stack(*x.clone(), variables.clone(), functions.clone()) == Expr::Bool(true) {
+                        let out = process_function(
+                            *y.clone(),
+                            variables.clone(),
+                            variables
+                                .iter()
+                                .map(|variable| variable.name.clone())
+                                .collect(),
+                            name,
+                            functions.clone(),
+                        );
+                        if Expr::Null != out.0 {
+                            return out;
+                        }
+                        if out.1 != vec![] {
+                            for replace_var in out.1 {
+                                let indx = variables.iter().position(|var| var.name == replace_var.name).unwrap();
+                                variables[indx] = replace_var;
+                            }
+                        }
+                    }
+
                 }
                 _ => todo!(),
             }
@@ -423,7 +456,7 @@ fn process_function(
         }
         // println!("{:?}", instructions)
     }
-    Expr::Null
+    (Expr::Null, return_variables)
     // println!("{:?}", variables)
 }
 
