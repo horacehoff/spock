@@ -1,7 +1,14 @@
 func main() {
-let x=1;
-while (x < 120) {
-print(x);
+print(test());
+}
+
+func test() {
+let x =1;
+while (x < 999) {
 x = x+1;
+print(x);
+if (x == 100) {
+return x;
+}
 }
 }
