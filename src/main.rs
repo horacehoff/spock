@@ -7,6 +7,7 @@ use crate::parser_functions::parse_functions;
 use crate::util::{assert_args_number, error};
 use inflector::Inflector;
 use std::fs;
+use std::ops::Index;
 
 fn process_stack(
     mut stack: Vec<Expr>,
@@ -273,6 +274,14 @@ fn process_function(
                     name: x,
                     value: process_stack(*y, variables.clone(), functions.clone()),
                 }),
+                Expr::VariableRedeclaration(x, y) => {
+                    if variables.iter().filter(|var| var.name == x).collect::<Vec<&Variable>>().len() == 0 {
+                        error(format!("Variable {} does not exist", x).as_str(),"");
+                    } else {
+                        let position = variables.clone().iter().position(|var| var.name == x).unwrap();
+                        variables[position].value = process_stack(*y, variables.clone(), functions.clone());
+                    }
+                },
                 Expr::FunctionCall(x, y) => {
                     // println!("{:?}", y);
                     let args: Vec<Expr> = y
@@ -402,5 +411,5 @@ fn main() {
         .unwrap()
         .clone()
         .2;
-    // process_function(main_instructions, vec![], vec![], "main", functions);
+    process_function(main_instructions, vec![], vec![], "main", functions);
 }

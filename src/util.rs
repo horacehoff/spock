@@ -2,7 +2,7 @@ use crate::parser::{BasicOperator, Expr};
 
 pub fn error(message: &str, tip: &str) {
     if tip == "" {
-        eprintln!("--------------\n{}\n{}--------------","\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m", message);
+        eprintln!("--------------\n{}\n{}\n--------------","\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m", message);
     } else {
         eprintln!("--------------\n{}\n{}\n{}\n{}\n--------------","\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m", message, "\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m", tip);
     }
