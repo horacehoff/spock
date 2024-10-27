@@ -331,6 +331,18 @@ fn process_stack(
                                         );
                                     }
                                 }
+                                "trim" => {
+                                    assert_args_number("trim", args.len(), 0);
+                                    output = Expr::String(str.trim().to_string());
+                                }
+                                "ltrim" => {
+                                    assert_args_number("ltrim", args.len(), 0);
+                                    output = Expr::String(str.trim_start().to_string());
+                                }
+                                "rtrim" => {
+                                    assert_args_number("rtrim", args.len(), 0);
+                                    output = Expr::String(str.trim_end().to_string());
+                                }
                                 _ => {}
                             }
                         } else if let Expr::Float(num) = output {
