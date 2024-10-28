@@ -540,8 +540,15 @@ fn process_function(
                         .collect();
 
                     let matched = basic_functions(x.clone(), args.clone());
-
-                    if !matched.1 {
+                    if x == "executeline" && !matched.1 {
+                        assert_args_number!("executeline", args.len(), 1);
+                        if let Expr::String(line) = &args[0] {
+                            process_stack(parse_code(line)[0].clone(), variables.clone(), functions.clone());
+                            continue;
+                        } else {
+                            error(&format!("Cannot execute line {:?}", &args[0]), "")
+                        }
+                    } else if !matched.1 {
                         let target_function: (String, Vec<String>, Vec<Vec<Expr>>) = functions
                             .clone()
                             .into_iter()
