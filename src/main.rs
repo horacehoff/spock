@@ -488,6 +488,22 @@ fn process_stack(
                                 _ => {}
                             }
                         }
+                        else if let Expr::Array(ref arr) = output {
+                            match x.as_str() {
+                                "len" => {
+                                    assert_args_number!("len", args.len(), 0);
+                                    output = Expr::Integer(arr.len() as i64)
+                                },
+                                "add" => {
+                                    assert_args_number!("add", args.len(), 1);
+                                    // println!("{:?}", args)
+                                    let mut new_vec = arr.clone();
+                                    new_vec.push(args[0].clone());
+                                    output = Expr::Array(new_vec);
+                                },
+                                _ => {}
+                            }
+                        }
                     }
                 }
                 _ => todo!(),
