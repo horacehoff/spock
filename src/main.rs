@@ -446,7 +446,46 @@ fn process_function(
                             }
                             _ => error(&format!("Cannot print {:?} type", &args[0]), "Change type"),
                         }
-                    } else {
+                    } else if x == "abs" {
+                        assert_args_number("abs", args.len(), 1);
+                        match &args[0] {
+                            Expr::Float(val) => {
+                                return (Expr::Float(val.abs()), vec![]);
+                            }
+                            Expr::Integer(val) => {
+                                return (Expr::Integer(val.abs()), vec![]);
+                            }
+                            _ => error(&format!("Cannot get absolute value of {:?} type", &args[0]), "Change type"),
+                        }
+                    } else if x == "round" {
+                        assert_args_number("round", args.len(), 1);
+                        match &args[0] {
+                            Expr::Float(val) => {
+                                return (Expr::Integer(val.round() as i64), vec![]);
+                            }
+                            Expr::Integer(val) => {
+                                return (Expr::Integer(val), vec![]);
+                            }
+                            _ => error(&format!("Cannot round {:?} type", &args[0]), "Change type"),
+                        }
+                    } else if x == "len" {
+                        assert_args_number("len", args.len(), 1);
+                        match &args[0] {
+                            Expr::String(val) => {
+                                return (Expr::Integer(val.len() as i64), vec![]);
+                            }
+                            // Expr::Array(val) => {
+                            //     return (Expr::Integer(val.len() as i64), vec![]);
+                            // }
+                            _ => error(&format!("Cannot get length of type {:?}", &args[0]), "Change type"),
+                        }
+                    } else if x == "input" {
+                        assert_args_number("input", args.len(), 0);
+                        let mut input = String::new();
+                        std::io::stdin().read_line(&mut input).unwrap();
+                        return (Expr::String(input.trim().to_string()), vec![]);
+                    }
+                    else {
                         let target_function: (String, Vec<String>, Vec<Vec<Expr>>) = functions
                             .clone()
                             .into_iter()
