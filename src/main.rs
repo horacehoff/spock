@@ -4,10 +4,85 @@ mod util;
 
 use crate::parser::{BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
-use crate::util::{assert_args_number, error};
+use crate::util::{error};
 use inflector::Inflector;
-use std::fs;
-use std::ops::Index;
+use std::{fs, io};
+use std::io::{BufRead, BufReader, Write};
+
+fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
+    if x == "print" {
+        assert_args_number!("print", args.len(), 1);
+        match &args[0] {
+            Expr::Float(val) => {
+                println!("{}", val)
+            }
+            Expr::Integer(val) => {
+                println!("{}", val)
+            }
+            Expr::String(val) => {
+                println!("{}", val);
+            }
+            Expr::Bool(val) => {
+                println!("{}", val)
+            }
+            _ => error(&format!("Cannot print {:?} type", &args[0]), "Change type"),
+        }
+        (Expr::Null, true)
+    } else if x == "abs" {
+        assert_args_number!("abs", args.len(), 1);
+        match &args[0] {
+            Expr::Float(val) => {
+                return (Expr::Float(val.abs()), true)
+            }
+            Expr::Integer(val) => {
+                return (Expr::Integer(val.abs()), true)
+            }
+            _ => error(&format!("Cannot get absolute value of {:?} type", &args[0]), "Change type"),
+        }
+        (Expr::Null, true)
+    } else if x == "round" {
+        assert_args_number!("round", args.len(), 1);
+        match &args[0] {
+            Expr::Float(val) => {
+                return (Expr::Integer(val.round() as i64), true)
+            }
+            Expr::Integer(val) => {
+                return (Expr::Integer(*val), true)
+            }
+            _ => error(&format!("Cannot round {:?} type", &args[0]), "Change type"),
+        }
+        (Expr::Null, true)
+    } else if x == "len" {
+        assert_args_number!("len", args.len(), 1);
+        match &args[0] {
+            Expr::String(val) => {
+                return (Expr::Integer(val.len() as i64), true);
+            }
+            // Expr::Array(val) => {
+            //     return (Expr::Integer(val.len() as i64), vec![]);
+            // }
+            _ => error(&format!("Cannot get length of type {:?}", &args[0]), "Change type"),
+        }
+        (Expr::Null, true)
+    } else if x == "input" {
+        assert_args_number!("input", args.len(), 0, 1);
+        if args.len() == 1 {
+            if let Expr::String(prompt) = &args[0] {
+                print!("{}", prompt);
+            } else {
+                error(&format!("Cannot print {:?} type", &args[0]), "Change type");
+            }
+        }
+        io::stdout().flush().unwrap();
+        return (Expr::String(BufReader::new(io::stdin())
+            .lines()
+            .next()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Cannot read stdin"))
+            .and_then(|inner| inner).unwrap().as_str().parse().unwrap()), true);
+    } else {
+        (Expr::Null, false)
+    }
+}
 
 fn process_stack(
     mut stack: Vec<Expr>,
@@ -31,13 +106,18 @@ fn process_stack(
                 .iter()
                 .map(|arg| process_stack(arg.clone(), variables.clone(), functions.clone()))
                 .collect();
+            let matched = basic_functions(func_name.clone(), args.clone());
+            if matched.1 {
+                *x = matched.0;
+                continue;
+            }
             let target_function: (String, Vec<String>, Vec<Vec<Expr>>) = functions
                 .clone()
                 .into_iter()
                 .filter(|func| func.0 == *func_name)
                 .next()
                 .expect(&format!("Unknown function '{}'", func_name));
-            assert_args_number(&func_name, args.len(), target_function.1.len());
+            assert_args_number!(&func_name, args.len(), target_function.1.len());
             let target_args: Vec<Variable> = target_function
                 .1
                 .iter()
@@ -245,19 +325,19 @@ fn process_stack(
                             match x.as_str() {
                                 // TRANSFORM
                                 "uppercase" => {
-                                    assert_args_number("uppercase", args.len(), 0);
+                                    assert_args_number!("uppercase", args.len(), 0);
                                     output = Expr::String(str.to_uppercase());
                                 }
                                 "lowercase" => {
-                                    assert_args_number("lowercase", args.len(), 0);
+                                    assert_args_number!("lowercase", args.len(), 0);
                                     output = Expr::String(str.to_lowercase());
                                 }
                                 "capitalize" => {
-                                    assert_args_number("capitalize", args.len(), 0);
+                                    assert_args_number!("capitalize", args.len(), 0);
                                     output = Expr::String(str.to_title_case());
                                 }
                                 "replace" => {
-                                    assert_args_number("replace", args.len(), 2);
+                                    assert_args_number!("replace", args.len(), 2);
                                     if let Expr::String(toreplace) = &args[0] {
                                         if let Expr::String(replaced) = &args[1] {
                                             output = Expr::String(str.replace(toreplace, replaced))
@@ -276,7 +356,7 @@ fn process_stack(
                                     }
                                 }
                                 "toInt" => {
-                                    assert_args_number("toInt", args.len(), 0);
+                                    assert_args_number!("toInt", args.len(), 0);
                                     if str.parse::<i64>().is_ok() {
                                         output = Expr::Integer(str.parse::<i64>().unwrap())
                                     } else {
@@ -290,7 +370,7 @@ fn process_stack(
                                     }
                                 }
                                 "toFloat" => {
-                                    assert_args_number("toFloat", args.len(), 0);
+                                    assert_args_number!("toFloat", args.len(), 0);
                                     if str.parse::<f64>().is_ok() {
                                         output = Expr::Float(str.parse::<f64>().unwrap())
                                     } else {
@@ -304,7 +384,7 @@ fn process_stack(
                                     }
                                 }
                                 "toBool" => {
-                                    assert_args_number("toBool", args.len(), 0);
+                                    assert_args_number!("toBool", args.len(), 0);
                                     if str.to_lowercase() == "true" {
                                         output = Expr::Bool(true)
                                     } else if str.to_lowercase() == "false" {
@@ -320,7 +400,7 @@ fn process_stack(
                                     }
                                 },
                                 "index" => {
-                                    assert_args_number("index", args.len(), 1);
+                                    assert_args_number!("index", args.len(), 1);
                                     if let Expr::String(toindex) = &args[0] {
                                         let indx = str.find(toindex).unwrap();
                                         output = Expr::Integer(indx as i64);
@@ -332,15 +412,15 @@ fn process_stack(
                                     }
                                 }
                                 "trim" => {
-                                    assert_args_number("trim", args.len(), 0);
+                                    assert_args_number!("trim", args.len(), 0);
                                     output = Expr::String(str.trim().to_string());
                                 }
                                 "ltrim" => {
-                                    assert_args_number("ltrim", args.len(), 0);
+                                    assert_args_number!("ltrim", args.len(), 0);
                                     output = Expr::String(str.trim_start().to_string());
                                 }
                                 "rtrim" => {
-                                    assert_args_number("rtrim", args.len(), 0);
+                                    assert_args_number!("rtrim", args.len(), 0);
                                     output = Expr::String(str.trim_end().to_string());
                                 }
                                 _ => {}
@@ -348,11 +428,11 @@ fn process_stack(
                         } else if let Expr::Float(num) = output {
                             match x.as_str() {
                                 "toInt" => {
-                                    assert_args_number("toInt", args.len(), 0);
+                                    assert_args_number!("toInt", args.len(), 0);
                                     output = Expr::Integer(num as i64)
                                 }
                                 "toStr" => {
-                                    assert_args_number("toStr", args.len(), 0);
+                                    assert_args_number!("toStr", args.len(), 0);
                                     output = Expr::String(num.to_string())
                                 }
                                 _ => {}
@@ -360,11 +440,11 @@ fn process_stack(
                         } else if let Expr::Integer(num) = output {
                             match x.as_str() {
                                 "toFloat" => {
-                                    assert_args_number("toFloat", args.len(), 0);
+                                    assert_args_number!("toFloat", args.len(), 0);
                                     output = Expr::Float(num as f64)
                                 }
                                 "toStr" => {
-                                    assert_args_number("toStr", args.len(), 0);
+                                    assert_args_number!("toStr", args.len(), 0);
                                     output = Expr::String(num.to_string())
                                 }
                                 _ => {}
@@ -429,70 +509,17 @@ fn process_function(
                         .iter()
                         .map(|arg| process_stack(arg.clone(), variables.clone(), functions.clone()))
                         .collect();
-                    if x == "print" {
-                        assert_args_number("print", args.len(), 1);
-                        match &args[0] {
-                            Expr::Float(val) => {
-                                println!("{}", val)
-                            }
-                            Expr::Integer(val) => {
-                                println!("{}", val)
-                            }
-                            Expr::String(val) => {
-                                println!("{}", val);
-                            }
-                            Expr::Bool(val) => {
-                                println!("{}", val)
-                            }
-                            _ => error(&format!("Cannot print {:?} type", &args[0]), "Change type"),
-                        }
-                    } else if x == "abs" {
-                        assert_args_number("abs", args.len(), 1);
-                        match &args[0] {
-                            Expr::Float(val) => {
-                                return (Expr::Float(val.abs()), vec![]);
-                            }
-                            Expr::Integer(val) => {
-                                return (Expr::Integer(val.abs()), vec![]);
-                            }
-                            _ => error(&format!("Cannot get absolute value of {:?} type", &args[0]), "Change type"),
-                        }
-                    } else if x == "round" {
-                        assert_args_number("round", args.len(), 1);
-                        match &args[0] {
-                            Expr::Float(val) => {
-                                return (Expr::Integer(val.round() as i64), vec![]);
-                            }
-                            Expr::Integer(val) => {
-                                return (Expr::Integer(val), vec![]);
-                            }
-                            _ => error(&format!("Cannot round {:?} type", &args[0]), "Change type"),
-                        }
-                    } else if x == "len" {
-                        assert_args_number("len", args.len(), 1);
-                        match &args[0] {
-                            Expr::String(val) => {
-                                return (Expr::Integer(val.len() as i64), vec![]);
-                            }
-                            // Expr::Array(val) => {
-                            //     return (Expr::Integer(val.len() as i64), vec![]);
-                            // }
-                            _ => error(&format!("Cannot get length of type {:?}", &args[0]), "Change type"),
-                        }
-                    } else if x == "input" {
-                        assert_args_number("input", args.len(), 0);
-                        let mut input = String::new();
-                        std::io::stdin().read_line(&mut input).unwrap();
-                        return (Expr::String(input.trim().to_string()), vec![]);
-                    }
-                    else {
+
+                    let matched = basic_functions(x.clone(), args.clone());
+
+                    if !matched.1 {
                         let target_function: (String, Vec<String>, Vec<Vec<Expr>>) = functions
                             .clone()
                             .into_iter()
                             .filter(|func| func.0 == x)
                             .next()
                             .expect(error_msg!(&format!("Unknown function '{}'", x)));
-                        assert_args_number(&x, args.len(), target_function.1.len());
+                        assert_args_number!(&x, args.len(), target_function.1.len());
                         let target_args: Vec<Variable> = target_function
                             .1
                             .iter()

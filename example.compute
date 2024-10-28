@@ -1,3 +1,3 @@
 func main() {
-print("  Hello, World!".trim());
+print(input());
 }
