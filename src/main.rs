@@ -496,7 +496,6 @@ fn process_stack(
                                 },
                                 "add" => {
                                     assert_args_number!("add", args.len(), 1);
-                                    // println!("{:?}", args)
                                     let mut new_vec = arr.clone();
                                     new_vec.push(args[0].clone());
                                     output = Expr::Array(new_vec);
