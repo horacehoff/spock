@@ -1,5 +1,5 @@
 func main() {
-let x = [10, 20, "awesome"+test()].add(1+1);
+let x = [10, 20, "awesome"+test()].remove(10);
 print(x);
 }
 

@@ -500,6 +500,13 @@ fn process_stack(
                                     new_vec.push(args[0].clone());
                                     output = Expr::Array(new_vec);
                                 },
+                                "remove" => {
+                                    assert_args_number!("add", args.len(), 1);
+                                    let mut new_vec = arr.clone();
+                                    let index = new_vec.iter().position(|x| *x == args[0]).unwrap();
+                                    new_vec.remove(index);
+                                    output = Expr::Array(new_vec);
+                                }
                                 _ => {}
                             }
                         }
