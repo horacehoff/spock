@@ -14,6 +14,8 @@ pub enum Expr {
     Float(f64),
     String(String),
     Bool(bool),
+    Array(Box<Vec<Expr>>),
+    ArrayParsed(Box<Vec<Vec<Expr>>>),
     OR(Box<Vec<Expr>>),
     AND(Box<Vec<Expr>>),
     Property(String),
@@ -88,6 +90,14 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                 }
             }))
         },
+        Rule::array => {
+            let mut array: Vec<Vec<Expr>> = vec![];
+            for array_member in pair.clone().into_inner() {
+                array.push(parse_expression(array_member))
+            }
+            recursive = false;
+            output.push(Expr::ArrayParsed(Box::from(array)))
+        }
         Rule::property => {
             recursive = false;
             output.push(Expr::Property(pair.as_str().trim_start_matches(".").parse().unwrap()))

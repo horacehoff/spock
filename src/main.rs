@@ -24,6 +24,9 @@ fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
             }
             Expr::Bool(val) => {
                 println!("{}", val)
+            },
+            Expr::Array(val) => {
+                println!("{:?}", val)
             }
             _ => error(&format!("Cannot print {:?} type", &args[0]), "Change type"),
         }
@@ -58,9 +61,9 @@ fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
             Expr::String(val) => {
                 return (Expr::Integer(val.len() as i64), true);
             }
-            // Expr::Array(val) => {
-            //     return (Expr::Integer(val.len() as i64), vec![]);
-            // }
+            Expr::Array(val) => {
+                return (Expr::Integer(val.len() as i64), true);
+            }
             _ => error(&format!("Cannot get length of type {:?}", &args[0]), "Change type"),
         }
         (Expr::Null, true)
@@ -166,6 +169,12 @@ fn process_stack(
             *x = result.0;
         } else if let Expr::Priority(calc) = x {
             *x = process_stack(*calc.clone(), variables.clone(), functions.clone());
+        } else if let Expr::ArrayParsed(y) = x {
+            let mut new_array: Vec<Expr> = vec![];
+            for element in y.iter() {
+                new_array.push(process_stack(element.clone(), variables.clone(), functions.clone()));
+            }
+            *x = Expr::Array(Box::from(new_array));
         }
     }
 
@@ -668,7 +677,7 @@ fn main() {
     let content = fs::read_to_string(filename).unwrap();
 
     let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = parse_functions(content.trim());
-    // println!("{:?}", functions);
+    println!("{:?}", functions);
 
     let main_instructions = functions
         .clone()

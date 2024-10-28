@@ -22,8 +22,9 @@ func_arg = { expression ~ ("," ~ expression)* | "" }
 
 func_call = {identifier ~ "(" ~ func_arg ~ ")"}
 
+array = {"[" ~ expression ~ ("," ~ expression)* ~ "]"}
 
-term = _{ float | integer | string | bool | property_function | property | func_call | priority | identifier }
+term = _{ array | float | integer | string | bool | property_function | property | func_call | priority | identifier }
 
 terms = _{ term+ }
 
