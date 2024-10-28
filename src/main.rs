@@ -2,7 +2,7 @@ mod parser;
 mod parser_functions;
 mod util;
 
-use crate::parser::{BasicOperator, Expr, Variable};
+use crate::parser::{parse_code, BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
 use crate::util::{error};
 use inflector::Inflector;
@@ -100,8 +100,7 @@ fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
     } else if x == "hash" {
         assert_args_number!("hash", args.len(), 1);
         (Expr::String(blake3::hash(bincode::serialize(&args[0]).expect(error_msg!(format!("Failed to compute hash of object {:?}", &args[0]))).as_ref()).to_string()), true)
-    }
-    else {
+    } else {
         (Expr::Null, false)
     }
 }
@@ -132,6 +131,14 @@ fn process_stack(
             if matched.1 {
                 *x = matched.0;
                 continue;
+            } else if func_name == "executeline" {
+                assert_args_number!("executeline", args.len(), 1);
+                if let Expr::String(line) = &args[0] {
+                    *x = process_stack(parse_code(line)[0].clone(), variables.clone(), functions.clone());
+                    continue;
+                } else {
+                    error(&format!("Cannot execute line {:?}", &args[0]), "")
+                }
             }
             let target_function: (String, Vec<String>, Vec<Vec<Expr>>) = functions
                 .clone()
