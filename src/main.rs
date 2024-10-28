@@ -79,7 +79,29 @@ fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
             .next()
             .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Cannot read stdin"))
             .and_then(|inner| inner).unwrap().as_str().parse().unwrap()), true);
-    } else {
+    } else if x == "type" {
+        assert_args_number!("type", args.len(), 1);
+        match &args[0] {
+            Expr::Float(_) => {
+                return (Expr::String("Float".to_string()), true)
+            }
+            Expr::Integer(_) => {
+                return (Expr::String("Integer".to_string()), true)
+            }
+            Expr::String(_) => {
+                return (Expr::String("String".to_string()), true)
+            }
+            Expr::Bool(_) => {
+                return (Expr::String("Boolean".to_string()), true)
+            }
+            _ => error(&format!("Cannot get type of {:?}", &args[0]), "Change type")
+        }
+        return (Expr::Null, true)
+    } else if x == "hash" {
+        assert_args_number!("hash", args.len(), 1);
+        (Expr::String(blake3::hash(bincode::serialize(&args[0]).expect(error_msg!(format!("Failed to compute hash of object {:?}", &args[0]))).as_ref()).to_string()), true)
+    }
+    else {
         (Expr::Null, false)
     }
 }
