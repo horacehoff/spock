@@ -1,8 +1,4 @@
 func main() {
-let x = [10, 20, "awesome"+test()].remove(10);
+let x = [10, 20].sort();
 print(x);
-}
-
-func test() {
-return 3*"test";
 }
