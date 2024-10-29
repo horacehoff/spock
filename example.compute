@@ -1,4 +1,4 @@
 func main() {
-let x = [10, 20].sort();
+let x = [20, 10, "Hello World"].sort();
 print(x);
 }

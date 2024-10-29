@@ -519,17 +519,36 @@ fn process_stack(
                                 },
                                 "sort" => {
                                     assert_args_number!("sort", args.len(), 0);
-                                    let mut new_vec: Vec<Expr> = vec![];
-                                    for elem in arr.iter() {
-                                        if let Expr::Integer(x) = elem {
-                                            new_vec.push(Expr::Float(*x as f64));
-                                        } else if let Expr::Float(x) = elem {
-                                            new_vec.push(Expr::Float(*x))
-                                        } else {
-                                            error(format!("List cannot be sorted: {:?} is not an Integer/Float", elem).as_str(),"")
+                                    let mut new_vec: Vec<Expr> = *arr.clone();
+                                    new_vec.sort_by(|a, b| {
+                                        match a {
+                                            Expr::Integer(x) => {
+                                                match b {
+                                                    Expr::Integer(y) => x.cmp(y),
+                                                    Expr::Float(y) => x.cmp(&(*y as i64)),
+                                                    _ => {
+                                                        error(format!("Cannot compare Integer with {:?}", b).as_str(), "");
+                                                        std::cmp::Ordering::Equal
+                                                    }
+                                                }
+                                            },
+                                            Expr::Float(x) => {
+                                                match b {
+                                                    Expr::Integer(y) => (*x as i64).cmp(y),
+                                                    Expr::Float(y) => x.partial_cmp(y).unwrap(),
+                                                    _ => {
+                                                        error(format!("Cannot compare Integer with {:?}", b).as_str(), "");
+                                                        std::cmp::Ordering::Equal
+                                                    }
+                                                }
+                                            },
+                                            _ => {
+                                                error(format!("Cannot sort {:?}", a).as_str(), "");
+                                                std::cmp::Ordering::Equal
+                                            }
                                         }
-                                    }
-                                    todo!();
+                                    });
+                                    output = Expr::Array(Box::from(new_vec));
                                 }
                                 _ => {}
                             }
