@@ -549,7 +549,24 @@ fn process_stack(
                                         }
                                     });
                                     output = Expr::Array(Box::from(new_vec));
-                                }
+                                },
+                                "index" => {
+                                    assert_args_number!("index", args.len(), 1);
+                                    output = Expr::Integer(arr.clone().iter().position(|elem| *elem == args[0]).expect(error_msg!(format!("{:?} was not found in the list",args[0]))) as i64)
+                                },
+                                "extend" => {
+                                    assert_args_number!("extend", args.len(), 1);
+                                    let mut new_vec: Vec<Expr> = *arr.clone();
+                                    if let Expr::Array(x) = args[0].clone() {
+                                        new_vec.extend(*x);
+                                        output = Expr::Array(Box::from(new_vec));
+                                    } else {
+                                        error(format!("{:?} is not a list", args[0]).as_str(),"");
+                                    }
+                                },
+                                // "insert" => {
+                                //     assert_args_number!("")
+                                // }
                                 _ => {}
                             }
                         }
