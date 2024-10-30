@@ -22,7 +22,7 @@ fn get_printable_form(x: Expr) -> String {
                 .map(|item| get_printable_form(item.clone()))
                 .collect()
         }
-        _ => todo!(),
+        _ => todo!()
     }
 }
 
@@ -34,7 +34,7 @@ macro_rules! get_printable_type {
             Expr::Integer(_) => "Integer",
             Expr::Bool(_) => "Boolean",
             Expr::Array(_) => "Array",
-            _ => panic!("{}", error_msg!(format!("Cannot get type of {:?}", $x))),
+            _ => panic!("{}", error_msg!(format!("Cannot get type of {:?}", $x)))
         }
     };
 }
@@ -133,7 +133,18 @@ fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
             ),
             true,
         )
-    } else {
+    } else if x == "sqrt" {
+        assert_args_number!("sqrt", args.len(), 1);
+        if let Expr::Integer(int) = args[0] {
+            return (Expr::Float((int as f64).sqrt()), true)
+        } else if let Expr::Float(float) = args[0] {
+            return (Expr::Float(float.sqrt()), true)
+        } else {
+            error(format!("Cannot calculate the square root of {:?}", args[0]).as_str(),"");
+            (Expr::Null, false)
+        }
+    }
+    else {
         (Expr::Null, false)
     }
 }

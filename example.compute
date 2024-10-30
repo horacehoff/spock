@@ -1,8 +1,3 @@
 func main() {
-let y = type(2);
-print(y);
-}
-
-func test() {
-return [1, 2, 45];
+print(sqrt(4));
 }
