@@ -1,5 +1,4 @@
 func main() {
-for elem in x {
-print("cool");
-}
+// This is a comment
+print("Hello World");
 }

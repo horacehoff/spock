@@ -902,5 +902,5 @@ fn main() {
         .unwrap()
         .clone()
         .2;
-    // process_function(main_instructions, vec![], vec![], "main", functions);
+    process_function(main_instructions, vec![], vec![], "main", functions);
 }
