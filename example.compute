@@ -1,6 +1,6 @@
 func main() {
-let x = 52[0];
-print(x);
+let y = type(2);
+print(y);
 }
 
 func test() {

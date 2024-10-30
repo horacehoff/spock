@@ -4,56 +4,66 @@ mod util;
 
 use crate::parser::{parse_code, BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
-use crate::util::{error};
+use crate::util::error;
 use inflector::Inflector;
-use std::{fs, io};
 use std::io::{BufRead, BufReader, Write};
 use std::ops::Index;
+use std::{fs, io};
+
+fn get_printable_form(x: Expr) -> String {
+    match x {
+        Expr::String(str) => str,
+        Expr::Float(float) => float.to_string(),
+        Expr::Integer(int) => int.to_string(),
+        Expr::Bool(boolean) => boolean.to_string(),
+        Expr::Array(x) => {
+            let arr = *x;
+            arr.iter()
+                .map(|item| get_printable_form(item.clone()))
+                .collect()
+        }
+        _ => todo!(),
+    }
+}
+
+macro_rules! get_printable_type {
+    ($x:expr) => {
+        match $x {
+            Expr::String(_) => "String",
+            Expr::Float(_) => "Float",
+            Expr::Integer(_) => "Integer",
+            Expr::Bool(_) => "Boolean",
+            Expr::Array(_) => "Array",
+            _ => panic!("{}", error_msg!(format!("Cannot get type of {:?}", $x))),
+        }
+    };
+}
 
 fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
     if x == "print" {
         assert_args_number!("print", args.len(), 1);
-        match &args[0] {
-            Expr::Float(val) => {
-                println!("{}", val)
-            }
-            Expr::Integer(val) => {
-                println!("{}", val)
-            }
-            Expr::String(val) => {
-                println!("{}", val);
-            }
-            Expr::Bool(val) => {
-                println!("{}", val)
-            },
-            Expr::Array(val) => {
-                println!("{:?}", val)
-            }
-            _ => error(&format!("Cannot print {:?} type", &args[0]), "Change type"),
-        }
+        println!("{}", get_printable_form(args[0].clone()));
         (Expr::Null, true)
     } else if x == "abs" {
         assert_args_number!("abs", args.len(), 1);
         match &args[0] {
-            Expr::Float(val) => {
-                return (Expr::Float(val.abs()), true)
-            }
-            Expr::Integer(val) => {
-                return (Expr::Integer(val.abs()), true)
-            }
-            _ => error(&format!("Cannot get absolute value of {:?} type", &args[0]), "Change type"),
+            Expr::Float(val) => return (Expr::Float(val.abs()), true),
+            Expr::Integer(val) => return (Expr::Integer(val.abs()), true),
+            _ => error(
+                &format!("Cannot get absolute value of {:?} type", &args[0]),
+                "Change type",
+            ),
         }
         (Expr::Null, true)
     } else if x == "round" {
         assert_args_number!("round", args.len(), 1);
         match &args[0] {
-            Expr::Float(val) => {
-                return (Expr::Integer(val.round() as i64), true)
-            }
-            Expr::Integer(val) => {
-                return (Expr::Integer(*val), true)
-            }
-            _ => error(&format!("Cannot round {:?} type", &args[0]), "Change type"),
+            Expr::Float(val) => return (Expr::Integer(val.round() as i64), true),
+            Expr::Integer(val) => return (Expr::Integer(*val), true),
+            _ => error(
+                &format!("Cannot round {} type", get_printable_type!(&args[0])),
+                "Change type",
+            ),
         }
         (Expr::Null, true)
     } else if x == "len" {
@@ -65,7 +75,13 @@ fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
             Expr::Array(val) => {
                 return (Expr::Integer(val.len() as i64), true);
             }
-            _ => error(&format!("Cannot get length of type {:?}", &args[0]), "Change type"),
+            _ => error(
+                &format!(
+                    "Cannot get length of type {}",
+                    get_printable_type!(&args[0])
+                ),
+                "Change type",
+            ),
         }
         (Expr::Null, true)
     } else if x == "input" {
@@ -74,36 +90,49 @@ fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
             if let Expr::String(prompt) = &args[0] {
                 print!("{}", prompt);
             } else {
-                error(&format!("Cannot print {:?} type", &args[0]), "Change type");
+                error(
+                    &format!("Cannot print {} type", get_printable_type!(&args[0])),
+                    "Change type",
+                );
             }
         }
         io::stdout().flush().unwrap();
-        return (Expr::String(BufReader::new(io::stdin())
-            .lines()
-            .next()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Cannot read stdin"))
-            .and_then(|inner| inner).unwrap().as_str().parse().unwrap()), true);
+        return (
+            Expr::String(
+                BufReader::new(io::stdin())
+                    .lines()
+                    .next()
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Cannot read stdin"))
+                    .and_then(|inner| inner)
+                    .unwrap()
+                    .as_str()
+                    .parse()
+                    .unwrap(),
+            ),
+            true,
+        );
     } else if x == "type" {
         assert_args_number!("type", args.len(), 1);
-        match &args[0] {
-            Expr::Float(_) => {
-                return (Expr::String("Float".to_string()), true)
-            }
-            Expr::Integer(_) => {
-                return (Expr::String("Integer".to_string()), true)
-            }
-            Expr::String(_) => {
-                return (Expr::String("String".to_string()), true)
-            }
-            Expr::Bool(_) => {
-                return (Expr::String("Boolean".to_string()), true)
-            }
-            _ => error(&format!("Cannot get type of {:?}", &args[0]), "Change type")
-        }
-        return (Expr::Null, true)
+        return (
+            Expr::String(get_printable_type!(&args[0]).to_string()),
+            true,
+        );
     } else if x == "hash" {
         assert_args_number!("hash", args.len(), 1);
-        (Expr::String(blake3::hash(bincode::serialize(&args[0]).expect(error_msg!(format!("Failed to compute hash of object {:?}", &args[0]))).as_ref()).to_string()), true)
+        (
+            Expr::String(
+                blake3::hash(
+                    bincode::serialize(&args[0])
+                        .expect(error_msg!(format!(
+                            "Failed to compute hash of object {:?}",
+                            &args[0]
+                        )))
+                        .as_ref(),
+                )
+                .to_string(),
+            ),
+            true,
+        )
     } else {
         (Expr::Null, false)
     }
@@ -138,7 +167,11 @@ fn process_stack(
             } else if func_name == "executeline" {
                 assert_args_number!("executeline", args.len(), 1);
                 if let Expr::String(line) = &args[0] {
-                    *x = process_stack(parse_code(line)[0].clone(), variables.clone(), functions.clone());
+                    *x = process_stack(
+                        parse_code(line)[0].clone(),
+                        variables.clone(),
+                        functions.clone(),
+                    );
                     continue;
                 } else {
                     error(&format!("Cannot execute line {:?}", &args[0]), "")
@@ -173,7 +206,11 @@ fn process_stack(
         } else if let Expr::ArrayParsed(y) = x {
             let mut new_array: Vec<Expr> = vec![];
             for element in y.iter() {
-                new_array.push(process_stack(element.clone(), variables.clone(), functions.clone()));
+                new_array.push(process_stack(
+                    element.clone(),
+                    variables.clone(),
+                    functions.clone(),
+                ));
             }
             *x = Expr::Array(Box::from(new_array));
         } else if let Expr::ArrayIndex(y, z) = x {
@@ -194,7 +231,7 @@ fn process_stack(
                     error(format!("{:?} is not a valid index", index).as_str(), "");
                 }
             } else {
-                error(format!("{:?} cannot be indexed", array).as_str(),"")
+                error(format!("{:?} cannot be indexed", array).as_str(), "")
             }
         }
     }
@@ -243,11 +280,10 @@ fn process_stack(
                         match current_operator {
                             BasicOperator::Multiply => {
                                 output = Expr::String(x.repeat(value as usize))
-                            },
-                            _ => todo!("[ERORR] INT => STR")
+                            }
+                            _ => todo!("[ERORR] INT => STR"),
                         }
-                    }
-                    else {
+                    } else {
                         todo!("[ERROR] {:?} => STR", output);
                     }
                 }
@@ -285,8 +321,7 @@ fn process_stack(
                             }
                             _ => todo!("[ERROR] FLOAT => FLOAT"),
                         }
-                    }
-                    else if let Expr::Integer(value) = output {
+                    } else if let Expr::Integer(value) = output {
                         match current_operator {
                             BasicOperator::Add => {
                                 output = Expr::Float(value as f64 + x);
@@ -324,7 +359,7 @@ fn process_stack(
                             }
                             BasicOperator::Power => {
                                 output = Expr::Integer(value.pow(x as u32));
-                            },
+                            }
                             BasicOperator::Modulo => {
                                 output = Expr::Integer(value % x);
                             }
@@ -457,7 +492,7 @@ fn process_stack(
                                             "",
                                         );
                                     }
-                                },
+                                }
                                 "index" => {
                                     assert_args_number!("index", args.len(), 1);
                                     if let Expr::String(toindex) = &args[0] {
@@ -508,73 +543,81 @@ fn process_stack(
                                 }
                                 _ => {}
                             }
-                        }
-                        else if let Expr::Array(ref arr) = output {
+                        } else if let Expr::Array(ref arr) = output {
                             match x.as_str() {
                                 "len" => {
                                     assert_args_number!("len", args.len(), 0);
                                     output = Expr::Integer(arr.len() as i64)
-                                },
+                                }
                                 "add" => {
                                     assert_args_number!("add", args.len(), 1);
                                     let mut new_vec = arr.clone();
                                     new_vec.push(args[0].clone());
                                     output = Expr::Array(new_vec);
-                                },
+                                }
                                 "remove" => {
                                     assert_args_number!("add", args.len(), 1);
                                     let mut new_vec = arr.clone();
                                     let index = new_vec.iter().position(|x| *x == args[0]).unwrap();
                                     new_vec.remove(index);
                                     output = Expr::Array(new_vec);
-                                },
+                                }
                                 "clear" => {
                                     assert_args_number!("clear", args.len(), 0);
                                     output = Expr::Array(Box::from(vec![]));
-                                },
+                                }
                                 "reverse" => {
                                     assert_args_number!("clear", args.len(), 0);
                                     let mut new_vec = arr.clone();
                                     new_vec.reverse();
                                     output = Expr::Array(Box::from(new_vec))
-                                },
+                                }
                                 "sort" => {
                                     assert_args_number!("sort", args.len(), 0);
                                     let mut new_vec: Vec<Expr> = *arr.clone();
-                                    new_vec.sort_by(|a, b| {
-                                        match a {
-                                            Expr::Integer(x) => {
-                                                match b {
-                                                    Expr::Integer(y) => x.cmp(y),
-                                                    Expr::Float(y) => x.cmp(&(*y as i64)),
-                                                    _ => {
-                                                        error(format!("Cannot compare Integer with {:?}", b).as_str(), "");
-                                                        std::cmp::Ordering::Equal
-                                                    }
-                                                }
-                                            },
-                                            Expr::Float(x) => {
-                                                match b {
-                                                    Expr::Integer(y) => (*x as i64).cmp(y),
-                                                    Expr::Float(y) => x.partial_cmp(y).unwrap(),
-                                                    _ => {
-                                                        error(format!("Cannot compare Integer with {:?}", b).as_str(), "");
-                                                        std::cmp::Ordering::Equal
-                                                    }
-                                                }
-                                            },
+                                    new_vec.sort_by(|a, b| match a {
+                                        Expr::Integer(x) => match b {
+                                            Expr::Integer(y) => x.cmp(y),
+                                            Expr::Float(y) => x.cmp(&(*y as i64)),
                                             _ => {
-                                                error(format!("Cannot sort {:?}", a).as_str(), "");
+                                                error(
+                                                    format!("Cannot compare Integer with {:?}", b)
+                                                        .as_str(),
+                                                    "",
+                                                );
                                                 std::cmp::Ordering::Equal
                                             }
+                                        },
+                                        Expr::Float(x) => match b {
+                                            Expr::Integer(y) => (*x as i64).cmp(y),
+                                            Expr::Float(y) => x.partial_cmp(y).unwrap(),
+                                            _ => {
+                                                error(
+                                                    format!("Cannot compare Integer with {:?}", b)
+                                                        .as_str(),
+                                                    "",
+                                                );
+                                                std::cmp::Ordering::Equal
+                                            }
+                                        },
+                                        _ => {
+                                            error(format!("Cannot sort {:?}", a).as_str(), "");
+                                            std::cmp::Ordering::Equal
                                         }
                                     });
                                     output = Expr::Array(Box::from(new_vec));
-                                },
+                                }
                                 "index" => {
                                     assert_args_number!("index", args.len(), 1);
-                                    output = Expr::Integer(arr.clone().iter().position(|elem| *elem == args[0]).expect(error_msg!(format!("{:?} was not found in the list",args[0]))) as i64)
-                                },
+                                    output = Expr::Integer(
+                                        arr.clone().iter().position(|elem| *elem == args[0]).expect(
+                                            error_msg!(format!(
+                                                "{:?} was not found in the list",
+                                                args[0]
+                                            )),
+                                        ) as i64,
+                                    )
+                                }
                                 "extend" => {
                                     assert_args_number!("extend", args.len(), 1);
                                     let mut new_vec: Vec<Expr> = *arr.clone();
@@ -582,9 +625,9 @@ fn process_stack(
                                         new_vec.extend(*x);
                                         output = Expr::Array(Box::from(new_vec));
                                     } else {
-                                        error(format!("{:?} is not a list", args[0]).as_str(),"");
+                                        error(format!("{:?} is not a list", args[0]).as_str(), "");
                                     }
-                                },
+                                }
                                 "insert" => {
                                     assert_args_number!("insert", args.len(), 2);
                                     let mut new_vec: Vec<Expr> = *arr.clone();
@@ -592,9 +635,12 @@ fn process_stack(
                                         new_vec.insert(x as usize, args[1].clone());
                                         output = Expr::Array(Box::from(new_vec))
                                     } else {
-                                        error(format!("{:?} is not a valid index", args[0]).as_str(),"");
+                                        error(
+                                            format!("{:?} is not a valid index", args[0]).as_str(),
+                                            "",
+                                        );
                                     }
-                                },
+                                }
                                 "pop" => {
                                     assert_args_number!("pop", args.len(), 1);
                                     let mut new_vec: Vec<Expr> = *arr.clone();
@@ -602,7 +648,10 @@ fn process_stack(
                                         new_vec.remove(x as usize);
                                         output = Expr::Array(Box::from(new_vec))
                                     } else {
-                                        error(format!("{:?} is not a valid index", args[0]).as_str(),"");
+                                        error(
+                                            format!("{:?} is not a valid index", args[0]).as_str(),
+                                            "",
+                                        );
                                     }
                                 }
                                 _ => {}
@@ -651,16 +700,29 @@ fn process_function(
                         name: x,
                         value: process_stack(*y, variables.clone(), functions.clone()),
                     })
-                },
+                }
                 Expr::VariableRedeclaration(x, y) => {
-                    let position = variables.clone().iter().position(|var| var.name == x).expect(error_msg!(format!("Variable '{}' does not exist", x)));
+                    let position = variables
+                        .clone()
+                        .iter()
+                        .position(|var| var.name == x)
+                        .expect(error_msg!(format!("Variable '{}' does not exist", x)));
                     let processed = process_stack(*y, variables.clone(), functions.clone());
                     variables[position].value = processed.clone();
 
-                    if (included_variables.iter().filter(|var| var.name == x).collect::<Vec<_>>().len() > 0) {
-                        return_variables.push(Variable { name: x, value: processed });
+                    if (included_variables
+                        .iter()
+                        .filter(|var| var.name == x)
+                        .collect::<Vec<_>>()
+                        .len()
+                        > 0)
+                    {
+                        return_variables.push(Variable {
+                            name: x,
+                            value: processed,
+                        });
                     }
-                },
+                }
                 Expr::FunctionCall(x, y) => {
                     // println!("{:?}", y);
                     let args: Vec<Expr> = y
@@ -672,7 +734,11 @@ fn process_function(
                     if x == "executeline" && !matched.1 {
                         assert_args_number!("executeline", args.len(), 1);
                         if let Expr::String(line) = &args[0] {
-                            process_stack(parse_code(line)[0].clone(), variables.clone(), functions.clone());
+                            process_stack(
+                                parse_code(line)[0].clone(),
+                                variables.clone(),
+                                functions.clone(),
+                            );
                             continue;
                         } else {
                             error(&format!("Cannot execute line {:?}", &args[0]), "")
@@ -705,7 +771,10 @@ fn process_function(
                     }
                 }
                 Expr::FunctionReturn(x) => {
-                    return (process_stack(*x, variables.clone(), functions.clone()), return_variables);
+                    return (
+                        process_stack(*x, variables.clone(), functions.clone()),
+                        return_variables,
+                    );
                 }
                 Expr::Condition(x, y, z, w) => {
                     let condition = process_stack(*x, variables.clone(), functions.clone());
@@ -755,10 +824,12 @@ fn process_function(
                             return out;
                         }
                     }
-                },
+                }
                 Expr::While(x, y) => {
                     // let condition = process_stack(*x, variables.clone(), functions.clone());
-                    while process_stack(*x.clone(), variables.clone(), functions.clone()) == Expr::Bool(true) {
+                    while process_stack(*x.clone(), variables.clone(), functions.clone())
+                        == Expr::Bool(true)
+                    {
                         let out = process_function(
                             *y.clone(),
                             variables.clone(),
@@ -774,12 +845,14 @@ fn process_function(
                         }
                         if out.1 != vec![] {
                             for replace_var in out.1 {
-                                let indx = variables.iter().position(|var| var.name == replace_var.name).unwrap();
+                                let indx = variables
+                                    .iter()
+                                    .position(|var| var.name == replace_var.name)
+                                    .unwrap();
                                 variables[indx] = replace_var;
                             }
                         }
                     }
-
                 }
                 _ => todo!(),
             }
