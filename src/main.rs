@@ -18,10 +18,11 @@ fn get_printable_form(x: Expr) -> String {
         Expr::Array(x) => {
             let arr = *x;
             arr.iter()
-                .map(|item| get_printable_form(item.clone()))
-                .collect()
+                .map(|item| get_printable_form(item.clone()) + ",")
+                .collect::<String>()
+                .trim_end_matches(",").parse().unwrap()
         }
-        _ => todo!()
+        _ => todo!("IDUHIZUDHI")
     }
 }
 macro_rules! get_value {
@@ -159,6 +160,7 @@ fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
     }
 }
 
+
 fn process_stack(
     mut stack: Vec<Expr>,
     variables: Vec<Variable>,
@@ -234,29 +236,12 @@ fn process_stack(
                 ));
             }
             *x = Expr::Array(Box::from(new_array));
-        } else if let Expr::ArrayIndex(y, z) = x {
-            let array: Expr = process_stack(vec![*y.clone()], variables.clone(), functions.clone());
-            if let Expr::Array(arr) = array {
-                let index: Expr = process_stack(*z.clone(), variables.clone(), functions.clone());
-                if let Expr::Integer(int) = index {
-                    let good_array = *arr;
-                    *x = good_array[int as usize].clone();
-                } else {
-                    error(format!("{:?} is not a valid index", index).as_str(), "");
-                }
-            } else if let Expr::String(str) = array {
-                let index: Expr = process_stack(*z.clone(), variables.clone(), functions.clone());
-                if let Expr::Integer(int) = index {
-                    *x = Expr::String((str.as_bytes()[int as usize] as char).to_string());
-                } else {
-                    error(format!("{:?} is not a valid index", index).as_str(), "");
-                }
-            } else {
-                error(format!("{:?} cannot be indexed", array).as_str(), "")
-            }
+        } else if let Expr::ArraySuite(y) = x {
+            println!("WORKS");
+            panic!();
         }
     }
-
+    
     for element in stack {
         if output == Expr::Null {
             output = element
@@ -891,7 +876,7 @@ fn main() {
     let content = fs::read_to_string(filename).unwrap();
 
     let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = parse_functions(content.trim());
-    println!("{:?}", functions);
+    // println!("{:?}", functions);
 
     let main_instructions = functions
         .clone()

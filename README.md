@@ -26,3 +26,10 @@ x = x+1;
 let x = [10, 20, 30, 40];
 print(x[0]);
 ```
+
+## Types
+- `Boolean` (`true`/`false`)
+- `Integer`
+- `Array` (`[1, 2, 3, "4", 5.0, true]`)
+- `String`
+- `Float`

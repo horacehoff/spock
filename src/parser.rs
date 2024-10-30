@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use pest_derive::Parser;
 use pest::Parser;
 use crate::error_msg;
+use crate::parser::Expr::ArraySuite;
 
 #[derive(Parser)]
 #[grammar = "parser_grammar.pest"]
@@ -17,7 +18,7 @@ pub enum Expr {
     Bool(bool),
     Array(Box<Vec<Expr>>),
     ArrayParsed(Box<Vec<Vec<Expr>>>),
-    ArrayIndex(Box<Expr>, Box<Vec<Expr>>),
+    ArraySuite(Box<Vec<Expr>>),
     OR(Box<Vec<Expr>>),
     AND(Box<Vec<Expr>>),
     Property(String),
@@ -93,18 +94,29 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                 }
             }))
         },
-        Rule::index_specifier => {
-            recursive = false;
-            let input_array = parse_expression(pair.clone().into_inner().next().unwrap())[0].clone();
-            let index_range = pair.clone().into_inner().skip(1).next().unwrap();
-            if index_range.as_rule() == Rule::expression {
-                output.push(Expr::ArrayIndex(Box::from(input_array), Box::from(parse_expression(index_range))))
-            } else {
-                todo!()
+        // Rule::index_specifier => {
+        //     recursive = false;
+        //     let input_array = parse_expression(pair.clone().into_inner().next().unwrap())[0].clone();
+        //     let index_range = pair.clone().into_inner().skip(1).next().unwrap();
+        //     if index_range.as_rule() == Rule::expression {
+        //         output.push(Expr::ArrayIndex(Box::from(input_array), Box::from(parse_expression(index_range))))
+        //     } else {
+        //         todo!()
+        //     }
+        //
+        // }
+        Rule::array_suite => {
+            let mut suite: Vec<Expr> = vec![];
+            for extra in pair.clone().into_inner() {
+                suite.push(parse_expression(extra)[0].clone());
             }
 
+            output.push(ArraySuite(Box::from(suite)))
         }
         Rule::array => {
+            // if let Expr::ArrayParsed(x) = &output[output.len()] {
+            //
+            // }
             let mut array: Vec<Vec<Expr>> = vec![];
             for array_member in pair.clone().into_inner() {
                 array.push(parse_expression(array_member))

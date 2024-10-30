@@ -1,4 +1,4 @@
 func main() {
-// This is a comment
-print("Hello World");
+let x = [0, 1, "test"];
+print([1, 2, 3][2+3][3+78]);
 }
