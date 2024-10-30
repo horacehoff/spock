@@ -106,9 +106,11 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
         //
         // }
         Rule::array_suite => {
+            recursive = false;
             let mut suite: Vec<Expr> = vec![];
             for extra in pair.clone().into_inner() {
                 suite.push(parse_expression(extra)[0].clone());
+                // println!("MEM{:?}", suite);
             }
 
             output.push(ArraySuite(Box::from(suite)))

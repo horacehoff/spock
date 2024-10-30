@@ -237,15 +237,68 @@ fn process_stack(
             }
             *x = Expr::Array(Box::from(new_array));
         } else if let Expr::ArraySuite(y) = x {
-            println!("WORKS");
-            panic!();
+            let arrays: Vec<Expr> = *y.clone();
+            let target_array: Expr = arrays[0].clone();
+            if let Expr::ArrayParsed(target_arr) = target_array {
+                // TARGET ARRAY IS FULLY KNOWN
+                let mut array = vec![];
+                for element in target_arr.iter() {
+                    array.push(process_stack(
+                        element.clone(),
+                        variables.clone(),
+                        functions.clone(),
+                    ));
+                }
+                let mut output = Expr::Null;
+                for target_index in arrays.iter().skip(1) {
+                    if let Expr::ArrayParsed(target_index_arr) = target_index {
+                        let mut index_array = vec![];
+                        for element in target_index_arr.iter() {
+                            index_array.push(process_stack(
+                                element.clone(),
+                                variables.clone(),
+                                functions.clone(),
+                            ));
+                        }
+
+                        if index_array.len() == 1 {
+                            if let Expr::Integer(intg) = index_array[0] {
+                                if output == Expr::Null {
+                                    output = array[intg as usize].clone()
+                                } else {
+                                    if let Expr::Array(sub_arr) = output.clone() {
+                                        output = sub_arr[intg as usize].clone()
+                                    } else {
+                                        panic!()
+                                    }
+                                }
+                            } else {
+                                panic!()
+                            }
+                        } else {
+                            panic!()
+                        }
+
+                        println!("INDEX {:?}", index_array);
+                    } else {
+                        panic!()
+                    }
+                }
+                println!("TARGET {:?}", output);
+                *x = output;
+            } else {
+                panic!();
+            }
         }
     }
-    
+
+    println!("STACK{:?}", stack);
+
     for element in stack {
         if output == Expr::Null {
             output = element
         } else {
+            println!("ELEM {:?}", element);
             match element {
                 Expr::Operation(op) => {
                     current_operator = op;
@@ -876,7 +929,7 @@ fn main() {
     let content = fs::read_to_string(filename).unwrap();
 
     let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = parse_functions(content.trim());
-    // println!("{:?}", functions);
+    println!("{:?}", functions);
 
     let main_instructions = functions
         .clone()
