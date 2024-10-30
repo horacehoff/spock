@@ -12,17 +12,17 @@ use crate::util::error;
 pub fn parse_functions(content: &str) -> Vec<(String, Vec<String>, Vec<Vec<Expr>>)> {
     let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = vec![];
 
-    // let hash = blake3::hash(content.as_bytes()).to_string();
-    // if Path::new(&format!(".compute/{}", hash)).exists() {
-    //     let file = File::open(&format!(".compute/{}", hash)).unwrap();
-    //     let mut reader = BufReader::new(file);
-    //     let mut buffer = Vec::new();
-    //     reader.read_to_end(&mut buffer).unwrap();
-    // 
-    //     let deserialized_data: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = bincode::deserialize(&buffer)
-    //         .expect(error_msg!("Failed to read from cache", "Delete the .compute folder"));
-    //     return deserialized_data;
-    // }
+    let hash = blake3::hash(content.as_bytes()).to_string();
+    if Path::new(&format!(".compute/{}", hash)).exists() {
+        let file = File::open(&format!(".compute/{}", hash)).unwrap();
+        let mut reader = BufReader::new(file);
+        let mut buffer = Vec::new();
+        reader.read_to_end(&mut buffer).unwrap();
+
+        let deserialized_data: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = bincode::deserialize(&buffer)
+            .expect(error_msg!("Failed to read from cache", "Delete the .compute folder"));
+        return deserialized_data;
+    }
 
     // Parse functions
     let function_regex = Regex::new(r"(?ms)^func\s+(\w+)\s*\((.*?)\)\s*\{(.*?)}(?=((\s*func|\z)))").unwrap();
@@ -37,9 +37,9 @@ pub fn parse_functions(content: &str) -> Vec<(String, Vec<String>, Vec<Vec<Expr>
     }
 
     // Cache functions
-    // let data = bincode::serialize(&functions).unwrap();
-    // fs::create_dir_all(".compute/").unwrap();
-    // File::create(format!(".compute/{}", hash)).unwrap().write_all(&data).unwrap();
+    let data = bincode::serialize(&functions).unwrap();
+    fs::create_dir_all(".compute/").unwrap();
+    File::create(format!(".compute/{}", hash)).unwrap().write_all(&data).unwrap();
 
     if functions.clone().into_iter().filter(|function| function.0 == "main").collect::<Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>>().len() == 0 {
         error("No main function", "Add 'func main() {}' to your file");

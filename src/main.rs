@@ -7,7 +7,6 @@ use crate::parser_functions::parse_functions;
 use crate::util::error;
 use inflector::Inflector;
 use std::io::{BufRead, BufReader, Write};
-use std::ops::Index;
 use std::{fs, io};
 
 fn get_printable_form(x: Expr) -> String {
@@ -732,12 +731,12 @@ fn process_function(
                     let processed = process_stack(*y, variables.clone(), functions.clone());
                     variables[position].value = processed.clone();
 
-                    if (included_variables
+                    if included_variables
                         .iter()
                         .filter(|var| var.name == x)
                         .collect::<Vec<_>>()
                         .len()
-                        > 0)
+                        > 0
                     {
                         return_variables.push(Variable {
                             name: x,

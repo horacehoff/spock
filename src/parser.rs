@@ -1,9 +1,7 @@
 use pest::iterators::Pair;
 use serde::{Deserialize, Serialize};
 use pest_derive::Parser;
-// use pest::Parser::
 use pest::Parser;
-use crate::util::error;
 
 #[derive(Parser)]
 #[grammar = "parser_grammar.pest"]
@@ -86,7 +84,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
         },
         Rule::bool => {
             output.push(Expr::Bool({
-                if (pair.as_str() == "true") {
+                if pair.as_str() == "true" {
                     true
                 } else {
                     false
