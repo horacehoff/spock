@@ -1,7 +1,9 @@
 use pest::iterators::Pair;
 use serde::{Deserialize, Serialize};
 use pest_derive::Parser;
+// use pest::Parser::
 use pest::Parser;
+use crate::util::error;
 
 #[derive(Parser)]
 #[grammar = "parser_grammar.pest"]
@@ -16,6 +18,7 @@ pub enum Expr {
     Bool(bool),
     Array(Box<Vec<Expr>>),
     ArrayParsed(Box<Vec<Vec<Expr>>>),
+    ArrayIndex(Box<Expr>, Box<Vec<Expr>>),
     OR(Box<Vec<Expr>>),
     AND(Box<Vec<Expr>>),
     Property(String),
@@ -90,6 +93,17 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                 }
             }))
         },
+        Rule::index_specifier => {
+            recursive = false;
+            let input_array = parse_expression(pair.clone().into_inner().next().unwrap())[0].clone();
+            let index_range = pair.clone().into_inner().skip(1).next().unwrap();
+            if index_range.as_rule() == Rule::expression {
+                output.push(Expr::ArrayIndex(Box::from(input_array), Box::from(parse_expression(index_range))))
+            } else {
+                todo!()
+            }
+
+        }
         Rule::array => {
             let mut array: Vec<Vec<Expr>> = vec![];
             for array_member in pair.clone().into_inner() {

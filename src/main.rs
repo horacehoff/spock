@@ -8,6 +8,7 @@ use crate::util::{error};
 use inflector::Inflector;
 use std::{fs, io};
 use std::io::{BufRead, BufReader, Write};
+use std::ops::Index;
 
 fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
     if x == "print" {
@@ -175,6 +176,15 @@ fn process_stack(
                 new_array.push(process_stack(element.clone(), variables.clone(), functions.clone()));
             }
             *x = Expr::Array(Box::from(new_array));
+        } else if let Expr::ArrayIndex(y, z) = x {
+            let array: Expr = process_stack(vec![*y.clone()], variables.clone(), functions.clone());
+            if let Expr::Array(arr) = array {
+                let index: Expr = process_stack(*z.clone(), variables.clone(), functions.clone());
+                if let Expr::Integer(int) = index {
+                    let good_array = *arr;
+                    *x = good_array[int as usize].clone();
+                }
+            }
         }
     }
 
@@ -564,9 +574,26 @@ fn process_stack(
                                         error(format!("{:?} is not a list", args[0]).as_str(),"");
                                     }
                                 },
-                                // "insert" => {
-                                //     assert_args_number!("")
-                                // }
+                                "insert" => {
+                                    assert_args_number!("insert", args.len(), 2);
+                                    let mut new_vec: Vec<Expr> = *arr.clone();
+                                    if let Expr::Integer(x) = args[0] {
+                                        new_vec.insert(x as usize, args[1].clone());
+                                        output = Expr::Array(Box::from(new_vec))
+                                    } else {
+                                        error(format!("{:?} is not a valid index", args[0]).as_str(),"");
+                                    }
+                                },
+                                "pop" => {
+                                    assert_args_number!("pop", args.len(), 1);
+                                    let mut new_vec: Vec<Expr> = *arr.clone();
+                                    if let Expr::Integer(x) = args[0] {
+                                        new_vec.remove(x as usize);
+                                        output = Expr::Array(Box::from(new_vec))
+                                    } else {
+                                        error(format!("{:?} is not a valid index", args[0]).as_str(),"");
+                                    }
+                                }
                                 _ => {}
                             }
                         }

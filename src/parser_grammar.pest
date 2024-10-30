@@ -24,7 +24,11 @@ func_call = {identifier ~ "(" ~ func_arg ~ ")"}
 
 array = {"[" ~ expression ~ ("," ~ expression)* ~ "]"}
 
-term = _{ array | float | integer | string | bool | property_function | property | func_call | priority | identifier }
+// range = {expression ~ ".." ~ expression}
+
+index_specifier = { (array | float | integer | string | bool | property_function | property | func_call | priority | identifier) ~ "[" ~ expression ~ "]"}
+
+term = _{ index_specifier | array | float | integer | string | bool | property_function | property | func_call | priority | identifier }
 
 terms = _{ term+ }
 
@@ -39,6 +43,8 @@ or_operation = {"||" ~ expression}
 variableIdentifier = { ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
 variableDeclaration = {"let" ~ variableIdentifier ~ "=" ~ expression}
 variableRedeclaration = {variableIdentifier ~ "=" ~ expression}
+
+
 
 
 expression_unit = _{

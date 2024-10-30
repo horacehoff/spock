@@ -1,4 +1,8 @@
 func main() {
-let x = [20, 10, "Hello World"].extend([40, 50]);
+let x = test()[2];
 print(x);
+}
+
+func test() {
+return [1, 2, 45];
 }
