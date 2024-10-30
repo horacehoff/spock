@@ -183,7 +183,18 @@ fn process_stack(
                 if let Expr::Integer(int) = index {
                     let good_array = *arr;
                     *x = good_array[int as usize].clone();
+                } else {
+                    error(format!("{:?} is not a valid index", index).as_str(), "");
                 }
+            } else if let Expr::String(str) = array {
+                let index: Expr = process_stack(*z.clone(), variables.clone(), functions.clone());
+                if let Expr::Integer(int) = index {
+                    *x = Expr::String((str.as_bytes()[int as usize] as char).to_string());
+                } else {
+                    error(format!("{:?} is not a valid index", index).as_str(), "");
+                }
+            } else {
+                error(format!("{:?} cannot be indexed", array).as_str(),"")
             }
         }
     }

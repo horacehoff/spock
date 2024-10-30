@@ -1,5 +1,5 @@
 func main() {
-let x = test()[2];
+let x = 52[0];
 print(x);
 }
 
