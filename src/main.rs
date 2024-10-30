@@ -25,6 +25,18 @@ fn get_printable_form(x: Expr) -> String {
         _ => todo!()
     }
 }
+macro_rules! get_value {
+    ($x:expr) => {
+        match $x {
+            Expr::String(x) => x,
+            Expr::Float(x) => x,
+            Expr::Integer(x) => x,
+            Expr::Bool(x) => x,
+            Expr::Array(x) => x,
+            _ => panic!("{}", error_msg!(format!("Cannot get value of {:?}", $x)))
+        }
+    };
+}
 
 macro_rules! get_printable_type {
     ($x:expr) => {
@@ -143,8 +155,7 @@ fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
             error(format!("Cannot calculate the square root of {:?}", args[0]).as_str(),"");
             (Expr::Null, false)
         }
-    }
-    else {
+    } else {
         (Expr::Null, false)
     }
 }
