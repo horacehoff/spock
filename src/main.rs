@@ -20,9 +20,11 @@ fn get_printable_form(x: Expr) -> String {
             arr.iter()
                 .map(|item| get_printable_form(item.clone()) + ",")
                 .collect::<String>()
-                .trim_end_matches(",").parse().unwrap()
+                .trim_end_matches(",")
+                .parse()
+                .unwrap()
         }
-        _ => todo!("IDUHIZUDHI")
+        _ => panic!("{}", error_msg!(format!("Cannot print {:?}", $x))),
     }
 }
 macro_rules! get_value {
@@ -33,7 +35,7 @@ macro_rules! get_value {
             Expr::Integer(x) => x,
             Expr::Bool(x) => x,
             Expr::Array(x) => x,
-            _ => panic!("{}", error_msg!(format!("Cannot get value of {:?}", $x)))
+            _ => panic!("{}", error_msg!(format!("Cannot get value of {:?}", $x))),
         }
     };
 }
@@ -46,7 +48,7 @@ macro_rules! get_printable_type {
             Expr::Integer(_) => "Integer",
             Expr::Bool(_) => "Boolean",
             Expr::Array(_) => "Array",
-            _ => panic!("{}", error_msg!(format!("Cannot get type of {:?}", $x)))
+            _ => panic!("{}", error_msg!(format!("Cannot get type of {:?}", $x))),
         }
     };
 }
@@ -148,18 +150,20 @@ fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
     } else if x == "sqrt" {
         assert_args_number!("sqrt", args.len(), 1);
         if let Expr::Integer(int) = args[0] {
-            return (Expr::Float((int as f64).sqrt()), true)
+            return (Expr::Float((int as f64).sqrt()), true);
         } else if let Expr::Float(float) = args[0] {
-            return (Expr::Float(float.sqrt()), true)
+            return (Expr::Float(float.sqrt()), true);
         } else {
-            error(format!("Cannot calculate the square root of {:?}", args[0]).as_str(),"");
+            error(
+                format!("Cannot calculate the square root of {:?}", args[0]).as_str(),
+                "",
+            );
             (Expr::Null, false)
         }
     } else {
         (Expr::Null, false)
     }
 }
-
 
 fn process_stack(
     mut stack: Vec<Expr>,
@@ -268,31 +272,93 @@ fn process_stack(
                                 } else {
                                     if let Expr::Array(sub_arr) = output.clone() {
                                         output = sub_arr[intg as usize].clone()
+                                    } else if let Expr::String(sub_str) = output.clone() {
+                                        output = Expr::String(
+                                            sub_str.chars().nth(intg as usize).unwrap().to_string(),
+                                        );
                                     } else {
-                                        panic!()
+                                        error(
+                                            &format!(
+                                                "Cannot index {} type",
+                                                get_printable_type!(output.clone())
+                                            ),
+                                            "",
+                                        )
                                     }
                                 }
                             } else {
-                                panic!()
+                                error(&format!("{:?} is not a valid index", index_array[0]), "");
                             }
                         } else {
-                            panic!()
+                            error(&format!("{:?} is not a valid index", index_array), "");
                         }
-
-                        println!("INDEX {:?}", index_array);
                     } else {
-                        panic!()
+                        error(&format!("{:?} is not a valid index", target_index), "");
                     }
                 }
-                println!("TARGET {:?}", output);
+                *x = output;
+            } else if let Expr::String(str) = target_array {
+                let mut output = Expr::Null;
+                for target_index in arrays.iter().skip(1) {
+                    if let Expr::ArrayParsed(target_index_arr) = target_index {
+                        let mut index_array = vec![];
+                        for element in target_index_arr.iter() {
+                            index_array.push(process_stack(
+                                element.clone(),
+                                variables.clone(),
+                                functions.clone(),
+                            ));
+                        }
+
+                        if index_array.len() == 1 {
+                            if let Expr::Integer(intg) = index_array[0] {
+                                if output == Expr::Null {
+                                    output = Expr::String(
+                                        str.chars().nth(intg as usize).unwrap().to_string(),
+                                    );
+                                } else {
+                                    if let Expr::Array(sub_arr) = output.clone() {
+                                        output = sub_arr[intg as usize].clone()
+                                    } else if let Expr::String(sub_str) = output.clone() {
+                                        output = Expr::String(
+                                            sub_str
+                                                .chars()
+                                                .nth(intg as usize)
+                                                .expect(error_msg!(format!(
+                                                    "Cannot index '{}'",
+                                                    sub_str
+                                                )))
+                                                .to_string(),
+                                        );
+                                    } else {
+                                        error(
+                                            &format!(
+                                                "Cannot index {} type",
+                                                get_printable_type!(output.clone())
+                                            ),
+                                            "",
+                                        )
+                                    }
+                                }
+                            } else {
+                                error(&format!("{:?} is not a valid index", index_array[0]), "");
+                            }
+                        } else {
+                            error(&format!("{:?} is not a valid index", index_array), "");
+                        }
+                    } else {
+                        error(&format!("{:?} is not a valid index", target_index), "");
+                    }
+                }
                 *x = output;
             } else {
-                panic!();
+                error(
+                    &format!("Cannot index {} type", get_printable_type!(target_array)),
+                    "",
+                )
             }
         }
     }
-
-    println!("STACK{:?}", stack);
 
     for element in stack {
         if output == Expr::Null {
@@ -924,7 +990,9 @@ fn process_function(
 }
 
 fn main() {
-    let filename = std::env::args().nth(1).expect(error_msg!("No file was given"));
+    let filename = std::env::args()
+        .nth(1)
+        .expect(error_msg!("No file was given"));
 
     let content = fs::read_to_string(filename).unwrap();
 

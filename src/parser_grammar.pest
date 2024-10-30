@@ -43,8 +43,6 @@ variableDeclaration = {"let" ~ variableIdentifier ~ "=" ~ expression}
 variableRedeclaration = {variableIdentifier ~ "=" ~ expression}
 
 
-
-
 expression_unit = _{
     variableDeclaration | variableRedeclaration | operation | and_operation | or_operation | terms
 }
@@ -72,6 +70,5 @@ else_if_block = {"else" ~ if_statement}
 while_statement = { "while" ~ "("? ~ condition ~ ")"? ~ block }
 
 loop_statement = { "for" ~ "("? ~ identifier ~ "in" ~ expression ~ ")"? ~ block }
-
 
 WHITESPACE = _{ " " | "\t" | "\n" }
