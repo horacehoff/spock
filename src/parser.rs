@@ -2,6 +2,7 @@ use pest::iterators::Pair;
 use serde::{Deserialize, Serialize};
 use pest_derive::Parser;
 use pest::Parser;
+use crate::error_msg;
 
 #[derive(Parser)]
 #[grammar = "parser_grammar.pest"]
@@ -253,7 +254,7 @@ fn _visualize_parse_tree(pair: Pair<Rule>, indent: usize) {
 
 pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
     let mut instructions: Vec<Vec<Expr>> = vec![];
-    for pair in ComputeParser::parse(Rule::code, content).unwrap() {
+    for pair in ComputeParser::parse(Rule::code, content).expect(error_msg!("Failed to parse","Check semicolons and syntax")) {
         // _visualize_parse_tree(pair.clone(), 0);
         for inside in pair.into_inner() {
             let mut line_instructions: Vec<Expr> = vec![];

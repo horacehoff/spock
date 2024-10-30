@@ -24,6 +24,15 @@ pub fn parse_functions(content: &str) -> Vec<(String, Vec<String>, Vec<Vec<Expr>
         return deserialized_data;
     }
 
+    let mut i = 1;
+    for line in content.lines() {
+        let last_char = line.trim().chars().last().unwrap();
+        if !(last_char == ';' || last_char == '{' || last_char == '}') {
+            error(format!("Syntax error in line {}: \n{}", i, line).as_str(),"");
+        }
+        i += 1;
+    }
+
     // Parse functions
     let function_regex = Regex::new(r"(?ms)^func\s+(\w+)\s*\((.*?)\)\s*\{(.*?)}(?=((\s*func|\z)))").unwrap();
     let function_results: Vec<_> = function_regex.captures_iter(content).collect();
@@ -33,7 +42,7 @@ pub fn parse_functions(content: &str) -> Vec<(String, Vec<String>, Vec<Vec<Expr>
         let function = func_match.as_ref().unwrap();
         let parsed = parse_code(function.get(3).unwrap().as_str().trim());
         let args = function.get(2).unwrap().as_str().split(",").map(|arg| arg.trim()).collect::<Vec<&str>>();
-        functions.push((function.get(1).unwrap().as_str(), if (args == vec![""]) {vec![]} else {args}, parsed));
+        functions.push((function.get(1).unwrap().as_str(), if args == vec![""] {vec![]} else {args}, parsed));
     }
 
     // Cache functions

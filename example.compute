@@ -1,4 +1,4 @@
 func main() {
 let x = 2;
-print(sqrt(4^x));
+print("awesome");
 }
