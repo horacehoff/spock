@@ -22,7 +22,7 @@ func_arg = { expression ~ ("," ~ expression)* | "" }
 
 func_call = {identifier ~ "(" ~ func_arg ~ ")"}
 
-array = {"[" ~ expression ~ ("," ~ expression)* ~ "]"}
+array = {"[" ~ expression? ~ ("," ~ expression)* ~ "]"}
 
 // range = {expression ~ ".." ~ expression}
 
@@ -59,9 +59,9 @@ line = _{(return_term | expression) ~ ";"}
 
 code = {statement+}
 
-statement = _{ if_statement | while_statement | line }
+statement = _{ if_statement | while_statement  | loop_statement | line }
 
-if_statement = { "if" ~ "(" ~ condition ~ ")" ~ block ~ (else_block | else_if_block)? }
+if_statement = { "if" ~ "("? ~ condition ~ ")"? ~ block ~ (else_block | else_if_block)? }
 
 condition = { (!")" ~ expression)+ }
 
@@ -71,7 +71,9 @@ else_block = { "else" ~ block }
 
 else_if_block = {"else" ~ if_statement}
 
-while_statement = { "while" ~ "(" ~ condition ~ ")" ~ block }
+while_statement = { "while" ~ "("? ~ condition ~ ")"? ~ block }
+
+loop_statement = { "for" ~ "("? ~ identifier ~ "in" ~ expression ~ ")"? ~ block }
 
 
 WHITESPACE = _{ " " | "\t" | "\n" }

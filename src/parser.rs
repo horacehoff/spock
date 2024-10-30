@@ -40,7 +40,8 @@ pub enum Expr {
     // Condition
     While(Box<Vec<Expr>>,
           // Code to execute while true
-          Box<Vec<Vec<Expr>>>)
+          Box<Vec<Vec<Expr>>>),
+    Loop(String, Box<Expr>, Box<Vec<Vec<Expr>>>)
 }
 
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Copy)]
@@ -299,6 +300,9 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                 }
                 _ => {
 
+                },
+                Rule::loop_statement => {
+                    println!("TEST {:?}", inside.clone().into_inner())
                 }
             }
             instructions.push(line_instructions);

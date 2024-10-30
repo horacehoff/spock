@@ -886,7 +886,7 @@ fn process_function(
 }
 
 fn main() {
-    let filename = "example.compute";
+    let filename = std::env::args().nth(1).expect(error_msg!("No file was given"));
 
     let content = fs::read_to_string(filename).unwrap();
 
@@ -902,5 +902,5 @@ fn main() {
         .unwrap()
         .clone()
         .2;
-    process_function(main_instructions, vec![], vec![], "main", functions);
+    // process_function(main_instructions, vec![], vec![], "main", functions);
 }
