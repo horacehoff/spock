@@ -5,6 +5,7 @@
 - ~5-6x faster than Python
 - Does NOT support nested functions
 - Terrible error handling
+- Full of bugs
 
 ## Syntax examples
 ```

@@ -51,7 +51,8 @@ fn get_printable_form(x: Expr) -> String {
                 .trim_end_matches(",")
                 .parse()
                 .unwrap()
-        }
+        },
+        Expr::Null => "Null".to_string(),
         _ => panic!("{}", error_msg!(format!("Cannot print {} type", get_printable_type!(x)))),
     }
 }
@@ -529,7 +530,20 @@ fn process_stack(
                         }
                     }
                 }
+                Expr::Null => {
+                    if let Expr::Null = output {
+                        match current_operator {
+                            BasicOperator::EQUAL => {
+                                output = Expr::Bool(true)
+                            },
+                            _ => todo!()
+
+                        }
+
+                    }
+                }
                 Expr::Property(x) => {
+                    // TODO
                     if matches!(output, Expr::String(_)) {
                         match x.as_str() {
                             "" => {}
