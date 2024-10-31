@@ -1,4 +1,11 @@
 func main() {
-let _ = input("Test ?");
-print(_);
+print(test_recursion_depth(0, 2850));
+}
+
+func test_recursion_depth(depth, max_depth) {
+    if depth >= max_depth {
+        return "Reached";
+    }
+
+    return test_recursion_depth(depth + 1, max_depth);
 }

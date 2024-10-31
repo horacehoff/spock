@@ -26,17 +26,17 @@ pub fn parse_functions(content: &str) -> Vec<(String, Vec<String>, Vec<Vec<Expr>
     let comment_regex = Regex::new(r"(?m)(?<=\}|;|\{)\s*//.*$").unwrap();
     let content = comment_regex.replace_all(content, "").to_string();
 
-    let mut i = 1;
-    for line in content.lines() {
-        let last_char = line.trim().chars().last().unwrap();
-        if !(last_char == ';' || last_char == '{' || last_char == '}') {
-            error(
-                format!("Syntax error in line {}: \n{}", i, line).as_str(),
-                "",
-            );
-        }
-        i += 1;
-    }
+    // let mut i = 1;
+    // for line in content.lines() {
+    //     let last_char = line.trim().chars().last().unwrap();
+    //     if !(last_char == ';' || last_char == '{' || last_char == '}') {
+    //         error(
+    //             format!("Syntax error in line {}: \n{}", i, line).as_str(),
+    //             "",
+    //         );
+    //     }
+    //     i += 1;
+    // }
 
     // Parse functions
     let function_regex =

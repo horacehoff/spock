@@ -7,7 +7,7 @@ use crate::parser_functions::parse_functions;
 use crate::util::error;
 use inflector::Inflector;
 use std::io::{BufRead, BufReader, Write};
-use std::{fs, io};
+use std::{fs, io, thread};
 
 macro_rules! get_value {
     ($x:expr) => {
@@ -372,7 +372,7 @@ fn process_stack(
         if output == Expr::Null {
             output = element
         } else {
-            println!("ELEM {:?}", element);
+            // println!("ELEM {:?}", element);
             match element {
                 Expr::Operation(op) => {
                     current_operator = op;
@@ -1029,5 +1029,14 @@ fn main() {
         .unwrap()
         .clone()
         .2;
-    process_function(main_instructions, vec![], vec![], "main", functions);
+    // process_function(main_instructions, vec![], vec![], "main", functions);
+
+    thread::Builder::new()
+        // 16MB stack size
+        .stack_size(16 * 1024 * 1024)
+        .spawn(|| {
+            process_function(main_instructions, vec![], vec![], "main", functions);
+        })
+        .unwrap()
+        .join().unwrap();
 }
