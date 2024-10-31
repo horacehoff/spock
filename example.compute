@@ -1,3 +1,4 @@
 func main() {
-let _ = Null;
+let _ = input("Test ?");
+print(_);
 }
