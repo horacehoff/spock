@@ -1,3 +1,3 @@
 func main() {
-print(true[0]);
+let _ = Null;
 }

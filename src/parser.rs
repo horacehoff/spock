@@ -183,13 +183,13 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                 Box::from(priority_calc),
             ));
         }
-        Rule::identifier => output.push(Expr::VariableIdentifier(
+        Rule::identifier => if pair.as_str() == "Null" {output.push(Expr::Null)} else {output.push(Expr::VariableIdentifier(
             pair.as_str()
                 .trim_end_matches("\"")
                 .trim_start_matches("\"")
                 .parse()
                 .unwrap(),
-        )),
+        ))},
         Rule::priority => {
             recursive = false;
             let mut priority_calc: Vec<Expr> = vec![];

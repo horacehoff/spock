@@ -9,24 +9,6 @@ use inflector::Inflector;
 use std::io::{BufRead, BufReader, Write};
 use std::{fs, io};
 
-fn get_printable_form(x: Expr) -> String {
-    match x {
-        Expr::String(str) => str,
-        Expr::Float(float) => float.to_string(),
-        Expr::Integer(int) => int.to_string(),
-        Expr::Bool(boolean) => boolean.to_string(),
-        Expr::Array(x) => {
-            let arr = *x;
-            arr.iter()
-                .map(|item| get_printable_form(item.clone()) + ",")
-                .collect::<String>()
-                .trim_end_matches(",")
-                .parse()
-                .unwrap()
-        }
-        _ => panic!("{}", error_msg!(format!("Cannot print {:?}", $x))),
-    }
-}
 macro_rules! get_value {
     ($x:expr) => {
         match $x {
@@ -48,10 +30,32 @@ macro_rules! get_printable_type {
             Expr::Integer(_) => "Integer",
             Expr::Bool(_) => "Boolean",
             Expr::Array(_) => "Array",
+            Expr::Null => "Null",
             _ => panic!("{}", error_msg!(format!("Cannot get type of {:?}", $x))),
         }
     };
 }
+
+
+fn get_printable_form(x: Expr) -> String {
+    match x {
+        Expr::String(str) => str,
+        Expr::Float(float) => float.to_string(),
+        Expr::Integer(int) => int.to_string(),
+        Expr::Bool(boolean) => boolean.to_string(),
+        Expr::Array(x) => {
+            let arr = *x;
+            arr.iter()
+                .map(|item| get_printable_form(item.clone()) + ",")
+                .collect::<String>()
+                .trim_end_matches(",")
+                .parse()
+                .unwrap()
+        }
+        _ => panic!("{}", error_msg!(format!("Cannot print {} type", get_printable_type!(x)))),
+    }
+}
+
 
 fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
     if x == "print" {
@@ -160,7 +164,11 @@ fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
             );
             (Expr::Null, false)
         }
-    } else {
+    } else if x == "the_answer" {
+        println!("42, the answer to the Ultimate Question of Life, the Universe, and Everything.");
+        (Expr::Integer(42), true)
+    }
+    else {
         (Expr::Null, false)
     }
 }

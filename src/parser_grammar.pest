@@ -6,7 +6,7 @@ bool = @{"true" | "false" }
 
 string = @{ "\"" ~ ( "\"\"" | (!"\"" ~ ANY) )* ~ "\"" }
 
-identifier = @{ASCII_ALPHA+}
+identifier = @{(ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*}
 
 property = {"." ~ ASCII_ALPHA+}
 
@@ -38,9 +38,8 @@ and_operation = {"&&" ~ expression}
 or_operation = {"||" ~ expression}
 
 
-variableIdentifier = { ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
-variableDeclaration = {"let" ~ variableIdentifier ~ "=" ~ expression}
-variableRedeclaration = {variableIdentifier ~ "=" ~ expression}
+variableDeclaration = {"let" ~ identifier ~ "=" ~ expression}
+variableRedeclaration = {identifier ~ "=" ~ expression}
 
 
 expression_unit = _{
