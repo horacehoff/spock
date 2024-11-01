@@ -6,8 +6,10 @@ use crate::parser::{parse_code, BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
 use crate::util::error;
 use inflector::Inflector;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::{fs, io, thread};
+use std::fs::{remove_dir_all, File};
+use std::path::Path;
 
 macro_rules! get_value {
     ($x:expr) => {
@@ -1021,11 +1023,16 @@ fn process_function(
 }
 
 fn main() {
-    let filename = std::env::args()
+    let arg = std::env::args()
         .nth(1)
         .expect(error_msg!("No file was given"));
 
-    let content = fs::read_to_string(filename).unwrap();
+    if arg == "clear-cache" && Path::new(".compute").exists() {
+        remove_dir_all(Path::new(".compute")).expect(error_msg!("Failed to delete the cache folder (.compute)"));
+        return;
+    }
+
+    let content = fs::read_to_string(arg).unwrap();
 
     let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = parse_functions(content.trim());
     println!("{:?}", functions);
