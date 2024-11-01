@@ -36,6 +36,16 @@ macro_rules! get_printable_type {
     };
 }
 
+macro_rules! math_to_type {
+    ($x:expr) => {
+        if $x.fract() != 0.0 {
+            Expr::Float($x)
+        } else {
+            Expr::Integer($x as i64)
+        }
+    };
+}
+
 
 fn get_printable_form(x: Expr) -> String {
     match x {
@@ -424,22 +434,22 @@ fn process_stack(
                     if let Expr::Float(value) = output {
                         match current_operator {
                             BasicOperator::Add => {
-                                output = Expr::Float(value + x);
+                                output = math_to_type!(value + x);
                             }
                             BasicOperator::Sub => {
-                                output = Expr::Float(value - x);
+                                output = math_to_type!(value - x);
                             }
                             BasicOperator::Divide => {
-                                output = Expr::Float(value / x);
+                                output = math_to_type!(value / x);
                             }
                             BasicOperator::Multiply => {
-                                output = Expr::Float(value * x);
+                                output = math_to_type!(value * x);
                             }
                             BasicOperator::Power => {
-                                output = Expr::Float(value.powf(x));
+                                output = math_to_type!(value.powf(x));
                             }
                             BasicOperator::Modulo => {
-                                output = Expr::Float(value % x);
+                                output = math_to_type!(value % x);
                             }
                             BasicOperator::EQUAL => output = Expr::Bool(value == x),
                             BasicOperator::Inferior => {
@@ -463,13 +473,13 @@ fn process_stack(
                                 output = Expr::Float(value as f64 - x);
                             }
                             BasicOperator::Divide => {
-                                output = Expr::Float(value as f64 / x);
+                                output = math_to_type!(value as f64 / x);
                             }
                             BasicOperator::Multiply => {
-                                output = Expr::Float(value as f64 * x);
+                                output = math_to_type!(value as f64 * x);
                             }
                             BasicOperator::Power => {
-                                output = Expr::Float((value as f64).powf(x));
+                                output = math_to_type!((value as f64).powf(x));
                             }
                             _ => todo!("[ERROR] INT => FLOAT"),
                         }
@@ -485,7 +495,7 @@ fn process_stack(
                                 output = Expr::Integer(value - x);
                             }
                             BasicOperator::Divide => {
-                                output = Expr::Float(value as f64 / x as f64);
+                                output = math_to_type!(value as f64 / x as f64);
                             }
                             BasicOperator::Multiply => {
                                 output = Expr::Integer(value * x);
