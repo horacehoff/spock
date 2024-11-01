@@ -1,3 +1,5 @@
+import lib/test;
+
 func main() {
-print(7.5+7.5);
+test();
 }

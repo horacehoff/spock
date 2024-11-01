@@ -10,6 +10,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::{fs, io, thread};
 use std::fs::{remove_dir_all, File};
 use std::path::Path;
+use fancy_regex::Regex;
 
 macro_rules! get_value {
     ($x:expr) => {
@@ -1034,8 +1035,8 @@ fn main() {
 
     let content = fs::read_to_string(arg).unwrap();
 
-    let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = parse_functions(content.trim());
-    println!("{:?}", functions);
+    let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = parse_functions(content.trim(), true);
+    // println!("{:?}", imported_functions);
 
     let main_instructions = functions
         .clone()

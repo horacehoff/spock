@@ -8,7 +8,7 @@ use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use crate::error_msg;
 
-pub fn parse_functions(content: &str) -> Vec<(String, Vec<String>, Vec<Vec<Expr>>)> {
+pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<String>, Vec<Vec<Expr>>)> {
     let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = vec![];
 
     let hash = blake3::hash(content.as_bytes()).to_string();
@@ -62,13 +62,21 @@ pub fn parse_functions(content: &str) -> Vec<(String, Vec<String>, Vec<Vec<Expr>
         .filter(|function| function.0 == "main")
         .collect::<Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>>()
         .len()
-        == 0
+        == 0 && check_main
     {
         error("No main function", "Add 'func main() {}' to your file");
     }
 
-    functions
-        .iter()
+    let import_regex = Regex::new(r"^import (.*);").unwrap();
+    let mut imported_functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = vec![];
+    for imp in import_regex.captures_iter(&content) {
+        let name = "./".to_owned() + imp.unwrap().get(1).unwrap().as_str() +".compute";
+        let file_content = fs::read_to_string(&name).expect(error_msg!(format!("Cannot find module {}", name.trim_start_matches("./"))));
+        imported_functions.append(&mut parse_functions(&file_content, false));
+    }
+
+    let mut return_functions =
+        functions.iter()
         .map(|(a, b, c)| {
             (
                 a.to_string(),
@@ -76,5 +84,9 @@ pub fn parse_functions(content: &str) -> Vec<(String, Vec<String>, Vec<Vec<Expr>
                 c.clone(),
             )
         })
-        .collect()
+        .collect::<Vec<(String, Vec<String>, Vec<Vec<Expr>>)>>();
+
+    return_functions.append(&mut imported_functions);
+
+    return_functions
 }
