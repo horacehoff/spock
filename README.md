@@ -6,6 +6,7 @@
 - Does NOT support nested functions
 - Terrible error handling
 - Full of bugs
+- Supports importing functions from other files
 
 ## Syntax examples
 ```
@@ -34,3 +35,20 @@ print(x[0]);
 - `Array` (`[1, 2, 3, "4", 5.0, true]`)
 - `String`
 - `Float`
+
+## Imports
+You can import functions from other `.compute` files by using the `import`keyword like so:
+- `otherfile.compute`:
+```
+func demo() {
+print("Hello World!");
+}
+```
+- `main.compute`:
+```
+import otherfile; // if the imported file is in a folder, write '<path>/otherfile'
+
+func main() {
+demo();
+}
+```
