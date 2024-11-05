@@ -11,6 +11,14 @@ use crate::error_msg;
 pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<String>, Vec<Vec<Expr>>)> {
     let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = vec![];
 
+    let import_regex = Regex::new(r"^import (.*);").unwrap();
+    let mut imported_functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = vec![];
+    for imp in import_regex.captures_iter(&content) {
+        let name = "./".to_owned() + imp.unwrap().get(1).unwrap().as_str() +".compute";
+        let file_content = fs::read_to_string(&name).expect(error_msg!(format!("Cannot find module {}", name.trim_start_matches("./"))));
+        imported_functions.append(&mut parse_functions(&file_content, false));
+    }
+
     let hash = blake3::hash(content.as_bytes()).to_string();
     if Path::new(&format!(".compute/{}", hash)).exists() {
         let file = File::open(&format!(".compute/{}", hash)).unwrap();
@@ -18,8 +26,9 @@ pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<Stri
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer).unwrap();
 
-        let deserialized_data: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = bincode::deserialize(&buffer)
+        let mut deserialized_data: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = bincode::deserialize(&buffer)
             .expect(error_msg!("Failed to read from cache", "Delete the .compute folder"));
+        deserialized_data.append(&mut imported_functions);
         return deserialized_data;
     }
 
@@ -65,14 +74,6 @@ pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<Stri
         == 0 && check_main
     {
         error("No main function", "Add 'func main() {}' to your file");
-    }
-
-    let import_regex = Regex::new(r"^import (.*);").unwrap();
-    let mut imported_functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = vec![];
-    for imp in import_regex.captures_iter(&content) {
-        let name = "./".to_owned() + imp.unwrap().get(1).unwrap().as_str() +".compute";
-        let file_content = fs::read_to_string(&name).expect(error_msg!(format!("Cannot find module {}", name.trim_start_matches("./"))));
-        imported_functions.append(&mut parse_functions(&file_content, false));
     }
 
     let mut return_functions =

@@ -1,4 +1,4 @@
-import lib/test;
+import test;
 
 func main() {
 test();
