@@ -1,6 +1,7 @@
 mod parser;
 mod parser_functions;
 mod util;
+mod namespaces;
 
 use crate::parser::{parse_code, BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
@@ -11,6 +12,7 @@ use std::{fs, io, thread};
 use std::fs::{remove_dir_all, File};
 use std::path::Path;
 use fancy_regex::Regex;
+use crate::namespaces::namespace_functions;
 
 macro_rules! get_value {
     ($x:expr) => {
@@ -202,7 +204,23 @@ fn process_stack(
                 .next()
                 .expect(error_msg!(format!("Variable '{}' doesn't exist", var)));
             *x = variable.value.clone();
-        } else if let Expr::FunctionCall(ref func_name, ref func_args) = x {
+        } else if let Expr::NamespaceFunctionCall(namespace, y, z) = x {
+            // DOES NOT WORK
+            let args: Vec<Expr> = z
+                .iter()
+                .map(|arg| process_stack(arg.clone(), variables.clone(), functions.clone()))
+                .collect();
+
+            let namespace_funcs = namespace_functions(namespace.clone(), y.clone(), args.clone());
+            if namespace_funcs.1 {
+                *x = namespace_funcs.0;
+                continue;
+            } else {
+                error(&format!("Unknown function {}", namespace.join(".")+y ),"");
+            }
+
+        }
+        else if let Expr::FunctionCall(ref func_name, ref func_args) = x {
             // replace function call by its result (return value)
             let args: Vec<Expr> = func_args
                 .iter()
@@ -225,6 +243,8 @@ fn process_stack(
                     error(&format!("Cannot execute line {:?}", &args[0]), "")
                 }
             }
+
+
             let target_function: (String, Vec<String>, Vec<Vec<Expr>>) = functions
                 .clone()
                 .into_iter()
@@ -1036,7 +1056,7 @@ fn main() {
     let content = fs::read_to_string(arg).unwrap();
 
     let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = parse_functions(content.trim(), true);
-    // println!("{:?}", imported_functions);
+    println!("{:?}", functions);
 
     let main_instructions = functions
         .clone()

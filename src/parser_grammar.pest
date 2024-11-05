@@ -22,11 +22,13 @@ func_arg = { expression ~ ("," ~ expression)* | "" }
 
 func_call = {identifier ~ "(" ~ func_arg ~ ")"}
 
+func_call_namespace = {(identifier ~ ".")+ ~ func_call}
+
 array = {"[" ~ expression? ~ ("," ~ expression)* ~ "]"}
 
-array_suite = {(array | float | integer | string | bool | property_function | property | func_call | priority | identifier) ~ array+}
+array_suite = {(array | float | integer | string | bool | property_function | property | func_call_namespace | func_call | priority | identifier) ~ array+}
 
-term = _{ array_suite | array | float | integer | string | bool | property_function | property | func_call | priority | identifier }
+term = _{ array_suite | array | float | integer | string | bool | property_function | property | func_call_namespace | func_call | priority | identifier }
 
 terms = _{ term+ }
 

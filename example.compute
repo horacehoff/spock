@@ -1,5 +1,3 @@
-import test;
-
 func main() {
-test();
+sys.test.print("okay");
 }

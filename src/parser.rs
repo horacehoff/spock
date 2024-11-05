@@ -4,6 +4,7 @@ use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
+use crate::util::error;
 
 #[derive(Parser)]
 #[grammar = "parser_grammar.pest"]
@@ -25,6 +26,7 @@ pub enum Expr {
     PropertyFunction(Box<Expr>),
     VariableIdentifier(String),
     FunctionCall(String, Box<Vec<Vec<Expr>>>),
+    NamespaceFunctionCall(Vec<String>, String, Box<Vec<Vec<Expr>>>),
     FunctionReturn(Box<Vec<Expr>>),
     Priority(Box<Vec<Expr>>),
     Operation(BasicOperator),
@@ -182,6 +184,20 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                     .unwrap(),
                 Box::from(priority_calc),
             ));
+        },
+        Rule::func_call_namespace => {
+            recursive = false;
+            let func_call = parse_expression(pair.clone().into_inner().last().unwrap()).first().unwrap().clone();
+            let mut namespaces = vec![];
+            for namespace in pair.clone().into_inner().rev().skip(1).rev() {
+                namespaces.push(namespace.as_str().to_string());
+            }
+            println!("{:?}", namespaces);
+            if let Expr::FunctionCall(x, y) = func_call {
+                output.push(Expr::NamespaceFunctionCall(namespaces, x.clone(), y.clone()));
+            } else {
+                error(format!("{:?} is not a valid function", func_call).as_str(),"");
+            }
         }
         Rule::identifier => if pair.as_str() == "Null" {output.push(Expr::Null)} else {output.push(Expr::VariableIdentifier(
             pair.as_str()
