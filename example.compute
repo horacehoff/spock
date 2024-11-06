@@ -1,4 +1,3 @@
 func main() {
-let myfile = io::read("cargo.toml").replace("compute","AWESOME");
-print(myfile.replace("compute","WOWOWOW"));
+let myfile = io::append("test.txt","X");
 }
