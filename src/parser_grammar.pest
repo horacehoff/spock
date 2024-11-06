@@ -22,7 +22,7 @@ func_arg = { expression ~ ("," ~ expression)* | "" }
 
 func_call = {identifier ~ "(" ~ func_arg ~ ")"}
 
-func_call_namespace = {(identifier ~ ".")+ ~ func_call}
+func_call_namespace = {(identifier ~ "::")+ ~ func_call}
 
 array = {"[" ~ expression? ~ ("," ~ expression)* ~ "]"}
 

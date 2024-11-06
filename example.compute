@@ -1,4 +1,4 @@
 func main() {
-let mycontent = io.read("Cargo.toml");
-print(mycontent);
+let myfile = io::read("cargo.toml");
+print(myfile.replace("compute","WOWOWOW"));
 }

@@ -205,7 +205,6 @@ fn process_stack(
                 .expect(error_msg!(format!("Variable '{}' doesn't exist", var)));
             *x = variable.value.clone();
         } else if let Expr::NamespaceFunctionCall(namespace, y, z) = x {
-            // DOES NOT WORK
             let args: Vec<Expr> = z
                 .iter()
                 .map(|arg| process_stack(arg.clone(), variables.clone(), functions.clone()))
@@ -216,7 +215,7 @@ fn process_stack(
                 *x = namespace_funcs.0;
                 continue;
             } else {
-                error(&format!("Unknown function {}", namespace.join(".")+y ),"");
+                error(&format!("Unknown function {}", namespace.join(".")+"."+y ),"");
             }
 
         }

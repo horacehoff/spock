@@ -52,3 +52,8 @@ func main() {
 demo();
 }
 ```
+
+## Reading files
+```
+print(io::read("myfile.txt"));
+```
