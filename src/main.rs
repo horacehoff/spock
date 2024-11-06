@@ -195,7 +195,6 @@ fn process_stack(
 ) -> Expr {
     let mut output: Expr = Expr::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
-    println!("STACK{:?}", stack);
     for x in &mut stack {
         if let Expr::VariableIdentifier(ref var) = x {
             let variable = variables
