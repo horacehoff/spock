@@ -195,7 +195,7 @@ fn process_stack(
 ) -> Expr {
     let mut output: Expr = Expr::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
-    // println!("{:?}", stack);
+    println!("STACK{:?}", stack);
     for x in &mut stack {
         if let Expr::VariableIdentifier(ref var) = x {
             let variable = variables
@@ -901,6 +901,15 @@ fn process_function(
                             value: processed,
                         });
                     }
+                }
+                Expr::NamespaceFunctionCall(z, x, y) => {
+                    let args: Vec<Expr> = y
+                        .iter()
+                        .map(|arg| process_stack(arg.clone(), variables.clone(), functions.clone()))
+                        .collect();
+                    if !namespace_functions(z.clone(), x.clone(), args.clone()).1 {
+                        error(&format!("Unknown function '{}'", z.join(".")+"."+&x), "");
+                    };
                 }
                 Expr::FunctionCall(x, y) => {
                     // println!("{:?}", y);
