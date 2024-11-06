@@ -1,3 +1,4 @@
 func main() {
-compute.exit();
+let mycontent = io.read("Cargo.toml");
+print(mycontent);
 }
