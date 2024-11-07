@@ -1,4 +1,6 @@
+#[path = "parser/parser.rs"]
 mod parser;
+#[path = "parser/parser_functions.rs"]
 mod parser_functions;
 mod util;
 mod namespaces;
