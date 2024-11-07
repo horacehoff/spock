@@ -56,5 +56,10 @@ demo();
 ## Files
 ```
 print(io::open("myfile.txt").read());
+let file = io::open("myfile.txt")
+// overwrite the file's contents
+file.write("new content");
+// append to the end of the file
+file.append("appended content");
 
 ```
