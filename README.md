@@ -53,7 +53,8 @@ demo();
 }
 ```
 
-## Reading files
+## Files
 ```
-print(io::read("myfile.txt"));
+print(io::open("myfile.txt").read());
+
 ```
