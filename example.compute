@@ -1,3 +1,4 @@
 func main() {
-let myfile = io::append("test.txt","X");
+let myfile = io::open("test.txt");
+print(myfile.write("OKOKAO")+"okzy");
 }
