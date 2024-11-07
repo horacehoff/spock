@@ -1,4 +1,4 @@
 func main() {
-let myfile = io::open("test.txt");
+let myfile = io::open("tes.txt");
 print(myfile.write("OKOKAO")+"okzy");
 }

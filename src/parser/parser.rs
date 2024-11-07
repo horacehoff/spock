@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::util::error;
 
 #[derive(Parser)]
-#[grammar = "parser_grammar.pest"]
+#[grammar = "parser/parser_grammar.pest"]
 struct ComputeParser;
 
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq)]
