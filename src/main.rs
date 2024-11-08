@@ -9,6 +9,7 @@ mod integer;
 #[path = "operations/float.rs"]
 mod float;
 
+use std::env::args;
 use crate::parser::{parse_code, BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
 use crate::util::error;
@@ -17,6 +18,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::{fs, io, thread};
 use std::fs::{remove_dir_all};
 use std::path::Path;
+use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
 
@@ -480,59 +482,7 @@ fn process_stack(
                     }
                 }
                 Expr::Float(x) => {
-                    if let Expr::Float(value) = output {
-                        match current_operator {
-                            BasicOperator::Add => {
-                                output = math_to_type!(value + x);
-                            }
-                            BasicOperator::Sub => {
-                                output = math_to_type!(value - x);
-                            }
-                            BasicOperator::Divide => {
-                                output = math_to_type!(value / x);
-                            }
-                            BasicOperator::Multiply => {
-                                output = math_to_type!(value * x);
-                            }
-                            BasicOperator::Power => {
-                                output = math_to_type!(value.powf(x));
-                            }
-                            BasicOperator::Modulo => {
-                                output = math_to_type!(value % x);
-                            }
-                            BasicOperator::EQUAL => output = Expr::Bool(value == x),
-                            BasicOperator::Inferior => {
-                                output = Expr::Bool(value < x);
-                            }
-                            BasicOperator::InferiorEqual => output = Expr::Bool(value <= x),
-                            BasicOperator::Superior => {
-                                output = Expr::Bool(value > x);
-                            }
-                            BasicOperator::SuperiorEqual => {
-                                output = Expr::Bool(value >= x);
-                            }
-                            _ => error(&format!("Cannot perform operation '{:?}' between Float and Float", current_operator),""),
-                        }
-                    } else if let Expr::Integer(value) = output {
-                        match current_operator {
-                            BasicOperator::Add => {
-                                output = Expr::Float(value as f64 + x);
-                            }
-                            BasicOperator::Sub => {
-                                output = Expr::Float(value as f64 - x);
-                            }
-                            BasicOperator::Divide => {
-                                output = math_to_type!(value as f64 / x);
-                            }
-                            BasicOperator::Multiply => {
-                                output = math_to_type!(value as f64 * x);
-                            }
-                            BasicOperator::Power => {
-                                output = math_to_type!((value as f64).powf(x));
-                            }
-                            _ => error(&format!("Cannot perform operation '{:?}' between Integer and Float", current_operator),""),
-                        }
-                    }
+                    output = float_ops(x, output, current_operator);
                 }
                 Expr::Integer(x) => {
                     output = integer_ops(x, output, current_operator);
@@ -672,17 +622,7 @@ fn process_stack(
                                 _ => {}
                             }
                         } else if let Expr::Float(num) = output {
-                            match x.as_str() {
-                                "toInt" => {
-                                    assert_args_number!("toInt", args.len(), 0);
-                                    output = Expr::Integer(num as i64)
-                                }
-                                "toStr" => {
-                                    assert_args_number!("toStr", args.len(), 0);
-                                    output = Expr::String(num.to_string())
-                                }
-                                _ => {}
-                            }
+                            integer_props!(num, args, x, output);
                         } else if let Expr::Integer(num) = output {
                             match x.as_str() {
                                 "toFloat" => {
