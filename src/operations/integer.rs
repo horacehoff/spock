@@ -35,7 +35,10 @@ pub fn integer_ops(x:i64, output: Expr, current_operator: BasicOperator) -> Expr
             BasicOperator::SuperiorEqual => {
                 Expr::Bool(value >= x)
             }
-            _ => {error(&format!("Cannot perform operation '{:?}' between Integer and Integer", current_operator),"");Expr::Null},
+            _ => {
+                error(&format!("Cannot perform operation '{:?}' between Integer and Integer", current_operator), "");
+                Expr::Null
+            },
         }
     } else if let Expr::Float(value) = output {
         match current_operator {
@@ -54,27 +57,13 @@ pub fn integer_ops(x:i64, output: Expr, current_operator: BasicOperator) -> Expr
             BasicOperator::Power => {
                 Expr::Float(value.powf(x as f64))
             }
-            _ => {error(&format!("Cannot perform operation '{:?}' between Float and Integer", current_operator),""); Expr::Null},
+            _ => {
+                error(&format!("Cannot perform operation '{:?}' between Float and Integer", current_operator), "");
+                Expr::Null
+            },
         }
     } else {
-        error(&format!("Cannot perform operation '{:?}' between {:?} and Integer", get_printable_type!(output), current_operator),""); Expr::Null
+        error(&format!("Cannot perform operation '{:?}' between {:?} and Integer", get_printable_type!(output), current_operator), "");
+        Expr::Null
     }
-}
-
-
-#[macro_export]
-macro_rules! integer_props {
-    ($num: expr, $args:expr, $x: expr, $output: expr) => {
-        match $x.as_str() {
-            "toInt" => {
-                assert_args_number!("toInt", $args.len(), 0);
-                $output = Expr::Integer($num as i64)
-            }
-            "toStr" => {
-                assert_args_number!("toStr", $args.len(), 0);
-                $output = Expr::String($num.to_string())
-            }
-            _ => {}
-        }
-    };
 }

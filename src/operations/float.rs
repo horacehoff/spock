@@ -60,3 +60,20 @@ pub fn float_ops(x:f64, output: Expr, current_operator: BasicOperator) -> Expr {
         error(&format!("Cannot perform operation '{:?}' between {:?} and Float", get_printable_type!(output), current_operator),""); Expr::Null
     }
 }
+
+#[macro_export]
+macro_rules! float_props {
+    ($num: expr, $args:expr, $x: expr, $output: expr) => {
+        match $x.as_str() {
+            "toInt" => {
+                assert_args_number!("toInt", $args.len(), 0);
+                $output = Expr::Integer($num as i64)
+            }
+            "toStr" => {
+                assert_args_number!("toStr", $args.len(), 0);
+                $output = Expr::String($num.to_string())
+            }
+            _ => {}
+        }
+    };
+}

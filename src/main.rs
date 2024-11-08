@@ -622,7 +622,7 @@ fn process_stack(
                                 _ => {}
                             }
                         } else if let Expr::Float(num) = output {
-                            integer_props!(num, args, x, output);
+                            float_props!(num, args, x, output);
                         } else if let Expr::Integer(num) = output {
                             match x.as_str() {
                                 "toFloat" => {
