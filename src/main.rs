@@ -287,10 +287,12 @@ fn process_stack(
             }
             *x = Expr::Array(Box::from(new_array));
         } else if let Expr::ArraySuite(y) = x {
+            // matches multiple arrays following one another => implies array indexing
             let arrays: Vec<Expr> = *y.clone();
             let target_array: Expr = process_stack(vec![arrays[0].clone()], variables.clone(), functions.clone());
+            // 1 - matches if the contents of the array have yet to be fully evaluated
             if let Expr::ArrayParsed(target_arr) = target_array {
-                // TARGET ARRAY IS FULLY KNOWN
+                // compute the "final" value of the first/target array
                 let mut array = vec![];
                 for element in target_arr.iter() {
                     array.push(process_stack(
@@ -300,6 +302,7 @@ fn process_stack(
                     ));
                 }
                 let mut output = Expr::Null;
+                // iterate over every array following the first one => they are indexes
                 for target_index in arrays.iter().skip(1) {
                     if let Expr::ArrayParsed(target_index_arr) = target_index {
                         let mut index_array = vec![];
@@ -345,6 +348,7 @@ fn process_stack(
                 }
                 *x = output;
             } else if let Expr::Array(target_arr) = target_array {
+                // 2 - matches if contents of target array have already been fully evaluated and the array only contains raw/basic values
                 let mut output = Expr::Null;
                 for target_index in arrays.iter().skip(1) {
                     if let Expr::ArrayParsed(target_index_arr) = target_index {
