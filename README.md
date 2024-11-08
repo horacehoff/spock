@@ -40,7 +40,7 @@ print(x[0]);
 
 ## Basic macros
 You can define macros outside functions using the following syntax:
-`macro name value`\
+`macro name->value`\
 **Example**:
 ```
 macro hello goodbye;

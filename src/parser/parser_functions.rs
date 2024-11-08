@@ -1,11 +1,13 @@
-use crate::parser::parse_code;
+use crate::parser::{parse_expression, ComputeParser, Rule};
 use crate::parser::Expr;
 use crate::util::error;
 use fancy_regex::Regex;
 use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
+use std::ops::Index;
 use std::path::Path;
+use pest::Parser;
 use crate::error_msg;
 
 pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<String>, Vec<Vec<Expr>>)> {
@@ -35,33 +37,38 @@ pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<Stri
     let comment_regex = Regex::new(r"(?m)(?<=\}|;|\{)\s*//.*$").unwrap();
     let mut content: String = comment_regex.replace_all(content, "").to_string().lines().map(|ln| ln.trim()).collect();
 
-    let macro_regex = Regex::new(r"^macro (.*) (.*);").unwrap();
+    let macro_regex = Regex::new(r"(?m)^macro (\S*)->(\S*);").unwrap();
     for macro_match in macro_regex.captures_iter(&content.clone()) {
         let re_match = macro_match.unwrap();
-        content = content.replace(re_match.get(1).unwrap().as_str(), re_match.get(2).unwrap().as_str());
+        content = content.replace(re_match.get(0).unwrap().as_str(),"").replace(re_match.get(1).unwrap().as_str().trim(), re_match.get(2).unwrap().as_str().trim());
+
     }
 
+    println!("CONTENT{:?}", &content);
     // Parse functions
-    let function_regex =
-        Regex::new(r"(?ms)^func\s+(\w+)\s*\((.*?)\)\s*\{(.*?)}(?=((\s*func|\z)))").unwrap();
-    let function_results: Vec<_> = function_regex.captures_iter(&content).collect();
+    let functions_pairs = ComputeParser::parse(Rule::function, &content).unwrap();
+    for func in functions_pairs {
+        let mut parsed: Vec<Vec<Expr>> = vec![];
+        let mut inner_rules = func.into_inner();
+        let name = inner_rules.next().unwrap().as_str();
+        let args = inner_rules.clone().rev().skip(1).rev().next();
+        let mut func_args: Vec<&str> = vec![];
+        if args.iter().len() > 0 {
+            func_args = args.unwrap().into_inner().map(|arg| arg.as_str()).collect();
+        }
 
-    for func_match in function_results.iter() {
-        let function = func_match.as_ref().unwrap();
-        let parsed = parse_code(function.get(3).unwrap().as_str().trim());
-        let args = function
-            .get(2)
-            .unwrap()
-            .as_str()
-            .split(",")
-            .map(|arg| arg.trim())
-            .collect::<Vec<&str>>();
+        for inner_rule in inner_rules.last().unwrap().into_inner() {
+            parsed.push(parse_expression(inner_rule))
+        }
+
         functions.push((
-            function.get(1).unwrap().as_str(),
-            if args == vec![""] { vec![] } else { args },
+            name,
+            func_args,
             parsed,
         ));
     }
+
+
 
     // Cache functions
     let data = bincode::serialize(&functions).unwrap();

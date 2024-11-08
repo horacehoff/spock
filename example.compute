@@ -1,7 +1,5 @@
-        func main() {
-            let x = 0;
-            while (x < 5) {
-                print(x);  // Expected output: 0, 1, 2, 3, 4
-                x = x + 1;
-            }
-        }
+macro he->"+"hol"+";
+
+func main() {
+    print("hey");
+}

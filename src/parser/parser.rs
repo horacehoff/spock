@@ -8,7 +8,7 @@ use crate::util::error;
 
 #[derive(Parser)]
 #[grammar = "parser/parser_grammar.pest"]
-struct ComputeParser;
+pub struct ComputeParser;
 
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq)]
 pub enum Expr {
