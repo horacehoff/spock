@@ -8,6 +8,10 @@ mod namespaces;
 mod integer;
 #[path = "types/float.rs"]
 mod float;
+#[path = "types/array.rs"]
+mod array;
+#[path = "types/string.rs"]
+mod string;
 
 use std::env::args;
 use crate::parser::{parse_code, BasicOperator, Expr, Variable};
@@ -516,239 +520,14 @@ fn process_stack(
                             })
                             .collect();
 
-                        // STR
                         if let Expr::String(str) = output.clone() {
-                            match x.as_str() {
-                                // TRANSFORM
-                                "uppercase" => {
-                                    assert_args_number!("uppercase", args.len(), 0);
-                                    output = Expr::String(str.to_uppercase());
-                                }
-                                "lowercase" => {
-                                    assert_args_number!("lowercase", args.len(), 0);
-                                    output = Expr::String(str.to_lowercase());
-                                }
-                                "capitalize" => {
-                                    assert_args_number!("capitalize", args.len(), 0);
-                                    output = Expr::String(str.to_title_case());
-                                }
-                                "replace" => {
-                                    assert_args_number!("replace", args.len(), 2);
-                                    if let Expr::String(toreplace) = &args[0] {
-                                        if let Expr::String(replaced) = &args[1] {
-                                            output = Expr::String(str.replace(toreplace, replaced))
-                                        } else {
-                                            error(
-                                                format!("{:?} is not a String", &args[1]).as_str(),
-                                                format!("Convert {:?} to a String", &args[1])
-                                                    .as_str(),
-                                            );
-                                        }
-                                    } else {
-                                        error(
-                                            format!("{:?} is not a String", &args[0]).as_str(),
-                                            format!("Convert {:?} to a String", &args[0]).as_str(),
-                                        );
-                                    }
-                                }
-                                "toInt" => {
-                                    assert_args_number!("toInt", args.len(), 0);
-                                    if str.parse::<i64>().is_ok() {
-                                        output = Expr::Integer(str.parse::<i64>().unwrap())
-                                    } else {
-                                        error(
-                                            &format!(
-                                                "String '{}' cannot be converted to an Integer",
-                                                str
-                                            ),
-                                            "",
-                                        );
-                                    }
-                                }
-                                "toFloat" => {
-                                    assert_args_number!("toFloat", args.len(), 0);
-                                    if str.parse::<f64>().is_ok() {
-                                        output = Expr::Float(str.parse::<f64>().unwrap())
-                                    } else {
-                                        error(
-                                            &format!(
-                                                "String '{}' cannot be converted to an Integer",
-                                                str
-                                            ),
-                                            "",
-                                        );
-                                    }
-                                }
-                                "toBool" => {
-                                    assert_args_number!("toBool", args.len(), 0);
-                                    if str.to_lowercase() == "true" {
-                                        output = Expr::Bool(true)
-                                    } else if str.to_lowercase() == "false" {
-                                        output = Expr::Bool(false)
-                                    } else {
-                                        error(
-                                            &format!(
-                                                "String '{}' cannot be converted to a Boolean",
-                                                str
-                                            ),
-                                            "",
-                                        );
-                                    }
-                                }
-                                "index" => {
-                                    assert_args_number!("index", args.len(), 1);
-                                    if let Expr::String(toindex) = &args[0] {
-                                        let indx = str.find(toindex).unwrap();
-                                        output = Expr::Integer(indx as i64);
-                                    } else {
-                                        error(
-                                            format!("{:?} is not a String", &args[0]).as_str(),
-                                            format!("Convert {:?} to a String", &args[0]).as_str(),
-                                        );
-                                    }
-                                }
-                                "trim" => {
-                                    assert_args_number!("trim", args.len(), 0);
-                                    output = Expr::String(str.trim().to_string());
-                                }
-                                "ltrim" => {
-                                    assert_args_number!("ltrim", args.len(), 0);
-                                    output = Expr::String(str.trim_start().to_string());
-                                }
-                                "rtrim" => {
-                                    assert_args_number!("rtrim", args.len(), 0);
-                                    output = Expr::String(str.trim_end().to_string());
-                                }
-                                _ => {}
-                            }
+                            string_props!(str, args, x, output);
                         } else if let Expr::Float(num) = output {
                             float_props!(num, args, x, output);
                         } else if let Expr::Integer(num) = output {
                             integer_props!(num, args, x, output);
-                            // match x.as_str() {
-                            //     // "toFloat" => {
-                            //     //     assert_args_number!("toFloat", args.len(), 0);
-                            //     //     output = Expr::Float(num as f64)
-                            //     // }
-                            //     // "toStr" => {
-                            //     //     assert_args_number!("toStr", args.len(), 0);
-                            //     //     output = Expr::String(num.to_string())
-                            //     // }
-                            //     _ => {}
-                            // }
                         } else if let Expr::Array(ref arr) = output {
-                            match x.as_str() {
-                                "len" => {
-                                    assert_args_number!("len", args.len(), 0);
-                                    output = Expr::Integer(arr.len() as i64)
-                                }
-                                "add" => {
-                                    assert_args_number!("add", args.len(), 1);
-                                    let mut new_vec = arr.clone();
-                                    new_vec.push(args[0].clone());
-                                    output = Expr::Array(new_vec);
-                                }
-                                "remove" => {
-                                    assert_args_number!("add", args.len(), 1);
-                                    let mut new_vec = arr.clone();
-                                    let index = new_vec.iter().position(|x| *x == args[0]).unwrap();
-                                    new_vec.remove(index);
-                                    output = Expr::Array(new_vec);
-                                }
-                                "clear" => {
-                                    assert_args_number!("clear", args.len(), 0);
-                                    output = Expr::Array(Box::from(vec![]));
-                                }
-                                "reverse" => {
-                                    assert_args_number!("clear", args.len(), 0);
-                                    let mut new_vec = arr.clone();
-                                    new_vec.reverse();
-                                    output = Expr::Array(Box::from(new_vec))
-                                }
-                                "sort" => {
-                                    assert_args_number!("sort", args.len(), 0);
-                                    let mut new_vec: Vec<Expr> = *arr.clone();
-                                    new_vec.sort_by(|a, b| match a {
-                                        Expr::Integer(x) => match b {
-                                            Expr::Integer(y) => x.cmp(y),
-                                            Expr::Float(y) => x.cmp(&(*y as i64)),
-                                            _ => {
-                                                error(
-                                                    format!("Cannot compare Integer with {:?}", b)
-                                                        .as_str(),
-                                                    "",
-                                                );
-                                                std::cmp::Ordering::Equal
-                                            }
-                                        },
-                                        Expr::Float(x) => match b {
-                                            Expr::Integer(y) => (*x as i64).cmp(y),
-                                            Expr::Float(y) => x.partial_cmp(y).unwrap(),
-                                            _ => {
-                                                error(
-                                                    format!("Cannot compare Integer with {:?}", b)
-                                                        .as_str(),
-                                                    "",
-                                                );
-                                                std::cmp::Ordering::Equal
-                                            }
-                                        },
-                                        _ => {
-                                            error(format!("Cannot sort {:?}", a).as_str(), "");
-                                            std::cmp::Ordering::Equal
-                                        }
-                                    });
-                                    output = Expr::Array(Box::from(new_vec));
-                                }
-                                "index" => {
-                                    assert_args_number!("index", args.len(), 1);
-                                    output = Expr::Integer(
-                                        arr.clone().iter().position(|elem| *elem == args[0]).expect(
-                                            error_msg!(format!(
-                                                "{:?} was not found in the list",
-                                                args[0]
-                                            )),
-                                        ) as i64,
-                                    )
-                                }
-                                "extend" => {
-                                    assert_args_number!("extend", args.len(), 1);
-                                    let mut new_vec: Vec<Expr> = *arr.clone();
-                                    if let Expr::Array(x) = args[0].clone() {
-                                        new_vec.extend(*x);
-                                        output = Expr::Array(Box::from(new_vec));
-                                    } else {
-                                        error(format!("{:?} is not a list", args[0]).as_str(), "");
-                                    }
-                                }
-                                "insert" => {
-                                    assert_args_number!("insert", args.len(), 2);
-                                    let mut new_vec: Vec<Expr> = *arr.clone();
-                                    if let Expr::Integer(x) = args[0] {
-                                        new_vec.insert(x as usize, args[1].clone());
-                                        output = Expr::Array(Box::from(new_vec))
-                                    } else {
-                                        error(
-                                            format!("{:?} is not a valid index", args[0]).as_str(),
-                                            "",
-                                        );
-                                    }
-                                }
-                                "pop" => {
-                                    assert_args_number!("pop", args.len(), 1);
-                                    let mut new_vec: Vec<Expr> = *arr.clone();
-                                    if let Expr::Integer(x) = args[0] {
-                                        new_vec.remove(x as usize);
-                                        output = Expr::Array(Box::from(new_vec))
-                                    } else {
-                                        error(
-                                            format!("{:?} is not a valid index", args[0]).as_str(),
-                                            "",
-                                        );
-                                    }
-                                }
-                                _ => {}
-                            }
+                            array_props!(arr, args, x, output);
                         } else if let Expr::File(filepath) = &output {
                                 match x.as_str() {
                                     "read" => {

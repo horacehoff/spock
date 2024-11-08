@@ -1,3 +1,3 @@
 func main() {
-print(7.toFloat());
+print("hello world".replace("world","earth"));
 }
