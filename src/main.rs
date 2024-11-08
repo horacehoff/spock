@@ -497,17 +497,17 @@ fn process_stack(
                             BasicOperator::Add => {
                                 output = Expr::String(value.to_owned() + &x);
                             }
-                            _ => error(&format!("Cannot perform operation {:?} between String and String", current_operator),""),
+                            _ => error(&format!("Cannot perform operation '{:?}' between String and String", current_operator),""),
                         }
                     } else if let Expr::Integer(value) = &output {
                         match current_operator {
                             BasicOperator::Multiply => {
                                 output = Expr::String(x.repeat(*value as usize))
                             }
-                            _ => error(&format!("Cannot perform operation {:?} between Integer and String", current_operator),""),
+                            _ => error(&format!("Cannot perform operation '{:?}' between Integer and String", current_operator),""),
                         }
                     } else {
-                        error(&format!("Cannot perform operation {:?} between {:?} and String", current_operator, get_printable_type!(output)), "")
+                        error(&format!("Cannot perform operation '{:?}' between {:?} and String", current_operator, get_printable_type!(output)), "")
                     }
                 }
                 Expr::Float(x) => {
@@ -542,7 +542,7 @@ fn process_stack(
                             BasicOperator::SuperiorEqual => {
                                 output = Expr::Bool(value >= x);
                             }
-                            _ => error(&format!("Cannot perform operation {:?} between Float and Float", current_operator),""),
+                            _ => error(&format!("Cannot perform operation '{:?}' between Float and Float", current_operator),""),
                         }
                     } else if let Expr::Integer(value) = output {
                         match current_operator {
@@ -561,7 +561,7 @@ fn process_stack(
                             BasicOperator::Power => {
                                 output = math_to_type!((value as f64).powf(x));
                             }
-                            _ => error(&format!("Cannot perform operation {:?} between Integer and Float", current_operator),""),
+                            _ => error(&format!("Cannot perform operation '{:?}' between Integer and Float", current_operator),""),
                         }
                     }
                 }
@@ -597,7 +597,7 @@ fn process_stack(
                             BasicOperator::SuperiorEqual => {
                                 output = Expr::Bool(value >= x);
                             }
-                            _ => error(&format!("Cannot perform operation {:?} between Integer and Integer", current_operator),""),
+                            _ => error(&format!("Cannot perform operation '{:?}' between Integer and Integer", current_operator),""),
                         }
                     } else if let Expr::Float(value) = output {
                         match current_operator {
@@ -616,7 +616,7 @@ fn process_stack(
                             BasicOperator::Power => {
                                 output = Expr::Float(value.powf(x as f64));
                             }
-                            _ => error(&format!("Cannot perform operation {:?} between Float and Integer", current_operator),""),
+                            _ => error(&format!("Cannot perform operation '{:?}' between Float and Integer", current_operator),""),
                         }
                     }
                 }
@@ -626,7 +626,7 @@ fn process_stack(
                             BasicOperator::EQUAL => {
                                 output = Expr::Bool(true)
                             },
-                            _ => error(&format!("Cannot perform operation {:?} between Null and Null", current_operator),"")
+                            _ => error(&format!("Cannot perform operation '{:?}' between Null and Null", current_operator),"")
                         }
                     }
                 }
