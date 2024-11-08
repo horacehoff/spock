@@ -1,3 +1,5 @@
+macro hello goodbye;
+
 func main() {
-print("hey"+"ther");
+print("hello world");
 }
