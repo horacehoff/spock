@@ -1,3 +1,4 @@
 func main() {
-print("hello world".replace("world","earth"));
+let f = io::open("test.txt");
+print(f.read());
 }
