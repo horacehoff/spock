@@ -1,5 +1,5 @@
-macro hello goodbye;
-
 func main() {
-print("hello world");
+    let file = io::open("output.txt");
+    file.append(" - Additional content");
+    print(io::open("output.txt").read());  // Expected output: "Initial content - Additional content"
 }

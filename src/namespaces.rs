@@ -1,4 +1,5 @@
 use std::fs;
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::process::exit;
 use crate::{assert_args_number, error_msg, get_printable_form};
@@ -22,7 +23,7 @@ pub fn namespace_functions(x: Vec<String>, y: String, args: Vec<Expr>) -> (Expr,
         if y == "open" {
             assert_args_number!(y, args.len(), 1);
             if let Expr::String(filename) = args[0].clone() {
-                let filecontent = fs::read_to_string(&filename).expect(error_msg!(format!("Failed to read {}", filename)));
+                OpenOptions::new().write(true).create(true).open(&filename).expect(error_msg!("Failed to check/create file"));
                 (Expr::File(filename), true)
             } else {
                 error(&format!("Invalid file name: {:?}", get_printable_form(args[0].clone())),"");

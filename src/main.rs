@@ -15,15 +15,15 @@ mod string;
 #[path = "types/file.rs"]
 mod file;
 
-use std::env::args;
-use crate::parser::{parse_code, BasicOperator, Expr, Variable};
-use crate::parser_functions::parse_functions;
-use crate::util::{error, get_printable_form};
 use inflector::Inflector;
 use std::io::{BufRead, BufReader, Write};
 use std::{fs, io, thread};
 use std::fs::{remove_dir_all};
 use std::path::Path;
+
+use crate::parser::{parse_code, BasicOperator, Expr, Variable};
+use crate::parser_functions::parse_functions;
+use crate::util::{error, get_printable_form};
 use crate::string::string_ops;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
@@ -528,7 +528,7 @@ fn process_function(
     let mut return_variables: Vec<Variable> = vec![];
 
     for instructions in lines {
-        for instruction in instructions {
+        for instruction in instructions.clone() {
             match instruction {
                 Expr::VariableDeclaration(x, y) => {
                     // if variables.iter().filter(|var| var.name == x).collect::<Vec<&Variable>>().len() != 0 {
@@ -702,7 +702,10 @@ fn process_function(
                         }
                     }
                 }
-                _ => todo!(),
+                _ => {
+                    process_stack(instructions.clone(), variables.clone(), functions.clone());
+                    break;
+                },
             }
             // println!("{:?}", instruction)
         }
