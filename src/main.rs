@@ -283,7 +283,7 @@ fn process_stack(
             *x = Expr::Array(Box::from(new_array));
         } else if let Expr::ArraySuite(y) = x {
             let arrays: Vec<Expr> = *y.clone();
-            let target_array: Expr = arrays[0].clone();
+            let target_array: Expr = process_stack(vec![arrays[0].clone()], variables.clone(), functions.clone());
             if let Expr::ArrayParsed(target_arr) = target_array {
                 // TARGET ARRAY IS FULLY KNOWN
                 let mut array = vec![];
@@ -311,6 +311,7 @@ fn process_stack(
                                 if output == Expr::Null {
                                     output = array[intg as usize].clone()
                                 } else {
+                                    println!("{:?}OUTPUT", output);
                                     if let Expr::Array(sub_arr) = output.clone() {
                                         output = sub_arr[intg as usize].clone()
                                     } else if let Expr::String(sub_str) = output.clone() {
@@ -338,7 +339,54 @@ fn process_stack(
                     }
                 }
                 *x = output;
-            } else if let Expr::String(str) = target_array {
+            } else if let Expr::Array(target_arr) = target_array {
+                let mut output = Expr::Null;
+                for target_index in arrays.iter().skip(1) {
+                    if let Expr::ArrayParsed(target_index_arr) = target_index {
+                        let mut index_array = vec![];
+                        for element in target_index_arr.iter() {
+                            index_array.push(process_stack(
+                                element.clone(),
+                                variables.clone(),
+                                functions.clone(),
+                            ));
+                        }
+
+                        if index_array.len() == 1 {
+                            if let Expr::Integer(intg) = index_array[0] {
+                                if output == Expr::Null {
+                                    output = target_arr[intg as usize].clone()
+                                } else {
+                                    println!("{:?}OUTPUT", output);
+                                    if let Expr::Array(sub_arr) = output.clone() {
+                                        output = sub_arr[intg as usize].clone()
+                                    } else if let Expr::String(sub_str) = output.clone() {
+                                        output = Expr::String(
+                                            sub_str.chars().nth(intg as usize).unwrap().to_string(),
+                                        );
+                                    } else {
+                                        error(
+                                            &format!(
+                                                "Cannot index {} type",
+                                                get_printable_type!(output.clone())
+                                            ),
+                                            "",
+                                        )
+                                    }
+                                }
+                            } else {
+                                error(&format!("{:?} is not a valid index", index_array[0]), "");
+                            }
+                        } else {
+                            error(&format!("{:?} is not a valid index", index_array), "");
+                        }
+                    } else {
+                        error(&format!("{:?} is not a valid index", target_index), "");
+                    }
+                }
+                *x = output;
+            }
+            else if let Expr::String(str) = target_array {
                 let mut output = Expr::Null;
                 for target_index in arrays.iter().skip(1) {
                     if let Expr::ArrayParsed(target_index_arr) = target_index {

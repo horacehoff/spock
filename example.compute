@@ -1,4 +1,10 @@
 func main() {
-let myfile = io::open("tes.txt");
-print(myfile.write("OKOKAO")+"okzy");
+let myarray = ["a","b","c","d","e","f","g","h"];
+let x = myarray.len();
+let i = 0;
+while i < x {
+let myelem = myarray[i];
+print(myelem);
+i = i+1;
+}
 }
