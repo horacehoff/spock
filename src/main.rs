@@ -199,6 +199,7 @@ fn process_stack(
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for x in &mut stack {
         if let Expr::VariableIdentifier(ref var) = x {
+            // replace variable by its value
             let variable = variables
                 .iter()
                 .filter(|variable| variable.name == *var)
@@ -206,6 +207,7 @@ fn process_stack(
                 .expect(error_msg!(format!("Variable '{}' doesn't exist", var)));
             *x = variable.value.clone();
         } else if let Expr::NamespaceFunctionCall(namespace, y, z) = x {
+            // execute "namespace functions"
             let args: Vec<Expr> = z
                 .iter()
                 .map(|arg| process_stack(arg.clone(), variables.clone(), functions.clone()))
@@ -227,6 +229,7 @@ fn process_stack(
                 .map(|arg| process_stack(arg.clone(), variables.clone(), functions.clone()))
                 .collect();
             let matched = basic_functions(func_name.clone(), args.clone());
+            // check if function is a built-in function, else search it among user-defined functions
             if matched.1 {
                 *x = matched.0;
                 continue;
@@ -270,8 +273,10 @@ fn process_stack(
             );
             *x = result.0;
         } else if let Expr::Priority(calc) = x {
+            // execute content inside parentheses before all the other content in the second loop
             *x = process_stack(*calc.clone(), variables.clone(), functions.clone());
         } else if let Expr::ArrayParsed(y) = x {
+            // compute final value of arrays
             let mut new_array: Vec<Expr> = vec![];
             for element in y.iter() {
                 new_array.push(process_stack(
