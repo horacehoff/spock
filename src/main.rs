@@ -18,7 +18,7 @@ mod file;
 use std::env::args;
 use crate::parser::{parse_code, BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
-use crate::util::error;
+use crate::util::{error, get_printable_form};
 use inflector::Inflector;
 use std::io::{BufRead, BufReader, Write};
 use std::{fs, io, thread};
@@ -28,27 +28,6 @@ use crate::string::string_ops;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-
-
-fn get_printable_form(x: Expr) -> String {
-    match x {
-        Expr::String(str) => str,
-        Expr::Float(float) => float.to_string(),
-        Expr::Integer(int) => int.to_string(),
-        Expr::Bool(boolean) => boolean.to_string(),
-        Expr::Array(x) => {
-            let arr = *x;
-            arr.iter()
-                .map(|item| get_printable_form(item.clone()) + ",")
-                .collect::<String>()
-                .trim_end_matches(",")
-                .parse()
-                .unwrap()
-        },
-        Expr::Null => "Null".to_string(),
-        _ => panic!("{}", error_msg!(format!("Cannot print {} type", get_printable_type!(x)))),
-    }
-}
 
 
 fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {

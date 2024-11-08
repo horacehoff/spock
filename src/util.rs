@@ -1,3 +1,5 @@
+use crate::parser::Expr;
+
 pub fn error(message: &str, tip: &str) {
     if tip == "" {
         eprintln!(
@@ -101,4 +103,24 @@ macro_rules! math_to_type {
             Expr::Integer($x as i64)
         }
     };
+}
+
+pub fn get_printable_form(x: Expr) -> String {
+    match x {
+        Expr::String(str) => str,
+        Expr::Float(float) => float.to_string(),
+        Expr::Integer(int) => int.to_string(),
+        Expr::Bool(boolean) => boolean.to_string(),
+        Expr::Array(x) => {
+            let arr = *x;
+            arr.iter()
+                .map(|item| get_printable_form(item.clone()) + ",")
+                .collect::<String>()
+                .trim_end_matches(",")
+                .parse()
+                .unwrap()
+        },
+        Expr::Null => "Null".to_string(),
+        _ => panic!("{}", error_msg!(format!("Cannot print {} type", get_printable_type!(x)))),
+    }
 }

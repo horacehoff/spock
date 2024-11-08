@@ -1,12 +1,13 @@
 # Compute
-> Very WIP
+A work-in-progress programming language written in Rust for the best performance possible, whose syntax takes inspiration from Rust and Python.
 
-- Inspired by Rust & Python
+Key facts:
 - ~5-6x faster than Python
-- Does NOT support nested functions
+- Does not support nested functions
 - Terrible error handling
-- Full of bugs
-- Supports importing functions from other files
+  - No line number
+  - May report the wrong error (a syntax error could make the parser think the error's origin is elsewhere)
+- Many bugs
 
 ## Syntax examples
 ```
