@@ -8,6 +8,7 @@ Key facts:
   - No line number
   - May report the wrong error (a syntax error could make the parser think the error's origin is elsewhere)
 - Many bugs
+- Supports basic macros
 
 ## Syntax examples
 ```
@@ -36,6 +37,18 @@ print(x[0]);
 - `Array` (`[1, 2, 3, "4", 5.0, true]`)
 - `String`
 - `Float`
+
+## Basic macros
+You can define macros outside functions using the following syntax:
+`macro name value`\
+**Example**:
+```
+macro hello goodbye;
+
+func main() {
+print("hello world");
+}
+```
 
 ## Imports
 You can import functions from other `.compute` files by using the `import`keyword like so:
