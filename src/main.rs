@@ -24,7 +24,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::{fs, io, thread};
 use std::fs::{remove_dir_all};
 use std::path::Path;
-use crate::file::string_ops;
+use crate::string::string_ops;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
