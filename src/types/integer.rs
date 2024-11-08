@@ -67,3 +67,20 @@ pub fn integer_ops(x:i64, output: Expr, current_operator: BasicOperator) -> Expr
         Expr::Null
     }
 }
+
+#[macro_export]
+macro_rules! integer_props {
+    ($num: expr, $args:expr, $x: expr, $output: expr) => {
+        match $x.as_str() {
+            "toFloat" => {
+                assert_args_number!("toFloat", $args.len(), 0);
+                $output = Expr::Float($num as f64)
+            }
+            "toStr" => {
+                assert_args_number!("toStr", $args.len(), 0);
+                $output = Expr::String($num.to_string())
+            }
+            _ => {}
+        }
+    };
+}

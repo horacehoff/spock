@@ -4,9 +4,9 @@ mod parser;
 mod parser_functions;
 mod util;
 mod namespaces;
-#[path = "operations/integer.rs"]
+#[path = "types/integer.rs"]
 mod integer;
-#[path = "operations/float.rs"]
+#[path = "types/float.rs"]
 mod float;
 
 use std::env::args;
@@ -624,17 +624,18 @@ fn process_stack(
                         } else if let Expr::Float(num) = output {
                             float_props!(num, args, x, output);
                         } else if let Expr::Integer(num) = output {
-                            match x.as_str() {
-                                "toFloat" => {
-                                    assert_args_number!("toFloat", args.len(), 0);
-                                    output = Expr::Float(num as f64)
-                                }
-                                "toStr" => {
-                                    assert_args_number!("toStr", args.len(), 0);
-                                    output = Expr::String(num.to_string())
-                                }
-                                _ => {}
-                            }
+                            integer_props!(num, args, x, output);
+                            // match x.as_str() {
+                            //     // "toFloat" => {
+                            //     //     assert_args_number!("toFloat", args.len(), 0);
+                            //     //     output = Expr::Float(num as f64)
+                            //     // }
+                            //     // "toStr" => {
+                            //     //     assert_args_number!("toStr", args.len(), 0);
+                            //     //     output = Expr::String(num.to_string())
+                            //     // }
+                            //     _ => {}
+                            // }
                         } else if let Expr::Array(ref arr) = output {
                             match x.as_str() {
                                 "len" => {
