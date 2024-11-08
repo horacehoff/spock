@@ -30,7 +30,6 @@ use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
 
 
-
 fn get_printable_form(x: Expr) -> String {
     match x {
         Expr::String(str) => str,
