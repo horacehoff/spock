@@ -1,4 +1,3 @@
 func main() {
-let f = io::open("test.txt");
-print(f.read());
+print("hey"+"ther");
 }

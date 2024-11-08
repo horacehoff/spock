@@ -24,6 +24,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::{fs, io, thread};
 use std::fs::{remove_dir_all};
 use std::path::Path;
+use crate::file::string_ops;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
@@ -469,23 +470,7 @@ fn process_stack(
                     }
                 }
                 Expr::String(x) => {
-                    if let Expr::String(value) = &output {
-                        match current_operator {
-                            BasicOperator::Add => {
-                                output = Expr::String(value.to_owned() + &x);
-                            }
-                            _ => error(&format!("Cannot perform operation '{:?}' between String and String", current_operator),""),
-                        }
-                    } else if let Expr::Integer(value) = &output {
-                        match current_operator {
-                            BasicOperator::Multiply => {
-                                output = Expr::String(x.repeat(*value as usize))
-                            }
-                            _ => error(&format!("Cannot perform operation '{:?}' between Integer and String", current_operator),""),
-                        }
-                    } else {
-                        error(&format!("Cannot perform operation '{:?}' between {:?} and String", current_operator, get_printable_type!(output)), "")
-                    }
+                    output = string_ops(x, output, current_operator);
                 }
                 Expr::Float(x) => {
                     output = float_ops(x, output, current_operator);
