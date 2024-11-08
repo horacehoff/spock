@@ -4,6 +4,10 @@ mod parser;
 mod parser_functions;
 mod util;
 mod namespaces;
+#[path = "operations/integer.rs"]
+mod integer;
+#[path = "operations/float.rs"]
+mod float;
 
 use crate::parser::{parse_code, BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
@@ -13,44 +17,9 @@ use std::io::{BufRead, BufReader, Write};
 use std::{fs, io, thread};
 use std::fs::{remove_dir_all};
 use std::path::Path;
+use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
 
-macro_rules! get_value {
-    ($x:expr) => {
-        match $x {
-            Expr::String(x) => x,
-            Expr::Float(x) => x,
-            Expr::Integer(x) => x,
-            Expr::Bool(x) => x,
-            Expr::Array(x) => x,
-            _ => panic!("{}", error_msg!(format!("Cannot get value of {:?}", $x))),
-        }
-    };
-}
-
-macro_rules! get_printable_type {
-    ($x:expr) => {
-        match $x {
-            Expr::String(_) => "String",
-            Expr::Float(_) => "Float",
-            Expr::Integer(_) => "Integer",
-            Expr::Bool(_) => "Boolean",
-            Expr::Array(_) => "Array",
-            Expr::Null => "Null",
-            _ => panic!("{}", error_msg!(format!("Cannot get type of {:?}", $x))),
-        }
-    };
-}
-
-macro_rules! math_to_type {
-    ($x:expr) => {
-        if $x.fract() != 0.0 {
-            Expr::Float($x)
-        } else {
-            Expr::Integer($x as i64)
-        }
-    };
-}
 
 
 fn get_printable_form(x: Expr) -> String {
@@ -566,59 +535,7 @@ fn process_stack(
                     }
                 }
                 Expr::Integer(x) => {
-                    if let Expr::Integer(value) = output {
-                        match current_operator {
-                            BasicOperator::Add => {
-                                output = Expr::Integer(value + x);
-                            }
-                            BasicOperator::Sub => {
-                                output = Expr::Integer(value - x);
-                            }
-                            BasicOperator::Divide => {
-                                output = math_to_type!(value as f64 / x as f64);
-                            }
-                            BasicOperator::Multiply => {
-                                output = Expr::Integer(value * x);
-                            }
-                            BasicOperator::Power => {
-                                output = Expr::Integer(value.pow(x as u32));
-                            }
-                            BasicOperator::Modulo => {
-                                output = Expr::Integer(value % x);
-                            }
-                            BasicOperator::EQUAL => output = Expr::Bool(value == x),
-                            BasicOperator::Inferior => {
-                                output = Expr::Bool(value < x);
-                            }
-                            BasicOperator::InferiorEqual => output = Expr::Bool(value <= x),
-                            BasicOperator::Superior => {
-                                output = Expr::Bool(value > x);
-                            }
-                            BasicOperator::SuperiorEqual => {
-                                output = Expr::Bool(value >= x);
-                            }
-                            _ => error(&format!("Cannot perform operation '{:?}' between Integer and Integer", current_operator),""),
-                        }
-                    } else if let Expr::Float(value) = output {
-                        match current_operator {
-                            BasicOperator::Add => {
-                                output = Expr::Float(value + x as f64);
-                            }
-                            BasicOperator::Sub => {
-                                output = Expr::Float(value - x as f64);
-                            }
-                            BasicOperator::Divide => {
-                                output = Expr::Float(value / x as f64);
-                            }
-                            BasicOperator::Multiply => {
-                                output = Expr::Float(value * x as f64);
-                            }
-                            BasicOperator::Power => {
-                                output = Expr::Float(value.powf(x as f64));
-                            }
-                            _ => error(&format!("Cannot perform operation '{:?}' between Float and Integer", current_operator),""),
-                        }
-                    }
+                    output = integer_ops(x, output, current_operator);
                 }
                 Expr::Null => {
                     if let Expr::Null = output {

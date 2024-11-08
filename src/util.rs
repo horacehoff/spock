@@ -62,3 +62,43 @@ macro_rules! assert_args_number {
         }
     };
 }
+
+
+macro_rules! get_value {
+    ($x:expr) => {
+        match $x {
+            Expr::String(x) => x,
+            Expr::Float(x) => x,
+            Expr::Integer(x) => x,
+            Expr::Bool(x) => x,
+            Expr::Array(x) => x,
+            _ => panic!("{}", error_msg!(format!("Cannot get value of {:?}", $x))),
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! get_printable_type {
+    ($x:expr) => {
+        match $x {
+            Expr::String(_) => "String",
+            Expr::Float(_) => "Float",
+            Expr::Integer(_) => "Integer",
+            Expr::Bool(_) => "Boolean",
+            Expr::Array(_) => "Array",
+            Expr::Null => "Null",
+            _ => panic!("{}", error_msg!(format!("Cannot get type of {:?}", $x))),
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! math_to_type {
+    ($x:expr) => {
+        if $x.fract() != 0.0 {
+            Expr::Float($x)
+        } else {
+            Expr::Integer($x as i64)
+        }
+    };
+}
