@@ -13,7 +13,7 @@ pub fn integer_ops(x:i64, output: Expr, current_operator: BasicOperator) -> Expr
                 Expr::Integer(value - x)
             }
             BasicOperator::Divide => {
-                return math_to_type!(value as f64 / x as f64)
+                math_to_type!(value as f64 / x as f64)
             }
             BasicOperator::Multiply => {
                 Expr::Integer(value * x)
