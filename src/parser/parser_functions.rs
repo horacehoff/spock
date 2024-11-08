@@ -33,7 +33,7 @@ pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<Stri
     }
 
     let comment_regex = Regex::new(r"(?m)(?<=\}|;|\{)\s*//.*$").unwrap();
-    let mut content = comment_regex.replace_all(content, "").to_string();
+    let mut content: String = comment_regex.replace_all(content, "").to_string().lines().map(|ln| ln.trim()).collect();
 
     let macro_regex = Regex::new(r"^macro (.*) (.*);").unwrap();
     for macro_match in macro_regex.captures_iter(&content.clone()) {

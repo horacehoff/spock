@@ -1,4 +1,7 @@
-func main() {
-let arr = [10, 20, 30];
-print(arr[1]);  // Expected output: 25
-}
+        func main() {
+            let x = 0;
+            while (x < 5) {
+                print(x);  // Expected output: 0, 1, 2, 3, 4
+                x = x + 1;
+            }
+        }
