@@ -1,5 +1,4 @@
 func main() {
-    let file = io::open("output.txt");
-    file.append(" - Additional content");
-    print(io::open("output.txt").read());  // Expected output: "Initial content - Additional content"
+let arr = [10, 20, 30];
+print(arr[1]);  // Expected output: 25
 }

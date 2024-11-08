@@ -87,7 +87,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
     let mut output: Vec<Expr> = vec![];
     let mut recursive = true;
 
-    // println!("{:?}", pair.as_rule());
+    // println!("{:?}", pair);
 
     match pair.as_rule() {
         Rule::integer => output.push(Expr::Integer(pair.as_str().parse::<i64>().unwrap())),
