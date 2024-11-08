@@ -9,11 +9,10 @@ use crate::parser::{parse_code, BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
 use crate::util::error;
 use inflector::Inflector;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::{fs, io, thread};
-use std::fs::{remove_dir_all, File};
+use std::fs::{remove_dir_all};
 use std::path::Path;
-use fancy_regex::Regex;
 use crate::namespaces::namespace_functions;
 
 macro_rules! get_value {
@@ -396,6 +395,7 @@ fn process_stack(
                 *x = output;
             }
             else if let Expr::String(str) = target_array {
+                // 3 - matches if "array" is a string => returns a letter
                 let mut output = Expr::Null;
                 for target_index in arrays.iter().skip(1) {
                     if let Expr::ArrayParsed(target_index_arr) = target_index {
@@ -492,22 +492,22 @@ fn process_stack(
                     }
                 }
                 Expr::String(x) => {
-                    if let Expr::String(value) = output {
+                    if let Expr::String(value) = &output {
                         match current_operator {
                             BasicOperator::Add => {
-                                output = Expr::String(value + &x);
+                                output = Expr::String(value.to_owned() + &x);
                             }
-                            _ => todo!("[ERROR] STR => STR"),
+                            _ => error(&format!("Cannot perform operation {:?} between String and String", current_operator),""),
                         }
-                    } else if let Expr::Integer(value) = output {
+                    } else if let Expr::Integer(value) = &output {
                         match current_operator {
                             BasicOperator::Multiply => {
-                                output = Expr::String(x.repeat(value as usize))
+                                output = Expr::String(x.repeat(*value as usize))
                             }
-                            _ => todo!("[ERORR] INT => STR"),
+                            _ => error(&format!("Cannot perform operation {:?} between Integer and String", current_operator),""),
                         }
                     } else {
-                        todo!("[ERROR] {:?} => STR", output);
+                        error(&format!("Cannot perform operation {:?} between {:?} and String", current_operator, get_printable_type!(output)), "")
                     }
                 }
                 Expr::Float(x) => {
@@ -542,7 +542,7 @@ fn process_stack(
                             BasicOperator::SuperiorEqual => {
                                 output = Expr::Bool(value >= x);
                             }
-                            _ => todo!("[ERROR] FLOAT => FLOAT"),
+                            _ => error(&format!("Cannot perform operation {:?} between Float and Float", current_operator),""),
                         }
                     } else if let Expr::Integer(value) = output {
                         match current_operator {
@@ -561,7 +561,7 @@ fn process_stack(
                             BasicOperator::Power => {
                                 output = math_to_type!((value as f64).powf(x));
                             }
-                            _ => todo!("[ERROR] INT => FLOAT"),
+                            _ => error(&format!("Cannot perform operation {:?} between Integer and Float", current_operator),""),
                         }
                     }
                 }
@@ -597,7 +597,7 @@ fn process_stack(
                             BasicOperator::SuperiorEqual => {
                                 output = Expr::Bool(value >= x);
                             }
-                            _ => todo!("[ERROR] INT => INT"),
+                            _ => error(&format!("Cannot perform operation {:?} between Integer and Integer", current_operator),""),
                         }
                     } else if let Expr::Float(value) = output {
                         match current_operator {
@@ -616,7 +616,7 @@ fn process_stack(
                             BasicOperator::Power => {
                                 output = Expr::Float(value.powf(x as f64));
                             }
-                            _ => todo!("[ERROR] FLOAT => INT"),
+                            _ => error(&format!("Cannot perform operation {:?} between Float and Integer", current_operator),""),
                         }
                     }
                 }
@@ -626,20 +626,19 @@ fn process_stack(
                             BasicOperator::EQUAL => {
                                 output = Expr::Bool(true)
                             },
-                            _ => todo!()
-
+                            _ => error(&format!("Cannot perform operation {:?} between Null and Null", current_operator),"")
                         }
-
                     }
                 }
                 Expr::Property(x) => {
                     // TODO
-                    if matches!(output, Expr::String(_)) {
-                        match x.as_str() {
-                            "" => {}
-                            _ => {}
-                        }
-                    }
+                    todo!("Properties aren't implented yet!")
+                    // if matches!(output, Expr::String(_)) {
+                    //     match x.as_str() {
+                    //         "" => {}
+                    //         _ => {}
+                    //     }
+                    // }
                 }
                 Expr::PropertyFunction(z) => {
                     if let Expr::FunctionCall(x, y) = *z {
