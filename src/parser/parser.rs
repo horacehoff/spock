@@ -48,7 +48,7 @@ pub enum Expr {
         // Code to execute while true
         Box<Vec<Vec<Expr>>>,
     ),
-    Loop(String, Box<Expr>, Box<Vec<Vec<Expr>>>),
+    Loop(String, Box<Vec<Expr>>, Box<Vec<Vec<Expr>>>),
 
 
 
@@ -428,10 +428,15 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                     ));
                 }
                 Rule::loop_statement => {
-                    log!("TEST {:?}", inside.clone().into_inner())
+                    let mut inner = inside.into_inner();
+                    let loop_var = inner.next().unwrap().as_str().to_string();
+                    let target_array = parse_expression(inner.next().unwrap());
+                    let loop_code = parse_code(inner.next().unwrap().as_str());
+                    line_instructions.push(Expr::Loop(loop_var, Box::from(target_array), Box::from(loop_code)))
+
                 }
                 _ => {}
-                
+
             }
             instructions.push(line_instructions);
         }

@@ -40,10 +40,10 @@ print(x[0]);
 
 ## Basic macros
 You can define macros outside functions using the following syntax:
-`macro name->value`\
+`replace name->value`\
 **Example**:
 ```
-macro hello->goodbye
+replace hello->goodbye
 
 func main() {
 print("hello world");

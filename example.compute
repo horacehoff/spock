@@ -1,5 +1,8 @@
-replace hello->print("Hello World"); // macro test comment
-
 func main() {
-hello
+for k in [0, 1, 2].add(5) {
+print(k);
+if (k%2 == 0) {
+print("WORKS");
+}
+}
 }

@@ -1,34 +1,33 @@
+#[path = "types/array.rs"]
+mod array;
+#[path = "types/file.rs"]
+mod file;
+#[path = "types/float.rs"]
+mod float;
+#[path = "types/integer.rs"]
+mod integer;
+mod namespaces;
 #[path = "parser/parser.rs"]
 mod parser;
 #[path = "parser/parser_functions.rs"]
 mod parser_functions;
-mod util;
-mod namespaces;
-#[path = "types/integer.rs"]
-mod integer;
-#[path = "types/float.rs"]
-mod float;
-#[path = "types/array.rs"]
-mod array;
 #[path = "types/string.rs"]
 mod string;
-#[path = "types/file.rs"]
-mod file;
+mod util;
 
 use inflector::Inflector;
+use std::fs::remove_dir_all;
 use std::io::{BufRead, BufReader, Write};
-use std::{fs, io, thread};
-use std::fs::{remove_dir_all};
 use std::path::Path;
+use std::{fs, io, thread};
 
-use crate::parser::{parse_code, BasicOperator, Expr, Variable};
-use crate::parser_functions::parse_functions;
-use crate::util::{error, get_printable_form};
-use crate::string::string_ops;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-
+use crate::parser::{parse_code, BasicOperator, Expr, Variable};
+use crate::parser_functions::parse_functions;
+use crate::string::string_ops;
+use crate::util::{error, get_printable_form};
 
 fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
     if x == "print" {
@@ -139,8 +138,7 @@ fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
     } else if x == "the_answer" {
         println!("42, the answer to the Ultimate Question of Life, the Universe, and Everything.");
         (Expr::Integer(42), true)
-    }
-    else {
+    } else {
         (Expr::Null, false)
     }
 }
@@ -173,11 +171,12 @@ fn process_stack(
                 *x = namespace_funcs.0;
                 continue;
             } else {
-                error(&format!("Unknown function {}", namespace.join(".")+"."+y ),"");
+                error(
+                    &format!("Unknown function {}", namespace.join(".") + "." + y),
+                    "",
+                );
             }
-
-        }
-        else if let Expr::FunctionCall(ref func_name, ref func_args) = x {
+        } else if let Expr::FunctionCall(ref func_name, ref func_args) = x {
             // replace function call by its result (return value)
             let args: Vec<Expr> = func_args
                 .iter()
@@ -201,7 +200,6 @@ fn process_stack(
                     error(&format!("Cannot execute line {:?}", &args[0]), "")
                 }
             }
-
 
             let target_function: (String, Vec<String>, Vec<Vec<Expr>>) = functions
                 .clone()
@@ -244,7 +242,11 @@ fn process_stack(
         } else if let Expr::ArraySuite(y) = x {
             // matches multiple arrays following one another => implies array indexing
             let arrays: Vec<Expr> = *y.clone();
-            let target_array: Expr = process_stack(vec![arrays[0].clone()], variables.clone(), functions.clone());
+            let target_array: Expr = process_stack(
+                vec![arrays[0].clone()],
+                variables.clone(),
+                functions.clone(),
+            );
             // 1 - matches if the contents of the array have yet to be fully evaluated
             if let Expr::ArrayParsed(target_arr) = target_array {
                 // compute the "final" value of the first/target array
@@ -349,8 +351,7 @@ fn process_stack(
                     }
                 }
                 *x = output;
-            }
-            else if let Expr::String(str) = target_array {
+            } else if let Expr::String(str) = target_array {
                 // 3 - matches if "array" is a string => returns a letter
                 let mut output = Expr::Null;
                 for target_index in arrays.iter().skip(1) {
@@ -459,10 +460,14 @@ fn process_stack(
                 Expr::Null => {
                     if let Expr::Null = output {
                         match current_operator {
-                            BasicOperator::EQUAL => {
-                                output = Expr::Bool(true)
-                            },
-                            _ => error(&format!("Cannot perform operation '{:?}' between Null and Null", current_operator),"")
+                            BasicOperator::EQUAL => output = Expr::Bool(true),
+                            _ => error(
+                                &format!(
+                                    "Cannot perform operation '{:?}' between Null and Null",
+                                    current_operator
+                                ),
+                                "",
+                            ),
                         }
                     }
                 }
@@ -568,7 +573,10 @@ fn process_function(
                         .map(|arg| process_stack(arg.clone(), variables.clone(), functions.clone()))
                         .collect();
                     if !namespace_functions(z.clone(), x.clone(), args.clone()).1 {
-                        error(&format!("Unknown function '{}'", z.join(".")+"."+&x), "");
+                        error(
+                            &format!("Unknown function '{}'", z.join(".") + "." + &x),
+                            "",
+                        );
                     };
                 }
                 Expr::FunctionCall(x, y) => {
@@ -673,6 +681,31 @@ fn process_function(
                         }
                     }
                 }
+                Expr::Loop(x, y, z) => {
+                    let loop_array = process_stack(*y, variables.clone(), functions.clone());
+                    log!("LOOP ARRAY {:?}", loop_array);
+                    if let Expr::Array(target_array) = loop_array {
+                        for elem in *target_array {
+                            // log!("ELEM {:?}", elem);
+                            let loop_var = Variable {
+                                name: x.to_string(),
+                                value: elem,
+                            };
+                            let mut temp_variables = variables.clone();
+                            temp_variables.push(loop_var);
+                            process_function(
+                                *z.clone(),
+                                temp_variables.clone(),
+                                temp_variables
+                                    .iter()
+                                    .map(|variable| variable.name.clone())
+                                    .collect(),
+                                name,
+                                functions.clone(),
+                            );
+                        }
+                    }
+                }
                 Expr::While(x, y) => {
                     // let condition = process_stack(*x, variables.clone(), functions.clone());
                     while process_stack(*x.clone(), variables.clone(), functions.clone())
@@ -705,7 +738,7 @@ fn process_function(
                 _ => {
                     process_stack(instructions.clone(), variables.clone(), functions.clone());
                     break;
-                },
+                }
             }
             // println!("{:?}", instruction)
         }
@@ -721,13 +754,15 @@ fn main() {
         .expect(error_msg!("No file was given"));
 
     if arg == "clear-cache" && Path::new(".compute").exists() {
-        remove_dir_all(Path::new(".compute")).expect(error_msg!("Failed to delete the cache folder (.compute)"));
+        remove_dir_all(Path::new(".compute"))
+            .expect(error_msg!("Failed to delete the cache folder (.compute)"));
         return;
     }
 
     let content = fs::read_to_string(arg).unwrap();
 
-    let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = parse_functions(content.trim(), true);
+    let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> =
+        parse_functions(content.trim(), true);
     log!("{:?}", functions);
 
     let main_instructions = functions
@@ -748,5 +783,6 @@ fn main() {
             process_function(main_instructions, vec![], vec![], "main", functions);
         })
         .unwrap()
-        .join().unwrap();
+        .join()
+        .unwrap();
 }
