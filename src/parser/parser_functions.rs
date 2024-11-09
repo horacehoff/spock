@@ -49,7 +49,7 @@ pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<Stri
 
     // Parse functions
     let function_regex =
-        Regex::new(r"(?ms)func\s+(\w+)\s*\((.*?)\)\s*\{(.*?)}\s*").unwrap();
+        Regex::new(r"(?ms)func\s+(\w+)\s*\((.*?)\)\s*\{(.*?)}\s*?(?=func|\z)").unwrap();
     let function_results: Vec<_> = function_regex.captures_iter(&*content).collect();
 
     for func_match in function_results.iter() {

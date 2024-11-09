@@ -1,11 +1,12 @@
-macro he->"+"hol"+";
-
-func test(a) {
-print(a+2)
-print("heh y")
+func main() {
+let x = 20;
+if (x == 20) {
+    print("TRUE!");
+    test();
+}
 }
 
-func main() {
-test(86);
+func test() {
+print("cool");
 }
 
