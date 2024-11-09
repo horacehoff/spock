@@ -68,7 +68,7 @@ print("Hello World!");
 ```
 - `main.compute`:
 ```
-import otherfile; // if the imported file is in a folder, write '<path>/otherfile'
+import otherfile // if the imported file is in a folder, write '<path>/otherfile'
 
 func main() {
 demo();

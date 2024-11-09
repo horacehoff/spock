@@ -35,7 +35,25 @@ pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<Stri
     }
 
     let comment_regex = Regex::new(r"(?m)(?<=\}|;|\{|.)\s*//.*$").unwrap();
-    let mut content: String = comment_regex.replace_all(content, "").to_string().lines().map(|ln| ln.trim()).collect();
+    let mut content: String = comment_regex.replace_all(content, "").to_string();
+    // let mut content: String = comment_regex.replace_all(content, "").to_string().lines().map(|ln| ln.trim()).collect();
+    let mut i:i8 = 1;
+    for content_lines in content.lines() {
+        if !(content_lines.starts_with("import") || content_lines.starts_with("replace") || content_lines.trim().is_empty()) {
+            if !(content_lines.ends_with("{") || content_lines.ends_with("}") || content_lines.ends_with(";")) {
+                if (content_lines.starts_with("if") || content_lines.starts_with("for") || content_lines.starts_with("while") || content_lines == "}") {
+                    error(&format!("Missing bracket at line {}", i),"")
+                } else {
+                    error(&format!("Missing semicolon at line {}", i),"")
+                }
+            }
+        }
+        i+=1;
+    }
+    content = content.lines().map(|ln| ln.trim()).collect();
+
+
+
     log!("BEFORE MACRO CONTENT {:?}", content);
     let replace_regex = Regex::new(r"(?m)^replace (.+?)\s*->\s*(.+?)(?=\s*(?:func|import|replace|\z))").unwrap();
     for macro_match in replace_regex.captures_iter(&content.clone()) {
