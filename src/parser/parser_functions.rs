@@ -7,6 +7,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
+use std::time::Instant;
 
 pub fn parse_functions(
     content: &str,
@@ -14,23 +15,51 @@ pub fn parse_functions(
 ) -> Vec<(String, Vec<String>, Vec<Vec<Expr>>)> {
     let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = vec![];
 
-    let import_regex = Regex::new(r"(?m)^import\s*(.+?)(?=\s*(?:func|import|replace|\z))").unwrap();
+    let now = Instant::now();
+
     let mut imported_functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = vec![];
-    for imp in import_regex.captures_iter(&content) {
-        let name = "./".to_owned() + imp.unwrap().get(1).unwrap().as_str() + ".compute";
+    let matches: Vec<(usize, &str)> = content.match_indices("\nimport").collect();
+    if content.starts_with("import") {
+        let mut i = 7;
+        let mut match_content = &content[0..i];
+        while !match_content.chars().last().unwrap().eq(&'\n') {
+            i += 1;
+            match_content = &content[0..i];
+        }
+        let name = "./".to_owned() + match_content.replace("import", "").trim() + ".compute";
         let file_content = fs::read_to_string(&name).expect(error_msg!(format!(
             "Cannot find module {}",
             name.trim_start_matches("./")
         )));
         imported_functions.append(&mut parse_functions(&file_content, false));
     }
+    for content_match in matches {
+        let match_index = content_match.0;
+        let mut i = 7;
+        let mut match_content = &content[match_index..match_index+i];
+        while !match_content.chars().last().unwrap().eq(&'\n') {
+            i += 1;
+            match_content = &content[match_index..match_index+i];
+        }
+        let name = "./".to_owned() + match_content.replace("import", "").trim() + ".compute";
+        let file_content = fs::read_to_string(&name).expect(error_msg!(format!(
+            "Cannot find module {}",
+            name.trim_start_matches("./")
+        )));
+        imported_functions.append(&mut parse_functions(&file_content, false));
+    }
+    log!("PARSED IMPORTS IN: {:.2?}", now.elapsed());
+
+
+
 
     let hash = blake3::hash(content.as_bytes()).to_string();
     if Path::new(&format!(".compute/{}", hash)).exists() {
         let file = File::open(&format!(".compute/{}", hash)).unwrap();
-        let mut reader = BufReader::new(file);
+        let mut reader = BufReader::with_capacity(128*1024, file);
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer).unwrap();
+
 
         let mut deserialized_data: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> =
             bincode::deserialize(&buffer).expect(error_msg!(

@@ -28,6 +28,7 @@ use crate::parser::{parse_code, BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
 use crate::string::string_ops;
 use crate::util::{error, get_printable_form};
+use std::time::Instant;
 
 fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
     if x == "print" {
@@ -142,6 +143,7 @@ fn basic_functions(x: String, args: Vec<Expr>) -> (Expr, bool) {
         (Expr::Null, false)
     }
 }
+
 
 fn process_stack(
     mut stack: Vec<Expr>,
@@ -821,8 +823,10 @@ fn main() {
 
     let content = fs::read_to_string(arg).unwrap();
 
+    let now = Instant::now();
     let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> =
         parse_functions(content.trim(), true);
+    log!("PARSED IN: {:.2?}", now.elapsed());
     log!("{:?}", functions);
 
     let main_instructions = functions
@@ -836,6 +840,7 @@ fn main() {
         .2;
     // process_function(main_instructions, vec![], vec![], "main", functions);
 
+    let now = Instant::now();
     thread::Builder::new()
         // 16MB stack size
         .stack_size(16 * 1024 * 1024)
@@ -845,4 +850,5 @@ fn main() {
         .unwrap()
         .join()
         .unwrap();
+    log!("EXECUTED IN: {:.2?}", now.elapsed());
 }

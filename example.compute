@@ -1,3 +1,5 @@
+import test
+
 func main() {
-print(str([0, 1, 2])+"array!");
+htest();
 }
