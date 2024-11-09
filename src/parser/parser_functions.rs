@@ -45,7 +45,7 @@ pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<Stri
 
     }
 
-    println!("CONTENT{:?}", &content);
+    // println!("CONTENT{:?}", &content);
 
     // Parse functions
     let function_regex =
@@ -68,7 +68,7 @@ pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<Stri
             parsed,
         ));
     }
-    println!("CURRENT FUNCS{:?}", functions);
+    // println!("CURRENT FUNCS{:?}", functions);
 
 
 

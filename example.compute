@@ -1,12 +1,12 @@
 func main() {
 let x = 20;
-if (x == 20) {
+if x == 20 {
     print("TRUE!");
     test();
 }
 }
 
-func test() {
-print("cool");
-}
+            func test() {
+            print("cool");
+            }
 
