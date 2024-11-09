@@ -121,17 +121,16 @@ pub fn get_printable_form(x: Expr) -> String {
         Expr::Bool(boolean) => boolean.to_string(),
         Expr::Array(x) => {
             let arr = *x;
-            arr.iter()
+            "[".to_string()+arr.iter()
                 .map(|item| get_printable_form(item.clone()) + ",")
                 .collect::<String>()
                 .trim_end_matches(",")
-                .parse()
+                .parse::<String>()
                 .unwrap()
+                .as_str()+"]"
+
         }
         Expr::Null => "Null".to_string(),
-        _ => panic!(
-            "{}",
-            error_msg!(format!("Cannot print {} type", get_printable_type!(x)))
-        ),
+        _ => {error(&format!("Cannot display {} type", get_printable_type!(x)),"");"".to_string()},
     }
 }

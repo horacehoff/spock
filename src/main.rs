@@ -218,7 +218,14 @@ fn process_stack(
                 } else if let Expr::Float(float) = &args[0] {
                     *x = Expr::String(float.to_string());
                     continue;
-                } else {
+                } else if let Expr::Bool(boolean) = &args[0] {
+                    *x = Expr::String(if *boolean {"true".to_string()} else {"false".to_string()});
+                    continue;
+                } else if let Expr::Array(arr) = &args[0] {
+                    *x = Expr::String(get_printable_form(args[0].clone()));
+                    continue;
+                }
+                else {
                     error(&format!("Cannot convert {} to String", get_printable_type!(&args[0])),"")
                 }
             } else if func_name == "float" {
