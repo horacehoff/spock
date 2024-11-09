@@ -13,7 +13,7 @@ use crate::{error_msg, log};
 pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<String>, Vec<Vec<Expr>>)> {
     let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = vec![];
 
-    let import_regex = Regex::new(r"^import (.*);").unwrap();
+    let import_regex = Regex::new(r"(?m)^import\s*(.+?)(?=\s*(?:func|import|replace|\z))").unwrap();
     let mut imported_functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = vec![];
     for imp in import_regex.captures_iter(&content) {
         let name = "./".to_owned() + imp.unwrap().get(1).unwrap().as_str() +".compute";
@@ -34,11 +34,12 @@ pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<Stri
         // return deserialized_data;
     }
 
-    let comment_regex = Regex::new(r"(?m)(?<=\}|;|\{)\s*//.*$").unwrap();
+    let comment_regex = Regex::new(r"(?m)(?<=\}|;|\{|.)\s*//.*$").unwrap();
     let mut content: String = comment_regex.replace_all(content, "").to_string().lines().map(|ln| ln.trim()).collect();
+    // let mut content: String = comment_regex.replace_all(content, "").to_string().lines().map(|ln| ln.trim()).collect();
     // let mut content: String = comment_regex.replace_all(content, "").to_string();
-
-    let replace_regex = Regex::new(r"(?m)^replace (.+?)\s*->\s*(.+?)(?=\s*(?:func|import|\z))").unwrap();
+    log!("BEFORE MACRO CONTENT {:?}", content);
+    let replace_regex = Regex::new(r"(?m)^replace (.+?)\s*->\s*(.+?)(?=\s*(?:func|import|replace|\z))").unwrap();
     for macro_match in replace_regex.captures_iter(&content.clone()) {
         let re_match = macro_match.unwrap();
         log!("MACRO{:?}", re_match);
