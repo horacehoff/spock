@@ -17,6 +17,7 @@ Inflector = "0.11.4"
 
 [profile.dev]
 panic = 'abort'
+debug-assertions = true
 
 [profile.release]
 opt-level = 3

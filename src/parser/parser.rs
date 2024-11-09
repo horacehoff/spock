@@ -1,4 +1,4 @@
-use crate::error_msg;
+use crate::{error_msg, log};
 use crate::parser::Expr::ArraySuite;
 use pest::iterators::Pair;
 use pest::Parser;
@@ -186,7 +186,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
             for namespace in pair.clone().into_inner().rev().skip(1).rev() {
                 namespaces.push(namespace.as_str().to_string());
             }
-            println!("{:?}", namespaces);
+            log!("{:?}", namespaces);
             if let Expr::FunctionCall(x, y) = func_call {
                 output.push(Expr::NamespaceFunctionCall(namespaces, x.clone(), y.clone()));
             } else {
@@ -427,10 +427,11 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                         )),
                     ));
                 }
-                _ => {}
                 Rule::loop_statement => {
-                    println!("TEST {:?}", inside.clone().into_inner())
+                    log!("TEST {:?}", inside.clone().into_inner())
                 }
+                _ => {}
+                
             }
             instructions.push(line_instructions);
         }

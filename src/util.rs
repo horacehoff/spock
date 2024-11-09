@@ -39,6 +39,16 @@ macro_rules! error_msg {
     };
 }
 
+
+// https://stackoverflow.com/a/63305257
+#[macro_export]
+macro_rules! log {
+    ($($rest:tt)*) => {
+        #[cfg(debug_assertions)]
+        std::println!($($rest)*)
+    }
+}
+
 #[macro_export]
 macro_rules! assert_args_number {
     ($func_name:expr, $received_args_len:expr, $expected_args_len:expr) => {

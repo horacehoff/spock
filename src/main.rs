@@ -274,7 +274,7 @@ fn process_stack(
                                 if output == Expr::Null {
                                     output = array[intg as usize].clone()
                                 } else {
-                                    println!("{:?}OUTPUT", output);
+                                    log!("{:?}OUTPUT", output);
                                     if let Expr::Array(sub_arr) = output.clone() {
                                         output = sub_arr[intg as usize].clone()
                                     } else if let Expr::String(sub_str) = output.clone() {
@@ -321,7 +321,7 @@ fn process_stack(
                                 if output == Expr::Null {
                                     output = target_arr[intg as usize].clone()
                                 } else {
-                                    println!("{:?}OUTPUT", output);
+                                    log!("{:?}OUTPUT", output);
                                     if let Expr::Array(sub_arr) = output.clone() {
                                         output = sub_arr[intg as usize].clone()
                                     } else if let Expr::String(sub_str) = output.clone() {
@@ -728,7 +728,7 @@ fn main() {
     let content = fs::read_to_string(arg).unwrap();
 
     let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = parse_functions(content.trim(), true);
-    // println!("{:?}", functions);
+    log!("{:?}", functions);
 
     let main_instructions = functions
         .clone()
