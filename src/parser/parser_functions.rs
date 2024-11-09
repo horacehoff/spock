@@ -54,10 +54,10 @@ pub fn parse_functions(
                 || content_lines.ends_with("}")
                 || content_lines.ends_with(";"))
             {
-                if (content_lines.starts_with("if")
+                if content_lines.starts_with("if")
                     || content_lines.starts_with("for")
                     || content_lines.starts_with("while")
-                    || content_lines == "}")
+                    || content_lines == "}"
                 {
                     error(&format!("Missing bracket at line {}", i), "")
                 } else {
