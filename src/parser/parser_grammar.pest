@@ -13,7 +13,7 @@ property = {"." ~ ASCII_ALPHA+}
 property_function = {"." ~ func_call}
 
 ops = {
-    "-"  | "%" | "+"  | "*" | "<=" | "<"  | "==" | "^" | ">=" | ">"  | "/"
+    "-"  | "%" | "+"  | "*" | "<=" | "<"  | "==" | "!=" | "^" | ">=" | ">"  | "/"
 }
 
 priority = {"(" ~ expression ~ ")"}

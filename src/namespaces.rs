@@ -1,10 +1,9 @@
-use std::fs;
+use crate::error;
+use crate::parser::Expr;
+use crate::{assert_args_number, error_msg, get_printable_form};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::process::exit;
-use crate::{assert_args_number, error_msg, get_printable_form};
-use crate::parser::Expr;
-use crate::error;
 
 pub fn namespace_functions(x: Vec<String>, y: String, args: Vec<Expr>) -> (Expr, bool) {
     if x[0] == "compute" {
@@ -13,7 +12,13 @@ pub fn namespace_functions(x: Vec<String>, y: String, args: Vec<Expr>) -> (Expr,
             if let Expr::Integer(excode) = args[0] {
                 exit(excode as i32);
             } else {
-                error(&format!("Invalid exit code: {:?}", get_printable_form(args[0].clone())),"");
+                error(
+                    &format!(
+                        "Invalid exit code: {:?}",
+                        get_printable_form(args[0].clone())
+                    ),
+                    "",
+                );
                 (Expr::Null, true)
             }
         } else {
@@ -23,18 +28,26 @@ pub fn namespace_functions(x: Vec<String>, y: String, args: Vec<Expr>) -> (Expr,
         if y == "open" {
             assert_args_number!(y, args.len(), 1);
             if let Expr::String(filename) = args[0].clone() {
-                OpenOptions::new().write(true).create(true).open(&filename).expect(error_msg!("Failed to check/create file"));
+                OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .open(&filename)
+                    .expect(error_msg!("Failed to check/create file"));
                 (Expr::File(filename), true)
             } else {
-                error(&format!("Invalid file name: {:?}", get_printable_form(args[0].clone())),"");
+                error(
+                    &format!(
+                        "Invalid file name: {:?}",
+                        get_printable_form(args[0].clone())
+                    ),
+                    "",
+                );
                 (Expr::Null, true)
             }
-        }
-        else {
+        } else {
             (Expr::Null, false)
         }
-    }
-    else {
+    } else {
         (Expr::Null, false)
     }
 }

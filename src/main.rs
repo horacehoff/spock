@@ -460,7 +460,8 @@ fn process_stack(
                 Expr::Null => {
                     if let Expr::Null = output {
                         match current_operator {
-                            BasicOperator::EQUAL => output = Expr::Bool(true),
+                            BasicOperator::Equal => output = Expr::Bool(true),
+                            BasicOperator::NotEqual => output = Expr::Bool(false),
                             _ => error(
                                 &format!(
                                     "Cannot perform operation '{:?}' between Null and Null",

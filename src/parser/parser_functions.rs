@@ -1,23 +1,27 @@
-use crate::parser::{parse_code, parse_expression, ComputeParser, Rule};
+use crate::parser::parse_code;
 use crate::parser::Expr;
 use crate::util::error;
+use crate::{error_msg, log};
 use fancy_regex::Regex;
 use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
-use std::ops::Index;
 use std::path::Path;
-use pest::Parser;
-use crate::{error_msg, log};
 
-pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<String>, Vec<Vec<Expr>>)> {
+pub fn parse_functions(
+    content: &str,
+    check_main: bool,
+) -> Vec<(String, Vec<String>, Vec<Vec<Expr>>)> {
     let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = vec![];
 
     let import_regex = Regex::new(r"(?m)^import\s*(.+?)(?=\s*(?:func|import|replace|\z))").unwrap();
     let mut imported_functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = vec![];
     for imp in import_regex.captures_iter(&content) {
-        let name = "./".to_owned() + imp.unwrap().get(1).unwrap().as_str() +".compute";
-        let file_content = fs::read_to_string(&name).expect(error_msg!(format!("Cannot find module {}", name.trim_start_matches("./"))));
+        let name = "./".to_owned() + imp.unwrap().get(1).unwrap().as_str() + ".compute";
+        let file_content = fs::read_to_string(&name).expect(error_msg!(format!(
+            "Cannot find module {}",
+            name.trim_start_matches("./")
+        )));
         imported_functions.append(&mut parse_functions(&file_content, false));
     }
 
@@ -28,38 +32,55 @@ pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<Stri
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer).unwrap();
 
-        let mut deserialized_data: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = bincode::deserialize(&buffer)
-            .expect(error_msg!("Failed to read from cache", "Delete the .compute folder"));
+        let mut deserialized_data: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> =
+            bincode::deserialize(&buffer).expect(error_msg!(
+                "Failed to read from cache",
+                "Delete the .compute folder"
+            ));
         deserialized_data.append(&mut imported_functions);
-        // return deserialized_data;
+        return deserialized_data;
     }
 
     let comment_regex = Regex::new(r"(?m)(?<=\}|;|\{|.)\s*//.*$").unwrap();
     let mut content: String = comment_regex.replace_all(content, "").to_string();
     // let mut content: String = comment_regex.replace_all(content, "").to_string().lines().map(|ln| ln.trim()).collect();
-    let mut i:i8 = 1;
+    let mut i: i8 = 1;
     for content_lines in content.lines() {
-        if !(content_lines.starts_with("import") || content_lines.starts_with("replace") || content_lines.trim().is_empty()) {
-            if !(content_lines.ends_with("{") || content_lines.ends_with("}") || content_lines.ends_with(";")) {
-                if (content_lines.starts_with("if") || content_lines.starts_with("for") || content_lines.starts_with("while") || content_lines == "}") {
-                    error(&format!("Missing bracket at line {}", i),"")
+        if !(content_lines.starts_with("import")
+            || content_lines.starts_with("replace")
+            || content_lines.trim().is_empty())
+        {
+            if !(content_lines.ends_with("{")
+                || content_lines.ends_with("}")
+                || content_lines.ends_with(";"))
+            {
+                if (content_lines.starts_with("if")
+                    || content_lines.starts_with("for")
+                    || content_lines.starts_with("while")
+                    || content_lines == "}")
+                {
+                    error(&format!("Missing bracket at line {}", i), "")
                 } else {
-                    error(&format!("Missing semicolon at line {}", i),"")
+                    error(&format!("Missing semicolon at line {}", i), "")
                 }
             }
         }
-        i+=1;
+        i += 1;
     }
     content = content.lines().map(|ln| ln.trim()).collect();
 
-
-
     log!("BEFORE MACRO CONTENT {:?}", content);
-    let replace_regex = Regex::new(r"(?m)^replace (.+?)\s*->\s*(.+?)(?=\s*(?:func|import|replace|\z))").unwrap();
+    let replace_regex =
+        Regex::new(r"(?m)^replace (.+?)\s*->\s*(.+?)(?=\s*(?:func|import|replace|\z))").unwrap();
     for macro_match in replace_regex.captures_iter(&content.clone()) {
         let re_match = macro_match.unwrap();
         log!("MACRO{:?}", re_match);
-        content = content.replace(re_match.get(0).unwrap().as_str(),"").replace(re_match.get(1).unwrap().as_str().trim(), re_match.get(2).unwrap().as_str().trim());
+        content = content
+            .replace(re_match.get(0).unwrap().as_str(), "")
+            .replace(
+                re_match.get(1).unwrap().as_str().trim(),
+                re_match.get(2).unwrap().as_str().trim(),
+            );
     }
 
     log!("CONTENT{:?}", &content);
@@ -87,8 +108,6 @@ pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<Stri
     }
     // println!("CURRENT FUNCS{:?}", functions);
 
-
-
     // Cache functions
     let data = bincode::serialize(&functions).unwrap();
     fs::create_dir_all(".compute/").unwrap();
@@ -103,13 +122,14 @@ pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<Stri
         .filter(|function| function.0 == "main")
         .collect::<Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>>()
         .len()
-        == 0 && check_main
+        == 0
+        && check_main
     {
         error("No main function", "Add 'func main() {}' to your file");
     }
 
-    let mut return_functions =
-        functions.iter()
+    let mut return_functions = functions
+        .iter()
         .map(|(a, b, c)| {
             (
                 a.to_string(),

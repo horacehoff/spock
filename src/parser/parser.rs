@@ -1,10 +1,10 @@
-use crate::{error_msg, log};
 use crate::parser::Expr::ArraySuite;
+use crate::util::error;
+use crate::{error_msg, log};
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
-use crate::util::error;
 
 #[derive(Parser)]
 #[grammar = "parser/parser_grammar.pest"]
@@ -48,15 +48,16 @@ pub enum Expr {
         // Code to execute while true
         Box<Vec<Vec<Expr>>>,
     ),
-    Loop(String, Box<Vec<Expr>>, Box<Vec<Vec<Expr>>>),
-
-
-
-
-
+    Loop(
+        // Loop identifier
+        String,
+        // Array/string to iterate
+        Box<Vec<Expr>>,
+        // Code inside the loop to execute
+        Box<Vec<Vec<Expr>>>),
 
     // Objects
-    File(String)
+    File(String),
 }
 
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Copy)]
@@ -66,7 +67,8 @@ pub enum BasicOperator {
     Sub,
     Divide,
     Multiply,
-    EQUAL,
+    Equal,
+    NotEqual,
     Power,
     AND,
     Modulo,
@@ -178,28 +180,44 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                     .unwrap(),
                 Box::from(priority_calc),
             ));
-        },
+        }
         Rule::func_call_namespace => {
             recursive = false;
-            let func_call = parse_expression(pair.clone().into_inner().last().unwrap()).first().unwrap().clone();
+            let func_call = parse_expression(pair.clone().into_inner().last().unwrap())
+                .first()
+                .unwrap()
+                .clone();
             let mut namespaces = vec![];
             for namespace in pair.clone().into_inner().rev().skip(1).rev() {
                 namespaces.push(namespace.as_str().to_string());
             }
             log!("{:?}", namespaces);
             if let Expr::FunctionCall(x, y) = func_call {
-                output.push(Expr::NamespaceFunctionCall(namespaces, x.clone(), y.clone()));
+                output.push(Expr::NamespaceFunctionCall(
+                    namespaces,
+                    x.clone(),
+                    y.clone(),
+                ));
             } else {
-                error(format!("{:?} is not a valid function", func_call).as_str(),"");
+                error(
+                    format!("{:?} is not a valid function", func_call).as_str(),
+                    "",
+                );
             }
         }
-        Rule::identifier => if pair.as_str() == "Null" {output.push(Expr::Null)} else {output.push(Expr::VariableIdentifier(
-            pair.as_str()
-                .trim_end_matches("\"")
-                .trim_start_matches("\"")
-                .parse()
-                .unwrap(),
-        ))},
+        Rule::identifier => {
+            if pair.as_str() == "Null" {
+                output.push(Expr::Null)
+            } else {
+                output.push(Expr::VariableIdentifier(
+                    pair.as_str()
+                        .trim_end_matches("\"")
+                        .trim_start_matches("\"")
+                        .parse()
+                        .unwrap(),
+                ))
+            }
+        }
         Rule::priority => {
             recursive = false;
             let mut priority_calc: Vec<Expr> = vec![];
@@ -213,7 +231,8 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
             "-" => output.push(Expr::Operation(BasicOperator::Sub)),
             "/" => output.push(Expr::Operation(BasicOperator::Divide)),
             "*" => output.push(Expr::Operation(BasicOperator::Multiply)),
-            "==" => output.push(Expr::Operation(BasicOperator::EQUAL)),
+            "==" => output.push(Expr::Operation(BasicOperator::Equal)),
+            "!=" => output.push(Expr::Operation(BasicOperator::NotEqual)),
             "^" => output.push(Expr::Operation(BasicOperator::Power)),
             "&&" => output.push(Expr::Operation(BasicOperator::AND)),
             "%" => output.push(Expr::Operation(BasicOperator::Modulo)),
@@ -432,11 +451,13 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                     let loop_var = inner.next().unwrap().as_str().to_string();
                     let target_array = parse_expression(inner.next().unwrap());
                     let loop_code = parse_code(inner.next().unwrap().as_str());
-                    line_instructions.push(Expr::Loop(loop_var, Box::from(target_array), Box::from(loop_code)))
-
+                    line_instructions.push(Expr::Loop(
+                        loop_var,
+                        Box::from(target_array),
+                        Box::from(loop_code),
+                    ))
                 }
                 _ => {}
-
             }
             instructions.push(line_instructions);
         }

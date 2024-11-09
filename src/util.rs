@@ -39,7 +39,6 @@ macro_rules! error_msg {
     };
 }
 
-
 // https://stackoverflow.com/a/63305257
 #[macro_export]
 macro_rules! log {
@@ -74,7 +73,6 @@ macro_rules! assert_args_number {
         }
     };
 }
-
 
 macro_rules! get_value {
     ($x:expr) => {
@@ -129,8 +127,11 @@ pub fn get_printable_form(x: Expr) -> String {
                 .trim_end_matches(",")
                 .parse()
                 .unwrap()
-        },
+        }
         Expr::Null => "Null".to_string(),
-        _ => panic!("{}", error_msg!(format!("Cannot print {} type", get_printable_type!(x)))),
+        _ => panic!(
+            "{}",
+            error_msg!(format!("Cannot print {} type", get_printable_type!(x)))
+        ),
     }
 }
