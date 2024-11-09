@@ -221,6 +221,17 @@ fn process_stack(
                 } else {
                     error(&format!("Cannot convert {} to String", get_printable_type!(&args[0])),"")
                 }
+            } else if func_name == "float" {
+                assert_args_number!("int",args.len(),1);
+                if let Expr::String(str) = &args[0] {
+                    *x = Expr::Float(str.parse::<f64>().expect(error_msg!(format!("Cannot convert String '{}' to Float", str))));
+                    continue;
+                } else if let Expr::Integer(int) = &args[0] {
+                    *x = Expr::Float(*int as f64);
+                    continue;
+                } else {
+                    error(&format!("Cannot convert {} to Float", get_printable_type!(&args[0])),"")
+                }
             }
 
             let target_function: (String, Vec<String>, Vec<Vec<Expr>>) = functions
