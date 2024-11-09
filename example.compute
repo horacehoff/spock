@@ -1,5 +1,5 @@
-replace hello->goodbye // macro test comment
+replace hello->print("Hello World"); // macro test comment
 
 func main() {
-print("hello");
+hello
 }
