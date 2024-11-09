@@ -4,10 +4,7 @@ A work-in-progress programming language written in Rust for the best performance
 Key facts:
 - ~5-6x faster than Python
 - Does not support nested functions
-- Terrible error handling
-  - No line number
-  - May report the wrong error (a syntax error could make the parser think the error's origin is elsewhere)
-- Many bugs
+- Many (supposed) bugs
 - Supports basic macros
 
 ## Syntax examples
