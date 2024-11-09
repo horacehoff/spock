@@ -197,7 +197,7 @@ fn process_stack(
                     );
                     continue;
                 } else {
-                    error(&format!("Cannot execute line {:?}", &args[0]), "")
+                    error(&format!("Cannot execute {:?}", &args[0]), "")
                 }
             } else if func_name == "int" {
                 assert_args_number!("int",args.len(),1);
@@ -209,6 +209,17 @@ fn process_stack(
                     continue;
                 } else {
                     error(&format!("Cannot convert {} to Integer", get_printable_type!(&args[0])),"")
+                }
+            } else if func_name == "str" {
+                assert_args_number!("str",args.len(),1);
+                if let Expr::Integer(int) = &args[0] {
+                    *x = Expr::String(int.to_string());
+                    continue;
+                } else if let Expr::Float(float) = &args[0] {
+                    *x = Expr::String(float.to_string());
+                    continue;
+                } else {
+                    error(&format!("Cannot convert {} to String", get_printable_type!(&args[0])),"")
                 }
             }
 
