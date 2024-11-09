@@ -1,12 +1,5 @@
+macro hello->goodbye
+
 func main() {
-let x = 20;
-if x == 20 {
-    print("TRUE!");
-    test();
+print("hello world");
 }
-}
-
-            func test() {
-            print("cool");
-            }
-

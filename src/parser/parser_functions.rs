@@ -8,7 +8,7 @@ use std::io::{BufReader, Read, Write};
 use std::ops::Index;
 use std::path::Path;
 use pest::Parser;
-use crate::error_msg;
+use crate::{error_msg, log};
 
 pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<String>, Vec<Vec<Expr>>)> {
     let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = vec![];
@@ -38,14 +38,14 @@ pub fn parse_functions(content: &str, check_main: bool) -> Vec<(String, Vec<Stri
     let mut content: String = comment_regex.replace_all(content, "").to_string().lines().map(|ln| ln.trim()).collect();
     // let mut content: String = comment_regex.replace_all(content, "").to_string();
 
-    let macro_regex = Regex::new(r"(?m)^macro (\S*)->(\S*);").unwrap();
-    for macro_match in macro_regex.captures_iter(&content.clone()) {
+    let replace_regex = Regex::new(r"(?m)^replace (.+?)\s*->\s*(.+?)(?=\s*(?:func|import|\z))").unwrap();
+    for macro_match in replace_regex.captures_iter(&content.clone()) {
         let re_match = macro_match.unwrap();
+        log!("MACRO{:?}", re_match);
         content = content.replace(re_match.get(0).unwrap().as_str(),"").replace(re_match.get(1).unwrap().as_str().trim(), re_match.get(2).unwrap().as_str().trim());
-
     }
 
-    // println!("CONTENT{:?}", &content);
+    log!("CONTENT{:?}", &content);
 
     // Parse functions
     let function_regex =

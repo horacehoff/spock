@@ -43,7 +43,7 @@ You can define macros outside functions using the following syntax:
 `macro name->value`\
 **Example**:
 ```
-macro hello goodbye;
+macro hello->goodbye
 
 func main() {
 print("hello world");
