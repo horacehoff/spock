@@ -15,15 +15,23 @@ Key facts:
 let x = 20;
 // parentheses are optional
 if (x == 20) {
-print("TRUE!");
+  print("TRUE!");
 }
 ```
 ```
 let x = 0;
 // parentheses are optional
 while (x < 10) {
-print(x);
-x = x+1;
+  print(x);
+  x = x+1;
+}
+```
+```
+// parentheses are optional
+for (x in [1, 2, 3]) {
+  for y in "abc" {
+    print(x.toStr()+y);
+  }
 }
 ```
 ```

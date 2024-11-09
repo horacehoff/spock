@@ -1,8 +1,7 @@
 func main() {
-for k in "hello" {
-print(k);
-if (k == "l") {
-print("WORKS");
+for (x in [1, 2, 3]) {
+for y in "abc" {
+print(x.toStr()+y);
 }
 }
 }
