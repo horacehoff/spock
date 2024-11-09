@@ -9,6 +9,9 @@ pub fn string_ops(x:String, output: Expr, current_operator: BasicOperator) -> Ex
         match current_operator {
             BasicOperator::Add => {
                 Expr::String(value.to_owned() + &x)
+            },
+            BasicOperator::EQUAL => {
+                Expr::Bool(value.to_owned() == x)
             }
             _ => {error(&format!("Cannot perform operation '{:?}' between String and String", current_operator),""); Expr::Null},
         }

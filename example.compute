@@ -1,7 +1,7 @@
 func main() {
-for k in [0, 1, 2].add(5) {
+for k in "hello" {
 print(k);
-if (k%2 == 0) {
+if (k == "l") {
 print("WORKS");
 }
 }

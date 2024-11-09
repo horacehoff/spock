@@ -704,6 +704,25 @@ fn process_function(
                                 functions.clone(),
                             );
                         }
+                    } else if let Expr::String(target_string) = loop_array {
+                        for elem in target_string.chars() {
+                            let loop_var = Variable {
+                                name: x.to_string(),
+                                value: Expr::String(elem.to_string()),
+                            };
+                            let mut temp_variables = variables.clone();
+                            temp_variables.push(loop_var);
+                            process_function(
+                                *z.clone(),
+                                temp_variables.clone(),
+                                temp_variables
+                                    .iter()
+                                    .map(|variable| variable.name.clone())
+                                    .collect(),
+                                name,
+                                functions.clone(),
+                            );
+                        }
                     }
                 }
                 Expr::While(x, y) => {
