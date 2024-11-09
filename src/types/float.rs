@@ -69,8 +69,8 @@ pub fn float_ops(x: f64, output: Expr, current_operator: BasicOperator) -> Expr 
         error(
             &format!(
                 "Cannot perform operation '{:?}' between {:?} and Float",
-                get_printable_type!(output),
-                current_operator
+                current_operator,
+                get_printable_type!(output)
             ),
             "",
         );

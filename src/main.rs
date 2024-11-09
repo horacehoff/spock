@@ -199,6 +199,17 @@ fn process_stack(
                 } else {
                     error(&format!("Cannot execute line {:?}", &args[0]), "")
                 }
+            } else if func_name == "int" {
+                assert_args_number!("int",args.len(),1);
+                if let Expr::String(str) = &args[0] {
+                    *x = Expr::Integer(str.parse::<i64>().expect(error_msg!(format!("Cannot convert String '{}' to Integer", str))));
+                    continue;
+                } else if let Expr::Float(float) = &args[0] {
+                    *x = Expr::Integer(float.round() as i64);
+                    continue;
+                } else {
+                    error(&format!("Cannot convert {} to Integer", get_printable_type!(&args[0])),"")
+                }
             }
 
             let target_function: (String, Vec<String>, Vec<Vec<Expr>>) = functions

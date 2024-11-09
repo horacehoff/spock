@@ -53,8 +53,8 @@ pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Exp
         error(
             &format!(
                 "Cannot perform operation '{:?}' between {:?} and Integer",
-                get_printable_type!(output),
-                current_operator
+                current_operator,
+                get_printable_type!(output)
             ),
             "",
         );

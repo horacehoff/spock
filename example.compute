@@ -1,7 +1,7 @@
 func main() {
 for (x in [1, 2, 3]) {
-for y in "abc" {
-print(x.toStr()+y);
+for y in "456" {
+print(int(y));
 }
 }
 }
