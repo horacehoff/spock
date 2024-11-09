@@ -45,6 +45,10 @@ print(x[0]);
 - `Array` (`[1, 2, 3, "4", 5.0, true]`)
 - `String`
 - `Float`
+#### Converting types
+- `x` to `Integer`=> `int(x)`
+- `x` to `Float`=> `float(x)`
+- `x` to `String`=> `str(x)`
 
 ## Basic macros
 You can define macros outside functions using the following syntax:
