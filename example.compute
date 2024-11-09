@@ -1,5 +1,11 @@
 macro he->"+"hol"+";
 
-func main() {
-    print("hey");
+func test(a) {
+print(a+2)
+print("heh y")
 }
+
+func main() {
+test(86);
+}
+
