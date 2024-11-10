@@ -32,15 +32,13 @@ pub enum Expr {
     Operation(BasicOperator),
     VariableDeclaration(String, Box<Vec<Expr>>),
     VariableRedeclaration(String, Box<Vec<Expr>>),
-    //Condition
     Condition(
+        //Condition
         Box<Vec<Expr>>,
         // Code to execute if true
         Box<Vec<Vec<Expr>>>,
-        // (OPTIONAL) Code to execute if not true
-        Box<Vec<Vec<Expr>>>,
-        // (OPTIONAL) Condition of the code to execute if not true
-        Box<Vec<Expr>>,
+        // For each else if/else block, (condition, code)
+        Box<Vec<(Vec<Expr>, Vec<Vec<Expr>>)>>
     ),
     // Condition
     While(
@@ -54,7 +52,8 @@ pub enum Expr {
         // Array/string to iterate
         Box<Vec<Expr>>,
         // Code inside the loop to execute
-        Box<Vec<Vec<Expr>>>),
+        Box<Vec<Vec<Expr>>>
+    ),
 
     // Objects
     File(String),
@@ -325,6 +324,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
         .expect(error_msg!("Failed to parse", "Check semicolons and syntax"))
     {
         // _visualize_parse_tree(pair.clone(), 0);
+        println!("WOW");
         for inside in pair.into_inner() {
             let mut line_instructions: Vec<Expr> = vec![];
             match inside.as_rule() {
@@ -336,83 +336,19 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                     }
                 }
                 Rule::if_statement => {
-                    let mut condition: Vec<Expr> = vec![];
-                    let mut else_code: Vec<Vec<Expr>> = vec![];
-                    let mut else_condition: Vec<Expr> = vec![];
-                    if let Some(inner_value) =
-                        inside.clone().into_inner().into_iter().skip(2).next()
-                    {
-                        match inner_value.as_rule() {
-                            Rule::else_block => {
-                                else_code = parse_code(inner_value.into_inner().as_str());
-                            }
-                            Rule::else_if_block => {
-                                for pair in ComputeParser::parse(
-                                    Rule::expression,
-                                    inside
-                                        .clone()
-                                        .into_inner()
-                                        .into_iter()
-                                        .skip(2)
-                                        .next()
-                                        .unwrap()
-                                        .into_inner()
-                                        .next()
-                                        .unwrap()
-                                        .into_inner()
-                                        .next()
-                                        .unwrap()
-                                        .as_str()
-                                        .trim(),
-                                )
-                                .unwrap()
-                                {
-                                    else_condition.append(&mut parse_expression(pair))
-                                }
-                                else_code = parse_code(
-                                    inner_value
-                                        .into_inner()
-                                        .next()
-                                        .unwrap()
-                                        .into_inner()
-                                        .skip(1)
-                                        .next()
-                                        .unwrap()
-                                        .as_str(),
-                                );
-                            }
-                            _ => todo!(""),
+                    let condition: Vec<Expr> = parse_expression(inside.clone().into_inner().into_iter().next().unwrap());
+                    let first_code: Vec<Vec<Expr>> = parse_code(inside.clone().into_inner().into_iter().skip(1).next().unwrap().as_str());
+                    let mut else_groups: Vec<(Vec<Expr>, Vec<Vec<Expr>>)> = vec![];
+                    for else_block in inside.into_inner().into_iter().skip(2) {
+                        if else_block.clone().into_inner().into_iter().next().unwrap().as_rule() == Rule::condition {
+                            // ELSE IF
+                            else_groups.push((parse_expression(else_block.clone().into_inner().into_iter().next().unwrap()),parse_code(else_block.into_inner().into_iter().skip(1).next().unwrap().as_str())));
+                        } else {
+                            // ELSE
+                            else_groups.push((vec![], parse_code(else_block.into_inner().into_iter().next().unwrap().as_str())));
                         }
                     }
-                    for pair in ComputeParser::parse(
-                        Rule::expression,
-                        inside
-                            .clone()
-                            .into_inner()
-                            .next()
-                            .unwrap()
-                            .into_inner()
-                            .as_str()
-                            .trim(),
-                    )
-                    .unwrap()
-                    {
-                        condition.append(&mut parse_expression(pair))
-                    }
-                    line_instructions.push(Expr::Condition(
-                        Box::from(condition),
-                        Box::from(parse_code(
-                            inside
-                                .into_inner()
-                                .into_iter()
-                                .skip(1)
-                                .next()
-                                .unwrap()
-                                .as_str(),
-                        )),
-                        Box::from(else_code),
-                        Box::from(else_condition),
-                    ));
+                    line_instructions.push(Expr::Condition(Box::from(condition), Box::from(first_code), Box::from(else_groups)))
                 }
                 Rule::return_term => line_instructions
                     .push(Expr::FunctionReturn(Box::from(parse_expression(inside)))),

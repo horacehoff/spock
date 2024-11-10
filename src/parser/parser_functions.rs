@@ -15,8 +15,6 @@ pub fn parse_functions(
 ) -> Vec<(String, Vec<String>, Vec<Vec<Expr>>)> {
     let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = vec![];
 
-    let now = Instant::now();
-
     let mut imported_functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = vec![];
     let matches: Vec<(usize, &str)> = content.match_indices("\nimport").collect();
     if content.starts_with("import") {
@@ -48,8 +46,6 @@ pub fn parse_functions(
         )));
         imported_functions.append(&mut parse_functions(&file_content, false));
     }
-    log!("PARSED IMPORTS IN: {:.2?}", now.elapsed());
-
 
 
 
@@ -67,7 +63,7 @@ pub fn parse_functions(
                 "Delete the .compute folder"
             ));
         deserialized_data.append(&mut imported_functions);
-        return deserialized_data;
+        // return deserialized_data;
     }
 
     let comment_regex = Regex::new(r"(?m)(?<=\}|;|\{|.)\s*//.*$").unwrap();
@@ -98,12 +94,10 @@ pub fn parse_functions(
     }
     content = content.lines().map(|ln| ln.trim()).collect();
 
-    log!("BEFORE MACRO CONTENT {:?}", content);
     let replace_regex =
         Regex::new(r"(?m)^replace (.+?)\s*->\s*(.+?)(?=\s*(?:func|import|replace|\z))").unwrap();
     for macro_match in replace_regex.captures_iter(&content.clone()) {
         let re_match = macro_match.unwrap();
-        log!("MACRO{:?}", re_match);
         content = content
             .replace(re_match.get(0).unwrap().as_str(), "")
             .replace(
@@ -111,8 +105,6 @@ pub fn parse_functions(
                 re_match.get(2).unwrap().as_str().trim(),
             );
     }
-
-    log!("CONTENT{:?}", &content);
 
     // Parse functions
     let function_regex =

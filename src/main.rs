@@ -675,54 +675,54 @@ fn process_function(
                         return_variables,
                     );
                 }
-                Expr::Condition(x, y, z, w) => {
-                    let condition = process_stack(*x, variables.clone(), functions.clone());
-                    if condition == Expr::Bool(true) {
-                        let out = process_function(
-                            *y,
-                            variables.clone(),
-                            variables
-                                .iter()
-                                .map(|variable| variable.name.clone())
-                                .collect(),
-                            name,
-                            functions.clone(),
-                        );
-                        if Expr::Null != out.0 {
-                            return out;
-                        }
-                    } else if *w != vec![] {
-                        let condition = process_stack(*w, variables.clone(), functions.clone());
-                        if condition == Expr::Bool(true) {
-                            let out = process_function(
-                                *z,
-                                variables.clone(),
-                                variables
-                                    .iter()
-                                    .map(|variable| variable.name.clone())
-                                    .collect(),
-                                name,
-                                functions.clone(),
-                            );
-                            if Expr::Null != out.0 {
-                                return out;
-                            }
-                        }
-                    } else {
-                        let out = process_function(
-                            *z,
-                            variables.clone(),
-                            variables
-                                .iter()
-                                .map(|variable| variable.name.clone())
-                                .collect(),
-                            name,
-                            functions.clone(),
-                        );
-                        if Expr::Null != out.0 {
-                            return out;
-                        }
-                    }
+                Expr::Condition(x, y, z) => {
+                    // let condition = process_stack(*x, variables.clone(), functions.clone());
+                    // if condition == Expr::Bool(true) {
+                    //     let out = process_function(
+                    //         *y,
+                    //         variables.clone(),
+                    //         variables
+                    //             .iter()
+                    //             .map(|variable| variable.name.clone())
+                    //             .collect(),
+                    //         name,
+                    //         functions.clone(),
+                    //     );
+                    //     if Expr::Null != out.0 {
+                    //         return out;
+                    //     }
+                    // } else if *w != vec![] {
+                    //     let condition = process_stack(*w, variables.clone(), functions.clone());
+                    //     if condition == Expr::Bool(true) {
+                    //         let out = process_function(
+                    //             *z,
+                    //             variables.clone(),
+                    //             variables
+                    //                 .iter()
+                    //                 .map(|variable| variable.name.clone())
+                    //                 .collect(),
+                    //             name,
+                    //             functions.clone(),
+                    //         );
+                    //         if Expr::Null != out.0 {
+                    //             return out;
+                    //         }
+                    //     }
+                    // } else {
+                    //     let out = process_function(
+                    //         *z,
+                    //         variables.clone(),
+                    //         variables
+                    //             .iter()
+                    //             .map(|variable| variable.name.clone())
+                    //             .collect(),
+                    //         name,
+                    //         functions.clone(),
+                    //     );
+                    //     if Expr::Null != out.0 {
+                    //         return out;
+                    //     }
+                    // }
                 }
                 Expr::Loop(x, y, z) => {
                     let loop_array = process_stack(*y, variables.clone(), functions.clone());
@@ -811,6 +811,7 @@ fn process_function(
 }
 
 fn main() {
+    let totaltime = Instant::now();
     let arg = std::env::args()
         .nth(1)
         .expect(error_msg!("No file was given"));
@@ -827,7 +828,7 @@ fn main() {
     let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> =
         parse_functions(content.trim(), true);
     log!("PARSED IN: {:.2?}", now.elapsed());
-    log!("{:?}", functions);
+    log!("FUNCTIONS {:?}", functions);
 
     let main_instructions = functions
         .clone()
@@ -840,15 +841,16 @@ fn main() {
         .2;
     // process_function(main_instructions, vec![], vec![], "main", functions);
 
-    let now = Instant::now();
-    thread::Builder::new()
-        // 16MB stack size
-        .stack_size(16 * 1024 * 1024)
-        .spawn(|| {
-            process_function(main_instructions, vec![], vec![], "main", functions);
-        })
-        .unwrap()
-        .join()
-        .unwrap();
+    // let now = Instant::now();
+    // thread::Builder::new()
+    //     // 16MB stack size
+    //     .stack_size(16 * 1024 * 1024)
+    //     .spawn(|| {
+    //         process_function(main_instructions, vec![], vec![], "main", functions);
+    //     })
+    //     .unwrap()
+    //     .join()
+    //     .unwrap();
     log!("EXECUTED IN: {:.2?}", now.elapsed());
+    log!("TOTAL: {:.2?}", totaltime.elapsed());
 }

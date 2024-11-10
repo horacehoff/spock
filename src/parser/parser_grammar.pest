@@ -58,7 +58,7 @@ code = {statement+}
 
 statement = _{ if_statement | while_statement  | loop_statement | line }
 
-if_statement = { "if" ~ "("? ~ condition ~ ")"? ~ block ~ (else_block | else_if_block)? }
+if_statement = { "if" ~ "("? ~ condition ~ ")"? ~ block ~ else_if_block* ~ else_block? }
 
 condition = { (!")" ~ expression)+ }
 
@@ -66,7 +66,7 @@ block = _{ "{" ~ (!"}" ~ code)* ~ "}" }
 
 else_block = { "else" ~ block }
 
-else_if_block = {"else" ~ if_statement}
+else_if_block = {"else" ~ "if" ~ "("? ~ condition ~ ")"? ~ block}
 
 while_statement = { "while" ~ "("? ~ condition ~ ")"? ~ block }
 
