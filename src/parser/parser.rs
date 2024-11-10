@@ -324,7 +324,6 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
         .expect(error_msg!("Failed to parse", "Check semicolons and syntax"))
     {
         // _visualize_parse_tree(pair.clone(), 0);
-        println!("WOW");
         for inside in pair.into_inner() {
             let mut line_instructions: Vec<Expr> = vec![];
             match inside.as_rule() {

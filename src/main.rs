@@ -676,21 +676,59 @@ fn process_function(
                     );
                 }
                 Expr::Condition(x, y, z) => {
-                    // let condition = process_stack(*x, variables.clone(), functions.clone());
-                    // if condition == Expr::Bool(true) {
-                    //     let out = process_function(
-                    //         *y,
-                    //         variables.clone(),
-                    //         variables
-                    //             .iter()
-                    //             .map(|variable| variable.name.clone())
-                    //             .collect(),
-                    //         name,
-                    //         functions.clone(),
-                    //     );
-                    //     if Expr::Null != out.0 {
-                    //         return out;
-                    //     }
+                    let condition = process_stack(*x, variables.clone(), functions.clone());
+                    if condition == Expr::Bool(true) {
+                        let out = process_function(
+                            *y,
+                            variables.clone(),
+                            variables
+                                .iter()
+                                .map(|variable| variable.name.clone())
+                                .collect(),
+                            name,
+                            functions.clone(),
+                        );
+                        if Expr::Null != out.0 {
+                            return out;
+                        }
+                    } else {
+                        for else_block in *z {
+                            if else_block.0 == vec![] {
+                                let out = process_function(
+                                    else_block.1,
+                                    variables.clone(),
+                                    variables
+                                        .iter()
+                                        .map(|variable| variable.name.clone())
+                                        .collect(),
+                                    name,
+                                    functions.clone(),
+                                );
+                                if Expr::Null != out.0 {
+                                    return out;
+                                } else {
+                                    break;
+                                }
+                            }
+                            if process_stack(else_block.0, variables.clone(), functions.clone()) == Expr::Bool(true) {
+                                let out = process_function(
+                                    else_block.1,
+                                    variables.clone(),
+                                    variables
+                                        .iter()
+                                        .map(|variable| variable.name.clone())
+                                        .collect(),
+                                    name,
+                                    functions.clone(),
+                                );
+                                if Expr::Null != out.0 {
+                                    return out;
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                    }
                     // } else if *w != vec![] {
                     //     let condition = process_stack(*w, variables.clone(), functions.clone());
                     //     if condition == Expr::Bool(true) {
@@ -841,16 +879,16 @@ fn main() {
         .2;
     // process_function(main_instructions, vec![], vec![], "main", functions);
 
-    // let now = Instant::now();
-    // thread::Builder::new()
-    //     // 16MB stack size
-    //     .stack_size(16 * 1024 * 1024)
-    //     .spawn(|| {
-    //         process_function(main_instructions, vec![], vec![], "main", functions);
-    //     })
-    //     .unwrap()
-    //     .join()
-    //     .unwrap();
+    let now = Instant::now();
+    thread::Builder::new()
+        // 16MB stack size
+        .stack_size(16 * 1024 * 1024)
+        .spawn(|| {
+            process_function(main_instructions, vec![], vec![], "main", functions);
+        })
+        .unwrap()
+        .join()
+        .unwrap();
     log!("EXECUTED IN: {:.2?}", now.elapsed());
     log!("TOTAL: {:.2?}", totaltime.elapsed());
 }
