@@ -19,7 +19,7 @@ use inflector::Inflector;
 use std::fs::remove_dir_all;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-use std::{fs, io, thread};
+use std::{fs, io};
 
 use crate::float::float_ops;
 use crate::integer::integer_ops;
@@ -740,7 +740,7 @@ fn process_function(
                     println!("LOOP EXECUTED IN: {:.2?}", now.elapsed());
                 }
                 Expr::Loop(x, y, z) => {
-                    let loop_array = process_stack(*y, variables.clone(), functions.clone());
+                    let loop_array = process_stack(y, variables.clone(), functions.clone());
                     log!("LOOP ARRAY {:?}", loop_array);
                     if let Expr::Array(target_array) = loop_array {
                         for elem in target_array {
@@ -752,7 +752,7 @@ fn process_function(
                             let mut temp_variables = variables.clone();
                             temp_variables.push(loop_var);
                             process_function(
-                                *z.clone(),
+                                z.clone(),
                                 temp_variables.clone(),
                                 temp_variables
                                     .iter()
@@ -771,7 +771,7 @@ fn process_function(
                             let mut temp_variables = variables.clone();
                             temp_variables.push(loop_var);
                             process_function(
-                                *z.clone(),
+                                z.clone(),
                                 temp_variables.clone(),
                                 temp_variables
                                     .iter()
@@ -785,11 +785,11 @@ fn process_function(
                 }
                 Expr::While(x, y) => {
                     // let condition = process_stack(*x, variables.clone(), functions.clone());
-                    while process_stack(*x.clone(), variables.clone(), functions.clone())
+                    while process_stack(x.clone(), variables.clone(), functions.clone())
                         == Expr::Bool(true)
                     {
                         let out = process_function(
-                            *y.clone(),
+                            y.clone(),
                             variables.clone(),
                             variables
                                 .iter()
