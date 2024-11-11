@@ -147,13 +147,14 @@ fn basic_functions(x: &str, args: &Vec<Expr>) -> (Expr, bool) {
 
 #[inline(always)]
 fn process_stack(
-    mut stack: Vec<Expr>,
+    stack_in: &Vec<Expr>,
     variables: &Vec<Variable>,
     functions: &Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
 ) -> Expr {
     let mut output: Expr = Expr::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
-    for x in &mut stack {
+    let mut stack: Vec<Expr> = vec![];
+    for x in stack_in {
         if let Expr::VariableIdentifier(ref var) = x {
             // replace variable by its value
             let variable = variables
@@ -161,21 +162,23 @@ fn process_stack(
                 .filter(|variable| variable.name == *var)
                 .next()
                 .expect(error_msg!(format!("Variable '{}' doesn't exist", var)));
-            *x = variable.value.clone();
+            stack.push(variable.value.clone());
+            // *x = variable.value.clone();
         } else if let Expr::NamespaceFunctionCall(namespace, y, z) = x {
             // execute "namespace functions"
             let args: Vec<Expr> = z
                 .iter()
-                .map(|arg| process_stack(arg.clone(), &variables, &functions))
+                .map(|arg| process_stack(arg, &variables, &functions))
                 .collect();
 
             let namespace_funcs = namespace_functions(namespace.clone(), y.clone(), args.clone());
             if namespace_funcs.1 {
-                *x = namespace_funcs.0;
+                stack.push(namespace_funcs.0);
+                // *x = namespace_funcs.0;
                 continue;
             } else {
                 error(
-                    &format!("Unknown function {}", namespace.join(".") + "." + y),
+                    &format!("Unknown function {}", namespace.join(".") + "." + &y),
                     "",
                 );
             }
@@ -183,21 +186,27 @@ fn process_stack(
             // replace function call by its result (return value)
             let args: Vec<Expr> = func_args
                 .iter()
-                .map(|arg| process_stack(arg.clone(), &variables, &functions))
+                .map(|arg| process_stack(arg, &variables, &functions))
                 .collect();
             let matched = basic_functions(&func_name, &args);
             // check if function is a built-in function, else search it among user-defined functions
             if matched.1 {
-                *x = matched.0;
+                // *x = matched.0;
+                stack.push(matched.0);
                 continue;
             } else if func_name == "executeline" {
                 assert_args_number!("executeline", args.len(), 1);
                 if let Expr::String(line) = &args[0] {
-                    *x = process_stack(
-                        parse_code(line)[0].clone(),
+                    stack.push(process_stack(
+                        &parse_code(line)[0],
                         &variables,
                         &functions,
-                    );
+                    ));
+                    // *x = process_stack(
+                    //     &parse_code(line)[0],
+                    //     &variables,
+                    //     &functions,
+                    // );
                     continue;
                 } else {
                     error(&format!("Cannot execute {:?}", &args[0]), "")
@@ -205,10 +214,12 @@ fn process_stack(
             } else if func_name == "int" {
                 assert_args_number!("int",args.len(),1);
                 if let Expr::String(str) = &args[0] {
-                    *x = Expr::Integer(str.parse::<i64>().expect(error_msg!(format!("Cannot convert String '{}' to Integer", str))));
+                    stack.push(Expr::Integer(str.parse::<i64>().expect(error_msg!(format!("Cannot convert String '{}' to Integer", str)))));
+                    // *x = Expr::Integer(str.parse::<i64>().expect(error_msg!(format!("Cannot convert String '{}' to Integer", str))));
                     continue;
                 } else if let Expr::Float(float) = &args[0] {
-                    *x = Expr::Integer(float.round() as i64);
+                    stack.push(Expr::Integer(float.round() as i64));
+                    // *x = Expr::Integer(float.round() as i64);
                     continue;
                 } else {
                     error(&format!("Cannot convert {} to Integer", get_printable_type!(&args[0])),"")
@@ -216,16 +227,20 @@ fn process_stack(
             } else if func_name == "str" {
                 assert_args_number!("str",args.len(),1);
                 if let Expr::Integer(int) = &args[0] {
-                    *x = Expr::String(int.to_string());
+                    stack.push(Expr::String(int.to_string()));
+                    // *x = Expr::String(int.to_string());
                     continue;
                 } else if let Expr::Float(float) = &args[0] {
-                    *x = Expr::String(float.to_string());
+                    stack.push(Expr::String(float.to_string()));
+                    // *x = Expr::String(float.to_string());
                     continue;
                 } else if let Expr::Bool(boolean) = &args[0] {
-                    *x = Expr::String(if *boolean {"true".to_string()} else {"false".to_string()});
+                    stack.push(Expr::String(if *boolean {"true".to_string()} else {"false".to_string()}));
+                    // *x = Expr::String(if *boolean {"true".to_string()} else {"false".to_string()});
                     continue;
                 } else if let Expr::Array(arr) = &args[0] {
-                    *x = Expr::String(get_printable_form(args[0].clone()));
+                    stack.push(Expr::String(get_printable_form(args[0].clone())));
+                    // *x = Expr::String(get_printable_form(args[0].clone()));
                     continue;
                 }
                 else {
@@ -234,10 +249,12 @@ fn process_stack(
             } else if func_name == "float" {
                 assert_args_number!("float",args.len(),1);
                 if let Expr::String(str) = &args[0] {
-                    *x = Expr::Float(str.parse::<f64>().expect(error_msg!(format!("Cannot convert String '{}' to Float", str))));
+                    stack.push(Expr::Float(str.parse::<f64>().expect(error_msg!(format!("Cannot convert String '{}' to Float", str)))));
+                    // *x = Expr::Float(str.parse::<f64>().expect(error_msg!(format!("Cannot convert String '{}' to Float", str))));
                     continue;
                 } else if let Expr::Integer(int) = &args[0] {
-                    *x = Expr::Float(*int as f64);
+                    stack.push(Expr::Float(*int as f64));
+                    // *x = Expr::Float(*int as f64);
                     continue;
                 } else {
                     error(&format!("Cannot convert {} to Float", get_printable_type!(&args[0])),"")
@@ -262,31 +279,34 @@ fn process_stack(
                 .collect();
             let result = process_function(
                 target_function.2,
-                target_args,
-                target_function.1,
+                &target_args,
+                &target_function.1,
                 target_function.0.as_str(),
-                functions.clone(),
+                &functions,
             );
-            *x = result.0;
+            stack.push(result.0);
+            // *x = result.0;
         } else if let Expr::Priority(calc) = x {
             // execute content inside parentheses before all the other content in the second loop
-            *x = process_stack(calc.clone(), &variables, &functions);
+            stack.push(process_stack(&calc, &variables, &functions));
+            // *x = process_stack(&calc, &variables, &functions);
         } else if let Expr::ArrayParsed(y) = x {
             // compute final value of arrays
             let mut new_array: Vec<Expr> = vec![];
             for element in y.iter() {
                 new_array.push(process_stack(
-                    element.clone(),
+                    &element,
                     &variables,
                     &functions,
                 ));
             }
-            *x = Expr::Array(new_array);
+            stack.push(Expr::Array(new_array));
+            // *x = Expr::Array(new_array);
         } else if let Expr::ArraySuite(y) = x {
             // matches multiple arrays following one another => implies array indexing
             let arrays: Vec<Expr> = y.clone();
             let target_array: Expr = process_stack(
-                vec![arrays[0].clone()],
+                &vec![arrays[0].clone()],
                 &variables,
                 &functions,
             );
@@ -296,7 +316,7 @@ fn process_stack(
                 let mut array = vec![];
                 for element in target_arr.iter() {
                     array.push(process_stack(
-                        element.clone(),
+                        &element,
                         &variables,
                         &functions,
                     ));
@@ -308,7 +328,7 @@ fn process_stack(
                         let mut index_array = vec![];
                         for element in target_index_arr.iter() {
                             index_array.push(process_stack(
-                                element.clone(),
+                                &element,
                                 &variables,
                                 &functions,
                             ));
@@ -346,7 +366,8 @@ fn process_stack(
                         error(&format!("{:?} is not a valid index", target_index), "");
                     }
                 }
-                *x = output;
+                stack.push(output);
+                // *x = output;
             } else if let Expr::Array(target_arr) = target_array {
                 // 2 - matches if contents of target array have already been fully evaluated and the array only contains raw/basic values
                 let mut output = Expr::Null;
@@ -355,7 +376,7 @@ fn process_stack(
                         let mut index_array = vec![];
                         for element in target_index_arr.iter() {
                             index_array.push(process_stack(
-                                element.clone(),
+                                &element,
                                 &variables,
                                 &functions,
                             ));
@@ -393,7 +414,8 @@ fn process_stack(
                         error(&format!("{:?} is not a valid index", target_index), "");
                     }
                 }
-                *x = output;
+                stack.push(output);
+                // *x = output;
             } else if let Expr::String(str) = target_array {
                 // 3 - matches if "array" is a string => returns a letter
                 let mut output = Expr::Null;
@@ -402,7 +424,7 @@ fn process_stack(
                         let mut index_array = vec![];
                         for element in target_index_arr.iter() {
                             index_array.push(process_stack(
-                                element.clone(),
+                                &element,
                                 &variables,
                                 &functions,
                             ));
@@ -448,19 +470,22 @@ fn process_stack(
                         error(&format!("{:?} is not a valid index", target_index), "");
                     }
                 }
-                *x = output;
+                stack.push(output);
+                // *x = output;
             } else {
                 error(
                     &format!("Cannot index {} type", get_printable_type!(target_array)),
                     "",
                 )
             }
+        } else {
+            stack.push(x.clone());
         }
     }
 
     for element in stack {
         if output == Expr::Null {
-            output = element
+            output = element.clone()
         } else {
             // println!("ELEM {:?}", element);
             match element {
@@ -468,7 +493,7 @@ fn process_stack(
                     current_operator = op;
                 }
                 Expr::OR(x) => {
-                    let parsed_exp = process_stack(x, &variables, &functions);
+                    let parsed_exp = process_stack(&x, &variables, &functions);
                     if let Expr::Bool(inbool) = output {
                         if let Expr::Bool(sidebool) = parsed_exp {
                             output = Expr::Bool(inbool || sidebool)
@@ -480,7 +505,7 @@ fn process_stack(
                     }
                 }
                 Expr::AND(x) => {
-                    let parsed_exp = process_stack(x, &variables, &functions);
+                    let parsed_exp = process_stack(&x, &variables, &functions);
                     if let Expr::Bool(inbool) = output {
                         if let Expr::Bool(sidebool) = parsed_exp {
                             output = Expr::Bool(inbool && sidebool)
@@ -492,7 +517,7 @@ fn process_stack(
                     }
                 }
                 Expr::String(x) => {
-                    output = string_ops(x, output, current_operator);
+                    output = string_ops(x.clone(), output, current_operator);
                 }
                 Expr::Float(x) => {
                     output = float_ops(x, output, current_operator);
@@ -526,11 +551,11 @@ fn process_stack(
                     // }
                 }
                 Expr::PropertyFunction(z) => {
-                    if let Expr::FunctionCall(x, y) = *z {
+                    if let Expr::FunctionCall(x, y) = *z.clone() {
                         let args: Vec<Expr> = y
                             .iter()
                             .map(|arg| {
-                                process_stack(arg.clone(), &variables, &functions)
+                                process_stack(&arg, &variables, &functions)
                             })
                             .collect();
 
@@ -557,10 +582,10 @@ fn process_stack(
 #[inline(always)]
 fn process_function(
     lines: Vec<Vec<Expr>>,
-    included_variables: Vec<Variable>,
-    expected_variables: Vec<String>,
+    included_variables: &Vec<Variable>,
+    expected_variables: &Vec<String>,
     name: &str,
-    functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
+    functions: &Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
 ) -> (Expr, Vec<Variable>) {
     if included_variables.len() != expected_variables.len() {
         error(
@@ -587,16 +612,15 @@ fn process_function(
                     // }
                     variables.push(Variable {
                         name: x,
-                        value: process_stack(y, &variables, &functions),
+                        value: process_stack(&y, &variables, &functions),
                     })
                 }
                 Expr::VariableRedeclaration(x, y) => {
                     let position = variables
-                        .clone()
                         .iter()
                         .position(|var| var.name == x)
                         .expect(error_msg!(format!("Variable '{}' does not exist", x)));
-                    let processed = process_stack(y, &variables, &functions);
+                    let processed = process_stack(&y, &variables, &functions);
                     variables[position].value = processed.clone();
 
                     if included_variables
@@ -615,7 +639,7 @@ fn process_function(
                 Expr::NamespaceFunctionCall(z, x, y) => {
                     let args: Vec<Expr> = y
                         .iter()
-                        .map(|arg| process_stack(arg.clone(), &variables, &functions))
+                        .map(|arg| process_stack(&arg, &variables, &functions))
                         .collect();
                     if !namespace_functions(z.clone(), x.clone(), args.clone()).1 {
                         error(
@@ -628,7 +652,7 @@ fn process_function(
                     // println!("{:?}", y);
                     let args: Vec<Expr> = y
                         .iter()
-                        .map(|arg| process_stack(arg.clone(), &variables, &functions))
+                        .map(|arg| process_stack(&arg, &variables, &functions))
                         .collect();
 
                     let matched = basic_functions(&x, &args);
@@ -636,7 +660,7 @@ fn process_function(
                         assert_args_number!("executeline", args.len(), 1);
                         if let Expr::String(line) = &args[0] {
                             process_stack(
-                                parse_code(line)[0].clone(),
+                                &parse_code(line)[0],
                                 &variables,
                                 &functions,
                             );
@@ -663,33 +687,33 @@ fn process_function(
                             .collect();
                         process_function(
                             target_function.2,
-                            target_args,
-                            target_function.1,
+                            &target_args,
+                            &target_function.1,
                             &target_function.0,
-                            functions.clone(),
+                            &functions,
                         );
                         // println!("{:?}", target_args)
                     }
                 }
                 Expr::FunctionReturn(x) => {
                     return (
-                        process_stack(x, &variables, &functions),
+                        process_stack(&x, &variables, &functions),
                         return_variables,
                     );
                 }
                 Expr::Condition(x, y, z) => {
                     let now = Instant::now();
-                    let condition = process_stack(x, &variables, &functions);
+                    let condition = process_stack(&x, &variables, &functions);
                     if condition == Expr::Bool(true) {
                         let out = process_function(
                             y,
-                            variables.clone(),
-                            variables
+                            &variables,
+                            &variables
                                 .iter()
                                 .map(|variable| variable.name.clone())
                                 .collect(),
                             name,
-                            functions.clone(),
+                            &functions,
                         );
                         if Expr::Null != out.0 {
                             println!("IF 0 EXECUTED IN: {:.2?}", now.elapsed());
@@ -702,13 +726,13 @@ fn process_function(
                             if else_block.0 == vec![] {
                                 let out = process_function(
                                     else_block.1,
-                                    variables.clone(),
-                                    variables
+                                    &variables,
+                                    &variables
                                         .iter()
                                         .map(|variable| variable.name.clone())
                                         .collect(),
                                     name,
-                                    functions.clone(),
+                                    &functions,
                                 );
                                 if Expr::Null != out.0 {
                                     println!("IF {i} EXECUTED IN: {:.2?}", now.elapsed());
@@ -717,16 +741,16 @@ fn process_function(
                                     break;
                                 }
                             }
-                            if process_stack(else_block.0, &variables, &functions) == Expr::Bool(true) {
+                            if process_stack(&else_block.0, &variables, &functions) == Expr::Bool(true) {
                                 let out = process_function(
                                     else_block.1,
-                                    variables.clone(),
-                                    variables
+                                    &variables,
+                                    &variables
                                         .iter()
                                         .map(|variable| variable.name.clone())
                                         .collect(),
                                     name,
-                                    functions.clone(),
+                                    &functions,
                                 );
                                 if Expr::Null != out.0 {
                                     println!("IF {i} EXECUTED IN: {:.2?}", now.elapsed());
@@ -740,7 +764,7 @@ fn process_function(
                     println!("LOOP EXECUTED IN: {:.2?}", now.elapsed());
                 }
                 Expr::Loop(x, y, z) => {
-                    let loop_array = process_stack(y, &variables, &functions);
+                    let loop_array = process_stack(&y, &variables, &functions);
                     log!("LOOP ARRAY {:?}", loop_array);
                     if let Expr::Array(target_array) = loop_array {
                         for elem in target_array {
@@ -753,13 +777,13 @@ fn process_function(
                             temp_variables.push(loop_var);
                             process_function(
                                 z.clone(),
-                                temp_variables.clone(),
-                                temp_variables
+                                &temp_variables,
+                                &temp_variables
                                     .iter()
                                     .map(|variable| variable.name.clone())
                                     .collect(),
                                 name,
-                                functions.clone(),
+                                &functions,
                             );
                         }
                     } else if let Expr::String(target_string) = loop_array {
@@ -772,31 +796,31 @@ fn process_function(
                             temp_variables.push(loop_var);
                             process_function(
                                 z.clone(),
-                                temp_variables.clone(),
-                                temp_variables
+                                &temp_variables.clone(),
+                                &temp_variables
                                     .iter()
                                     .map(|variable| variable.name.clone())
                                     .collect(),
                                 name,
-                                functions.clone(),
+                                &functions,
                             );
                         }
                     }
                 }
                 Expr::While(x, y) => {
                     // let condition = process_stack(*x, variables.clone(), functions.clone());
-                    while process_stack(x.clone(), &variables, &functions)
+                    while process_stack(&x, &variables, &functions)
                         == Expr::Bool(true)
                     {
                         let out = process_function(
                             y.clone(),
-                            variables.clone(),
-                            variables
+                            &variables,
+                            &variables
                                 .iter()
                                 .map(|variable| variable.name.clone())
                                 .collect(),
                             name,
-                            functions.clone(),
+                            &functions,
                         );
                         if Expr::Null != out.0 {
                             return out;
@@ -813,7 +837,7 @@ fn process_function(
                     }
                 }
                 _ => {
-                    process_stack(instructions.clone(), &variables, &functions);
+                    process_stack(&instructions, &variables, &functions);
                     break;
                 }
             }
@@ -854,7 +878,7 @@ fn main() {
         .first()
         .unwrap()
         .2.clone();
-    process_function(main_instructions, vec![], vec![], "main", functions);
+    process_function(main_instructions, &vec![], &vec![], "main", &functions);
 
     // let now = Instant::now();
     // thread::Builder::new()
