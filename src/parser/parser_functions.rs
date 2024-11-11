@@ -63,7 +63,7 @@ pub fn parse_functions(
                 "Delete the .compute folder"
             ));
         deserialized_data.append(&mut imported_functions);
-        // return deserialized_data;
+        return deserialized_data;
     }
 
     let comment_regex = Regex::new(r"(?m)(?<=\}|;|\{|.)\s*//.*$").unwrap();

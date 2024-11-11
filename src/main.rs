@@ -865,8 +865,8 @@ fn main() {
     let now = Instant::now();
     let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> =
         parse_functions(content.trim(), true);
-    log!("PARSED IN: {:.2?}", now.elapsed());
-    log!("FUNCTIONS {:?}", functions);
+    println!("PARSED IN: {:.2?}", now.elapsed());
+    println!("FUNCTIONS {:?}", functions);
 
     let main_instructions = functions
         .clone()
@@ -889,6 +889,6 @@ fn main() {
         .unwrap()
         .join()
         .unwrap();
-    log!("EXECUTED IN: {:.2?}", now.elapsed());
-    log!("TOTAL: {:.2?}", totaltime.elapsed());
+    println!("EXECUTED IN: {:.2?}", now.elapsed());
+    println!("TOTAL: {:.2?}", totaltime.elapsed());
 }
