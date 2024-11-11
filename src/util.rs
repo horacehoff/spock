@@ -120,7 +120,7 @@ pub fn get_printable_form(x: Expr) -> String {
         Expr::Integer(int) => int.to_string(),
         Expr::Bool(boolean) => boolean.to_string(),
         Expr::Array(x) => {
-            let arr = *x;
+            let arr = x;
             "[".to_string()+arr.iter()
                 .map(|item| get_printable_form(item.clone()) + ",")
                 .collect::<String>()

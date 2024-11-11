@@ -1,5 +1,5 @@
 func main() {
-print(fibonacci(30));
+print(fibonacci(20));
 }
 
 func fibonacci(n) {

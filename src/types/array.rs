@@ -21,17 +21,17 @@ macro_rules! array_props {
             }
             "clear" => {
                 assert_args_number!("clear", $args.len(), 0);
-                $output = Expr::Array(Box::from(vec![]));
+                $output = Expr::Array(vec![]);
             }
             "reverse" => {
                 assert_args_number!("clear", $args.len(), 0);
                 let mut new_vec = $arr.clone();
                 new_vec.reverse();
-                $output = Expr::Array(Box::from(new_vec))
+                $output = Expr::Array(new_vec)
             }
             "sort" => {
                 assert_args_number!("sort", $args.len(), 0);
-                let mut new_vec: Vec<Expr> = *$arr.clone();
+                let mut new_vec: Vec<Expr> = $arr.clone();
                 new_vec.sort_by(|a, b| match a {
                     Expr::Integer(x) => match b {
                         Expr::Integer(y) => x.cmp(y),
@@ -54,7 +54,7 @@ macro_rules! array_props {
                         std::cmp::Ordering::Equal
                     }
                 });
-                $output = Expr::Array(Box::from(new_vec));
+                $output = Expr::Array(new_vec);
             }
             "index" => {
                 assert_args_number!("index", $args.len(), 1);
@@ -70,30 +70,30 @@ macro_rules! array_props {
             }
             "extend" => {
                 assert_args_number!("extend", $args.len(), 1);
-                let mut new_vec: Vec<Expr> = *$arr.clone();
+                let mut new_vec: Vec<Expr> = $arr.clone();
                 if let Expr::Array(x) = $args[0].clone() {
-                    new_vec.extend(*x);
-                    $output = Expr::Array(Box::from(new_vec));
+                    new_vec.extend(x);
+                    $output = Expr::Array(new_vec);
                 } else {
                     error(format!("{:?} is not a list", $args[0]).as_str(), "");
                 }
             }
             "insert" => {
                 assert_args_number!("insert", $args.len(), 2);
-                let mut new_vec: Vec<Expr> = *$arr.clone();
+                let mut new_vec: Vec<Expr> = $arr.clone();
                 if let Expr::Integer(x) = $args[0] {
                     new_vec.insert(x as usize, $args[1].clone());
-                    $output = Expr::Array(Box::from(new_vec))
+                    $output = Expr::Array(new_vec)
                 } else {
                     error(format!("{:?} is not a valid index", $args[0]).as_str(), "");
                 }
             }
             "pop" => {
                 assert_args_number!("pop", $args.len(), 1);
-                let mut new_vec: Vec<Expr> = *$arr.clone();
+                let mut new_vec: Vec<Expr> = $arr.clone();
                 if let Expr::Integer(x) = $args[0] {
                     new_vec.remove(x as usize);
-                    $output = Expr::Array(Box::from(new_vec))
+                    $output = Expr::Array(new_vec)
                 } else {
                     error(format!("{:?} is not a valid index", $args[0]).as_str(), "");
                 }

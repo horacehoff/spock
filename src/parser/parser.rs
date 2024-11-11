@@ -17,42 +17,42 @@ pub enum Expr {
     Float(f64),
     String(String),
     Bool(bool),
-    Array(Box<Vec<Expr>>),
-    ArrayParsed(Box<Vec<Vec<Expr>>>),
-    ArraySuite(Box<Vec<Expr>>),
-    OR(Box<Vec<Expr>>),
-    AND(Box<Vec<Expr>>),
+    Array(Vec<Expr>),
+    ArrayParsed(Vec<Vec<Expr>>),
+    ArraySuite(Vec<Expr>),
+    OR(Vec<Expr>),
+    AND(Vec<Expr>),
     Property(String),
     PropertyFunction(Box<Expr>),
     VariableIdentifier(String),
-    FunctionCall(String, Box<Vec<Vec<Expr>>>),
-    NamespaceFunctionCall(Vec<String>, String, Box<Vec<Vec<Expr>>>),
-    FunctionReturn(Box<Vec<Expr>>),
-    Priority(Box<Vec<Expr>>),
+    FunctionCall(String, Vec<Vec<Expr>>),
+    NamespaceFunctionCall(Vec<String>, String, Vec<Vec<Expr>>),
+    FunctionReturn(Vec<Expr>),
+    Priority(Vec<Expr>),
     Operation(BasicOperator),
-    VariableDeclaration(String, Box<Vec<Expr>>),
-    VariableRedeclaration(String, Box<Vec<Expr>>),
+    VariableDeclaration(String, Vec<Expr>),
+    VariableRedeclaration(String, Vec<Expr>),
     Condition(
         //Condition
-        Box<Vec<Expr>>,
+        Vec<Expr>,
         // Code to execute if true
-        Box<Vec<Vec<Expr>>>,
+        Vec<Vec<Expr>>,
         // For each else if/else block, (condition, code)
-        Box<Vec<(Vec<Expr>, Vec<Vec<Expr>>)>>
+        Vec<(Vec<Expr>, Vec<Vec<Expr>>)>
     ),
     // Condition
     While(
-        Box<Vec<Expr>>,
+        Vec<Expr>,
         // Code to execute while true
-        Box<Vec<Vec<Expr>>>,
+        Vec<Vec<Expr>>,
     ),
     Loop(
         // Loop identifier
         String,
         // Array/string to iterate
-        Box<Vec<Expr>>,
+        Vec<Expr>,
         // Code inside the loop to execute
-        Box<Vec<Vec<Expr>>>
+        Vec<Vec<Expr>>
     ),
 
     // Objects
@@ -115,7 +115,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                 // println!("MEM{:?}", suite);
             }
 
-            output.push(ArraySuite(Box::from(suite)))
+            output.push(ArraySuite(suite))
         }
         Rule::array => {
             let mut array: Vec<Vec<Expr>> = vec![];
@@ -123,7 +123,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                 array.push(parse_expression(array_member))
             }
             recursive = false;
-            output.push(Expr::ArrayParsed(Box::from(array)))
+            output.push(Expr::ArrayParsed(array))
         }
         Rule::property => {
             recursive = false;
@@ -158,7 +158,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                     .trim_start_matches(".")
                     .parse()
                     .unwrap(),
-                Box::from(priority_calc),
+                priority_calc,
             ))))
         }
         Rule::func_call => {
@@ -177,7 +177,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                     .as_str()
                     .parse()
                     .unwrap(),
-                Box::from(priority_calc),
+                priority_calc,
             ));
         }
         Rule::func_call_namespace => {
@@ -223,7 +223,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
             for priority_pair in pair.clone().into_inner() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
-            output.push(Expr::Priority(Box::from(priority_calc)))
+            output.push(Expr::Priority(priority_calc))
         }
         Rule::ops => match pair.as_str() {
             "+" => output.push(Expr::Operation(BasicOperator::Add)),
@@ -257,7 +257,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                     .trim()
                     .parse()
                     .unwrap(),
-                Box::from(priority_calc),
+                priority_calc,
             ));
         }
         Rule::variableRedeclaration => {
@@ -275,7 +275,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                     .trim()
                     .parse()
                     .unwrap(),
-                Box::from(priority_calc),
+                priority_calc,
             ));
         }
         Rule::and_operation => {
@@ -284,7 +284,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
             for priority_pair in pair.clone().into_inner().into_iter() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
-            output.push(Expr::AND(Box::from(priority_calc)));
+            output.push(Expr::AND(priority_calc));
         }
         Rule::or_operation => {
             recursive = false;
@@ -292,7 +292,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
             for priority_pair in pair.clone().into_inner().into_iter() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
-            output.push(Expr::OR(Box::from(priority_calc)));
+            output.push(Expr::OR(priority_calc));
         }
         _ => {}
     }
@@ -347,10 +347,10 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                             else_groups.push((vec![], parse_code(else_block.into_inner().into_iter().next().unwrap().as_str())));
                         }
                     }
-                    line_instructions.push(Expr::Condition(Box::from(condition), Box::from(first_code), Box::from(else_groups)))
+                    line_instructions.push(Expr::Condition(condition, first_code, else_groups))
                 }
                 Rule::return_term => line_instructions
-                    .push(Expr::FunctionReturn(Box::from(parse_expression(inside)))),
+                    .push(Expr::FunctionReturn(parse_expression(inside))),
                 Rule::while_statement => {
                     let mut condition: Vec<Expr> = vec![];
                     for pair in ComputeParser::parse(
@@ -369,8 +369,8 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                         condition.append(&mut parse_expression(pair))
                     }
                     line_instructions.push(Expr::While(
-                        Box::from(condition),
-                        Box::from(parse_code(
+                        condition,
+                        parse_code(
                             inside
                                 .into_inner()
                                 .into_iter()
@@ -378,7 +378,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                                 .next()
                                 .unwrap()
                                 .as_str(),
-                        )),
+                        ),
                     ));
                 }
                 Rule::loop_statement => {
@@ -388,8 +388,8 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                     let loop_code = parse_code(inner.next().unwrap().as_str());
                     line_instructions.push(Expr::Loop(
                         loop_var,
-                        Box::from(target_array),
-                        Box::from(loop_code),
+                        target_array,
+                        loop_code,
                     ))
                 }
                 _ => {}
