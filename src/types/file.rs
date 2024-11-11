@@ -25,7 +25,7 @@ macro_rules! file_props {
                     error(
                         &format!(
                             "Invalid file content: {:?}",
-                            get_printable_form($args[0].clone())
+                            get_printable_form(&$args[0])
                         ),
                         "",
                     );
@@ -48,7 +48,7 @@ macro_rules! file_props {
                     error(
                         &format!(
                             "Invalid file content: {:?}",
-                            get_printable_form($args[0].clone())
+                            get_printable_form(&$args[0])
                         ),
                         "",
                     );

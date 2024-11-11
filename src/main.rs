@@ -34,7 +34,7 @@ use std::time::Instant;
 fn basic_functions(x: &str, args: &Vec<Expr>) -> (Expr, bool) {
     if x == "print" {
         assert_args_number!("print", args.len(), 1);
-        println!("{}", get_printable_form(args[0].clone()));
+        println!("{}", get_printable_form(&args[0]));
         (Expr::Null, true)
     } else if x == "abs" {
         assert_args_number!("abs", args.len(), 1);
@@ -171,7 +171,7 @@ fn process_stack(
                 .map(|arg| process_stack(arg, &variables, &functions))
                 .collect();
 
-            let namespace_funcs = namespace_functions(namespace.clone(), y.clone(), args.clone());
+            let namespace_funcs = namespace_functions(&namespace, &y, &args);
             if namespace_funcs.1 {
                 stack.push(namespace_funcs.0);
                 // *x = namespace_funcs.0;
@@ -239,7 +239,7 @@ fn process_stack(
                     // *x = Expr::String(if *boolean {"true".to_string()} else {"false".to_string()});
                     continue;
                 } else if let Expr::Array(arr) = &args[0] {
-                    stack.push(Expr::String(get_printable_form(args[0].clone())));
+                    stack.push(Expr::String(get_printable_form(&args[0])));
                     // *x = Expr::String(get_printable_form(args[0].clone()));
                     continue;
                 }
@@ -485,7 +485,7 @@ fn process_stack(
 
     for element in stack {
         if output == Expr::Null {
-            output = element.clone()
+            output = element
         } else {
             // println!("ELEM {:?}", element);
             match element {
@@ -641,7 +641,7 @@ fn process_function(
                         .iter()
                         .map(|arg| process_stack(&arg, &variables, &functions))
                         .collect();
-                    if !namespace_functions(z.clone(), x.clone(), args.clone()).1 {
+                    if !namespace_functions(&z, &x, &args).1 {
                         error(
                             &format!("Unknown function '{}'", z.join(".") + "." + &x),
                             "",
@@ -716,7 +716,6 @@ fn process_function(
                             &functions,
                         );
                         if Expr::Null != out.0 {
-                            println!("IF 0 EXECUTED IN: {:.2?}", now.elapsed());
                             return out;
                         }
                     } else {
@@ -735,7 +734,6 @@ fn process_function(
                                     &functions,
                                 );
                                 if Expr::Null != out.0 {
-                                    println!("IF {i} EXECUTED IN: {:.2?}", now.elapsed());
                                     return out;
                                 } else {
                                     break;
@@ -753,7 +751,6 @@ fn process_function(
                                     &functions,
                                 );
                                 if Expr::Null != out.0 {
-                                    println!("IF {i} EXECUTED IN: {:.2?}", now.elapsed());
                                     return out;
                                 } else {
                                     break;
@@ -761,7 +758,7 @@ fn process_function(
                             }
                         }
                     }
-                    println!("LOOP EXECUTED IN: {:.2?}", now.elapsed());
+                    // println!("LOOP EXECUTED IN: {:.2?}", now.elapsed());
                 }
                 Expr::Loop(x, y, z) => {
                     let loop_array = process_stack(&y, &variables, &functions);

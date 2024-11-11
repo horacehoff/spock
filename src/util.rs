@@ -113,16 +113,16 @@ macro_rules! math_to_type {
     };
 }
 
-pub fn get_printable_form(x: Expr) -> String {
+pub fn get_printable_form(x: &Expr) -> String {
     match x {
-        Expr::String(str) => str,
+        Expr::String(str) => str.to_string(),
         Expr::Float(float) => float.to_string(),
         Expr::Integer(int) => int.to_string(),
         Expr::Bool(boolean) => boolean.to_string(),
         Expr::Array(x) => {
             let arr = x;
             "[".to_string()+arr.iter()
-                .map(|item| get_printable_form(item.clone()) + ",")
+                .map(|item| get_printable_form(item) + ",")
                 .collect::<String>()
                 .trim_end_matches(",")
                 .parse::<String>()
