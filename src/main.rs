@@ -20,7 +20,7 @@ use inflector::Inflector;
 use std::fs::remove_dir_all;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-use std::{fs, io};
+use std::{fs, io, thread};
 
 use crate::float::float_ops;
 use crate::integer::integer_ops;
@@ -155,7 +155,6 @@ fn process_stack(
     let mut output: Expr = Expr::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in {
-
         let element = preprocess(&variables, &functions, p_element);
 
         if output == Expr::Null {
@@ -525,18 +524,18 @@ fn main() {
         .first()
         .unwrap()
         .2.clone();
-    process_function(main_instructions, &vec![], &vec![], "main", &functions);
+    // process_function(main_instructions, &vec![], &vec![], "main", &functions);
 
-    // let now = Instant::now();
-    // thread::Builder::new()
-    //     // 16MB stack size
-    //     .stack_size(16 * 1024 * 1024)
-    //     .spawn(|| {
-    //         process_function(main_instructions, vec![], vec![], "main", functions);
-    //     })
-    //     .unwrap()
-    //     .join()
-    //     .unwrap();
+    let now = Instant::now();
+    thread::Builder::new()
+        // 16MB stack size
+        .stack_size(128 * 1024 * 1024)
+        .spawn(move || {
+            process_function(main_instructions, &vec![], &vec![], "main", &functions);
+        })
+        .unwrap()
+        .join()
+        .unwrap();
     println!("EXECUTED IN: {:.2?}", now.elapsed());
     println!("TOTAL: {:.2?}", totaltime.elapsed());
 }
