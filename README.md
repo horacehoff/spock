@@ -5,7 +5,7 @@ Key facts:
 - ~5-6x faster than Python in most, simple cases
   - Fix in progress to optimize it
 - Does not support nested functions
-- Many (supposed) bugs
+- Many bugs
 - Supports basic macros
 
 ## Syntax examples
