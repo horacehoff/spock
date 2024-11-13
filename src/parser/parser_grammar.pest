@@ -1,6 +1,6 @@
-integer = @{ "-" ? ~ ASCII_DIGIT+ ~ !("." ~ ASCII_DIGIT+)}
+integer = @{ !("-") ~ ASCII_DIGIT+ ~ !("." ~ ASCII_DIGIT+)}
 
-float = @{ "-" ? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+) }
+float = @{ !("-") ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+) }
 
 bool = @{"true" | "false" }
 

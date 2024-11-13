@@ -49,7 +49,21 @@ pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Exp
                 Expr::Null
             }
         }
-    } else {
+    } else if let Expr::Operation(y) = output {
+        if let BasicOperator::Sub = y {
+            Expr::Integer(-x)
+        } else {
+            error(
+                &format!(
+                    "Cannot perform operation '{y:?}' between {:?} and Integer",
+                    get_printable_type!(output)
+                ),
+                "",
+            );
+            Expr::Null
+        }
+    }
+    else {
         error(
             &format!(
                 "Cannot perform operation '{:?}' between {:?} and Integer",
