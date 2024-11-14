@@ -48,6 +48,13 @@ print(x[0]);
 - `x` to `Float`=> `float(x)`
 - `x` to `String`=> `str(x)`
 
+## Built-in functions
+- `print(1, String)` - Prints the given String
+- `abs(1, Integer/Float)` - Returns the absolute value of the given number
+- `round(1, Integer/Float)` - Rounds the given number to the nearest integer (Integer type simply returns itself)
+- `len(1, Array/String)` - Returns the length of the given Array (number of elements) or String (number of letters)
+- `input(0/1, String)`
+
 ## Basic macros
 You can define macros outside functions using the following syntax:
 `replace name->value`\
