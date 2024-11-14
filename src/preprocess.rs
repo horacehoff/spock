@@ -1,11 +1,17 @@
-use crate::{assert_args_number, basic_functions, error_msg, get_printable_type, log, process_function, process_stack};
 use crate::namespaces::namespace_functions;
 use crate::parser::{parse_code, Expr, Variable};
 use crate::util::{error, get_printable_form};
+use crate::{
+    assert_args_number, basic_functions, error_msg, get_printable_type, log, process_function,
+    process_stack,
+};
 
 // #[inline(always)]
-pub fn preprocess(variables: &Vec<Variable>,
-                  functions: &Vec<(String, Vec<String>, Vec<Vec<Expr>>)>, element: &Expr) -> Expr {
+pub fn preprocess(
+    variables: &Vec<Variable>,
+    functions: &Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
+    element: &Expr,
+) -> Expr {
     if let Expr::VariableIdentifier(var) = element {
         // replace variable by its value
         let variable = variables
@@ -30,7 +36,6 @@ pub fn preprocess(variables: &Vec<Variable>,
                 "",
             );
             return Expr::Null;
-
         }
     } else if let Expr::FunctionCall(ref func_name, ref func_args) = element {
         // replace function call by its result (return value)
@@ -45,50 +50,64 @@ pub fn preprocess(variables: &Vec<Variable>,
         } else if func_name == "executeline" {
             assert_args_number!("executeline", args.len(), 1);
             if let Expr::String(line) = &args[0] {
-                return process_stack(
-                    &parse_code(line)[0],
-                    &variables,
-                    &functions,
-                );
+                return process_stack(&parse_code(line)[0], &variables, &functions);
             } else {
                 error(&format!("Cannot execute {:?}", &args[0]), "")
             }
         } else if func_name == "int" {
-            assert_args_number!("int",args.len(),1);
+            assert_args_number!("int", args.len(), 1);
             if let Expr::String(str) = &args[0] {
-                return Expr::Integer(str.parse::<i64>().expect(error_msg!(format!("Cannot convert String '{}' to Integer", str))));
+                return Expr::Integer(str.parse::<i64>().expect(error_msg!(format!(
+                    "Cannot convert String '{}' to Integer",
+                    str
+                ))));
             } else if let Expr::Float(float) = &args[0] {
                 return Expr::Integer(float.round() as i64);
             } else {
-                error(&format!("Cannot convert {} to Integer", get_printable_type!(&args[0])),"")
+                error(
+                    &format!(
+                        "Cannot convert {} to Integer",
+                        get_printable_type!(&args[0])
+                    ),
+                    "",
+                )
             }
         } else if func_name == "str" {
-            assert_args_number!("str",args.len(),1);
+            assert_args_number!("str", args.len(), 1);
             if let Expr::Integer(int) = &args[0] {
                 return Expr::String(int.to_string());
             } else if let Expr::Float(float) = &args[0] {
                 return Expr::String(float.to_string());
             } else if let Expr::Bool(boolean) = &args[0] {
-                return Expr::String(if *boolean {"true".to_string()} else {"false".to_string()});
+                return Expr::String(if *boolean {
+                    "true".to_string()
+                } else {
+                    "false".to_string()
+                });
             } else if let Expr::Array(arr) = &args[0] {
                 return Expr::String(get_printable_form(&args[0]));
-            }
-            else {
-                error(&format!("Cannot convert {} to String", get_printable_type!(&args[0])),"")
+            } else {
+                error(
+                    &format!("Cannot convert {} to String", get_printable_type!(&args[0])),
+                    "",
+                )
             }
         } else if func_name == "float" {
-            assert_args_number!("float",args.len(),1);
+            assert_args_number!("float", args.len(), 1);
             if let Expr::String(str) = &args[0] {
-                return Expr::Float(str.parse::<f64>().expect(error_msg!(format!("Cannot convert String '{}' to Float", str))));
+                return Expr::Float(str.parse::<f64>().expect(error_msg!(format!(
+                    "Cannot convert String '{}' to Float",
+                    str
+                ))));
             } else if let Expr::Integer(int) = &args[0] {
                 return Expr::Float(*int as f64);
             } else {
-                error(&format!("Cannot convert {} to Float", get_printable_type!(&args[0])),"")
+                error(
+                    &format!("Cannot convert {} to Float", get_printable_type!(&args[0])),
+                    "",
+                )
             }
         }
-
-
-
 
         let target_function: &(String, Vec<String>, Vec<Vec<Expr>>) = functions
             .into_iter()
@@ -113,9 +132,6 @@ pub fn preprocess(variables: &Vec<Variable>,
             &functions,
         );
         return result.0;
-
-
-
     } else if let Expr::Priority(calc) = element {
         // execute content inside parentheses before all the other content in the second loop
         return process_stack(&calc, &variables, &functions);
@@ -123,31 +139,19 @@ pub fn preprocess(variables: &Vec<Variable>,
         // compute final value of arrays
         let mut new_array: Vec<Expr> = vec![];
         for element in y.iter() {
-            new_array.push(process_stack(
-                &element,
-                &variables,
-                &functions,
-            ));
+            new_array.push(process_stack(&element, &variables, &functions));
         }
         return Expr::Array(new_array);
     } else if let Expr::ArraySuite(ref y) = element {
         // matches multiple arrays following one another => implies array indexing
         let arrays: &Vec<Expr> = y;
-        let target_array: Expr = process_stack(
-            &vec![arrays[0].clone()],
-            &variables,
-            &functions,
-        );
+        let target_array: Expr = process_stack(&vec![arrays[0].clone()], &variables, &functions);
         // 1 - matches if the contents of the array have yet to be fully evaluated
         if let Expr::ArrayParsed(target_arr) = target_array {
             // compute the "final" value of the first/target array
             let mut array = vec![];
             for element in target_arr.iter() {
-                array.push(process_stack(
-                    &element,
-                    &variables,
-                    &functions,
-                ));
+                array.push(process_stack(&element, &variables, &functions));
             }
             let mut output = Expr::Null;
             // iterate over every array following the first one => they are indexes
@@ -155,11 +159,7 @@ pub fn preprocess(variables: &Vec<Variable>,
                 if let Expr::ArrayParsed(target_index_arr) = target_index {
                     let mut index_array = vec![];
                     for element in target_index_arr.iter() {
-                        index_array.push(process_stack(
-                            &element,
-                            &variables,
-                            &functions,
-                        ));
+                        index_array.push(process_stack(&element, &variables, &functions));
                     }
 
                     if index_array.len() == 1 {
@@ -202,11 +202,7 @@ pub fn preprocess(variables: &Vec<Variable>,
                 if let Expr::ArrayParsed(target_index_arr) = target_index {
                     let mut index_array = vec![];
                     for element in target_index_arr.iter() {
-                        index_array.push(process_stack(
-                            &element,
-                            &variables,
-                            &functions,
-                        ));
+                        index_array.push(process_stack(&element, &variables, &functions));
                     }
 
                     if index_array.len() == 1 {
@@ -249,11 +245,7 @@ pub fn preprocess(variables: &Vec<Variable>,
                 if let Expr::ArrayParsed(target_index_arr) = target_index {
                     let mut index_array = vec![];
                     for element in target_index_arr.iter() {
-                        index_array.push(process_stack(
-                            &element,
-                            &variables,
-                            &functions,
-                        ));
+                        index_array.push(process_stack(&element, &variables, &functions));
                     }
 
                     if index_array.len() == 1 {
@@ -302,9 +294,10 @@ pub fn preprocess(variables: &Vec<Variable>,
             error(
                 &format!("Cannot index {} type", get_printable_type!(target_array)),
                 "",
-            );Expr::Null
+            );
+            Expr::Null
         }
-    } else { 
+    } else {
         element.clone()
     }
 }

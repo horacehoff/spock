@@ -1,5 +1,3 @@
-use crate::parser::Expr;
-
 #[macro_export]
 macro_rules! array_props {
     ($arr: expr, $args:expr, $x: expr, $output: expr) => {

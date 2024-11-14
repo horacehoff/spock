@@ -38,7 +38,7 @@ pub enum Expr {
         // Code to execute if true
         Vec<Vec<Expr>>,
         // For each else if/else block, (condition, code)
-        Vec<(Vec<Expr>, Vec<Vec<Expr>>)>
+        Vec<(Vec<Expr>, Vec<Vec<Expr>>)>,
     ),
     // Condition
     While(
@@ -52,7 +52,7 @@ pub enum Expr {
         // Array/string to iterate
         Vec<Expr>,
         // Code inside the loop to execute
-        Vec<Vec<Expr>>
+        Vec<Vec<Expr>>,
     ),
 
     // Objects
@@ -335,22 +335,59 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                     }
                 }
                 Rule::if_statement => {
-                    let condition: Vec<Expr> = parse_expression(inside.clone().into_inner().into_iter().next().unwrap());
-                    let first_code: Vec<Vec<Expr>> = parse_code(inside.clone().into_inner().into_iter().skip(1).next().unwrap().as_str());
+                    let condition: Vec<Expr> =
+                        parse_expression(inside.clone().into_inner().into_iter().next().unwrap());
+                    let first_code: Vec<Vec<Expr>> = parse_code(
+                        inside
+                            .clone()
+                            .into_inner()
+                            .into_iter()
+                            .skip(1)
+                            .next()
+                            .unwrap()
+                            .as_str(),
+                    );
                     let mut else_groups: Vec<(Vec<Expr>, Vec<Vec<Expr>>)> = vec![];
                     for else_block in inside.into_inner().into_iter().skip(2) {
-                        if else_block.clone().into_inner().into_iter().next().unwrap().as_rule() == Rule::condition {
+                        if else_block
+                            .clone()
+                            .into_inner()
+                            .into_iter()
+                            .next()
+                            .unwrap()
+                            .as_rule()
+                            == Rule::condition
+                        {
                             // ELSE IF
-                            else_groups.push((parse_expression(else_block.clone().into_inner().into_iter().next().unwrap()),parse_code(else_block.into_inner().into_iter().skip(1).next().unwrap().as_str())));
+                            else_groups.push((
+                                parse_expression(
+                                    else_block.clone().into_inner().into_iter().next().unwrap(),
+                                ),
+                                parse_code(
+                                    else_block
+                                        .into_inner()
+                                        .into_iter()
+                                        .skip(1)
+                                        .next()
+                                        .unwrap()
+                                        .as_str(),
+                                ),
+                            ));
                         } else {
                             // ELSE
-                            else_groups.push((vec![], parse_code(else_block.into_inner().into_iter().next().unwrap().as_str())));
+                            else_groups.push((
+                                vec![],
+                                parse_code(
+                                    else_block.into_inner().into_iter().next().unwrap().as_str(),
+                                ),
+                            ));
                         }
                     }
                     line_instructions.push(Expr::Condition(condition, first_code, else_groups))
                 }
-                Rule::return_term => line_instructions
-                    .push(Expr::FunctionReturn(parse_expression(inside))),
+                Rule::return_term => {
+                    line_instructions.push(Expr::FunctionReturn(parse_expression(inside)))
+                }
                 Rule::while_statement => {
                     let mut condition: Vec<Expr> = vec![];
                     for pair in ComputeParser::parse(
@@ -386,11 +423,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                     let loop_var = inner.next().unwrap().as_str().to_string();
                     let target_array = parse_expression(inner.next().unwrap());
                     let loop_code = parse_code(inner.next().unwrap().as_str());
-                    line_instructions.push(Expr::Loop(
-                        loop_var,
-                        target_array,
-                        loop_code,
-                    ))
+                    line_instructions.push(Expr::Loop(loop_var, target_array, loop_code))
                 }
                 _ => {}
             }

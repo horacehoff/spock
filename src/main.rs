@@ -11,26 +11,25 @@ mod namespaces;
 mod parser;
 #[path = "parser/parser_functions.rs"]
 mod parser_functions;
+mod preprocess;
 #[path = "types/string.rs"]
 mod string;
 mod util;
-mod preprocess;
-
-use inflector::Inflector;
-use std::fs::remove_dir_all;
-use std::io::{BufRead, BufReader, Write};
-use std::path::Path;
-use std::{fs, io, thread};
 
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
 use crate::parser::{parse_code, BasicOperator, Expr, Variable};
 use crate::parser_functions::parse_functions;
+use crate::preprocess::preprocess;
 use crate::string::string_ops;
 use crate::util::{error, get_printable_form};
+use inflector::Inflector;
+use std::fs::remove_dir_all;
+use std::io::{BufRead, BufReader, Write};
+use std::path::Path;
 use std::time::Instant;
-use crate::preprocess::preprocess;
+use std::{fs, io, thread};
 
 // #[inline(always)]
 fn basic_functions(x: &str, args: &Vec<Expr>) -> (Expr, bool) {
@@ -146,26 +145,41 @@ fn basic_functions(x: &str, args: &Vec<Expr>) -> (Expr, bool) {
         assert_args_number!("sqrt", args.len(), 1, 3);
         if args.len() == 1 {
             if let Expr::Integer(lim) = args[0] {
-                (Expr::Array((0..lim).into_iter().map(|x| Expr::Integer(x)).collect()), true)
+                (
+                    Expr::Array((0..lim).into_iter().map(|x| Expr::Integer(x)).collect()),
+                    true,
+                )
             } else {
-                error("Invalid range limit","");(Expr::Null, false)
+                error("Invalid range limit", "");
+                (Expr::Null, false)
             }
         } else if args.len() == 2 {
             if let Expr::Integer(lim) = args[0] {
                 if let Expr::Integer(upplim) = args[1] {
-                    (Expr::Array((lim..upplim).into_iter().map(|x| Expr::Integer(x)).collect()), true)
+                    (
+                        Expr::Array(
+                            (lim..upplim)
+                                .into_iter()
+                                .map(|x| Expr::Integer(x))
+                                .collect(),
+                        ),
+                        true,
+                    )
                 } else {
-                    error("Invalid range limit","");(Expr::Null, false)
+                    error("Invalid range limit", "");
+                    (Expr::Null, false)
                 }
             } else {
-                error("Invalid range start","");(Expr::Null, false)
+                error("Invalid range start", "");
+                (Expr::Null, false)
             }
         } else if args.len() == 3 {
             if let Expr::Integer(start) = args[0] {
                 if let Expr::Integer(stop) = args[1] {
                     if let Expr::Integer(step) = args[2] {
                         if step == 0 {
-                            error("Step cannot be zero", ""); (Expr::Null, false)
+                            error("Step cannot be zero", "");
+                            (Expr::Null, false)
                         } else {
                             let range = if step > 0 {
                                 (start..stop).step_by(step as usize)
@@ -175,20 +189,22 @@ fn basic_functions(x: &str, args: &Vec<Expr>) -> (Expr, bool) {
                             (Expr::Array(range.map(|x| Expr::Integer(x)).collect()), true)
                         }
                     } else {
-                        error("Invalid range step", ""); (Expr::Null, false)
+                        error("Invalid range step", "");
+                        (Expr::Null, false)
                     }
                 } else {
-                    error("Invalid range limit", ""); (Expr::Null, false)
+                    error("Invalid range limit", "");
+                    (Expr::Null, false)
                 }
             } else {
-                error("Invalid range start", ""); (Expr::Null, false)
+                error("Invalid range start", "");
+                (Expr::Null, false)
             }
+        } else {
+            error("Invalid range arguments", "");
+            (Expr::Null, false)
         }
-        else {
-            error("Invalid range arguments","");(Expr::Null, false)
-        }
-    }
-    else {
+    } else {
         (Expr::Null, false)
     }
 }
@@ -271,9 +287,7 @@ fn process_stack(
                 Expr::PropertyFunction(x, y) => {
                     let args: Vec<Expr> = y
                         .iter()
-                        .map(|arg| {
-                            process_stack(&arg, &variables, &functions)
-                        })
+                        .map(|arg| process_stack(&arg, &variables, &functions))
                         .collect();
 
                     if let Expr::String(str) = output.clone() {
@@ -320,12 +334,10 @@ fn process_function(
     for instructions in lines {
         for instruction in instructions {
             match instruction {
-                Expr::VariableDeclaration(x, y) => {
-                    variables.push(Variable {
-                        name: x.clone(),
-                        value: process_stack(&y, &variables, &functions),
-                    })
-                }
+                Expr::VariableDeclaration(x, y) => variables.push(Variable {
+                    name: x.clone(),
+                    value: process_stack(&y, &variables, &functions),
+                }),
                 Expr::VariableRedeclaration(x, y) => {
                     let position = variables
                         .iter()
@@ -370,11 +382,7 @@ fn process_function(
                     if x == "executeline" && !matched.1 {
                         assert_args_number!("executeline", args.len(), 1);
                         if let Expr::String(line) = &args[0] {
-                            process_stack(
-                                &parse_code(line)[0],
-                                &variables,
-                                &functions,
-                            );
+                            process_stack(&parse_code(line)[0], &variables, &functions);
                             continue;
                         } else {
                             error(&format!("Cannot execute line {:?}", &args[0]), "")
@@ -407,20 +415,11 @@ fn process_function(
                     }
                 }
                 Expr::FunctionReturn(x) => {
-                    return (
-                        process_stack(&x, &variables, &functions),
-                        return_variables,
-                    );
+                    return (process_stack(&x, &variables, &functions), return_variables);
                 }
                 Expr::Condition(x, y, z) => {
                     if process_stack(&x, &variables, &functions) == Expr::Bool(true) {
-                        let out = process_function(
-                            &y,
-                            &variables,
-                            &variables,
-                            name,
-                            &functions,
-                        );
+                        let out = process_function(&y, &variables, &variables, name, &functions);
                         if Expr::Null != out.0 {
                             return out;
                         }
@@ -449,7 +448,9 @@ fn process_function(
                                     return out;
                                 }
                             }
-                            if process_stack(&else_block.0, &variables, &functions) == Expr::Bool(true) {
+                            if process_stack(&else_block.0, &variables, &functions)
+                                == Expr::Bool(true)
+                            {
                                 let out = process_function(
                                     &else_block.1,
                                     &variables,
@@ -539,16 +540,8 @@ fn process_function(
                 }
                 Expr::While(x, y) => {
                     // let condition = process_stack(*x, variables.clone(), functions.clone());
-                    while process_stack(&x, &variables, &functions)
-                        == Expr::Bool(true)
-                    {
-                        let out = process_function(
-                            &y,
-                            &variables,
-                            &variables,
-                            name,
-                            &functions,
-                        );
+                    while process_stack(&x, &variables, &functions) == Expr::Bool(true) {
+                        let out = process_function(&y, &variables, &variables, name, &functions);
                         if Expr::Null != out.0 {
                             return out;
                         }
@@ -578,23 +571,61 @@ fn process_function(
 
 fn main() {
     let totaltime = Instant::now();
-    let arg = std::env::args()
-        .nth(1)
-        .expect(error_msg!("No file was given"));
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.len() == 0 {
+        println!(
+            "
+  ______   ______   .___  ___. .______    __    __  .___________. _______
+ /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
+|  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
+|  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
+|  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
+ \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
+\x1b[3mLive long and prosper!\x1b[0m\n- Spock
 
-    if arg == "clear-cache" && Path::new(".compute").exists() {
+To run a file, run: `compute <file>`
+To get help, run `compute -h`
+        "
+        );
+        return;
+    } else if args == vec!["-h"] {
+        println!(
+            "
+  ______   ______   .___  ___. .______    __    __  .___________. _______
+ /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
+|  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
+|  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
+|  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
+ \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
+\x1b[3mHelp me, Obi-Wan Kenobi. You’re my only hope.\x1b[0m\n- Princess Leia
+
+compute [filename] [-c]
+
+positional arguments:
+  filename
+
+options:
+  -c, --clear-cache    Delete the cache folder
+        "
+        );
+        return;
+    } else if args.len() >= 2
+        && (&args[1] == "-c" || &args[1] == "--clear-cache")
+        && Path::new(".compute").exists()
+    {
         remove_dir_all(Path::new(".compute"))
             .expect(error_msg!("Failed to delete the cache folder (.compute)"));
-        return;
     }
+    let arg = args.first().unwrap();
 
-    let content = fs::read_to_string(arg).unwrap();
+    let content =
+        fs::read_to_string(arg).expect(error_msg!(format!("Unable to read file '{}'", arg)));
 
     let now = Instant::now();
     let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> =
         parse_functions(content.trim(), true);
     println!("PARSED IN: {:.2?}", now.elapsed());
-    println!("FUNCTIONS {:?}", functions);
+    // println!("FUNCTIONS {:?}", functions);
 
     let main_instructions = functions
         .clone()
@@ -604,7 +635,8 @@ fn main() {
         .clone()
         .first()
         .unwrap()
-        .2.clone();
+        .2
+        .clone();
     // process_function(main_instructions, &vec![], &vec![], "main", &functions);
 
     let now = Instant::now();

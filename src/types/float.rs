@@ -75,10 +75,10 @@ pub fn float_ops(x: f64, output: Expr, current_operator: BasicOperator) -> Expr 
                     get_printable_type!(output)
                 ),
                 "",
-            ); Expr::Null
+            );
+            Expr::Null
         }
-    }
-    else {
+    } else {
         error(
             &format!(
                 "Cannot perform operation '{:?}' between {:?} and Float",

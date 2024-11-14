@@ -62,8 +62,7 @@ pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Exp
             );
             Expr::Null
         }
-    }
-    else {
+    } else {
         error(
             &format!(
                 "Cannot perform operation '{:?}' between {:?} and Integer",

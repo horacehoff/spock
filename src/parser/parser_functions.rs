@@ -1,13 +1,12 @@
 use crate::parser::parse_code;
 use crate::parser::Expr;
 use crate::util::error;
-use crate::{error_msg, log};
+use crate::error_msg;
 use fancy_regex::Regex;
 use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
-use std::time::Instant;
 
 pub fn parse_functions(
     content: &str,
@@ -34,10 +33,10 @@ pub fn parse_functions(
     for content_match in matches {
         let match_index = content_match.0;
         let mut i = 7;
-        let mut match_content = &content[match_index..match_index+i];
+        let mut match_content = &content[match_index..match_index + i];
         while !match_content.chars().last().unwrap().eq(&'\n') {
             i += 1;
-            match_content = &content[match_index..match_index+i];
+            match_content = &content[match_index..match_index + i];
         }
         let name = String::from("./") + match_content.replace("import", "").trim() + ".compute";
         let file_content = fs::read_to_string(&name).expect(error_msg!(format!(
@@ -47,15 +46,12 @@ pub fn parse_functions(
         imported_functions.append(&mut parse_functions(&file_content, false));
     }
 
-
-
     let hash = blake3::hash(content.as_bytes()).to_string();
     if Path::new(&format!(".compute/{}", hash)).exists() {
         let file = File::open(&format!(".compute/{}", hash)).unwrap();
-        let mut reader = BufReader::with_capacity(128*1024, file);
+        let mut reader = BufReader::with_capacity(128 * 1024, file);
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer).unwrap();
-
 
         let mut deserialized_data: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> =
             bincode::deserialize(&buffer).expect(error_msg!(

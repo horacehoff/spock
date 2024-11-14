@@ -13,10 +13,7 @@ pub fn namespace_functions(x: &Vec<String>, y: &str, args: &Vec<Expr>) -> (Expr,
                 exit(excode as i32);
             } else {
                 error(
-                    &format!(
-                        "Invalid exit code: {:?}",
-                        get_printable_form(&args[0])
-                    ),
+                    &format!("Invalid exit code: {:?}", get_printable_form(&args[0])),
                     "",
                 );
                 (Expr::Null, true)
@@ -36,10 +33,7 @@ pub fn namespace_functions(x: &Vec<String>, y: &str, args: &Vec<Expr>) -> (Expr,
                 (Expr::File(filename.to_string()), true)
             } else {
                 error(
-                    &format!(
-                        "Invalid file name: {:?}",
-                        get_printable_form(&args[0])
-                    ),
+                    &format!("Invalid file name: {:?}", get_printable_form(&args[0])),
                     "",
                 );
                 (Expr::Null, true)

@@ -23,10 +23,7 @@ macro_rules! file_props {
                     f.flush().unwrap();
                 } else {
                     error(
-                        &format!(
-                            "Invalid file content: {:?}",
-                            get_printable_form(&$args[0])
-                        ),
+                        &format!("Invalid file content: {:?}", get_printable_form(&$args[0])),
                         "",
                     );
                 }
@@ -46,10 +43,7 @@ macro_rules! file_props {
                     f.flush().unwrap();
                 } else {
                     error(
-                        &format!(
-                            "Invalid file content: {:?}",
-                            get_printable_form(&$args[0])
-                        ),
+                        &format!("Invalid file content: {:?}", get_printable_form(&$args[0])),
                         "",
                     );
                 }
