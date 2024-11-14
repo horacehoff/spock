@@ -65,7 +65,20 @@ pub fn float_ops(x: f64, output: Expr, current_operator: BasicOperator) -> Expr 
                 Expr::Null
             }
         }
-    } else {
+    } else if let Expr::Operation(y) = output {
+        if let BasicOperator::Sub = y {
+            Expr::Float(-x)
+        } else {
+            error(
+                &format!(
+                    "Cannot perform operation '{y:?}' between {:?} and Float",
+                    get_printable_type!(output)
+                ),
+                "",
+            ); Expr::Null
+        }
+    }
+    else {
         error(
             &format!(
                 "Cannot perform operation '{:?}' between {:?} and Float",
