@@ -50,10 +50,18 @@ print(x[0]);
 
 ## Built-in functions
 - `print(1, String)` - Prints the given String
-- `abs(1, Integer/Float)` - Returns the absolute value of the given number
-- `round(1, Integer/Float)` - Rounds the given number to the nearest integer (Integer type simply returns itself)
-- `len(1, Array/String)` - Returns the length of the given Array (number of elements) or String (number of letters)
-- `input(0/1, String)`
+- `abs(1, Integer/Float) -> Integer/Float` - Returns the absolute value of the given number
+- `round(1, Integer/Float) -> Integer` - Rounds the given number to the nearest integer (Integer type simply returns itself)
+- `len(1, Array/String) -> Integer` - Returns the length of the given Array (number of elements) or String (number of letters)
+- `input(0/1, String) -> String` - Prompt the user for input (with a prompt if given)
+- `type(1, Any) -> String` - Returns the type of the given object
+- `hash(1, Any) -> String` - Returns a hash of the given object using the BLAKE3 hash function
+- `sqrt(1, Integer/Float) -> Integer/Float` - Returns the square root of the given number
+- `the_answer()` - Prints the answer to the Ultimate Question of Life, the Universe, and Everything.
+- `range(1/2/3, Integer)` - Returns an array of integers:
+  - `[0..<first argument>]` if only one argument was provided
+  - `[<first argument>..<second argument>]` if two arguments were provided
+  - `[<first argument>..<second argument>]`, with the step defined by the third argument, if three arguments were provided
 
 ## Basic macros
 You can define macros outside functions using the following syntax:
