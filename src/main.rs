@@ -32,7 +32,7 @@ use crate::util::{error, get_printable_form};
 use std::time::Instant;
 use crate::preprocess::preprocess;
 
-#[inline(always)]
+// #[inline(always)]
 fn basic_functions(x: &str, args: &Vec<Expr>) -> (Expr, bool) {
     if x == "print" {
         assert_args_number!("print", args.len(), 1);

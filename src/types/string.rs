@@ -3,7 +3,7 @@ use crate::get_printable_type;
 use crate::parser::{BasicOperator, Expr};
 use crate::util::error;
 
-#[inline(always)]
+// #[inline(always)]
 pub fn string_ops(x: String, output: Expr, current_operator: BasicOperator) -> Expr {
     if let Expr::String(value) = &output {
         match current_operator {

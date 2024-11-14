@@ -2,7 +2,7 @@ use crate::parser::{BasicOperator, Expr};
 use crate::util::error;
 use crate::{error_msg, get_printable_type, math_to_type};
 
-#[inline(always)]
+// #[inline(always)]
 pub fn float_ops(x: f64, output: Expr, current_operator: BasicOperator) -> Expr {
     if let Expr::Float(value) = output {
         match current_operator {

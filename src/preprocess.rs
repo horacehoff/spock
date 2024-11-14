@@ -3,6 +3,7 @@ use crate::namespaces::namespace_functions;
 use crate::parser::{parse_code, Expr, Variable};
 use crate::util::{error, get_printable_form};
 
+// #[inline(always)]
 pub fn preprocess(variables: &Vec<Variable>,
                   functions: &Vec<(String, Vec<String>, Vec<Vec<Expr>>)>, element: &Expr) -> Expr {
     if let Expr::VariableIdentifier(var) = element {
