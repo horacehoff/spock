@@ -86,9 +86,9 @@ pub fn preprocess(variables: &Vec<Variable>,
                 error(&format!("Cannot convert {} to Float", get_printable_type!(&args[0])),"")
             }
         }
-        
-        
-        
+
+
+
 
         let target_function: &(String, Vec<String>, Vec<Vec<Expr>>) = functions
             .into_iter()
@@ -106,16 +106,16 @@ pub fn preprocess(variables: &Vec<Variable>,
             })
             .collect();
         let result = process_function(
-            target_function.2.clone(),
+            &target_function.2,
             &target_args,
             &target_args,
             target_function.0.as_str(),
             &functions,
         );
         return result.0;
-        
-        
-        
+
+
+
     } else if let Expr::Priority(calc) = element {
         // execute content inside parentheses before all the other content in the second loop
         return process_stack(&calc, &variables, &functions);

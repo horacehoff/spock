@@ -250,7 +250,7 @@ fn process_stack(
 }
 
 fn process_function(
-    lines: Vec<Vec<Expr>>,
+    lines: &Vec<Vec<Expr>>,
     included_variables: &Vec<Variable>,
     expected_variables: &Vec<Variable>,
     name: &str,
@@ -355,7 +355,7 @@ fn process_function(
                             })
                             .collect();
                         process_function(
-                            target_function.2,
+                            &target_function.2,
                             &target_args,
                             &target_args,
                             &target_function.0,
@@ -373,7 +373,7 @@ fn process_function(
                 Expr::Condition(x, y, z) => {
                     if process_stack(&x, &variables, &functions) == Expr::Bool(true) {
                         let out = process_function(
-                            y,
+                            &y,
                             &variables,
                             &variables,
                             name,
@@ -386,7 +386,7 @@ fn process_function(
                         for else_block in z {
                             if else_block.0.len() == 0 {
                                 let out = process_function(
-                                    else_block.1,
+                                    &else_block.1,
                                     &variables,
                                     &variables,
                                     name,
@@ -400,7 +400,7 @@ fn process_function(
                             }
                             if process_stack(&else_block.0, &variables, &functions) == Expr::Bool(true) {
                                 let out = process_function(
-                                    else_block.1,
+                                    &else_block.1,
                                     &variables,
                                     &variables,
                                     name,
@@ -429,7 +429,7 @@ fn process_function(
                             let mut temp_variables = variables.clone();
                             temp_variables.push(loop_var);
                             process_function(
-                                z.clone(),
+                                &z,
                                 &temp_variables,
                                 &temp_variables,
                                 name,
@@ -445,8 +445,8 @@ fn process_function(
                             let mut temp_variables = variables.clone();
                             temp_variables.push(loop_var);
                             process_function(
-                                z.clone(),
-                                &temp_variables.clone(),
+                                &z,
+                                &temp_variables,
                                 &temp_variables,
                                 name,
                                 &functions,
@@ -460,7 +460,7 @@ fn process_function(
                         == Expr::Bool(true)
                     {
                         let out = process_function(
-                            y.clone(),
+                            &y,
                             &variables,
                             &variables,
                             name,
@@ -529,7 +529,7 @@ fn main() {
         // 16MB stack size
         .stack_size(128 * 1024 * 1024)
         .spawn(move || {
-            process_function(main_instructions, &vec![], &vec![], "main", &functions);
+            process_function(&main_instructions, &vec![], &vec![], "main", &functions);
         })
         .unwrap()
         .join()
