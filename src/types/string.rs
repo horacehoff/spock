@@ -7,9 +7,9 @@ use crate::util::error;
 pub fn string_ops(x: String, output: Expr, current_operator: BasicOperator) -> Expr {
     if let Expr::String(value) = &output {
         match current_operator {
-            BasicOperator::Add => Expr::String(value.to_owned() + &x),
-            BasicOperator::Equal => Expr::Bool(value.to_owned() == x),
-            BasicOperator::NotEqual => Expr::Bool(value.to_owned() != x),
+            BasicOperator::Add => Expr::String(format!("{}{}", value, x)),
+            BasicOperator::Equal => Expr::Bool(value.eq(&x)),
+            BasicOperator::NotEqual => Expr::Bool(value.eq(&x)),
             _ => {
                 error(
                     &format!(

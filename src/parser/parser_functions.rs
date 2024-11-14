@@ -24,7 +24,7 @@ pub fn parse_functions(
             i += 1;
             match_content = &content[0..i];
         }
-        let name = "./".to_owned() + match_content.replace("import", "").trim() + ".compute";
+        let name = String::from("./") + match_content.replace("import", "").trim() + ".compute";
         let file_content = fs::read_to_string(&name).expect(error_msg!(format!(
             "Cannot find module {}",
             name.trim_start_matches("./")
@@ -39,7 +39,7 @@ pub fn parse_functions(
             i += 1;
             match_content = &content[match_index..match_index+i];
         }
-        let name = "./".to_owned() + match_content.replace("import", "").trim() + ".compute";
+        let name = String::from("./") + match_content.replace("import", "").trim() + ".compute";
         let file_content = fs::read_to_string(&name).expect(error_msg!(format!(
             "Cannot find module {}",
             name.trim_start_matches("./")

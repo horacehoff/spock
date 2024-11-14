@@ -86,6 +86,9 @@ pub fn preprocess(variables: &Vec<Variable>,
                 error(&format!("Cannot convert {} to Float", get_printable_type!(&args[0])),"")
             }
         }
+        
+        
+        
 
         let target_function: &(String, Vec<String>, Vec<Vec<Expr>>) = functions
             .into_iter()
@@ -93,7 +96,7 @@ pub fn preprocess(variables: &Vec<Variable>,
             .next()
             .expect(&format!("Unknown function '{}'", func_name));
         assert_args_number!(&func_name, args.len(), target_function.1.len());
-        let target_args: Vec<Variable> = target_function
+        let target_args: &Vec<Variable> = &target_function
             .1
             .iter()
             .enumerate()
@@ -110,6 +113,9 @@ pub fn preprocess(variables: &Vec<Variable>,
             &functions,
         );
         return result.0;
+        
+        
+        
     } else if let Expr::Priority(calc) = element {
         // execute content inside parentheses before all the other content in the second loop
         return process_stack(&calc, &variables, &functions);
