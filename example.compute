@@ -1,5 +1,6 @@
 func main() {
 print(nth_fibonacci(50));
+print(range(0, 10, 2));
 }
 
 func nth_fibonacci(n) {

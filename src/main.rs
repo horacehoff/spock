@@ -148,21 +148,44 @@ fn basic_functions(x: &str, args: &Vec<Expr>) -> (Expr, bool) {
             if let Expr::Integer(lim) = args[0] {
                 (Expr::Array((0..lim).into_iter().map(|x| Expr::Integer(x)).collect()), true)
             } else {
-                error("Invalid range","");(Expr::Null, false)
+                error("Invalid range limit","");(Expr::Null, false)
             }
         } else if args.len() == 2 {
             if let Expr::Integer(lim) = args[0] {
                 if let Expr::Integer(upplim) = args[1] {
                     (Expr::Array((lim..upplim).into_iter().map(|x| Expr::Integer(x)).collect()), true)
                 } else {
-                    error("Invalid range","");(Expr::Null, false)
+                    error("Invalid range limit","");(Expr::Null, false)
                 }
             } else {
-                error("Invalid range","");(Expr::Null, false)
+                error("Invalid range start","");(Expr::Null, false)
+            }
+        } else if args.len() == 3 {
+            if let Expr::Integer(start) = args[0] {
+                if let Expr::Integer(stop) = args[1] {
+                    if let Expr::Integer(step) = args[2] {
+                        if step == 0 {
+                            error("Step cannot be zero", ""); (Expr::Null, false)
+                        } else {
+                            let range = if step > 0 {
+                                (start..stop).step_by(step as usize)
+                            } else {
+                                (stop..start).step_by((-step) as usize)
+                            };
+                            (Expr::Array(range.map(|x| Expr::Integer(x)).collect()), true)
+                        }
+                    } else {
+                        error("Invalid range step", ""); (Expr::Null, false)
+                    }
+                } else {
+                    error("Invalid range limit", ""); (Expr::Null, false)
+                }
+            } else {
+                error("Invalid range start", ""); (Expr::Null, false)
             }
         }
         else {
-            error("","");(Expr::Null, false)
+            error("Invalid range arguments","");(Expr::Null, false)
         }
     }
     else {
