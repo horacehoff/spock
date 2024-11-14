@@ -1,3 +1,22 @@
 func main() {
-print("test"+"2");
+print(nth_fibonacci(50));
+}
+
+func nth_fibonacci(n) {
+    if n <= 1 {
+        return n;
+    }
+
+    let curr = 0;
+
+    let prev1 = 1;
+    let prev2 = 0;
+    for i in range(2, n + 1) {
+        curr = prev1 + prev2;
+
+        prev2 = prev1;
+
+        prev1 = curr;
+    }
+    return curr;
 }

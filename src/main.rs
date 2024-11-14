@@ -142,7 +142,30 @@ fn basic_functions(x: &str, args: &Vec<Expr>) -> (Expr, bool) {
     } else if x == "the_answer" {
         println!("42, the answer to the Ultimate Question of Life, the Universe, and Everything.");
         (Expr::Integer(42), true)
-    } else {
+    } else if x == "range" {
+        assert_args_number!("sqrt", args.len(), 1, 3);
+        if args.len() == 1 {
+            if let Expr::Integer(lim) = args[0] {
+                (Expr::Array((0..lim).into_iter().map(|x| Expr::Integer(x)).collect()), true)
+            } else {
+                error("Invalid range","");(Expr::Null, false)
+            }
+        } else if args.len() == 2 {
+            if let Expr::Integer(lim) = args[0] {
+                if let Expr::Integer(upplim) = args[1] {
+                    (Expr::Array((lim..upplim).into_iter().map(|x| Expr::Integer(x)).collect()), true)
+                } else {
+                    error("Invalid range","");(Expr::Null, false)
+                }
+            } else {
+                error("Invalid range","");(Expr::Null, false)
+            }
+        }
+        else {
+            error("","");(Expr::Null, false)
+        }
+    }
+    else {
         (Expr::Null, false)
     }
 }
@@ -389,6 +412,15 @@ fn process_function(
                                     &functions,
                                 );
                                 if Expr::Null == out.0 {
+                                    if out.1 != vec![] {
+                                        for replace_var in out.1 {
+                                            let indx = variables
+                                                .iter()
+                                                .position(|var| var.name == replace_var.name)
+                                                .unwrap();
+                                            variables[indx] = replace_var;
+                                        }
+                                    }
                                     break;
                                 } else {
                                     return out;
@@ -403,6 +435,15 @@ fn process_function(
                                     &functions,
                                 );
                                 if Expr::Null == out.0 {
+                                    if out.1 != vec![] {
+                                        for replace_var in out.1 {
+                                            let indx = variables
+                                                .iter()
+                                                .position(|var| var.name == replace_var.name)
+                                                .unwrap();
+                                            variables[indx] = replace_var;
+                                        }
+                                    }
                                     break;
                                 } else {
                                     return out;
@@ -410,7 +451,6 @@ fn process_function(
                             }
                         }
                     }
-                    // println!("LOOP EXECUTED IN: {:.2?}", now.elapsed());
                 }
                 Expr::Loop(x, y, z) => {
                     let loop_array = process_stack(&y, &variables, &functions);
@@ -424,13 +464,25 @@ fn process_function(
                             };
                             let mut temp_variables = variables.clone();
                             temp_variables.push(loop_var);
-                            process_function(
+                            let out = process_function(
                                 &z,
                                 &temp_variables,
                                 &temp_variables,
                                 name,
                                 &functions,
                             );
+                            if Expr::Null != out.0 {
+                                return out;
+                            }
+                            if out.1 != vec![] {
+                                for replace_var in out.1 {
+                                    let indx = variables
+                                        .iter()
+                                        .position(|var| var.name == replace_var.name)
+                                        .unwrap();
+                                    variables[indx] = replace_var;
+                                }
+                            }
                         }
                     } else if let Expr::String(target_string) = loop_array {
                         for elem in target_string.chars() {
@@ -440,13 +492,25 @@ fn process_function(
                             };
                             let mut temp_variables = variables.clone();
                             temp_variables.push(loop_var);
-                            process_function(
+                            let out = process_function(
                                 &z,
                                 &temp_variables,
                                 &temp_variables,
                                 name,
                                 &functions,
                             );
+                            if Expr::Null != out.0 {
+                                return out;
+                            }
+                            if out.1 != vec![] {
+                                for replace_var in out.1 {
+                                    let indx = variables
+                                        .iter()
+                                        .position(|var| var.name == replace_var.name)
+                                        .unwrap();
+                                    variables[indx] = replace_var;
+                                }
+                            }
                         }
                     }
                 }
