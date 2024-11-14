@@ -272,35 +272,31 @@ fn process_function(
     let mut return_variables: Vec<Variable> = vec![];
 
     for instructions in lines {
-        for instruction in instructions.clone() {
+        for instruction in instructions {
             match instruction {
                 Expr::VariableDeclaration(x, y) => {
-                    // if variables.iter().filter(|var| var.name == x).collect::<Vec<&Variable>>().len() != 0 {
-                    //     let position = variables.clone().iter().position(|var| var.name == x).unwrap();
-                    //     variables[position].value = process_stack(*y.clone(), variables.clone(), functions.clone());
-                    // }
                     variables.push(Variable {
-                        name: x,
+                        name: x.clone(),
                         value: process_stack(&y, &variables, &functions),
                     })
                 }
                 Expr::VariableRedeclaration(x, y) => {
                     let position = variables
                         .iter()
-                        .position(|var| var.name == x)
+                        .position(|var| var.name == *x)
                         .expect(error_msg!(format!("Variable '{}' does not exist", x)));
                     let processed = process_stack(&y, &variables, &functions);
                     variables[position].value = processed.clone();
 
                     if included_variables
                         .iter()
-                        .filter(|var| var.name == x)
+                        .filter(|var| var.name == *x)
                         .collect::<Vec<_>>()
                         .len()
                         > 0
                     {
                         return_variables.push(Variable {
-                            name: x,
+                            name: x.clone(),
                             value: processed,
                         });
                     }
@@ -341,7 +337,7 @@ fn process_function(
                         let target_function: (String, Vec<String>, Vec<Vec<Expr>>) = functions
                             .clone()
                             .into_iter()
-                            .filter(|func| func.0 == x)
+                            .filter(|func| func.0 == *x)
                             .next()
                             .expect(error_msg!(&format!("Unknown function '{}'", x)));
                         assert_args_number!(&x, args.len(), target_function.1.len());
