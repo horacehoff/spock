@@ -222,26 +222,24 @@ fn process_stack(
                     //     }
                     // }
                 }
-                Expr::PropertyFunction(z) => {
-                    if let Expr::FunctionCall(x, y) = *z.clone() {
-                        let args: Vec<Expr> = y
-                            .iter()
-                            .map(|arg| {
-                                process_stack(&arg, &variables, &functions)
-                            })
-                            .collect();
+                Expr::PropertyFunction(x, y) => {
+                    let args: Vec<Expr> = y
+                        .iter()
+                        .map(|arg| {
+                            process_stack(&arg, &variables, &functions)
+                        })
+                        .collect();
 
-                        if let Expr::String(str) = output.clone() {
-                            string_props!(str, args, x, output);
-                        } else if let Expr::Float(num) = output {
-                            float_props!(num, args, x, output);
-                        } else if let Expr::Integer(num) = output {
-                            integer_props!(num, args, x, output);
-                        } else if let Expr::Array(ref arr) = output {
-                            array_props!(arr, args, x, output);
-                        } else if let Expr::File(filepath) = &output {
-                            file_props!(filepath, args.clone(), x, output);
-                        }
+                    if let Expr::String(str) = output.clone() {
+                        string_props!(str, args, x, output);
+                    } else if let Expr::Float(num) = output {
+                        float_props!(num, args, x, output);
+                    } else if let Expr::Integer(num) = output {
+                        integer_props!(num, args, x, output);
+                    } else if let Expr::Array(ref arr) = output {
+                        array_props!(arr, args, x, output);
+                    } else if let Expr::File(filepath) = &output {
+                        file_props!(filepath, args.clone(), x, output);
                     }
                 }
                 _ => todo!(),

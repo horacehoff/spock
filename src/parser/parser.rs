@@ -23,7 +23,7 @@ pub enum Expr {
     OR(Vec<Expr>),
     AND(Vec<Expr>),
     Property(String),
-    PropertyFunction(Box<Expr>),
+    PropertyFunction(String, Vec<Vec<Expr>>),
     VariableIdentifier(String),
     FunctionCall(String, Vec<Vec<Expr>>),
     NamespaceFunctionCall(Vec<String>, String, Vec<Vec<Expr>>),
@@ -146,7 +146,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                     priority_calc.push(parse_expression(arg_pair));
                 }
             }
-            output.push(Expr::PropertyFunction(Box::from(Expr::FunctionCall(
+            output.push(Expr::PropertyFunction(
                 pair.clone()
                     .into_inner()
                     .next()
@@ -159,7 +159,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                     .parse()
                     .unwrap(),
                 priority_calc,
-            ))))
+            ));
         }
         Rule::func_call => {
             recursive = false;
