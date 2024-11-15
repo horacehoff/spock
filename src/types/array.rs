@@ -1,3 +1,42 @@
+use crate::error_msg;
+use crate::{get_printable_type};
+use crate::parser::{BasicOperator, Expr};
+use crate::util::error;
+
+pub fn array_ops(x: Vec<Expr>, output: Expr, current_operator: BasicOperator) -> Expr {
+    if let Expr::Integer(value) = output {
+        match current_operator {
+            BasicOperator::Multiply => {
+                let mut new_vec: Vec<Expr> = vec![];
+                for _ in 0..value {
+                    new_vec.append(&mut x.clone());
+                }
+                Expr::Array(new_vec)
+            }
+            _ => {
+                error(
+                    &format!(
+                        "Cannot perform operation '{:?}' between Array and Integer",
+                        current_operator
+                    ),
+                    "",
+                );
+                Expr::Null
+            }
+        }
+    } else {
+        error(
+            &format!(
+                "Cannot perform operation '{:?}' between {:?} and Integer",
+                current_operator,
+                get_printable_type!(output)
+            ),
+            "",
+        );
+        Expr::Null
+    }
+}
+
 #[macro_export]
 macro_rules! array_props {
     ($arr: expr, $args:expr, $x: expr, $output: expr) => {

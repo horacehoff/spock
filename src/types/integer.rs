@@ -62,7 +62,25 @@ pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Exp
             );
             Expr::Null
         }
-    } else {
+    } else if let Expr::Array(ref y) = output {
+        if let BasicOperator::Multiply = current_operator {
+            let mut new_vec: Vec<Expr> = vec![];
+            for _ in 0..x {
+                new_vec.append(&mut y.clone());
+            }
+            Expr::Array(new_vec)
+        } else {
+            error(
+                &format!(
+                    "Cannot perform operation '{:?}' between Array and Integer",
+                    current_operator
+                ),
+                "",
+            );
+            Expr::Null
+        }
+    }
+    else {
         error(
             &format!(
                 "Cannot perform operation '{:?}' between {:?} and Integer",

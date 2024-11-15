@@ -30,6 +30,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::time::Instant;
 use std::{fs, io, thread};
+use crate::array::array_ops;
 
 // #[inline(always)]
 fn basic_functions(x: &str, args: &Vec<Expr>) -> (Expr, bool) {
@@ -258,6 +259,9 @@ fn process_stack(
                 }
                 Expr::Integer(x) => {
                     output = integer_ops(x, output, current_operator);
+                }
+                Expr::Array(x) => {
+                    output = array_ops(x, output, current_operator)
                 }
                 Expr::Null => {
                     if let Expr::Null = output {
@@ -624,8 +628,8 @@ options:
     let now = Instant::now();
     let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> =
         parse_functions(content.trim(), true);
-    println!("PARSED IN: {:.2?}", now.elapsed());
-    // println!("FUNCTIONS {:?}", functions);
+    log!("PARSED IN: {:.2?}", now.elapsed());
+    log!("FUNCTIONS {:?}", functions);
 
     let main_instructions = functions
         .clone()
@@ -649,6 +653,6 @@ options:
         .unwrap()
         .join()
         .unwrap();
-    println!("EXECUTED IN: {:.2?}", now.elapsed());
-    println!("TOTAL: {:.2?}", totaltime.elapsed());
+    log!("EXECUTED IN: {:.2?}", now.elapsed());
+    log!("TOTAL: {:.2?}", totaltime.elapsed());
 }
