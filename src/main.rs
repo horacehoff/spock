@@ -392,8 +392,7 @@ fn process_function(
                             error(&format!("Cannot execute line {:?}", &args[0]), "")
                         }
                     } else if !matched.1 {
-                        let target_function: (String, Vec<String>, Vec<Vec<Expr>>) = functions
-                            .clone()
+                        let target_function: &(String, Vec<String>, Vec<Vec<Expr>>) = functions
                             .into_iter()
                             .filter(|func| func.0 == *x)
                             .next()
@@ -404,7 +403,7 @@ fn process_function(
                             .iter()
                             .enumerate()
                             .map(|(i, arg)| Variable {
-                                name: arg.parse().unwrap(),
+                                name: arg.to_string(),
                                 value: args[i].clone(),
                             })
                             .collect();
