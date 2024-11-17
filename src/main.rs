@@ -628,19 +628,14 @@ options:
         .clone()
         .into_iter()
         .filter(|function| function.0 == "main")
-        .collect::<Vec<(String, Vec<String>, Vec<Vec<Expr>>)>>()
-        .first()
-        .unwrap()
-        .2
-        .clone();
-    // process_function(main_instructions, &vec![], &vec![], "main", &functions);
+        .collect::<Vec<(String, Vec<String>, Vec<Vec<Expr>>)>>();
 
     let now = Instant::now();
     thread::Builder::new()
         // 16MB stack size
-        .stack_size(128 * 1024 * 1024)
+        .stack_size(16 * 1024 * 1024)
         .spawn(move || {
-            process_function(&main_instructions, &vec![], &vec![], "main", &functions);
+            process_function(&main_instructions[0].2, &vec![], &vec![], "main", &functions);
         })
         .unwrap()
         .join()
