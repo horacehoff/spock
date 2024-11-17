@@ -288,7 +288,7 @@ fn process_stack(
                         .map(|arg| process_stack(&arg, &variables, &functions))
                         .collect();
 
-                    if let Expr::String(str) = output.clone() {
+                    if let Expr::String(str) = &output {
                         string_props!(str, args, x, output);
                     } else if let Expr::Float(num) = output {
                         float_props!(num, args, x, output);
@@ -297,7 +297,7 @@ fn process_stack(
                     } else if let Expr::Array(ref arr) = output {
                         array_props!(arr, args, x, output);
                     } else if let Expr::File(filepath) = &output {
-                        file_props!(filepath, args.clone(), x, output);
+                        file_props!(filepath, args, x, output);
                     }
                 }
                 _ => todo!(),
@@ -629,7 +629,6 @@ options:
         .into_iter()
         .filter(|function| function.0 == "main")
         .collect::<Vec<(String, Vec<String>, Vec<Vec<Expr>>)>>()
-        .clone()
         .first()
         .unwrap()
         .2
