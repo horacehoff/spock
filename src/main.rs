@@ -33,7 +33,7 @@ use std::{fs, io, thread};
 use crate::array::array_ops;
 
 // #[inline(always)]
-fn basic_functions(x: &str, args: &Vec<Expr>) -> (Expr, bool) {
+fn builtin_functions(x: &str, args: &Vec<Expr>) -> (Expr, bool) {
     if x == "print" {
         assert_args_number!("print", args.len(), 1);
         println!("{}", get_printable_form(&args[0]));
@@ -281,12 +281,6 @@ fn process_stack(
                 Expr::Property(x) => {
                     // TODO
                     todo!("Properties aren't implented yet!")
-                    // if matches!(output, Expr::String(_)) {
-                    //     match x.as_str() {
-                    //         "" => {}
-                    //         _ => {}
-                    //     }
-                    // }
                 }
                 Expr::PropertyFunction(x, y) => {
                     let args: Vec<Expr> = y
@@ -382,7 +376,7 @@ fn process_function(
                         .map(|arg| process_stack(&arg, &variables, &functions))
                         .collect();
 
-                    let matched = basic_functions(&x, &args);
+                    let matched = builtin_functions(&x, &args);
                     if x == "executeline" && !matched.1 {
                         assert_args_number!("executeline", args.len(), 1);
                         if let Expr::String(line) = &args[0] {

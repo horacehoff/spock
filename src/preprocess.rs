@@ -2,7 +2,7 @@ use crate::namespaces::namespace_functions;
 use crate::parser::{parse_code, Expr, Variable};
 use crate::util::{error, get_printable_form};
 use crate::{
-    assert_args_number, basic_functions, error_msg, get_printable_type, log, process_function,
+    assert_args_number, builtin_functions, error_msg, get_printable_type, log, process_function,
     process_stack,
 };
 
@@ -43,7 +43,7 @@ pub fn preprocess(
             .iter()
             .map(|arg| process_stack(arg, &variables, &functions))
             .collect();
-        let matched = basic_functions(&func_name, &args);
+        let matched = builtin_functions(&func_name, &args);
         // check if function is a built-in function, else search it among user-defined functions
         if matched.1 {
             return matched.0;
