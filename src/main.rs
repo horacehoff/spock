@@ -325,6 +325,7 @@ fn process_function(
             "Remove the excess arguments",
         )
     }
+    // let mut variables: Vec<Variable> = vec![];
     let mut variables: Vec<Variable> = included_variables.clone();
 
     let mut return_variables: Vec<Variable> = vec![];
@@ -346,10 +347,7 @@ fn process_function(
 
                     if included_variables
                         .iter()
-                        .filter(|var| var.name == *x)
-                        .collect::<Vec<_>>()
-                        .len()
-                        > 0
+                        .any(|var| var.name == *x)
                     {
                         return_variables.push(Variable {
                             name: x.clone(),
