@@ -221,7 +221,7 @@ fn process_stack(
         let element = preprocess(&variables, &functions, p_element);
 
         if output == Expr::Null {
-            output = element.clone()
+            output = element;
         } else {
             match element {
                 Expr::Operation(op) => {
