@@ -107,7 +107,7 @@ fn builtin_functions(x: &str, args: &Vec<Expr>) -> (Expr, bool) {
     } else if x == "type" {
         assert_args_number!("type", args.len(), 1);
         return (
-            Expr::String(get_printable_type!(&args[0]).to_string()),
+            Expr::String(get_printable_type!(&args[0]).into()),
             true,
         );
     } else if x == "hash" {
@@ -334,25 +334,25 @@ fn process_function(
         for instruction in instructions {
             match instruction {
                 Expr::VariableDeclaration(x, y) => variables.push(Variable {
-                    name: x.clone(),
+                    name: x.into(),
                     value: process_stack(&y, &variables, &functions),
                 }),
                 Expr::VariableRedeclaration(x, y) => {
-                    let position = variables
-                        .iter()
-                        .position(|var| var.name == *x)
-                        .expect(error_msg!(format!("Variable '{}' does not exist", x)));
                     let processed = process_stack(&y, &variables, &functions);
-                    variables[position].value = processed.clone();
-
                     if included_variables
                         .iter()
                         .any(|var| var.name == *x)
                     {
                         return_variables.push(Variable {
-                            name: x.clone(),
+                            name: x.into(),
                             value: processed,
                         });
+                    } else {
+                        let position = variables
+                            .iter()
+                            .position(|var| var.name == *x)
+                            .expect(error_msg!(format!("Variable '{}' does not exist", x)));
+                        variables[position].value = processed;
                     }
                 }
                 Expr::NamespaceFunctionCall(z, x, y) => {
@@ -395,7 +395,7 @@ fn process_function(
                             .iter()
                             .enumerate()
                             .map(|(i, arg)| Variable {
-                                name: arg.to_string(),
+                                name: arg.into(),
                                 value: args[i].clone(),
                             })
                             .collect();
@@ -473,27 +473,21 @@ fn process_function(
                 }
                 Expr::Loop(x, y, z) => {
                     let loop_array = process_stack(&y, &variables, &functions);
-                    log!("LOOP ARRAY {:?}", loop_array);
+                    //log!("LOOP ARRAY {:?}", loop_array);
                     if let Expr::Array(target_array) = loop_array {
                         for elem in target_array {
-                            // log!("ELEM {:?}", elem);
-                            let loop_var = Variable {
-                                name: x.to_string(),
-                                value: elem,
-                            };
-                            let mut temp_variables = variables.clone();
-                            temp_variables.push(loop_var);
+                            let builtin_vars = [&variables[..], &vec![Variable { name: x.to_owned(), value: elem, }][..]].concat();
                             let out = process_function(
                                 &z,
-                                &temp_variables,
-                                &temp_variables,
+                                &builtin_vars,
+                                &builtin_vars,
                                 name,
                                 &functions,
                             );
                             if Expr::Null != out.0 {
                                 return out;
                             }
-                            if out.1 != vec![] {
+                            if out.1.len() > 0 {
                                 for replace_var in out.1 {
                                     let indx = variables
                                         .iter()
@@ -505,16 +499,11 @@ fn process_function(
                         }
                     } else if let Expr::String(target_string) = loop_array {
                         for elem in target_string.chars() {
-                            let loop_var = Variable {
-                                name: x.to_string(),
-                                value: Expr::String(elem.to_string()),
-                            };
-                            let mut temp_variables = variables.clone();
-                            temp_variables.push(loop_var);
+                            let builtin_vars = [&variables[..], &vec![Variable { name: x.into(), value: Expr::String(String::from(elem)), }][..]].concat();
                             let out = process_function(
                                 &z,
-                                &temp_variables,
-                                &temp_variables,
+                                &builtin_vars,
+                                &builtin_vars,
                                 name,
                                 &functions,
                             );

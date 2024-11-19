@@ -115,7 +115,7 @@ macro_rules! math_to_type {
 
 pub fn get_printable_form(x: &Expr) -> String {
     match x {
-        Expr::String(str) => str.to_string(),
+        Expr::String(str) => str.to_owned(),
         Expr::Float(float) => float.to_string(),
         Expr::Integer(int) => int.to_string(),
         Expr::Bool(boolean) => boolean.to_string(),

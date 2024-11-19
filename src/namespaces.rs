@@ -30,7 +30,7 @@ pub fn namespace_functions(x: &Vec<String>, y: &str, args: &Vec<Expr>) -> (Expr,
                     .create(true)
                     .open(&filename)
                     .expect(error_msg!("Failed to check/create file"));
-                (Expr::File(filename.to_string()), true)
+                (Expr::File(filename.to_owned()), true)
             } else {
                 error(
                     &format!("Invalid file name: {:?}", get_printable_form(&args[0])),

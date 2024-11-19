@@ -420,7 +420,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Expr>> {
                 }
                 Rule::loop_statement => {
                     let mut inner = inside.into_inner();
-                    let loop_var = inner.next().unwrap().as_str().to_string();
+                    let loop_var = inner.next().unwrap().as_str().into();
                     let target_array = parse_expression(inner.next().unwrap());
                     let loop_code = parse_code(inner.next().unwrap().as_str());
                     line_instructions.push(Expr::Loop(loop_var, target_array, loop_code))

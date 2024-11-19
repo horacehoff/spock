@@ -13,13 +13,12 @@ pub fn preprocess(
     element: &Expr,
 ) -> Expr {
     if let Expr::VariableIdentifier(var) = element {
-        // replace variable by its value
-        let variable = variables
+           variables
             .iter()
-            .filter(|variable| variable.name == *var)
+            .filter(|x| x.name == *var)
             .next()
-            .expect(error_msg!(format!("Variable '{}' doesn't exist", var)));
-        variable.value.clone()
+            .expect(&format!("Unknown variable '{}'", var))
+            .value.clone()
     } else if let Expr::NamespaceFunctionCall(ref namespace, ref y, ref z) = element {
         // execute "namespace functions"
         let args: Vec<Expr> = z
