@@ -218,7 +218,7 @@ fn process_stack(
     let mut output: Expr = Expr::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in {
-        let element = preprocess(&variables, &functions, p_element);
+        let element = preprocess(variables, functions, &p_element);
 
         if output == Expr::Null {
             output = element;
@@ -228,7 +228,7 @@ fn process_stack(
                     current_operator = op;
                 }
                 Expr::OR(x) => {
-                    let parsed_exp = process_stack(&x, &variables, &functions);
+                    let parsed_exp = process_stack(&x, variables, functions);
                     if let Expr::Bool(inbool) = output {
                         if let Expr::Bool(sidebool) = parsed_exp {
                             output = Expr::Bool(inbool || sidebool)
@@ -240,7 +240,7 @@ fn process_stack(
                     }
                 }
                 Expr::AND(x) => {
-                    let parsed_exp = process_stack(&x, &variables, &functions);
+                    let parsed_exp = process_stack(&x, variables, functions);
                     if let Expr::Bool(inbool) = output {
                         if let Expr::Bool(sidebool) = parsed_exp {
                             output = Expr::Bool(inbool && sidebool)
@@ -404,17 +404,17 @@ fn process_function(
                             &target_args,
                             &target_args,
                             &target_function.0,
-                            &functions,
+                            functions,
                         );
                         // println!("{:?}", target_args)
                     }
                 }
                 Expr::FunctionReturn(x) => {
-                    return (process_stack(&x, &variables, &functions), return_variables);
+                    return (process_stack(x, &variables, functions), return_variables);
                 }
                 Expr::Condition(x, y, z) => {
-                    if process_stack(&x, &variables, &functions) == Expr::Bool(true) {
-                        let out = process_function(&y, &variables, &variables, name, &functions);
+                    if process_stack(x, &variables, functions) == Expr::Bool(true) {
+                        let out = process_function(y, &variables, &variables, name, functions);
                         if Expr::Null != out.0 {
                             return out;
                         }
@@ -426,7 +426,7 @@ fn process_function(
                                     &variables,
                                     &variables,
                                     name,
-                                    &functions,
+                                    functions,
                                 );
                                 if Expr::Null == out.0 {
                                     if out.1 != vec![] {
@@ -451,7 +451,7 @@ fn process_function(
                                     &variables,
                                     &variables,
                                     name,
-                                    &functions,
+                                    functions,
                                 );
                                 if Expr::Null == out.0 {
                                     if out.1 != vec![] {
@@ -478,11 +478,11 @@ fn process_function(
                         for elem in target_array {
                             let builtin_vars = [&variables[..], &vec![Variable { name: x.to_owned(), value: elem, }][..]].concat();
                             let out = process_function(
-                                &z,
+                                z,
                                 &builtin_vars,
                                 &builtin_vars,
                                 name,
-                                &functions,
+                                functions,
                             );
                             if Expr::Null != out.0 {
                                 return out;
@@ -501,11 +501,11 @@ fn process_function(
                         for elem in target_string.chars() {
                             let builtin_vars = [&variables[..], &vec![Variable { name: x.into(), value: Expr::String(String::from(elem)), }][..]].concat();
                             let out = process_function(
-                                &z,
+                                z,
                                 &builtin_vars,
                                 &builtin_vars,
                                 name,
-                                &functions,
+                                functions,
                             );
                             if Expr::Null != out.0 {
                                 return out;
@@ -524,8 +524,8 @@ fn process_function(
                 }
                 Expr::While(x, y) => {
                     // let condition = process_stack(*x, variables.clone(), functions.clone());
-                    while process_stack(&x, &variables, &functions) == Expr::Bool(true) {
-                        let out = process_function(&y, &variables, &variables, name, &functions);
+                    while process_stack(x, &variables, functions) == Expr::Bool(true) {
+                        let out = process_function(y, &variables, &variables, name, functions);
                         if Expr::Null != out.0 {
                             return out;
                         }

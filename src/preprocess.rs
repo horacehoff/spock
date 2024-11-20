@@ -17,8 +17,8 @@ pub fn preprocess(
             .iter()
             .filter(|x| x.name == *var)
             .next()
-            .expect(&format!("Unknown variable '{}'", var))
-            .value.clone()
+            .expect(&format!("Unknown variable '{}'", var)) 
+               .value.clone()
     } else if let Expr::NamespaceFunctionCall(ref namespace, ref y, ref z) = element {
         // execute "namespace functions"
         let args: Vec<Expr> = z
@@ -120,7 +120,7 @@ pub fn preprocess(
             .enumerate()
             .map(|(i, arg)| Variable {
                 name: arg.to_string(),
-                value: args[i].clone(),
+                value: args[i].to_owned(),
             })
             .collect();
         let result = process_function(
