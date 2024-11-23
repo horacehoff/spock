@@ -1,13 +1,14 @@
+use smol_str::SmolStr;
 use crate::error_msg;
 use crate::get_printable_type;
 use crate::parser::{BasicOperator, Expr};
 use crate::util::error;
 
 // #[inline(always)]
-pub fn string_ops(x: String, output: Expr, current_operator: BasicOperator) -> Expr {
+pub fn string_ops(x: SmolStr, output: Expr, current_operator: BasicOperator) -> Expr {
     if let Expr::String(value) = &output {
         match current_operator {
-            BasicOperator::Add => Expr::String(format!("{}{}", value, x)),
+            BasicOperator::Add => Expr::String(format!("{}{}", value, x).into()),
             BasicOperator::Equal => Expr::Bool(value.eq(&x)),
             BasicOperator::NotEqual => Expr::Bool(value.eq(&x)),
             _ => {
@@ -23,7 +24,7 @@ pub fn string_ops(x: String, output: Expr, current_operator: BasicOperator) -> E
         }
     } else if let Expr::Integer(value) = &output {
         match current_operator {
-            BasicOperator::Multiply => Expr::String(x.repeat(*value as usize)),
+            BasicOperator::Multiply => Expr::String(x.repeat(*value as usize).parse().unwrap()),
             _ => {
                 error(
                     &format!(
@@ -55,21 +56,21 @@ macro_rules! string_props {
             // TRANSFORM
             "uppercase" => {
                 assert_args_number!("uppercase", $args.len(), 0);
-                $output = Expr::String($str.to_uppercase());
+                $output = Expr::String($str.to_uppercase_smolstr());
             }
             "lowercase" => {
                 assert_args_number!("lowercase", $args.len(), 0);
-                $output = Expr::String($str.to_lowercase());
+                $output = Expr::String($str.to_lowercase_smolstr());
             }
             "capitalize" => {
                 assert_args_number!("capitalize", $args.len(), 0);
-                $output = Expr::String($str.to_title_case());
+                $output = Expr::String($str.to_title_case().to_smolstr());
             }
             "replace" => {
                 assert_args_number!("replace", $args.len(), 2);
                 if let Expr::String(toreplace) = &$args[0] {
                     if let Expr::String(replaced) = &$args[1] {
-                        $output = Expr::String($str.replace(toreplace, replaced))
+                        $output = Expr::String($str.replace_smolstr(toreplace, replaced))
                     } else {
                         error(
                             format!("{:?} is not a String", &$args[1]).as_str(),
@@ -119,28 +120,28 @@ macro_rules! string_props {
                 }
             }
             "index" => {
-                assert_args_number!("index", $args.len(), 1);
-                if let Expr::String(toindex) = &$args[0] {
-                    let indx = $str.find(toindex).unwrap();
-                    $output = Expr::Integer(indx as i64);
-                } else {
-                    error(
-                        format!("{:?} is not a String", &$args[0]).as_str(),
-                        format!("Convert {:?} to a String", &$args[0]).as_str(),
-                    );
-                }
+                // assert_args_number!("index", $args.len(), 1);
+                // if let Expr::String(toindex) = &$args[0] {
+                //     let indx = $str.find(toindex).unwrap();
+                //     $output = Expr::Integer(indx as i64);
+                // } else {
+                //     error(
+                //         format!("{:?} is not a String", &$args[0]).as_str(),
+                //         format!("Convert {:?} to a String", &$args[0]).as_str(),
+                //     );
+                // }
             }
             "trim" => {
                 assert_args_number!("trim", $args.len(), 0);
-                $output = Expr::String($str.trim().to_string());
+                $output = Expr::String($str.trim().to_smolstr());
             }
             "ltrim" => {
                 assert_args_number!("ltrim", $args.len(), 0);
-                $output = Expr::String($str.trim_start().to_string());
+                $output = Expr::String($str.trim_start().to_smolstr());
             }
             "rtrim" => {
                 assert_args_number!("rtrim", $args.len(), 0);
-                $output = Expr::String($str.trim_end().to_string());
+                $output = Expr::String($str.trim_end().to_smolstr());
             }
             _ => {}
         }

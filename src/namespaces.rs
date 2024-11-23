@@ -4,8 +4,9 @@ use crate::{assert_args_number, error_msg, get_printable_form};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::process::exit;
+use smol_str::{SmolStr, ToSmolStr};
 
-pub fn namespace_functions(x: &Vec<String>, y: &str, args: &Vec<Expr>) -> (Expr, bool) {
+pub fn namespace_functions(x: &Vec<SmolStr>, y: &str, args: &Vec<Expr>) -> (Expr, bool) {
     if x[0] == "compute" {
         if y == "exit" {
             assert_args_number!(y, args.len(), 1);
@@ -30,7 +31,7 @@ pub fn namespace_functions(x: &Vec<String>, y: &str, args: &Vec<Expr>) -> (Expr,
                     .create(true)
                     .open(&filename)
                     .expect(error_msg!("Failed to check/create file"));
-                (Expr::File(filename.to_owned()), true)
+                (Expr::File(filename.to_smolstr()), true)
             } else {
                 error(
                     &format!("Invalid file name: {:?}", get_printable_form(&args[0])),

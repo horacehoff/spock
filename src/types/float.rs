@@ -101,7 +101,7 @@ macro_rules! float_props {
             }
             "toStr" => {
                 assert_args_number!("toStr", $args.len(), 0);
-                $output = Expr::String($num.to_string())
+                $output = Expr::String($num.to_smolstr())
             }
             _ => {}
         }

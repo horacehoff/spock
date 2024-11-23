@@ -13,6 +13,7 @@ blake3 = "1.5.4"
 Inflector = "0.11.4"
 const-currying = "0.0.5"
 branches = "0.1.3"
+smol_str = { version="0.3.2",features = ["serde"] }
 
 
 [profile.dev]

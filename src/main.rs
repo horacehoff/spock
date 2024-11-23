@@ -34,7 +34,7 @@ use std::path::Path;
 use std::time::Instant;
 use std::{fs, io};
 use branches::likely;
-
+use smol_str::{SmolStr, StrExt, ToSmolStr};
 
 #[const_currying]
 fn builtin_functions(
@@ -130,8 +130,7 @@ fn builtin_functions(
                             &args[0]
                         )))
                         .as_ref(),
-                )
-                .to_string(),
+                ).to_smolstr(),
             ),
             true,
         )
@@ -214,7 +213,7 @@ fn builtin_functions(
 fn process_stack(
     stack_in: &Vec<Expr>,
     variables: &Vec<Variable>,
-    functions: &Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
+    functions: &Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)>,
 ) -> Expr {
     let mut output: Expr = Expr::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
@@ -276,7 +275,7 @@ fn process_stack(
                     )
                 }
                 Expr::String(x) => {
-                    output = string_ops(x.to_string(), output, current_operator);
+                    output = string_ops(x.to_smolstr(), output, current_operator);
                 }
                 Expr::Float(x) => {
                     output = float_ops(*x, output, current_operator);
@@ -312,6 +311,7 @@ fn process_stack(
 
                     if let Expr::String(ref str) = &output {
                         string_props!(str, args, x, output);
+                        // str.to_smolstr()
                     } else if let Expr::Float(num) = output {
                         float_props!(num, args, x, output);
                     } else if let Expr::Integer(num) = output {
@@ -338,8 +338,8 @@ fn process_function(
     expected_variables_len: usize,
     name: &str,
     #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] functions: &Vec<(
-        String,
-        Vec<String>,
+        SmolStr,
+        Vec<SmolStr>,
         Vec<Vec<Expr>>,
     )>,
 ) -> (Expr, Vec<Variable>) {
@@ -360,14 +360,14 @@ fn process_function(
         for instruction in instructions {
             match instruction {
                 Expr::VariableDeclaration(x, y) => variables.push(Variable {
-                    name: x.to_string(),
+                    name: x.to_smolstr(),
                     value: process_stack(&y, &variables, &functions),
                 }),
                 Expr::VariableRedeclaration(x, y) => {
                     let processed = process_stack(&y, &variables, &functions);
                     if variables.iter().any(|var| var.name == *x) {
                         return_variables.push(Variable {
-                            name: x.to_string(),
+                            name: x.to_smolstr(),
                             value: processed,
                         });
                     } else {
@@ -407,7 +407,7 @@ fn process_function(
                             error(&format!("Cannot execute line {:?}", &args[0]), "")
                         })
                     } else if !matched.1 {
-                        let target_function: &(String, Vec<String>, Vec<Vec<Expr>>) = functions
+                        let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>) = functions
                             .into_iter()
                             .filter(|func| func.0 == *x)
                             .next()
@@ -418,7 +418,7 @@ fn process_function(
                             .iter()
                             .enumerate()
                             .map(|(i, arg)| Variable {
-                                name: arg.into(),
+                                name: arg.to_smolstr(),
                                 value: args[i].clone(),
                             })
                             .collect();
@@ -527,8 +527,8 @@ fn process_function(
                             let mut builtin_vars = [
                                 &variables[..],
                                 &vec![Variable {
-                                    name: x.into(),
-                                    value: Expr::String(String::from(elem)),
+                                    name: x.to_smolstr(),
+                                    value: Expr::String(elem.to_smolstr()),
                                 }][..],
                             ]
                             .concat();
@@ -633,7 +633,7 @@ options:
         fs::read_to_string(arg).expect(error_msg!(format!("Unable to read file '{}'", arg)));
 
     let now = Instant::now();
-    let functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> =
+    let functions: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)> =
         parse_functions(content.trim(), true);
     log!("PARSED IN: {:.2?}", now.elapsed());
     log!("FUNCTIONS {:?}", functions);
@@ -642,7 +642,7 @@ options:
         .clone()
         .into_iter()
         .filter(|function| function.0 == "main")
-        .collect::<Vec<(String, Vec<String>, Vec<Vec<Expr>>)>>();
+        .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)>>();
 
     let now = Instant::now();
     // thread::Builder::new()

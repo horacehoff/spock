@@ -7,14 +7,15 @@ use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
+use smol_str::{SmolStr, ToSmolStr};
 
 pub fn parse_functions(
     content: &str,
     check_main: bool,
-) -> Vec<(String, Vec<String>, Vec<Vec<Expr>>)> {
+) -> Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)> {
     let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = vec![];
 
-    let mut imported_functions: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> = vec![];
+    let mut imported_functions: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)> = vec![];
     let matches: Vec<(usize, &str)> = content.match_indices("\nimport").collect();
     if content.starts_with("import") {
         let mut i = 7;
@@ -53,7 +54,7 @@ pub fn parse_functions(
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer).unwrap();
 
-        let mut deserialized_data: Vec<(String, Vec<String>, Vec<Vec<Expr>>)> =
+        let mut deserialized_data: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)> =
             bincode::deserialize(&buffer).expect(error_msg!(
                 "Failed to read from cache",
                 "Delete the .compute folder"
@@ -149,12 +150,12 @@ pub fn parse_functions(
         .iter()
         .map(|(a, b, c)| {
             (
-                a.to_string(),
-                b.iter().map(|s| s.to_string()).collect(),
+                a.to_smolstr(),
+                b.iter().map(|s| s.to_smolstr()).collect(),
                 c.clone(),
             )
         })
-        .collect::<Vec<(String, Vec<String>, Vec<Vec<Expr>>)>>();
+        .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)>>();
 
     return_functions.append(&mut imported_functions);
 

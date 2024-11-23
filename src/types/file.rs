@@ -6,7 +6,7 @@ macro_rules! file_props {
                 assert_args_number!("read", $args.len(), 0);
                 let filecontent = fs::read_to_string($filepath)
                     .expect(error_msg!(format!("Failed to read {}", $filepath)));
-                $output = Expr::String(filecontent)
+                $output = Expr::String(filecontent.to_smolstr())
             }
             "write" => {
                 assert_args_number!("write", $args.len(), 1);

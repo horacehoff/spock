@@ -5,6 +5,7 @@ use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
+use smol_str::{SmolStr, ToSmolStr};
 
 #[derive(Parser)]
 #[grammar = "parser/parser_grammar.pest"]
@@ -15,23 +16,23 @@ pub enum Expr {
     Null,
     Integer(i64),
     Float(f64),
-    String(String),
+    String(SmolStr),
     Bool(bool),
     Array(Vec<Expr>),
     ArrayParsed(Vec<Vec<Expr>>),
     ArraySuite(Vec<Expr>),
     OR(Vec<Expr>),
     AND(Vec<Expr>),
-    Property(String),
-    PropertyFunction(String, Vec<Vec<Expr>>),
-    VariableIdentifier(String),
-    FunctionCall(String, Vec<Vec<Expr>>),
-    NamespaceFunctionCall(Vec<String>, String, Vec<Vec<Expr>>),
+    Property(SmolStr),
+    PropertyFunction(SmolStr, Vec<Vec<Expr>>),
+    VariableIdentifier(SmolStr),
+    FunctionCall(SmolStr, Vec<Vec<Expr>>),
+    NamespaceFunctionCall(Vec<SmolStr>, SmolStr, Vec<Vec<Expr>>),
     FunctionReturn(Vec<Expr>),
     Priority(Vec<Expr>),
     Operation(BasicOperator),
-    VariableDeclaration(String, Vec<Expr>),
-    VariableRedeclaration(String, Vec<Expr>),
+    VariableDeclaration(SmolStr, Vec<Expr>),
+    VariableRedeclaration(SmolStr, Vec<Expr>),
     Condition(
         //Condition
         Vec<Expr>,
@@ -48,7 +49,7 @@ pub enum Expr {
     ),
     Loop(
         // Loop identifier
-        String,
+        SmolStr,
         // Array/string to iterate
         Vec<Expr>,
         // Code inside the loop to execute
@@ -56,7 +57,7 @@ pub enum Expr {
     ),
 
     // Objects
-    File(String),
+    File(SmolStr),
 }
 
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Copy)]
@@ -80,7 +81,7 @@ pub enum BasicOperator {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Variable {
-    pub(crate) name: String,
+    pub(crate) name: SmolStr,
     pub(crate) value: Expr,
 }
 
@@ -188,7 +189,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Expr> {
                 .clone();
             let mut namespaces = vec![];
             for namespace in pair.clone().into_inner().rev().skip(1).rev() {
-                namespaces.push(namespace.as_str().to_string());
+                namespaces.push(namespace.as_str().to_smolstr());
             }
             log!("{:?}", namespaces);
             if let Expr::FunctionCall(x, y) = func_call {

@@ -6,11 +6,12 @@ use crate::{
     process_stack,
 };
 use branches::likely;
+use smol_str::{SmolStr, ToSmolStr};
 
 // #[inline(always)]
 pub fn preprocess(
     variables: &Vec<Variable>,
-    functions: &Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
+    functions: &Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)>,
     element: &Expr,
 ) -> Expr {
     if let Expr::NamespaceFunctionCall(ref namespace, ref y, ref z) = element {
@@ -68,14 +69,14 @@ pub fn preprocess(
         } else if func_name == "str" {
             assert_args_number!("str", args.len(), 1);
             if let Expr::Integer(int) = &args[0] {
-                return Expr::String(int.to_string());
+                return Expr::String(int.to_smolstr());
             } else if let Expr::Float(float) = &args[0] {
-                return Expr::String(float.to_string());
+                return Expr::String(float.to_smolstr());
             } else if let Expr::Bool(boolean) = &args[0] {
                 return Expr::String(if *boolean {
-                    "true".to_string()
+                    "true".to_smolstr()
                 } else {
-                    "false".to_string()
+                    "false".to_smolstr()
                 });
             } else if let Expr::Array(arr) = &args[0] {
                 return Expr::String(get_printable_form(&args[0]));
@@ -102,7 +103,7 @@ pub fn preprocess(
             }
         }
 
-        let target_function: &(String, Vec<String>, Vec<Vec<Expr>>) = functions
+        let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>) = functions
             .into_iter()
             .filter(|func| func.0 == *func_name)
             .next()
@@ -113,7 +114,7 @@ pub fn preprocess(
             .iter()
             .enumerate()
             .map(|(i, arg)| Variable {
-                name: arg.to_string(),
+                name: arg.to_smolstr(),
                 value: args[i].to_owned(),
             })
             .collect();
@@ -165,7 +166,7 @@ pub fn preprocess(
                                     output = sub_arr[intg as usize].clone()
                                 } else if let Expr::String(ref sub_str) = output.clone() {
                                     output = Expr::String(
-                                        sub_str.chars().nth(intg as usize).unwrap().to_string(),
+                                        sub_str.chars().nth(intg as usize).unwrap().to_smolstr(),
                                     );
                                 } else {
                                     error(
@@ -208,7 +209,7 @@ pub fn preprocess(
                                     output = sub_arr[intg as usize].clone()
                                 } else if let Expr::String(ref sub_str) = &output {
                                     output = Expr::String(
-                                        sub_str.chars().nth(intg as usize).unwrap().to_string(),
+                                        sub_str.chars().nth(intg as usize).unwrap().to_smolstr(),
                                     );
                                 } else {
                                     error(
@@ -245,7 +246,7 @@ pub fn preprocess(
                         if let Expr::Integer(intg) = index_array[0] {
                             if output == Expr::Null {
                                 output = Expr::String(
-                                    str.chars().nth(intg as usize).unwrap().to_string(),
+                                    str.chars().nth(intg as usize).unwrap().to_smolstr(),
                                 );
                             } else {
                                 if let Expr::Array(ref sub_arr) = output.clone() {
@@ -259,7 +260,7 @@ pub fn preprocess(
                                                 "Cannot index '{}'",
                                                 sub_str
                                             )))
-                                            .to_string(),
+                                            .to_smolstr(),
                                     );
                                 } else {
                                     error(

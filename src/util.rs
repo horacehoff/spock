@@ -1,3 +1,4 @@
+use smol_str::{SmolStr, ToSmolStr};
 use crate::parser::Expr;
 
 pub fn error(message: &str, tip: &str) {
@@ -173,32 +174,32 @@ macro_rules! if_let {
     };
 }
 
-pub fn get_printable_form(x: &Expr) -> String {
+pub fn get_printable_form(x: &Expr) -> SmolStr {
     match x {
         Expr::String(str) => str.to_owned(),
-        Expr::Float(float) => float.to_string(),
-        Expr::Integer(int) => int.to_string(),
-        Expr::Bool(boolean) => boolean.to_string(),
+        Expr::Float(float) => float.to_smolstr(),
+        Expr::Integer(int) => int.to_smolstr(),
+        Expr::Bool(boolean) => boolean.to_smolstr(),
         Expr::Array(x) => {
             let arr = x;
-            "[".to_string()
+            ("[".to_string()
                 + arr
                     .iter()
-                    .map(|item| get_printable_form(item) + ",")
+                    .map(|item| get_printable_form(item).to_string() + ",")
                     .collect::<String>()
                     .trim_end_matches(",")
                     .parse::<String>()
                     .unwrap()
                     .as_str()
-                + "]"
+                + "]").to_smolstr()
         }
-        Expr::Null => "Null".to_string(),
+        Expr::Null => "Null".to_smolstr(),
         _ => {
             error(
                 &format!("Cannot display {} type", get_printable_type!(x)),
                 "",
             );
-            "".to_string()
+            "".to_smolstr()
         }
     }
 }
