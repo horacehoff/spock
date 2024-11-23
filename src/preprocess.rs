@@ -12,14 +12,7 @@ pub fn preprocess(
     functions: &Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
     element: &Expr,
 ) -> Expr {
-    if let Expr::VariableIdentifier(var) = element {
-           variables
-            .iter()
-            .filter(|x| x.name == *var)
-            .next()
-            .expect(&format!("Unknown variable '{}'", var)) 
-               .value.clone()
-    } else if let Expr::NamespaceFunctionCall(ref namespace, ref y, ref z) = element {
+    if let Expr::NamespaceFunctionCall(ref namespace, ref y, ref z) = element {
         // execute "namespace functions"
         let args: Vec<Expr> = z
             .iter()
@@ -131,10 +124,10 @@ pub fn preprocess(
             &functions,
         );
         return result.0;
-    } else if let Expr::Priority(calc) = element {
+    } else if let Expr::Priority(ref calc) = element {
         // execute content inside parentheses before all the other content in the second loop
         return process_stack(&calc, &variables, &functions);
-    } else if let Expr::ArrayParsed(y) = element {
+    } else if let Expr::ArrayParsed(ref y) = element {
         // compute final value of arrays
         let mut new_array: Vec<Expr> = vec![];
         for element in y.iter() {
@@ -146,7 +139,7 @@ pub fn preprocess(
         let arrays: &Vec<Expr> = y;
         let target_array: Expr = process_stack(&vec![arrays[0].clone()], &variables, &functions);
         // 1 - matches if the contents of the array have yet to be fully evaluated
-        if let Expr::ArrayParsed(target_arr) = target_array {
+        if let Expr::ArrayParsed(ref target_arr) = target_array {
             // compute the "final" value of the first/target array
             let mut array = vec![];
             for element in target_arr.iter() {
@@ -155,7 +148,7 @@ pub fn preprocess(
             let mut output = Expr::Null;
             // iterate over every array following the first one => they are indexes
             for target_index in arrays.iter().skip(1) {
-                if let Expr::ArrayParsed(target_index_arr) = target_index {
+                if let Expr::ArrayParsed(ref target_index_arr) = target_index {
                     let mut index_array = vec![];
                     for element in target_index_arr.iter() {
                         index_array.push(process_stack(&element, &variables, &functions));
@@ -169,7 +162,7 @@ pub fn preprocess(
                                 log!("{:?}OUTPUT", output);
                                 if let Expr::Array(sub_arr) = output.clone() {
                                     output = sub_arr[intg as usize].clone()
-                                } else if let Expr::String(sub_str) = output.clone() {
+                                } else if let Expr::String(ref sub_str) = output.clone() {
                                     output = Expr::String(
                                         sub_str.chars().nth(intg as usize).unwrap().to_string(),
                                     );
@@ -194,11 +187,11 @@ pub fn preprocess(
                 }
             }
             return output;
-        } else if let Expr::Array(target_arr) = target_array {
+        } else if let Expr::Array(ref target_arr) = target_array {
             // 2 - matches if contents of target array have already been fully evaluated and the array only contains raw/basic values
             let mut output = Expr::Null;
             for target_index in arrays.iter().skip(1) {
-                if let Expr::ArrayParsed(target_index_arr) = target_index {
+                if let Expr::ArrayParsed(ref target_index_arr) = target_index {
                     let mut index_array = vec![];
                     for element in target_index_arr.iter() {
                         index_array.push(process_stack(&element, &variables, &functions));
@@ -210,9 +203,9 @@ pub fn preprocess(
                                 output = target_arr[intg as usize].clone()
                             } else {
                                 log!("{:?}OUTPUT", output);
-                                if let Expr::Array(sub_arr) = &output {
+                                if let Expr::Array(ref sub_arr) = &output {
                                     output = sub_arr[intg as usize].clone()
-                                } else if let Expr::String(sub_str) = &output {
+                                } else if let Expr::String(ref sub_str) = &output {
                                     output = Expr::String(
                                         sub_str.chars().nth(intg as usize).unwrap().to_string(),
                                     );
@@ -237,11 +230,11 @@ pub fn preprocess(
                 }
             }
             return output;
-        } else if let Expr::String(str) = target_array {
+        } else if let Expr::String(ref str) = target_array {
             // 3 - matches if "array" is a string => returns a letter
             let mut output = Expr::Null;
             for target_index in arrays.iter().skip(1) {
-                if let Expr::ArrayParsed(target_index_arr) = target_index {
+                if let Expr::ArrayParsed(ref target_index_arr) = target_index {
                     let mut index_array = vec![];
                     for element in target_index_arr.iter() {
                         index_array.push(process_stack(&element, &variables, &functions));
@@ -254,9 +247,9 @@ pub fn preprocess(
                                     str.chars().nth(intg as usize).unwrap().to_string(),
                                 );
                             } else {
-                                if let Expr::Array(sub_arr) = output.clone() {
+                                if let Expr::Array(ref sub_arr) = output.clone() {
                                     output = sub_arr[intg as usize].clone()
-                                } else if let Expr::String(sub_str) = output.clone() {
+                                } else if let Expr::String(ref sub_str) = output.clone() {
                                     output = Expr::String(
                                         sub_str
                                             .chars()
@@ -288,7 +281,6 @@ pub fn preprocess(
                 }
             }
             return output;
-            // *x = output;
         } else {
             error(
                 &format!("Cannot index {} type", get_printable_type!(target_array)),
@@ -297,6 +289,6 @@ pub fn preprocess(
             Expr::Null
         }
     } else {
-        element.clone()
+        Expr::Null
     }
 }

@@ -31,9 +31,10 @@ use std::path::Path;
 use std::time::Instant;
 use std::{fs, io, thread};
 use crate::array::array_ops;
+use const_currying::const_currying;
 
-// #[inline(always)]
-fn builtin_functions(x: &str, args: &Vec<Expr>) -> (Expr, bool) {
+#[const_currying]
+fn builtin_functions(x: &str, #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] args: &Vec<Expr>) -> (Expr, bool) {
     if x == "print" {
         assert_args_number!("print", args.len(), 1);
         println!("{}", get_printable_form(&args[0]));
@@ -218,16 +219,28 @@ fn process_stack(
     let mut output: Expr = Expr::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in {
-        let element = preprocess(variables, functions, &p_element);
+        let mut element: &Expr = p_element;
+        let mut val: Expr = Expr::Null;
+        if let Expr::VariableIdentifier(ref var) = element {
+            let variable = &variables
+                .iter()
+                .find(|x| x.name.eq(var))
+                .expect(&format!("Unknown variable '{}'", var));
+            element = &variable.value
+        }
+        else {
+            val = preprocess(variables, functions, element);
+            if val != Expr::Null {
+                element = &val;
+            }
+        }
 
-        if output == Expr::Null {
-            output = element;
-        } else {
+        if output != Expr::Null {
             match element {
                 Expr::Operation(op) => {
-                    current_operator = op;
+                    current_operator = *op;
                 }
-                Expr::OR(x) => {
+                Expr::OR(ref x) => {
                     let parsed_exp = process_stack(&x, variables, functions);
                     if let Expr::Bool(inbool) = output {
                         if let Expr::Bool(sidebool) = parsed_exp {
@@ -239,7 +252,7 @@ fn process_stack(
                         error(format!("{:?} is not a Boolean", output).as_str(), "");
                     }
                 }
-                Expr::AND(x) => {
+                Expr::AND(ref x) => {
                     let parsed_exp = process_stack(&x, variables, functions);
                     if let Expr::Bool(inbool) = output {
                         if let Expr::Bool(sidebool) = parsed_exp {
@@ -252,16 +265,16 @@ fn process_stack(
                     }
                 }
                 Expr::String(x) => {
-                    output = string_ops(x, output, current_operator);
+                    output = string_ops(x.to_string(), output, current_operator);
                 }
                 Expr::Float(x) => {
-                    output = float_ops(x, output, current_operator);
+                    output = float_ops(*x, output, current_operator);
                 }
                 Expr::Integer(x) => {
-                    output = integer_ops(x, output, current_operator);
+                    output = integer_ops(*x, output, current_operator);
                 }
                 Expr::Array(x) => {
-                    output = array_ops(x, output, current_operator)
+                    output = array_ops(x.to_owned(), output, current_operator)
                 }
                 Expr::Null => {
                     if let Expr::Null = output {
@@ -282,13 +295,13 @@ fn process_stack(
                     // TODO
                     todo!("Properties aren't implented yet!")
                 }
-                Expr::PropertyFunction(x, y) => {
+                Expr::PropertyFunction(ref x, ref y) => {
                     let args: Vec<Expr> = y
                         .iter()
                         .map(|arg| process_stack(&arg, &variables, &functions))
                         .collect();
 
-                    if let Expr::String(str) = &output {
+                    if let Expr::String(ref str) = &output {
                         string_props!(str, args, x, output);
                     } else if let Expr::Float(num) = output {
                         float_props!(num, args, x, output);
@@ -296,12 +309,14 @@ fn process_stack(
                         integer_props!(num, args, x, output);
                     } else if let Expr::Array(ref arr) = output {
                         array_props!(arr, args, x, output);
-                    } else if let Expr::File(filepath) = &output {
+                    } else if let Expr::File(ref filepath) = &output {
                         file_props!(filepath, args, x, output);
                     }
                 }
                 _ => todo!(),
             }
+        } else {
+            output = element.to_owned();
         }
     }
     output
@@ -627,6 +642,6 @@ options:
         .unwrap()
         .join()
         .unwrap();
-    log!("EXECUTED IN: {:.2?}", now.elapsed());
-    log!("TOTAL: {:.2?}", totaltime.elapsed());
+    println!("EXECUTED IN: {:.2?}", now.elapsed());
+    println!("TOTAL: {:.2?}", totaltime.elapsed());
 }
