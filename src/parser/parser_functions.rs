@@ -1,7 +1,7 @@
+use crate::error_msg;
 use crate::parser::parse_code;
 use crate::parser::Expr;
 use crate::util::error;
-use crate::error_msg;
 use fancy_regex::Regex;
 use std::fs;
 use std::fs::File;

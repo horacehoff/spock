@@ -5,6 +5,7 @@ use crate::{
     assert_args_number, builtin_functions, error_msg, get_printable_type, log, process_function,
     process_stack,
 };
+use branches::likely;
 
 // #[inline(always)]
 pub fn preprocess(
@@ -20,7 +21,7 @@ pub fn preprocess(
             .collect();
 
         let namespace_funcs = namespace_functions(&namespace, &y, &args);
-        if namespace_funcs.1 {
+        if likely(namespace_funcs.1) {
             namespace_funcs.0
         } else {
             error(

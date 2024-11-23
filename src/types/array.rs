@@ -1,5 +1,5 @@
 use crate::error_msg;
-use crate::{get_printable_type};
+use crate::get_printable_type;
 use crate::parser::{BasicOperator, Expr};
 use crate::util::error;
 

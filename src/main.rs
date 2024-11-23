@@ -16,6 +16,7 @@ mod preprocess;
 mod string;
 mod util;
 
+use crate::array::array_ops;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
@@ -24,17 +25,22 @@ use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::string_ops;
 use crate::util::{error, get_printable_form};
+use branches::unlikely;
+use const_currying::const_currying;
 use inflector::Inflector;
 use std::fs::remove_dir_all;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::time::Instant;
-use std::{fs, io, thread};
-use crate::array::array_ops;
-use const_currying::const_currying;
+use std::{fs, io};
+use branches::likely;
+
 
 #[const_currying]
-fn builtin_functions(x: &str, #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] args: &Vec<Expr>) -> (Expr, bool) {
+fn builtin_functions(
+    x: &str,
+    #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] args: &Vec<Expr>,
+) -> (Expr, bool) {
     if x == "print" {
         assert_args_number!("print", args.len(), 1);
         if let Expr::String(str) = &args[0] {
@@ -44,8 +50,7 @@ fn builtin_functions(x: &str, #[maybe_const(dispatch = args, consts = [[Parser:E
         }
 
         (Expr::Null, true)
-    }
-    else if x == "abs" {
+    } else if x == "abs" {
         assert_args_number!("abs", args.len(), 1);
         match &args[0] {
             Expr::Float(val) => return (Expr::Float(val.abs()), true),
@@ -88,14 +93,14 @@ fn builtin_functions(x: &str, #[maybe_const(dispatch = args, consts = [[Parser:E
     } else if x == "input" {
         assert_args_number!("input", args.len(), 0, 1);
         if args.len() == 1 {
-            if let Expr::String(prompt) = &args[0] {
+            if_let!(likely, Expr::String(prompt), &args[0], {
                 print!("{}", prompt);
-            } else {
+            }, else {
                 error(
                     &format!("Cannot print {} type", get_printable_type!(&args[0])),
                     "Change type",
                 );
-            }
+            });
         }
         io::stdout().flush().unwrap();
         return (
@@ -113,10 +118,7 @@ fn builtin_functions(x: &str, #[maybe_const(dispatch = args, consts = [[Parser:E
         );
     } else if x == "type" {
         assert_args_number!("type", args.len(), 1);
-        return (
-            Expr::String(get_printable_type!(&args[0]).into()),
-            true,
-        );
+        return (Expr::String(get_printable_type!(&args[0]).into()), true);
     } else if x == "hash" {
         assert_args_number!("hash", args.len(), 1);
         (
@@ -149,38 +151,30 @@ fn builtin_functions(x: &str, #[maybe_const(dispatch = args, consts = [[Parser:E
     } else if x == "the_answer" {
         println!("42, the answer to the Ultimate Question of Life, the Universe, and Everything.");
         (Expr::Integer(42), true)
-    }
-    else if x == "range" {
+    } else if x == "range" {
         assert_args_number!("sqrt", args.len(), 1, 3);
         if args.len() == 1 {
-            if let Expr::Integer(lim) = args[0] {
-                (
-                    Expr::Array((0..lim).map(Expr::Integer).collect()),
-                    true,
-                )
-            } else {
+            if_let!(likely, Expr::Integer(lim), args[0], {
+                (Expr::Array((0..lim).map(Expr::Integer).collect()), true)
+            }, else {
                 error("Invalid range limit", "");
                 (Expr::Null, false)
-            }
+            })
         } else if args.len() == 2 {
-            if let Expr::Integer(lim) = args[0] {
-                if let Expr::Integer(upplim) = args[1] {
+            if_let!(likely, Expr::Integer(lim), args[0], {
+                if_let!(Expr::Integer(upplim), args[1], {
                     (
-                        Expr::Array(
-                            (lim..upplim)
-                                .map(Expr::Integer)
-                                .collect(),
-                        ),
+                        Expr::Array((lim..upplim).map(Expr::Integer).collect()),
                         true,
                     )
-                } else {
+                }, else {
                     error("Invalid range limit", "");
                     (Expr::Null, false)
-                }
-            } else {
+                })
+            }, else {
                 error("Invalid range start", "");
                 (Expr::Null, false)
-            }
+            })
         } else if args.len() == 3 {
             if let Expr::Integer(start) = args[0] {
                 if let Expr::Integer(stop) = args[1] {
@@ -212,8 +206,7 @@ fn builtin_functions(x: &str, #[maybe_const(dispatch = args, consts = [[Parser:E
             error("Invalid range arguments", "");
             (Expr::Null, false)
         }
-    }
-    else {
+    } else {
         (Expr::Null, false)
     }
 }
@@ -234,8 +227,7 @@ fn process_stack(
                 .find(|x| x.name.eq(var))
                 .expect(&format!("Unknown variable '{}'", var));
             element = &variable.value
-        }
-        else {
+        } else {
             val = preprocess(variables, functions, element);
             if val != Expr::Null {
                 element = &val;
@@ -249,27 +241,39 @@ fn process_stack(
                 }
                 Expr::OR(ref x) => {
                     let parsed_exp = process_stack(&x, variables, functions);
-                    if let Expr::Bool(inbool) = output {
-                        if let Expr::Bool(sidebool) = parsed_exp {
-                            output = Expr::Bool(inbool || sidebool)
-                        } else {
-                            error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
+                    if_let!(
+                        likely,
+                        Expr::Bool(inbool),
+                        output,
+                        {
+                            if_let!(likely, Expr::Bool(sidebool), parsed_exp, {
+                                output = Expr::Bool(inbool || sidebool)
+                            }, else {
+                                error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
+                            });
+                        }, else
+                        {
+                            error(format!("{:?} is not a Boolean", output).as_str(), "");
                         }
-                    } else {
-                        error(format!("{:?} is not a Boolean", output).as_str(), "");
-                    }
+                    );
                 }
                 Expr::AND(ref x) => {
                     let parsed_exp = process_stack(&x, variables, functions);
-                    if let Expr::Bool(inbool) = output {
-                        if let Expr::Bool(sidebool) = parsed_exp {
-                            output = Expr::Bool(inbool && sidebool)
-                        } else {
-                            error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
+                    if_let!(
+                        likely,
+                        Expr::Bool(inbool),
+                        output,
+                        {
+                            if_let!(likely, Expr::Bool(sidebool), parsed_exp, {
+                                output = Expr::Bool(inbool && sidebool)
+                            }, else {
+                                error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
+                            });
+                        }, else
+                        {
+                            error(format!("{:?} is not a Boolean", output).as_str(), "");
                         }
-                    } else {
-                        error(format!("{:?} is not a Boolean", output).as_str(), "");
-                    }
+                    )
                 }
                 Expr::String(x) => {
                     output = string_ops(x.to_string(), output, current_operator);
@@ -280,11 +284,9 @@ fn process_stack(
                 Expr::Integer(x) => {
                     output = integer_ops(*x, output, current_operator);
                 }
-                Expr::Array(x) => {
-                    output = array_ops(x.to_owned(), output, current_operator)
-                }
+                Expr::Array(x) => output = array_ops(x.to_owned(), output, current_operator),
                 Expr::Null => {
-                    if let Expr::Null = output {
+                    if output == Expr::Null {
                         match current_operator {
                             BasicOperator::Equal => output = Expr::Bool(true),
                             BasicOperator::NotEqual => output = Expr::Bool(false),
@@ -329,14 +331,17 @@ fn process_stack(
     output
 }
 
-
 #[const_currying]
 fn process_function(
     lines: &Vec<Vec<Expr>>,
     variables: &mut Vec<Variable>,
     expected_variables_len: usize,
     name: &str,
-    #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] functions: &Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
+    #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] functions: &Vec<(
+        String,
+        Vec<String>,
+        Vec<Vec<Expr>>,
+    )>,
 ) -> (Expr, Vec<Variable>) {
     if variables.len() != expected_variables_len {
         error(
@@ -360,10 +365,7 @@ fn process_function(
                 }),
                 Expr::VariableRedeclaration(x, y) => {
                     let processed = process_stack(&y, &variables, &functions);
-                    if variables
-                        .iter()
-                        .any(|var| var.name == *x)
-                    {
+                    if variables.iter().any(|var| var.name == *x) {
                         return_variables.push(Variable {
                             name: x.to_string(),
                             value: processed,
@@ -381,7 +383,7 @@ fn process_function(
                         .iter()
                         .map(|arg| process_stack(&arg, &variables, &functions))
                         .collect();
-                    if !namespace_functions(&z, &x, &args).1 {
+                    if unlikely(!namespace_functions(&z, &x, &args).1) {
                         error(
                             &format!("Unknown function '{}'", z.join(".") + "." + &x),
                             "",
@@ -497,15 +499,16 @@ fn process_function(
                     let loop_array = process_stack(&y, &variables, &functions);
                     if let Expr::Array(target_array) = loop_array {
                         for elem in target_array {
-                            let mut builtin_vars = [&variables[..], &vec![Variable { name: x.to_owned(), value: elem, }][..]].concat();
+                            let mut builtin_vars = [
+                                &variables[..],
+                                &vec![Variable {
+                                    name: x.to_owned(),
+                                    value: elem,
+                                }][..],
+                            ]
+                            .concat();
                             let len = builtin_vars.len();
-                            let out = process_function(
-                                z,
-                                &mut builtin_vars,
-                                len,
-                                name,
-                                functions,
-                            );
+                            let out = process_function(z, &mut builtin_vars, len, name, functions);
                             if Expr::Null != out.0 {
                                 return out;
                             }
@@ -521,15 +524,16 @@ fn process_function(
                         }
                     } else if let Expr::String(ref target_string) = loop_array {
                         for elem in target_string.chars() {
-                            let mut builtin_vars = [&variables[..], &vec![Variable { name: x.into(), value: Expr::String(String::from(elem)), }][..]].concat();
+                            let mut builtin_vars = [
+                                &variables[..],
+                                &vec![Variable {
+                                    name: x.into(),
+                                    value: Expr::String(String::from(elem)),
+                                }][..],
+                            ]
+                            .concat();
                             let len = builtin_vars.len();
-                            let out = process_function(
-                                z,
-                                &mut builtin_vars,
-                                len,
-                                name,
-                                functions,
-                            );
+                            let out = process_function(z, &mut builtin_vars, len, name, functions);
                             if Expr::Null != out.0 {
                                 return out;
                             }

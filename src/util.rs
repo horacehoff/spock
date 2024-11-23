@@ -113,6 +113,66 @@ macro_rules! math_to_type {
     };
 }
 
+#[macro_export]
+macro_rules! if_let {
+    // When likely is specified
+    (likely, $pattern:pat, $value:expr, $body:block) => {
+        if likely(matches!($value, $pattern)) {
+            if let $pattern = $value {
+                $body
+            }
+        }
+    };
+
+    (likely, $pattern:pat, $value:expr, $body:block, else $elseblock:block) => {
+        if likely(matches!($value, $pattern)) {
+            if let $pattern = $value {
+                $body
+            } else {
+                $elseblock
+            }
+        } else {
+            $elseblock
+        }
+    };
+
+    // When unlikely is specified
+    (unlikely, $pattern:pat, $value:expr, $body:block) => {
+        if unlikely(matches!($value, $pattern)) {
+            if let $pattern = $value {
+                $body
+            }
+        }
+    };
+
+    (unlikely, $pattern:pat, $value:expr, $body:block, else $elseblock:block) => {
+        if unlikely(matches!($value, $pattern)) {
+            if let $pattern = $value {
+                $body
+            } else {
+                $elseblock
+            }
+        } else {
+            $elseblock
+        }
+    };
+
+    // Default (no prediction hint)
+    ($pattern:pat, $value:pat, $body:block) => {
+        if let $pattern = $value {
+            $body
+        }
+    };
+
+    ($pattern:pat, $value:expr, $body:block, else $elseblock:block) => {
+        if let $pattern = $value {
+            $body
+        } else {
+            $elseblock
+        }
+    };
+}
+
 pub fn get_printable_form(x: &Expr) -> String {
     match x {
         Expr::String(str) => str.to_owned(),
