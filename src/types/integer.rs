@@ -1,6 +1,8 @@
 use crate::parser::{BasicOperator, Expr};
 use crate::util::error;
-use crate::{error_msg, get_printable_type, math_to_type};
+use crate::{error_msg, get_printable_type, if_let, math_to_type};
+use branches::likely;
+
 
 // #[inline(always)]
 pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Expr {
@@ -50,9 +52,9 @@ pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Exp
             }
         }
     } else if let Expr::Operation(y) = output {
-        if let BasicOperator::Sub = y {
+        if_let!(likely, BasicOperator::Sub, y, {
             Expr::Integer(-x)
-        } else {
+        }, else {
             error(
                 &format!(
                     "Cannot perform operation '{y:?}' between {:?} and Integer",
@@ -61,15 +63,15 @@ pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Exp
                 "",
             );
             Expr::Null
-        }
+        })
     } else if let Expr::Array(ref y) = output {
-        if let BasicOperator::Multiply = current_operator {
+        if_let!(likely, BasicOperator::Multiply, current_operator, {
             let mut new_vec: Vec<Expr> = vec![];
             for _ in 0..x {
                 new_vec.append(&mut y.clone());
             }
             Expr::Array(new_vec)
-        } else {
+        }, else {
             error(
                 &format!(
                     "Cannot perform operation '{:?}' between Array and Integer",
@@ -78,7 +80,7 @@ pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Exp
                 "",
             );
             Expr::Null
-        }
+        })
     }
     else {
         error(

@@ -343,7 +343,7 @@ fn process_function(
         Vec<Vec<Expr>>,
     )>,
 ) -> (Expr, Vec<Variable>) {
-    if variables.len() != expected_variables_len {
+    if unlikely(variables.len() != expected_variables_len) {
         error(
             &format!(
                 "Careful! Function '{}' expected {} arguments, but received {}",
@@ -400,12 +400,12 @@ fn process_function(
                     let matched = builtin_functions(&x, &args);
                     if x == "executeline" && !matched.1 {
                         assert_args_number!("executeline", args.len(), 1);
-                        if let Expr::String(line) = &args[0] {
+                        if_let!(likely, Expr::String(line), &args[0], {
                             process_stack(&parse_code(line)[0], &variables, &functions);
                             continue;
-                        } else {
+                        }, else {
                             error(&format!("Cannot execute line {:?}", &args[0]), "")
-                        }
+                        })
                     } else if !matched.1 {
                         let target_function: &(String, Vec<String>, Vec<Vec<Expr>>) = functions
                             .into_iter()
