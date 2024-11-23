@@ -37,9 +37,15 @@ use const_currying::const_currying;
 fn builtin_functions(x: &str, #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] args: &Vec<Expr>) -> (Expr, bool) {
     if x == "print" {
         assert_args_number!("print", args.len(), 1);
-        println!("{}", get_printable_form(&args[0]));
+        if let Expr::String(str) = &args[0] {
+            println!("{}", str);
+        } else {
+            println!("{}", get_printable_form(&args[0]));
+        }
+
         (Expr::Null, true)
-    } else if x == "abs" {
+    }
+    else if x == "abs" {
         assert_args_number!("abs", args.len(), 1);
         match &args[0] {
             Expr::Float(val) => return (Expr::Float(val.abs()), true),
@@ -143,12 +149,13 @@ fn builtin_functions(x: &str, #[maybe_const(dispatch = args, consts = [[Parser:E
     } else if x == "the_answer" {
         println!("42, the answer to the Ultimate Question of Life, the Universe, and Everything.");
         (Expr::Integer(42), true)
-    } else if x == "range" {
+    }
+    else if x == "range" {
         assert_args_number!("sqrt", args.len(), 1, 3);
         if args.len() == 1 {
             if let Expr::Integer(lim) = args[0] {
                 (
-                    Expr::Array((0..lim).into_iter().map(|x| Expr::Integer(x)).collect()),
+                    Expr::Array((0..lim).map(Expr::Integer).collect()),
                     true,
                 )
             } else {
@@ -161,8 +168,7 @@ fn builtin_functions(x: &str, #[maybe_const(dispatch = args, consts = [[Parser:E
                     (
                         Expr::Array(
                             (lim..upplim)
-                                .into_iter()
-                                .map(|x| Expr::Integer(x))
+                                .map(Expr::Integer)
                                 .collect(),
                         ),
                         true,
@@ -188,7 +194,7 @@ fn builtin_functions(x: &str, #[maybe_const(dispatch = args, consts = [[Parser:E
                             } else {
                                 (stop..start).step_by((-step) as usize)
                             };
-                            (Expr::Array(range.map(|x| Expr::Integer(x)).collect()), true)
+                            (Expr::Array(range.map(Expr::Integer).collect()), true)
                         }
                     } else {
                         error("Invalid range step", "");
@@ -206,7 +212,8 @@ fn builtin_functions(x: &str, #[maybe_const(dispatch = args, consts = [[Parser:E
             error("Invalid range arguments", "");
             (Expr::Null, false)
         }
-    } else {
+    }
+    else {
         (Expr::Null, false)
     }
 }
@@ -385,7 +392,7 @@ fn process_function(
                     // println!("{:?}", y);
                     let args: Vec<Expr> = y
                         .iter()
-                        .map(|arg| process_stack(&arg, &variables, &functions))
+                        .map(|arg| process_stack(arg, variables, functions))
                         .collect();
 
                     let matched = builtin_functions(&x, &args);
@@ -634,15 +641,16 @@ options:
         .collect::<Vec<(String, Vec<String>, Vec<Vec<Expr>>)>>();
 
     let now = Instant::now();
-    thread::Builder::new()
-        // 16MB stack size
-        .stack_size(16 * 1024 * 1024)
-        .spawn(move || {
-            process_function(&main_instructions[0].2, &mut vec![], 0, "main", &functions);
-        })
-        .unwrap()
-        .join()
-        .unwrap();
+    // thread::Builder::new()
+    //     // 16MB stack size
+    //     .stack_size(16 * 1024 * 1024)
+    //     .spawn(move || {
+    //         process_function(&main_instructions[0].2, &mut vec![], 0, "main", &functions);
+    //     })
+    //     .unwrap()
+    //     .join()
+    //     .unwrap();
+    process_function(&main_instructions[0].2, &mut vec![], 0, "main", &functions);
     println!("EXECUTED IN: {:.2?}", now.elapsed());
     println!("TOTAL: {:.2?}", totaltime.elapsed());
 }
