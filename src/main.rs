@@ -176,10 +176,10 @@ fn builtin_functions(
                 (Expr::Null, false)
             })
         } else if args.len() == 3 {
-            if let Expr::Integer(start) = args[0] {
-                if let Expr::Integer(stop) = args[1] {
-                    if let Expr::Integer(step) = args[2] {
-                        if step == 0 {
+            if_let!(likely, Expr::Integer(start), args[0], {
+                if_let!(Expr::Integer(stop), args[1], {
+                    if_let!(Expr::Integer(step), args[2], {
+                        if unlikely(step == 0) {
                             error("Step cannot be zero", "");
                             (Expr::Null, false)
                         } else {
@@ -190,18 +190,18 @@ fn builtin_functions(
                             };
                             (Expr::Array(range.map(Expr::Integer).collect()), true)
                         }
-                    } else {
+                    }, else {
                         error("Invalid range step", "");
                         (Expr::Null, false)
-                    }
-                } else {
+                    })
+                }, else {
                     error("Invalid range limit", "");
                     (Expr::Null, false)
-                }
-            } else {
+                })
+            }, else {
                 error("Invalid range start", "");
                 (Expr::Null, false)
-            }
+            })
         } else {
             error("Invalid range arguments", "");
             (Expr::Null, false)
