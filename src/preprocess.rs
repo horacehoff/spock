@@ -7,8 +7,9 @@ use crate::{
 };
 use branches::likely;
 use smol_str::{SmolStr, ToSmolStr};
+use unroll::unroll_for_loops;
 
-// #[inline(always)]
+#[unroll_for_loops]
 pub fn preprocess(
     variables: &Vec<Variable>,
     functions: &Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)>,

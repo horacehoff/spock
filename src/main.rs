@@ -35,6 +35,7 @@ use std::time::Instant;
 use std::{fs, io};
 use branches::likely;
 use smol_str::{SmolStr, StrExt, ToSmolStr};
+use unroll::unroll_for_loops;
 
 #[const_currying]
 fn builtin_functions(
@@ -210,6 +211,8 @@ fn builtin_functions(
     }
 }
 
+
+#[unroll_for_loops]
 fn process_stack(
     stack_in: &Vec<Expr>,
     variables: &Vec<Variable>,
@@ -331,6 +334,7 @@ fn process_stack(
     output
 }
 
+#[unroll_for_loops]
 #[const_currying]
 fn process_function(
     lines: &Vec<Vec<Expr>>,
