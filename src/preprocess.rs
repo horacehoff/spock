@@ -118,8 +118,8 @@ pub fn preprocess(
             .collect();
         let result = process_function(
             &target_function.2,
-            &target_args,
-            &target_args,
+            &mut target_args.clone(),
+            target_args.len(),
             target_function.0.as_str(),
             &functions,
         );

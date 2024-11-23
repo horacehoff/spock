@@ -322,44 +322,43 @@ fn process_stack(
     output
 }
 
+
+#[const_currying]
 fn process_function(
     lines: &Vec<Vec<Expr>>,
-    included_variables: &Vec<Variable>,
-    expected_variables: &Vec<Variable>,
+    variables: &mut Vec<Variable>,
+    expected_variables_len: usize,
     name: &str,
-    functions: &Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
+    #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] functions: &Vec<(String, Vec<String>, Vec<Vec<Expr>>)>,
 ) -> (Expr, Vec<Variable>) {
-    if included_variables.len() != expected_variables.len() {
+    if variables.len() != expected_variables_len {
         error(
             &format!(
-                "Function '{}' expected {} arguments, but received {}",
+                "Careful! Function '{}' expected {} arguments, but received {}",
                 name,
-                expected_variables.len(),
-                included_variables.len()
+                expected_variables_len,
+                variables.len()
             ),
             "Remove the excess arguments",
         )
     }
-    // let mut variables: Vec<Variable> = vec![];
-    let mut variables: Vec<Variable> = included_variables.clone();
-
     let mut return_variables: Vec<Variable> = vec![];
 
     for instructions in lines {
         for instruction in instructions {
             match instruction {
                 Expr::VariableDeclaration(x, y) => variables.push(Variable {
-                    name: x.into(),
+                    name: x.to_string(),
                     value: process_stack(&y, &variables, &functions),
                 }),
                 Expr::VariableRedeclaration(x, y) => {
                     let processed = process_stack(&y, &variables, &functions);
-                    if included_variables
+                    if variables
                         .iter()
                         .any(|var| var.name == *x)
                     {
                         return_variables.push(Variable {
-                            name: x.into(),
+                            name: x.to_string(),
                             value: processed,
                         });
                     } else {
@@ -405,7 +404,7 @@ fn process_function(
                             .next()
                             .expect(error_msg!(&format!("Unknown function '{}'", x)));
                         assert_args_number!(&x, args.len(), target_function.1.len());
-                        let target_args: Vec<Variable> = target_function
+                        let mut target_args: Vec<Variable> = target_function
                             .1
                             .iter()
                             .enumerate()
@@ -414,10 +413,11 @@ fn process_function(
                                 value: args[i].clone(),
                             })
                             .collect();
+                        let len = target_args.len();
                         process_function(
                             &target_function.2,
-                            &target_args,
-                            &target_args,
+                            &mut target_args,
+                            len,
                             &target_function.0,
                             functions,
                         );
@@ -429,7 +429,7 @@ fn process_function(
                 }
                 Expr::Condition(x, y, z) => {
                     if process_stack(x, &variables, functions) == Expr::Bool(true) {
-                        let out = process_function(y, &variables, &variables, name, functions);
+                        let out = process_function(y, variables, variables.len(), name, functions);
                         if Expr::Null != out.0 {
                             return out;
                         }
@@ -438,8 +438,8 @@ fn process_function(
                             if else_block.0.len() == 0 {
                                 let out = process_function(
                                     &else_block.1,
-                                    &variables,
-                                    &variables,
+                                    variables,
+                                    variables.len(),
                                     name,
                                     functions,
                                 );
@@ -463,8 +463,8 @@ fn process_function(
                             {
                                 let out = process_function(
                                     &else_block.1,
-                                    &variables,
-                                    &variables,
+                                    variables,
+                                    variables.len(),
                                     name,
                                     functions,
                                 );
@@ -488,14 +488,14 @@ fn process_function(
                 }
                 Expr::Loop(x, y, z) => {
                     let loop_array = process_stack(&y, &variables, &functions);
-                    //log!("LOOP ARRAY {:?}", loop_array);
                     if let Expr::Array(target_array) = loop_array {
                         for elem in target_array {
-                            let builtin_vars = [&variables[..], &vec![Variable { name: x.to_owned(), value: elem, }][..]].concat();
+                            let mut builtin_vars = [&variables[..], &vec![Variable { name: x.to_owned(), value: elem, }][..]].concat();
+                            let len = builtin_vars.len();
                             let out = process_function(
                                 z,
-                                &builtin_vars,
-                                &builtin_vars,
+                                &mut builtin_vars,
+                                len,
                                 name,
                                 functions,
                             );
@@ -512,13 +512,14 @@ fn process_function(
                                 }
                             }
                         }
-                    } else if let Expr::String(target_string) = loop_array {
+                    } else if let Expr::String(ref target_string) = loop_array {
                         for elem in target_string.chars() {
-                            let builtin_vars = [&variables[..], &vec![Variable { name: x.into(), value: Expr::String(String::from(elem)), }][..]].concat();
+                            let mut builtin_vars = [&variables[..], &vec![Variable { name: x.into(), value: Expr::String(String::from(elem)), }][..]].concat();
+                            let len = builtin_vars.len();
                             let out = process_function(
                                 z,
-                                &builtin_vars,
-                                &builtin_vars,
+                                &mut builtin_vars,
+                                len,
                                 name,
                                 functions,
                             );
@@ -540,7 +541,7 @@ fn process_function(
                 Expr::While(x, y) => {
                     // let condition = process_stack(*x, variables.clone(), functions.clone());
                     while process_stack(x, &variables, functions) == Expr::Bool(true) {
-                        let out = process_function(y, &variables, &variables, name, functions);
+                        let out = process_function(y, variables, variables.len(), name, functions);
                         if Expr::Null != out.0 {
                             return out;
                         }
@@ -637,7 +638,7 @@ options:
         // 16MB stack size
         .stack_size(16 * 1024 * 1024)
         .spawn(move || {
-            process_function(&main_instructions[0].2, &vec![], &vec![], "main", &functions);
+            process_function(&main_instructions[0].2, &mut vec![], 0, "main", &functions);
         })
         .unwrap()
         .join()
