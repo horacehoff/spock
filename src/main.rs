@@ -227,7 +227,7 @@ fn process_stack(
             let variable = &variables
                 .iter()
                 .find(|x| x.name.eq(var))
-                .expect(&format!("Unknown variable '{}'", var));
+                .expect(&error_msg!(format!("Unknown variable '{}'", var)));
             element = &variable.value
         } else {
             val = preprocess(variables, functions, element);
@@ -369,17 +369,14 @@ fn process_function(
                 }),
                 Expr::VariableRedeclaration(x, y) => {
                     let processed = process_stack(&y, &variables, &functions);
-                    if variables.iter().any(|var| var.name == *x) {
+                    if let Some(position) = variables.iter().position(|var| var.name == *x) {
+                        // If the variable exists, update it directly
+                        variables[position].value = processed;
+                    } else {
                         return_variables.push(Variable {
                             name: x.to_smolstr(),
                             value: processed,
                         });
-                    } else {
-                        let position = variables
-                            .iter()
-                            .position(|var| var.name == *x)
-                            .expect(error_msg!(format!("Variable '{}' does not exist", x)));
-                        variables[position].value = processed;
                     }
                 }
                 Expr::NamespaceFunctionCall(z, x, y) => {
@@ -517,11 +514,11 @@ fn process_function(
                         for elem in target_array {
                             builtin_vars[position].value = elem;
 
-                            let out = process_function(z, &mut builtin_vars, len, name, functions);
-                            if Expr::Null != out.0 {
-                                return out;
+                            let (out_expr, out_replacements) = process_function(z, &mut builtin_vars, len, name, functions);
+                            if out_expr != Expr::Null {
+                                return (out_expr, out_replacements);
                             }
-                            for replace_var in out.1 {
+                            for replace_var in out_replacements {
                                 let indx = variables
                                     .iter()
                                     .position(|var| var.name == replace_var.name)
@@ -543,11 +540,11 @@ fn process_function(
                         let len = builtin_vars.len();
                         for elem in target_string.chars() {
                             builtin_vars[position].value = Expr::String(elem.to_smolstr());
-                            let out = process_function(z, &mut builtin_vars, len, name, functions);
-                            if Expr::Null != out.0 {
-                                return out;
+                            let (out_expr, out_replacements) = process_function(z, &mut builtin_vars, len, name, functions);
+                            if out_expr != Expr::Null {
+                                return (out_expr, out_replacements);
                             }
-                            for replace_var in out.1 {
+                            for replace_var in out_replacements {
                                 let indx = variables
                                     .iter()
                                     .position(|var| var.name == replace_var.name)
