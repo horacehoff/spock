@@ -502,59 +502,63 @@ fn process_function(
                 Expr::Loop(x, y, z) => {
                     let loop_array = process_stack(&y, &variables, &functions);
                     if let Expr::Array(target_array) = loop_array {
-                        for elem in target_array {
-                            let mut builtin_vars = [
-                                &variables[..],
-                                &vec![Variable {
-                                    name: x.to_owned(),
-                                    value: elem,
-                                }][..],
-                            ]
+
+                        let mut builtin_vars = [
+                            &variables[..],
+                            &vec![Variable {
+                                name: x.to_owned(),
+                                value: Expr::Null,
+                            }][..],
+                        ]
                             .concat();
-                            let len = builtin_vars.len();
+                        let position = builtin_vars.len()-1;
+                        let len = builtin_vars.len();
+
+                        for elem in target_array {
+                            builtin_vars[position].value = elem;
+
                             let out = process_function(z, &mut builtin_vars, len, name, functions);
                             if Expr::Null != out.0 {
                                 return out;
                             }
-                            if out.1.len() > 0 {
-                                for replace_var in out.1 {
-                                    let indx = variables
-                                        .iter()
-                                        .position(|var| var.name == replace_var.name)
-                                        .unwrap();
-                                    variables[indx] = replace_var;
-                                }
+                            for replace_var in out.1 {
+                                let indx = variables
+                                    .iter()
+                                    .position(|var| var.name == replace_var.name)
+                                    .unwrap();
+                                variables[indx] = replace_var.to_owned();
+                                builtin_vars[indx] = replace_var;
                             }
                         }
                     } else if let Expr::String(ref target_string) = loop_array {
-                        for elem in target_string.chars() {
-                            let mut builtin_vars = [
-                                &variables[..],
-                                &vec![Variable {
-                                    name: x.to_smolstr(),
-                                    value: Expr::String(elem.to_smolstr()),
-                                }][..],
-                            ]
+                        let mut builtin_vars = [
+                            &variables[..],
+                            &vec![Variable {
+                                name: x.to_smolstr(),
+                                value: Expr::Null,
+                            }][..],
+                        ]
                             .concat();
+                        let position = builtin_vars.len()-1;
+                        for elem in target_string.chars() {
+                            builtin_vars[position].value = Expr::String(elem.to_smolstr());   
                             let len = builtin_vars.len();
                             let out = process_function(z, &mut builtin_vars, len, name, functions);
                             if Expr::Null != out.0 {
                                 return out;
                             }
-                            if out.1 != vec![] {
-                                for replace_var in out.1 {
-                                    let indx = variables
-                                        .iter()
-                                        .position(|var| var.name == replace_var.name)
-                                        .unwrap();
-                                    variables[indx] = replace_var;
-                                }
+                            for replace_var in out.1 {
+                                let indx = variables
+                                    .iter()
+                                    .position(|var| var.name == replace_var.name)
+                                    .unwrap();
+                                variables[indx] = replace_var.to_owned();
+                                builtin_vars[indx] = replace_var;
                             }
                         }
                     }
                 }
                 Expr::While(x, y) => {
-                    // let condition = process_stack(*x, variables.clone(), functions.clone());
                     while process_stack(x, &variables, functions) == Expr::Bool(true) {
                         let out = process_function(y, variables, variables.len(), name, functions);
                         if Expr::Null != out.0 {
