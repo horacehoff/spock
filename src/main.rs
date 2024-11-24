@@ -540,9 +540,9 @@ fn process_function(
                         ]
                             .concat();
                         let position = builtin_vars.len()-1;
+                        let len = builtin_vars.len();
                         for elem in target_string.chars() {
-                            builtin_vars[position].value = Expr::String(elem.to_smolstr());   
-                            let len = builtin_vars.len();
+                            builtin_vars[position].value = Expr::String(elem.to_smolstr());
                             let out = process_function(z, &mut builtin_vars, len, name, functions);
                             if Expr::Null != out.0 {
                                 return out;
