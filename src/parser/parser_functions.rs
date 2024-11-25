@@ -7,6 +7,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
+use libloading::{Library, library_filename};
 use smol_str::{SmolStr, ToSmolStr};
 
 pub fn parse_functions(
@@ -24,12 +25,26 @@ pub fn parse_functions(
             i += 1;
             match_content = &content[0..i];
         }
-        let name = String::from("./") + match_content.replace("import", "").trim() + ".compute";
-        let file_content = fs::read_to_string(&name).expect(error_msg!(format!(
+        let name = String::from("./") + match_content.replace("import", "").trim().trim_end_matches(";");
+
+        if name.ends_with(".compute") {
+            // IS COMPUTE FILE
+            let file_content = fs::read_to_string(&name).expect(error_msg!(format!(
             "Cannot find module {}",
             name.trim_start_matches("./")
         )));
-        imported_functions.append(&mut parse_functions(&file_content, false));
+            imported_functions.append(&mut parse_functions(&file_content, false));
+        } else {
+            // IS LIB -> .dll, .so, .dylib
+            // VERY WIP - Doesn't work at the moment
+            let library = unsafe {
+                println!("PARSED");
+                Library::new(library_filename(name.trim_start_matches("./")))
+            }.unwrap();
+        }
+
+
+
     }
     for content_match in matches {
         let match_index = content_match.0;
@@ -39,7 +54,7 @@ pub fn parse_functions(
             i += 1;
             match_content = &content[match_index..match_index + i];
         }
-        let name = String::from("./") + match_content.replace("import", "").trim() + ".compute";
+        let name = String::from("./") + match_content.replace("import", "").trim();
         let file_content = fs::read_to_string(&name).expect(error_msg!(format!(
             "Cannot find module {}",
             name.trim_start_matches("./")

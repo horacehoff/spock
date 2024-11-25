@@ -15,6 +15,7 @@ const-currying = "0.0.5"
 branches = "0.1.3"
 smol_str = { version="0.3.2",features = ["serde"] }
 unroll = "0.1.5"
+libloading = "0.8.5"
 
 
 [profile.dev]
