@@ -4,6 +4,10 @@ for i in range(1000000) {
     result = result+i;
     let x = 2;
     x = x +1;
+    if (i == 50) {
+    print("yes!!");
+    result = result - 99;
+    }
 }
 print(result);
 }

@@ -458,9 +458,9 @@ fn process_function(
                     return process_stack(x, &global_vars, functions);
                 }
                 Types::Condition(x, y, z) => {
-                    if process_stack(x, &variables, functions) == Types::Bool(true) {
-                        let len = global_vars.len();
-                        let out = process_function(y, &mut global_vars, len, name, functions,None);
+                    if process_stack(x, &global_vars, functions) == Types::Bool(true) {
+                        let len = variables.len();
+                        let out = process_function(y, variables, len, name, functions, Some(temp_vars.clone()));
                         if Types::Null != out {
                             return out;
                         }
