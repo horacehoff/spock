@@ -452,7 +452,6 @@ fn process_function(
                             functions,
                             None
                         );
-                        // println!("{:?}", target_args)
                     }
                 }
                 Types::FunctionReturn(x) => {
@@ -477,20 +476,6 @@ fn process_function(
                                     functions,
                                     None
                                 );
-                                // if Types::Null == out.0 {
-                                //     if out.1 != vec![] {
-                                //         for replace_var in out.1 {
-                                //             let indx = variables
-                                //                 .iter()
-                                //                 .position(|var| var.name == replace_var.name)
-                                //                 .unwrap();
-                                //             variables[indx] = replace_var;
-                                //         }
-                                //     }
-                                //     break;
-                                // } else {
-                                //     return out;
-                                // }
                                 if out != Types::Null {
                                     return out;
                                 }
@@ -507,20 +492,6 @@ fn process_function(
                                     functions,
                                     None
                                 );
-                                // if Types::Null == out.0 {
-                                //     if out.1 != vec![] {
-                                //         for replace_var in out.1 {
-                                //             let indx = variables
-                                //                 .iter()
-                                //                 .position(|var| var.name == replace_var.name)
-                                //                 .unwrap();
-                                //             variables[indx] = replace_var;
-                                //         }
-                                //     }
-                                //     break;
-                                // } else {
-                                //     return out;
-                                // }
                                 if out != Types::Null {
                                     return out;
                                 }
@@ -531,51 +502,21 @@ fn process_function(
                 Types::Loop(x, y, z) => {
                     let loop_array = process_stack(&y, &variables, &functions);
                     if let Types::Array(target_array) = loop_array {
-                        // let var_name = x.to_smolstr();
                         for elem in target_array {
                             let len = global_vars.len();
-                            let out_expr = process_function(z, &mut global_vars, len, name, functions, Option::Some(vec![Variable{name: x.to_smolstr(), value: elem}]));
+                            let out_expr = process_function(z, &mut global_vars, len, name, functions, Some(vec![Variable{name: x.to_smolstr(), value: elem}]));
 
                             if out_expr != Types::Null {
                                 return out_expr;
                             }
-                            // for replace_var in out_replacements {
-                            //     if let Some(indx) = variables
-                            //         .iter()
-                            //         .position(|var| var.name == replace_var.name)
-                            //     { ;
-                            //     variables[indx] = replace_var.to_owned();
-                            //     builtin_vars[indx] = replace_var;
-                            //     }
-                            // }
                         }
                     } else if let Types::String(ref target_string) = loop_array {
-                        // let mut builtin_vars = [
-                        //     &variables[..],
-                        //     &vec![Variable {
-                        //         name: x.to_smolstr(),
-                        //         value: Types::Null,
-                        //     }][..],
-                        // ]
-                        //     .concat();
-                        // let position = builtin_vars.len()-1;
-                        // let len = builtin_vars.len();
-                        // let var_name = x.to_smolstr();
                         for elem in target_string.chars() {
-                            // builtin_vars[position].value = Types::String(elem.to_smolstr());
                             let len = global_vars.len();
-                            let out_expr = process_function(z, &mut global_vars, len, name, functions,Option::Some(vec![Variable{name: x.to_smolstr(), value:Types::String(elem.to_smolstr())}]));
+                            let out_expr = process_function(z, &mut global_vars, len, name, functions,Some(vec![Variable{name: x.to_smolstr(), value:Types::String(elem.to_smolstr())}]));
                             if out_expr != Types::Null {
                                 return out_expr;
                             }
-                            // for replace_var in out_replacements {
-                            //     let indx = variables
-                            //         .iter()
-                            //         .position(|var| var.name == replace_var.name)
-                            //         .unwrap();
-                            //     variables[indx] = replace_var.to_owned();
-                            //     builtin_vars[indx] = replace_var;
-                            // }
                         }
                     }
                 }
@@ -586,15 +527,6 @@ fn process_function(
                         if Types::Null != out {
                             return out;
                         }
-                        // if out.1 != vec![] {
-                        //     for replace_var in out.1 {
-                        //         let indx = variables
-                        //             .iter()
-                        //             .position(|var| var.name == replace_var.name)
-                        //             .unwrap();
-                        //         variables[indx] = replace_var;
-                        //     }
-                        // }
                     }
                 }
                 _ => {
@@ -602,12 +534,9 @@ fn process_function(
                     break;
                 }
             }
-            // println!("{:?}", instruction)
         }
-        // println!("{:?}", instructions)
     }
     Types::Null
-    // println!("{:?}", variables)
 }
 
 fn main() {
