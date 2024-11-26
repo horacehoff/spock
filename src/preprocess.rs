@@ -125,8 +125,9 @@ pub fn preprocess(
             target_args.len(),
             target_function.0.as_str(),
             &functions,
+            None
         );
-        return result.0;
+        return result;
     } else if let Types::Priority(ref calc) = element {
         // execute content inside parentheses before all the other content in the second loop
         return process_stack(&calc, &variables, &functions);

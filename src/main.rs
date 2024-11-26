@@ -346,7 +346,8 @@ fn process_function(
         Vec<SmolStr>,
         Vec<Vec<Types>>,
     )>,
-) -> (Types, Vec<Variable>) {
+    extra_variables: Option<Vec<Variable>>
+) -> Types {
     if unlikely(variables.len() != expected_variables_len) {
         error(
             &format!(
@@ -358,31 +359,50 @@ fn process_function(
             "Remove the excess arguments",
         )
     }
-    let mut return_variables: Vec<Variable> = vec![];
+    let mut temp_vars: Vec<Variable> = if let Some(var) = extra_variables {var} else {vec![]};
+
+    let mut global_vars: Vec<Variable> = [
+        &variables[..],
+        &temp_vars[..],
+
+    ].concat();
+    macro_rules! update_global {
+        () => {
+            global_vars = [
+                &variables[..],
+                &temp_vars[..],
+            ].concat();
+        };
+    }
 
     for instructions in lines {
         for instruction in instructions {
             match instruction {
-                Types::VariableDeclaration(x, y) => variables.push(Variable {
-                    name: x.to_smolstr(),
-                    value: process_stack(&y, &variables, &functions),
-                }),
+                Types::VariableDeclaration(x, y) => {
+                    temp_vars.push(Variable {
+                        name: x.to_smolstr(),
+                        value: process_stack(&y, &variables, &functions),
+                    });
+                    update_global!();
+                },
                 Types::VariableRedeclaration(x, y) => {
-                    let processed = process_stack(&y, &variables, &functions);
                     if let Some(position) = variables.iter().position(|var| var.name == *x) {
-                        // If the variable exists, update it directly
+                        let processed = process_stack(&y, &global_vars, &functions);
                         variables[position].value = processed;
+                    } else if let Some(position) = temp_vars
+                        .iter()
+                        .position(|var| var.name == *x) {
+                        let processed = process_stack(&y, &global_vars, &functions);
+                        temp_vars[position].value = processed;
                     } else {
-                        return_variables.push(Variable {
-                            name: x.to_smolstr(),
-                            value: processed,
-                        });
+                        error(&format!("Variable {x} does not exist"),"");
                     }
+                    update_global!();
                 }
                 Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
                     let args: Vec<Types> = z
                         .iter()
-                        .map(|arg| process_stack(&arg, &variables, &functions))
+                        .map(|arg| process_stack(&arg, &global_vars, &functions))
                         .collect();
                     if unlikely(!namespace_functions(&namespace, &y, &args).1) {
                         error(
@@ -395,14 +415,14 @@ fn process_function(
                     // println!("{:?}", y);
                     let args: Vec<Types> = y
                         .iter()
-                        .map(|arg| process_stack(arg, variables, functions))
+                        .map(|arg| process_stack(arg, &global_vars, functions))
                         .collect();
 
                     let matched = builtin_functions(&x, &args);
                     if x == "executeline" && !matched.1 {
                         assert_args_number!("executeline", args.len(), 1);
                         if_let!(likely, Types::String(line), &args[0], {
-                            process_stack(&parse_code(line)[0], &variables, &functions);
+                            process_stack(&parse_code(line)[0], &global_vars, &functions);
                             continue;
                         }, else {
                             error(&format!("Cannot execute line {:?}", &args[0]), "")
@@ -430,66 +450,78 @@ fn process_function(
                             len,
                             &target_function.0,
                             functions,
+                            None
                         );
                         // println!("{:?}", target_args)
                     }
                 }
                 Types::FunctionReturn(x) => {
-                    return (process_stack(x, &variables, functions), return_variables);
+                    return process_stack(x, &global_vars, functions);
                 }
                 Types::Condition(x, y, z) => {
                     if process_stack(x, &variables, functions) == Types::Bool(true) {
-                        let out = process_function(y, variables, variables.len(), name, functions);
-                        if Types::Null != out.0 {
+                        let len = global_vars.len();
+                        let out = process_function(y, &mut global_vars, len, name, functions,None);
+                        if Types::Null != out {
                             return out;
                         }
                     } else {
                         for else_block in z {
                             if else_block.0.len() == 0 {
+                                let len = global_vars.len();
                                 let out = process_function(
                                     &else_block.1,
-                                    variables,
-                                    variables.len(),
+                                    &mut global_vars,
+                                    len,
                                     name,
                                     functions,
+                                    None
                                 );
-                                if Types::Null == out.0 {
-                                    if out.1 != vec![] {
-                                        for replace_var in out.1 {
-                                            let indx = variables
-                                                .iter()
-                                                .position(|var| var.name == replace_var.name)
-                                                .unwrap();
-                                            variables[indx] = replace_var;
-                                        }
-                                    }
-                                    break;
-                                } else {
+                                // if Types::Null == out.0 {
+                                //     if out.1 != vec![] {
+                                //         for replace_var in out.1 {
+                                //             let indx = variables
+                                //                 .iter()
+                                //                 .position(|var| var.name == replace_var.name)
+                                //                 .unwrap();
+                                //             variables[indx] = replace_var;
+                                //         }
+                                //     }
+                                //     break;
+                                // } else {
+                                //     return out;
+                                // }
+                                if out != Types::Null {
                                     return out;
                                 }
                             }
                             if process_stack(&else_block.0, &variables, &functions)
                                 == Types::Bool(true)
                             {
+                                let len = global_vars.len();
                                 let out = process_function(
                                     &else_block.1,
-                                    variables,
-                                    variables.len(),
+                                    &mut global_vars,
+                                    len,
                                     name,
                                     functions,
+                                    None
                                 );
-                                if Types::Null == out.0 {
-                                    if out.1 != vec![] {
-                                        for replace_var in out.1 {
-                                            let indx = variables
-                                                .iter()
-                                                .position(|var| var.name == replace_var.name)
-                                                .unwrap();
-                                            variables[indx] = replace_var;
-                                        }
-                                    }
-                                    break;
-                                } else {
+                                // if Types::Null == out.0 {
+                                //     if out.1 != vec![] {
+                                //         for replace_var in out.1 {
+                                //             let indx = variables
+                                //                 .iter()
+                                //                 .position(|var| var.name == replace_var.name)
+                                //                 .unwrap();
+                                //             variables[indx] = replace_var;
+                                //         }
+                                //     }
+                                //     break;
+                                // } else {
+                                //     return out;
+                                // }
+                                if out != Types::Null {
                                     return out;
                                 }
                             }
@@ -499,77 +531,70 @@ fn process_function(
                 Types::Loop(x, y, z) => {
                     let loop_array = process_stack(&y, &variables, &functions);
                     if let Types::Array(target_array) = loop_array {
-
-                        let mut builtin_vars = [
-                            &variables[..],
-                            &vec![Variable {
-                                name: x.to_owned(),
-                                value: Types::Null,
-                            }][..],
-                        ]
-                            .concat();
-                        let position = builtin_vars.len()-1;
-                        let len = builtin_vars.len();
-
+                        // let var_name = x.to_smolstr();
                         for elem in target_array {
-                            builtin_vars[position].value = elem;
+                            let len = global_vars.len();
+                            let out_expr = process_function(z, &mut global_vars, len, name, functions, Option::Some(vec![Variable{name: x.to_smolstr(), value: elem}]));
 
-                            let (out_expr, out_replacements) = process_function(z, &mut builtin_vars, len, name, functions);
                             if out_expr != Types::Null {
-                                return (out_expr, out_replacements);
+                                return out_expr;
                             }
-                            for replace_var in out_replacements {
-                                let indx = variables
-                                    .iter()
-                                    .position(|var| var.name == replace_var.name)
-                                    .unwrap();
-                                variables[indx] = replace_var.to_owned();
-                                builtin_vars[indx] = replace_var;
-                            }
+                            // for replace_var in out_replacements {
+                            //     if let Some(indx) = variables
+                            //         .iter()
+                            //         .position(|var| var.name == replace_var.name)
+                            //     { ;
+                            //     variables[indx] = replace_var.to_owned();
+                            //     builtin_vars[indx] = replace_var;
+                            //     }
+                            // }
                         }
                     } else if let Types::String(ref target_string) = loop_array {
-                        let mut builtin_vars = [
-                            &variables[..],
-                            &vec![Variable {
-                                name: x.to_smolstr(),
-                                value: Types::Null,
-                            }][..],
-                        ]
-                            .concat();
-                        let position = builtin_vars.len()-1;
-                        let len = builtin_vars.len();
+                        // let mut builtin_vars = [
+                        //     &variables[..],
+                        //     &vec![Variable {
+                        //         name: x.to_smolstr(),
+                        //         value: Types::Null,
+                        //     }][..],
+                        // ]
+                        //     .concat();
+                        // let position = builtin_vars.len()-1;
+                        // let len = builtin_vars.len();
+                        // let var_name = x.to_smolstr();
                         for elem in target_string.chars() {
-                            builtin_vars[position].value = Types::String(elem.to_smolstr());
-                            let (out_expr, out_replacements) = process_function(z, &mut builtin_vars, len, name, functions);
+                            // builtin_vars[position].value = Types::String(elem.to_smolstr());
+                            let len = global_vars.len();
+                            let out_expr = process_function(z, &mut global_vars, len, name, functions,Option::Some(vec![Variable{name: x.to_smolstr(), value:Types::String(elem.to_smolstr())}]));
                             if out_expr != Types::Null {
-                                return (out_expr, out_replacements);
+                                return out_expr;
                             }
-                            for replace_var in out_replacements {
-                                let indx = variables
-                                    .iter()
-                                    .position(|var| var.name == replace_var.name)
-                                    .unwrap();
-                                variables[indx] = replace_var.to_owned();
-                                builtin_vars[indx] = replace_var;
-                            }
+                            // for replace_var in out_replacements {
+                            //     let indx = variables
+                            //         .iter()
+                            //         .position(|var| var.name == replace_var.name)
+                            //         .unwrap();
+                            //     variables[indx] = replace_var.to_owned();
+                            //     builtin_vars[indx] = replace_var;
+                            // }
                         }
                     }
                 }
                 Types::While(x, y) => {
                     while process_stack(x, &variables, functions) == Types::Bool(true) {
-                        let out = process_function(y, variables, variables.len(), name, functions);
-                        if Types::Null != out.0 {
+                        let len = global_vars.len();
+                        let out = process_function(y, &mut global_vars, len, name, functions,None);
+                        if Types::Null != out {
                             return out;
                         }
-                        if out.1 != vec![] {
-                            for replace_var in out.1 {
-                                let indx = variables
-                                    .iter()
-                                    .position(|var| var.name == replace_var.name)
-                                    .unwrap();
-                                variables[indx] = replace_var;
-                            }
-                        }
+                        // if out.1 != vec![] {
+                        //     for replace_var in out.1 {
+                        //         let indx = variables
+                        //             .iter()
+                        //             .position(|var| var.name == replace_var.name)
+                        //             .unwrap();
+                        //         variables[indx] = replace_var;
+                        //     }
+                        // }
                     }
                 }
                 _ => {
@@ -581,7 +606,7 @@ fn process_function(
         }
         // println!("{:?}", instructions)
     }
-    (Types::Null, return_variables)
+    Types::Null
     // println!("{:?}", variables)
 }
 
@@ -659,7 +684,7 @@ options:
     //     .unwrap()
     //     .join()
     //     .unwrap();
-    process_function(&main_instructions[0].2, &mut vec![], 0, "main", &functions);
+    process_function(&main_instructions[0].2, &mut vec![], 0, "main", &functions,None);
     println!("EXECUTED IN: {:.2?}", now.elapsed());
     println!("TOTAL: {:.2?}", totaltime.elapsed());
 }

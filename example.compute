@@ -1,10 +1,9 @@
-import liblib;
-
-
 func main() {
 let result = 0;
 for i in range(1000000) {
     result = result+i;
+    let x = 2;
+    x = x +1;
 }
 print(result);
 }
