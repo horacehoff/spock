@@ -2,7 +2,8 @@ use crate::namespaces::namespace_functions;
 use crate::parser::{parse_code, Types, Variable};
 use crate::util::{error, get_printable_form};
 use crate::{
-    assert_args_number, builtin_functions, error_msg, get_printable_type, log, process_function,
+    assert_args_number, builtin_functions, error_msg, get_printable_type, log, 
+    // process_function,
     process_stack,
 };
 use branches::likely;
@@ -12,14 +13,14 @@ use unroll::unroll_for_loops;
 #[unroll_for_loops]
 pub fn preprocess(
     variables: &Vec<Variable>,
-    functions: &Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)>,
+    functions: &Vec<(SmolStr, Vec<SmolStr>, &[Vec<Types>])>,
     element: &Types,
 ) -> Types {
     if let Types::NamespaceFunctionCall(ref namespace, ref y, ref z) = element {
         // execute "namespace functions"
         let args: Vec<Types> = z
             .iter()
-            .map(|arg| process_stack(arg, &variables, &functions))
+            .map(|arg| process_stack(arg, &variables, functions))
             .collect();
 
         let namespace_funcs = namespace_functions(&namespace, &y, &args);
@@ -104,7 +105,7 @@ pub fn preprocess(
             }
         }
 
-        let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>) = functions
+        let target_function: &(SmolStr, Vec<SmolStr>, &[Vec<Types>]) = functions
             .into_iter()
             .filter(|func| func.0 == *func_name)
             .next()
@@ -119,15 +120,16 @@ pub fn preprocess(
                 value: args[i].to_owned(),
             })
             .collect();
-        let result = process_function(
-            &target_function.2,
-            &mut target_args.clone(),
-            target_args.len(),
-            target_function.0.as_str(),
-            &functions,
-            None
-        );
-        return result;
+        // let result = process_function(
+        //     &target_function.2,
+        //     &mut target_args.clone(),
+        //     target_args.len(),
+        //     target_function.0.as_str(),
+        //     &functions,
+        //     None
+        // );
+        // return result;
+        return Types::Null
     } else if let Types::Priority(ref calc) = element {
         // execute content inside parentheses before all the other content in the second loop
         return process_stack(&calc, &variables, &functions);

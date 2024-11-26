@@ -214,9 +214,9 @@ fn builtin_functions(
 
 #[unroll_for_loops]
 fn process_stack(
-    stack_in: &Vec<Types>,
+    stack_in: &[Types],
     variables: &Vec<Variable>,
-    functions: &Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)>,
+    functions: &Vec<(SmolStr, Vec<SmolStr>, &[Vec<Types>])>,
 ) -> Types {
     let mut output: Types = Types::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
@@ -334,210 +334,356 @@ fn process_stack(
     output
 }
 
-#[unroll_for_loops]
-#[const_currying]
-fn process_function(
-    lines: &Vec<Vec<Types>>,
-    variables: &mut Vec<Variable>,
-    expected_variables_len: usize,
-    name: &str,
-    #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] functions: &Vec<(
-        SmolStr,
-        Vec<SmolStr>,
-        Vec<Vec<Types>>,
-    )>,
-    extra_variables: Option<Vec<Variable>>
-) -> Types {
-    if unlikely(variables.len() != expected_variables_len) {
-        error(
-            &format!(
-                "Careful! Function '{}' expected {} arguments, but received {}",
-                name,
-                expected_variables_len,
-                variables.len()
-            ),
-            "Remove the excess arguments",
-        )
-    }
-    let mut temp_vars: Vec<Variable> = if let Some(var) = extra_variables {var} else {vec![]};
+#[inline(always)]
+fn process_line_logic(line_array: &[Types], variables: &mut Vec<Variable>) -> Types {
+    for line in line_array {
+        match line {
+            Types::Wrap(x) => {
+                process_line_logic(x, variables);
+            }
+            Types::VariableDeclaration(x, y) => {
+                variables.push(Variable {
+                    name: x.to_smolstr(),
+                    value: process_stack(y, variables, &vec![]),
+                })
+            },
+            Types::VariableRedeclaration(x, y) => {
+                let index = variables.iter().position(|var| var.name == *x).expect(error_msg!(format!("Unknown variable '{x}'")));
+                variables[index].value = process_stack(y, variables, &vec![]);
+            },
+            Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
+                let args: Vec<Types> = z
+                    .iter()
+                    .map(|arg| process_stack(arg, variables, &vec![]))
+                    .collect();
+                if unlikely(!namespace_functions(namespace, y, &args).1) {
+                    error(
+                        &format!("Unknown function '{}'", namespace.join(".") + "." + &y),
+                        "",
+                    );
+                };
+            }
+            Types::FunctionCall(x, y) => {
+                // println!("{:?}", y);
+                let args: Vec<Types> = y
+                    .iter()
+                    .map(|arg| process_stack(arg, variables, &vec![]))
+                    .collect();
 
-    let mut global_vars: Vec<Variable> = [
-        &variables[..],
-        &temp_vars[..],
-
-    ].concat();
-    macro_rules! update_global {
-        () => {
-            global_vars = [
-                &variables[..],
-                &temp_vars[..],
-            ].concat();
-        };
-    }
-
-    for instructions in lines {
-        for instruction in instructions {
-            match instruction {
-                Types::VariableDeclaration(x, y) => {
-                    temp_vars.push(Variable {
-                        name: x.to_smolstr(),
-                        value: process_stack(&y, &variables, &functions),
-                    });
-                    update_global!();
-                },
-                Types::VariableRedeclaration(x, y) => {
-                    if let Some(position) = variables.iter().position(|var| var.name == *x) {
-                        let processed = process_stack(&y, &global_vars, &functions);
-                        variables[position].value = processed;
-                    } else if let Some(position) = temp_vars
-                        .iter()
-                        .position(|var| var.name == *x) {
-                        let processed = process_stack(&y, &global_vars, &functions);
-                        temp_vars[position].value = processed;
-                    } else {
-                        error(&format!("Variable {x} does not exist"),"");
-                    }
-                    update_global!();
-                }
-                Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
-                    let args: Vec<Types> = z
-                        .iter()
-                        .map(|arg| process_stack(&arg, &global_vars, &functions))
-                        .collect();
-                    if unlikely(!namespace_functions(&namespace, &y, &args).1) {
-                        error(
-                            &format!("Unknown function '{}'", namespace.join(".") + "." + &y),
-                            "",
-                        );
-                    };
-                }
-                Types::FunctionCall(x, y) => {
-                    // println!("{:?}", y);
-                    let args: Vec<Types> = y
-                        .iter()
-                        .map(|arg| process_stack(arg, &global_vars, functions))
-                        .collect();
-
-                    let matched = builtin_functions(&x, &args);
-                    if x == "executeline" && !matched.1 {
-                        assert_args_number!("executeline", args.len(), 1);
-                        if_let!(likely, Types::String(line), &args[0], {
-                            process_stack(&parse_code(line)[0], &global_vars, &functions);
-                            continue;
-                        }, else {
-                            error(&format!("Cannot execute line {:?}", &args[0]), "")
-                        })
-                    } else if !matched.1 {
-                        let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>) = functions
-                            .into_iter()
-                            .filter(|func| func.0 == *x)
-                            .next()
-                            .expect(error_msg!(&format!("Unknown function '{}'", x)));
-                        assert_args_number!(&x, args.len(), target_function.1.len());
-                        let mut target_args: Vec<Variable> = target_function
-                            .1
-                            .iter()
-                            .enumerate()
-                            .map(|(i, arg)| Variable {
-                                name: arg.to_smolstr(),
-                                value: args[i].clone(),
-                            })
-                            .collect();
-                        let len = target_args.len();
-                        process_function(
-                            &target_function.2,
-                            &mut target_args,
-                            len,
-                            &target_function.0,
-                            functions,
-                            None
-                        );
-                    }
-                }
-                Types::FunctionReturn(x) => {
-                    return process_stack(x, &global_vars, functions);
-                }
-                Types::Condition(x, y, z) => {
-                    if process_stack(x, &global_vars, functions) == Types::Bool(true) {
-                        let len = variables.len();
-                        let out = process_function(y, variables, len, name, functions, Some(temp_vars.clone()));
-                        if Types::Null != out {
-                            return out;
-                        }
-                    } else {
-                        for else_block in z {
-                            if else_block.0.len() == 0 {
-                                let len = global_vars.len();
-                                let out = process_function(
-                                    &else_block.1,
-                                    &mut global_vars,
-                                    len,
-                                    name,
-                                    functions,
-                                    None
-                                );
-                                if out != Types::Null {
-                                    return out;
-                                }
-                            }
-                            if process_stack(&else_block.0, &variables, &functions)
-                                == Types::Bool(true)
-                            {
-                                let len = global_vars.len();
-                                let out = process_function(
-                                    &else_block.1,
-                                    &mut global_vars,
-                                    len,
-                                    name,
-                                    functions,
-                                    None
-                                );
-                                if out != Types::Null {
-                                    return out;
-                                }
-                            }
-                        }
-                    }
-                }
-                Types::Loop(x, y, z) => {
-                    let loop_array = process_stack(&y, &variables, &functions);
-                    if let Types::Array(target_array) = loop_array {
-                        for elem in target_array {
-                            let len = global_vars.len();
-                            let out_expr = process_function(z, &mut global_vars, len, name, functions, Some(vec![Variable{name: x.to_smolstr(), value: elem}]));
-
-                            if out_expr != Types::Null {
-                                return out_expr;
-                            }
-                        }
-                    } else if let Types::String(ref target_string) = loop_array {
-                        for elem in target_string.chars() {
-                            let len = global_vars.len();
-                            let out_expr = process_function(z, &mut global_vars, len, name, functions,Some(vec![Variable{name: x.to_smolstr(), value:Types::String(elem.to_smolstr())}]));
-                            if out_expr != Types::Null {
-                                return out_expr;
-                            }
-                        }
-                    }
-                }
-                Types::While(x, y) => {
-                    while process_stack(x, &variables, functions) == Types::Bool(true) {
-                        let len = global_vars.len();
-                        let out = process_function(y, &mut global_vars, len, name, functions,None);
-                        if Types::Null != out {
-                            return out;
-                        }
-                    }
-                }
-                _ => {
-                    process_stack(&instructions, &variables, &functions);
-                    break;
+                let matched = builtin_functions(&x, &args);
+                if x == "executeline" && !matched.1 {
+                    assert_args_number!("executeline", args.len(), 1);
+                    if_let!(likely, Types::String(line), &args[0], {
+                    process_stack(&parse_code(line)[0], &variables, &vec![]);
+                    // continue;
+                }, else {
+                    error(&format!("Cannot execute line {:?}", &args[0]), "")
+                })
+                } else if !matched.1 {
+                    todo!("Functions are WIP")
+                    // let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>) = functions
+                    //     .into_iter()
+                    //     .filter(|func| func.0 == *x)
+                    //     .next()
+                    //     .expect(error_msg!(&format!("Unknown function '{}'", x)));
+                    // assert_args_number!(&x, args.len(), target_function.1.len());
+                    // let mut target_args: Vec<Variable> = target_function
+                    //     .1
+                    //     .iter()
+                    //     .enumerate()
+                    //     .map(|(i, arg)| Variable {
+                    //         name: arg.to_smolstr(),
+                    //         value: args[i].clone(),
+                    //     })
+                    //     .collect();
+                    // let len = target_args.len();
+                    // process_function(
+                    //     &target_function.2,
+                    //     &mut target_args,
+                    //     len,
+                    //     &target_function.0,
+                    //     functions,
+                    //     None
+                    // );
                 }
             }
+            Types::Condition(x, y, z) => {
+                if process_stack(&x, &variables, &vec![]) == Types::Bool(true) {
+                    let out = process_function(y, variables);
+                    if Types::Null != out {
+                        return out;
+                    }
+                } else {
+                    for else_block in z {
+                        if else_block.0.len() == 0 {
+                            let out = process_function(
+                                &else_block.1,
+                                variables
+                            );
+                            if out != Types::Null {
+                                return out;
+                            }
+                        }
+                        if process_stack(&else_block.0, &variables, &vec![])
+                            == Types::Bool(true)
+                        {
+                            let out = process_function(
+                                &else_block.1,
+                                variables
+                            );
+                            if out != Types::Null {
+                                return out;
+                            }
+                        }
+                    }
+                }
+            },
+            Types::Loop(x, y, z) => {
+                let loop_array = process_stack(&y, &variables, &vec![]);
+                if let Types::Array(target_array) = loop_array {
+                    let now = Instant::now();
+                    for elem in target_array.iter() {
+                        let out_expr:Types = process_line_logic(z, variables);
+
+
+                        if out_expr != Types::Null {
+                            return out_expr;
+                        }
+                    }
+                    println!("LOOP DURATION {:.2?}", now.elapsed())
+
+                } else if let Types::String(ref target_string) = loop_array {
+                    for elem in target_string.chars() {
+                        let out_expr:Types = {
+                                let result = process_line_logic(z, variables);
+                            // };
+                            Types::Null
+                        };
+                    }
+                }
+            }
+            _ => panic!("{}", error_msg!("TODO!!"))
         }
     }
     Types::Null
 }
+
+fn process_function(lines: &[Vec<Types>], variables: &mut Vec<Variable>) -> Types {
+    for line in lines {
+        if let Types::FunctionReturn(x) = line.first().unwrap() {
+            return process_stack(&x, variables, &vec![]);
+        } else {
+            let processed = process_line_logic(line, variables);
+            if processed != Types::Null {
+                return processed;
+            };
+        }
+    }
+    return Types::Null;
+}
+
+// #[unroll_for_loops]
+// #[const_currying]
+// fn process_function(
+//     lines: &Vec<Types>,
+//     variables: &mut Vec<Variable>,
+//     expected_variables_len: usize,
+//     name: &str,
+//     #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] functions: &Vec<(
+//         SmolStr,
+//         Vec<SmolStr>,
+//         Vec<Vec<Types>>,
+//     )>,
+//     extra_variables: Option<&mut Vec<Variable>>
+// ) -> Types {
+//     if unlikely(variables.len() != expected_variables_len) {
+//         error(
+//             &format!(
+//                 "Careful! Function '{}' expected {} arguments, but received {}",
+//                 name,
+//                 expected_variables_len,
+//                 variables.len()
+//             ),
+//             "Remove the excess arguments",
+//         )
+//     }
+//     let mut temp_vars: Vec<Variable> = if let Some(var) = extra_variables {var.to_owned()} else {vec![]};
+//
+//     let mut global_vars: Vec<Variable> = [
+//         &variables[..],
+//         &temp_vars[..],
+//
+//     ].concat();
+//     macro_rules! update_global {
+//         () => {
+//             global_vars = [
+//                 &variables[..],
+//                 &temp_vars[..],
+//             ].concat();
+//         };
+//     }
+//
+//     for instruction in lines {
+//             match instruction {
+//                 Types::VariableDeclaration(x, y) => {
+//                     temp_vars.push(Variable {
+//                         name: x.to_smolstr(),
+//                         value: process_stack(&y, &variables, &functions),
+//                     });
+//                     update_global!();
+//                 },
+//                 Types::VariableRedeclaration(x, y) => {
+//                     if let Some(position) = variables.iter().position(|var| var.name == *x) {
+//                         let processed = process_stack(&y, &global_vars, &functions);
+//                         variables[position].value = processed;
+//                     } else if let Some(position) = temp_vars
+//                         .iter()
+//                         .position(|var| var.name == *x) {
+//                         let processed = process_stack(&y, &global_vars, &functions);
+//                         temp_vars[position].value = processed;
+//                     } else {
+//                         error(&format!("Variable {x} does not exist"),"");
+//                     }
+//                     update_global!();
+//                 }
+//                 Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
+//                     let args: Vec<Types> = z
+//                         .iter()
+//                         .map(|arg| process_stack(&arg, &global_vars, &functions))
+//                         .collect();
+//                     if unlikely(!namespace_functions(&namespace, &y, &args).1) {
+//                         error(
+//                             &format!("Unknown function '{}'", namespace.join(".") + "." + &y),
+//                             "",
+//                         );
+//                     };
+//                 }
+//                 Types::FunctionCall(x, y) => {
+//                     // println!("{:?}", y);
+//                     let args: Vec<Types> = y
+//                         .iter()
+//                         .map(|arg| process_stack(arg, &global_vars, functions))
+//                         .collect();
+//
+//                     let matched = builtin_functions(&x, &args);
+//                     if x == "executeline" && !matched.1 {
+//                         assert_args_number!("executeline", args.len(), 1);
+//                         if_let!(likely, Types::String(line), &args[0], {
+//                             process_stack(&parse_code(line)[0], &global_vars, &functions);
+//                             continue;
+//                         }, else {
+//                             error(&format!("Cannot execute line {:?}", &args[0]), "")
+//                         })
+//                     } else if !matched.1 {
+//                         let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>) = functions
+//                             .into_iter()
+//                             .filter(|func| func.0 == *x)
+//                             .next()
+//                             .expect(error_msg!(&format!("Unknown function '{}'", x)));
+//                         assert_args_number!(&x, args.len(), target_function.1.len());
+//                         let mut target_args: Vec<Variable> = target_function
+//                             .1
+//                             .iter()
+//                             .enumerate()
+//                             .map(|(i, arg)| Variable {
+//                                 name: arg.to_smolstr(),
+//                                 value: args[i].clone(),
+//                             })
+//                             .collect();
+//                         let len = target_args.len();
+//                         process_function(
+//                             &target_function.2,
+//                             &mut target_args,
+//                             len,
+//                             &target_function.0,
+//                             functions,
+//                             None
+//                         );
+//                     }
+//                 }
+//                 Types::FunctionReturn(x) => {
+//                     return process_stack(x, &global_vars, functions);
+//                 }
+//                 Types::Condition(x, y, z) => {
+//                     if process_stack(x, &global_vars, functions) == Types::Bool(true) {
+//                         let len = variables.len();
+//                         let out = process_function(y, variables, len, name, functions, Some(&mut temp_vars));
+//                         if Types::Null != out {
+//                             return out;
+//                         }
+//                     } else {
+//                         for else_block in z {
+//                             if else_block.0.len() == 0 {
+//                                 let len = global_vars.len();
+//                                 let out = process_function(
+//                                     &else_block.1,
+//                                     &mut global_vars,
+//                                     len,
+//                                     name,
+//                                     functions,
+//                                     Some(&mut temp_vars)
+//                                 );
+//                                 if out != Types::Null {
+//                                     return out;
+//                                 }
+//                             }
+//                             if process_stack(&else_block.0, &variables, &functions)
+//                                 == Types::Bool(true)
+//                             {
+//                                 let len = global_vars.len();
+//                                 let out = process_function(
+//                                     &else_block.1,
+//                                     &mut global_vars,
+//                                     len,
+//                                     name,
+//                                     functions,
+//                                     Some(&mut temp_vars)
+//                                 );
+//                                 if out != Types::Null {
+//                                     return out;
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 }
+//                 Types::Loop(x, y, z) => {
+//                     let loop_array = process_stack(&y, &variables, &functions);
+//                     if let Types::Array(target_array) = loop_array {
+//                         for elem in target_array {
+//                             let len = global_vars.len();
+//                             // let out_expr = process_function(z, variables, len, name, functions, Some(vec![Variable{name: x.to_smolstr(), value: elem}]));
+//
+//                             // if out_expr != Types::Null {
+//                             //     return out_expr;
+//                             // }
+//                         }
+//                     } else if let Types::String(ref target_string) = loop_array {
+//                         for elem in target_string.chars() {
+//                             let len = global_vars.len();
+//                             // let out_expr = process_function(z, &mut global_vars, len, name, functions,Some(vec![Variable{name: x.to_smolstr(), value:Types::String(elem.to_smolstr())}]));
+//                             // if out_expr != Types::Null {
+//                             //     return out_expr;
+//                             // }
+//                         }
+//                     }
+//                 }
+//                 Types::While(x, y) => {
+//                     while process_stack(x, &variables, functions) == Types::Bool(true) {
+//                         let len = global_vars.len();
+//                         let out = process_function(y, &mut global_vars, len, name, functions,None);
+//                         if Types::Null != out {
+//                             return out;
+//                         }
+//                     }
+//                 }
+//                 _ => {
+//                     process_stack(&vec![*instruction], &variables, &functions);
+//                     break;
+//                 }
+//             }
+//     }
+//     Types::Null
+// }
 
 fn main() {
     let totaltime = Instant::now();
@@ -602,6 +748,14 @@ options:
         .into_iter()
         .filter(|function| function.0 == "main")
         .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)>>();
+    // for mut x in main_instructions {
+    //     for mut y in x.2 {
+    //         if y.len() == 1 {
+    //
+    //         }
+    //         // println!("{:?}", y.len())
+    //     }
+    // }
 
     let now = Instant::now();
     // thread::Builder::new()
@@ -613,7 +767,15 @@ options:
     //     .unwrap()
     //     .join()
     //     .unwrap();
-    process_function(&main_instructions[0].2, &mut vec![], 0, "main", &functions,None);
+    // process_function(&main_instructions[0].2, &mut vec![], 0, "main", &functions,None);
+
+    let mut vars:Vec<Variable> = vec![];
+    // process_line_logic(&Types::VariableDeclaration("hey".to_smolstr(), vec![Types::Integer(56)]), &mut vars);
+    // process_line_logic(&Types::VariableRedeclaration("hey".to_smolstr(), vec![Types::Integer(512)]), &mut vars);
+
+    process_function(&main_instructions.first().unwrap().2, &mut vars);
+    // println!("{:?}VARS", vars);
+
     println!("EXECUTED IN: {:.2?}", now.elapsed());
     println!("TOTAL: {:.2?}", totaltime.elapsed());
 }

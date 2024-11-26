@@ -53,8 +53,9 @@ pub enum Types {
         // Array/string to iterate
         Vec<Types>,
         // Code inside the loop to execute
-        Vec<Vec<Types>>,
+        Vec<Types>,
     ),
+    Wrap(Vec<Types>),
 
     // Objects
     File(SmolStr),
@@ -423,7 +424,13 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                     let mut inner = inside.into_inner();
                     let loop_var = inner.next().unwrap().as_str().into();
                     let target_array = parse_expression(inner.next().unwrap());
-                    let loop_code = parse_code(inner.next().unwrap().as_str());
+                    let loop_code: Vec<Types> = parse_code(inner.next().unwrap().as_str()).iter().map(|x|
+                        if x.len() == 1 {
+                            return x.first().unwrap().clone()
+                        } else {
+                            return Types::Wrap(x.clone())
+                        }
+                    ).collect();
                     line_instructions.push(Types::Loop(loop_var, target_array, loop_code))
                 }
                 _ => {}
