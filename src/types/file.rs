@@ -6,11 +6,11 @@ macro_rules! file_props {
                 assert_args_number!("read", $args.len(), 0);
                 let filecontent = fs::read_to_string($filepath)
                     .expect(error_msg!(format!("Failed to read {}", $filepath)));
-                $output = Expr::String(filecontent.to_smolstr())
+                $output = Types::String(filecontent.to_smolstr())
             }
             "write" => {
                 assert_args_number!("write", $args.len(), 1);
-                if let Expr::String(filecontent) = &$args[0] {
+                if let Types::String(filecontent) = &$args[0] {
                     let mut f = fs::OpenOptions::new()
                         .write(true)
                         .truncate(true)
@@ -30,7 +30,7 @@ macro_rules! file_props {
             }
             "append" => {
                 assert_args_number!("append", $args.len(), 1);
-                if let Expr::String(filecontent) = &$args[0] {
+                if let Types::String(filecontent) = &$args[0] {
                     let mut f = fs::OpenOptions::new()
                         .write(true)
                         .append(true)

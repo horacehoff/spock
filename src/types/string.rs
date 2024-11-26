@@ -1,16 +1,16 @@
 use smol_str::SmolStr;
 use crate::error_msg;
 use crate::get_printable_type;
-use crate::parser::{BasicOperator, Expr};
+use crate::parser::{BasicOperator, Types};
 use crate::util::error;
 
 // #[inline(always)]
-pub fn string_ops(x: SmolStr, output: Expr, current_operator: BasicOperator) -> Expr {
-    if let Expr::String(value) = &output {
+pub fn string_ops(x: SmolStr, output: Types, current_operator: BasicOperator) -> Types {
+    if let Types::String(value) = &output {
         match current_operator {
-            BasicOperator::Add => Expr::String(format!("{}{}", value, x).into()),
-            BasicOperator::Equal => Expr::Bool(value.eq(&x)),
-            BasicOperator::NotEqual => Expr::Bool(value.eq(&x)),
+            BasicOperator::Add => Types::String(format!("{}{}", value, x).into()),
+            BasicOperator::Equal => Types::Bool(value.eq(&x)),
+            BasicOperator::NotEqual => Types::Bool(value.eq(&x)),
             _ => {
                 error(
                     &format!(
@@ -19,12 +19,12 @@ pub fn string_ops(x: SmolStr, output: Expr, current_operator: BasicOperator) -> 
                     ),
                     "",
                 );
-                Expr::Null
+                Types::Null
             }
         }
-    } else if let Expr::Integer(value) = &output {
+    } else if let Types::Integer(value) = &output {
         match current_operator {
-            BasicOperator::Multiply => Expr::String(x.repeat(*value as usize).parse().unwrap()),
+            BasicOperator::Multiply => Types::String(x.repeat(*value as usize).parse().unwrap()),
             _ => {
                 error(
                     &format!(
@@ -33,7 +33,7 @@ pub fn string_ops(x: SmolStr, output: Expr, current_operator: BasicOperator) -> 
                     ),
                     "",
                 );
-                Expr::Null
+                Types::Null
             }
         }
     } else {
@@ -45,7 +45,7 @@ pub fn string_ops(x: SmolStr, output: Expr, current_operator: BasicOperator) -> 
             ),
             "",
         );
-        Expr::Null
+        Types::Null
     }
 }
 
@@ -56,21 +56,21 @@ macro_rules! string_props {
             // TRANSFORM
             "uppercase" => {
                 assert_args_number!("uppercase", $args.len(), 0);
-                $output = Expr::String($str.to_uppercase_smolstr());
+                $output = Types::String($str.to_uppercase_smolstr());
             }
             "lowercase" => {
                 assert_args_number!("lowercase", $args.len(), 0);
-                $output = Expr::String($str.to_lowercase_smolstr());
+                $output = Types::String($str.to_lowercase_smolstr());
             }
             "capitalize" => {
                 assert_args_number!("capitalize", $args.len(), 0);
-                $output = Expr::String($str.to_title_case().to_smolstr());
+                $output = Types::String($str.to_title_case().to_smolstr());
             }
             "replace" => {
                 assert_args_number!("replace", $args.len(), 2);
-                if let Expr::String(toreplace) = &$args[0] {
-                    if let Expr::String(replaced) = &$args[1] {
-                        $output = Expr::String($str.replace_smolstr(toreplace, replaced))
+                if let Types::String(toreplace) = &$args[0] {
+                    if let Types::String(replaced) = &$args[1] {
+                        $output = Types::String($str.replace_smolstr(toreplace, replaced))
                     } else {
                         error(
                             format!("{:?} is not a String", &$args[1]).as_str(),
@@ -87,7 +87,7 @@ macro_rules! string_props {
             "toInt" => {
                 assert_args_number!("toInt", $args.len(), 0);
                 if $str.parse::<i64>().is_ok() {
-                    $output = Expr::Integer($str.parse::<i64>().unwrap())
+                    $output = Types::Integer($str.parse::<i64>().unwrap())
                 } else {
                     error(
                         &format!("String '{}' cannot be converted to an Integer", $str),
@@ -98,7 +98,7 @@ macro_rules! string_props {
             "toFloat" => {
                 assert_args_number!("toFloat", $args.len(), 0);
                 if $str.parse::<f64>().is_ok() {
-                    $output = Expr::Float($str.parse::<f64>().unwrap())
+                    $output = Types::Float($str.parse::<f64>().unwrap())
                 } else {
                     error(
                         &format!("String '{}' cannot be converted to an Integer", $str),
@@ -109,9 +109,9 @@ macro_rules! string_props {
             "toBool" => {
                 assert_args_number!("toBool", $args.len(), 0);
                 if $str.to_lowercase() == "true" {
-                    $output = Expr::Bool(true)
+                    $output = Types::Bool(true)
                 } else if $str.to_lowercase() == "false" {
-                    $output = Expr::Bool(false)
+                    $output = Types::Bool(false)
                 } else {
                     error(
                         &format!("String '{}' cannot be converted to a Boolean", $str),
@@ -133,15 +133,15 @@ macro_rules! string_props {
             }
             "trim" => {
                 assert_args_number!("trim", $args.len(), 0);
-                $output = Expr::String($str.trim().to_smolstr());
+                $output = Types::String($str.trim().to_smolstr());
             }
             "ltrim" => {
                 assert_args_number!("ltrim", $args.len(), 0);
-                $output = Expr::String($str.trim_start().to_smolstr());
+                $output = Types::String($str.trim_start().to_smolstr());
             }
             "rtrim" => {
                 assert_args_number!("rtrim", $args.len(), 0);
-                $output = Expr::String($str.trim_end().to_smolstr());
+                $output = Types::String($str.trim_end().to_smolstr());
             }
             _ => {}
         }

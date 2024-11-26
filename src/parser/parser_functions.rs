@@ -1,6 +1,6 @@
 use crate::error_msg;
 use crate::parser::parse_code;
-use crate::parser::Expr;
+use crate::parser::Types;
 use crate::util::error;
 use fancy_regex::Regex;
 use std::fs;
@@ -9,14 +9,15 @@ use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use libloading::{Library, library_filename};
 use smol_str::{SmolStr, ToSmolStr};
+use goblin::Object;
 
 pub fn parse_functions(
     content: &str,
     check_main: bool,
-) -> Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)> {
-    let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)> = vec![];
+) -> Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> {
+    let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Types>>)> = vec![];
 
-    let mut imported_functions: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)> = vec![];
+    let mut imported_functions: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> = vec![];
     let matches: Vec<(usize, &str)> = content.match_indices("\nimport").collect();
     if content.starts_with("import") {
         let mut i = 7;
@@ -36,11 +37,10 @@ pub fn parse_functions(
             imported_functions.append(&mut parse_functions(&file_content, false));
         } else {
             // IS LIB -> .dll, .so, .dylib
-            // VERY WIP - Doesn't work at the moment
-            let library = unsafe {
-                println!("PARSED");
-                Library::new(library_filename(name.trim_start_matches("./")))
-            }.unwrap();
+
+            let libname = if cfg!(windows){format!("{name}.dll")} else if cfg!(target_os = "linux") {format!("{name}.so")} else {format!("{name}.dylib")};
+
+            // let buffer = fs::read(path)
         }
 
 
@@ -69,7 +69,7 @@ pub fn parse_functions(
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer).unwrap();
 
-        let mut deserialized_data: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)> =
+        let mut deserialized_data: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> =
             bincode::deserialize(&buffer).expect(error_msg!(
                 "Failed to read from cache",
                 "Delete the .compute folder"
@@ -153,7 +153,7 @@ pub fn parse_functions(
         .clone()
         .into_iter()
         .filter(|function| function.0 == "main")
-        .collect::<Vec<(&str, Vec<&str>, Vec<Vec<Expr>>)>>()
+        .collect::<Vec<(&str, Vec<&str>, Vec<Vec<Types>>)>>()
         .len()
         == 0
         && check_main
@@ -170,7 +170,7 @@ pub fn parse_functions(
                 c.clone(),
             )
         })
-        .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)>>();
+        .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)>>();
 
     return_functions.append(&mut imported_functions);
 

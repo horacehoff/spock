@@ -1,10 +1,10 @@
-use crate::parser::{BasicOperator, Expr};
+use crate::parser::{BasicOperator, Types};
 use crate::util::error;
 use crate::{error_msg, get_printable_type, math_to_type};
 
 // #[inline(always)]
-pub fn float_ops(x: f64, output: Expr, current_operator: BasicOperator) -> Expr {
-    if let Expr::Float(value) = output {
+pub fn float_ops(x: f64, output: Types, current_operator: BasicOperator) -> Types {
+    if let Types::Float(value) = output {
         match current_operator {
             BasicOperator::Add => {
                 math_to_type!(value + x)
@@ -24,12 +24,12 @@ pub fn float_ops(x: f64, output: Expr, current_operator: BasicOperator) -> Expr 
             BasicOperator::Modulo => {
                 math_to_type!(value % x)
             }
-            BasicOperator::Equal => Expr::Bool(value == x),
-            BasicOperator::NotEqual => Expr::Bool(value != x),
-            BasicOperator::Inferior => Expr::Bool(value < x),
-            BasicOperator::InferiorEqual => Expr::Bool(value <= x),
-            BasicOperator::Superior => Expr::Bool(value > x),
-            BasicOperator::SuperiorEqual => Expr::Bool(value >= x),
+            BasicOperator::Equal => Types::Bool(value == x),
+            BasicOperator::NotEqual => Types::Bool(value != x),
+            BasicOperator::Inferior => Types::Bool(value < x),
+            BasicOperator::InferiorEqual => Types::Bool(value <= x),
+            BasicOperator::Superior => Types::Bool(value > x),
+            BasicOperator::SuperiorEqual => Types::Bool(value >= x),
             _ => {
                 error(
                     &format!(
@@ -38,13 +38,13 @@ pub fn float_ops(x: f64, output: Expr, current_operator: BasicOperator) -> Expr 
                     ),
                     "",
                 );
-                Expr::Null
+                Types::Null
             }
         }
-    } else if let Expr::Integer(value) = output {
+    } else if let Types::Integer(value) = output {
         match current_operator {
-            BasicOperator::Add => Expr::Float(value as f64 + x),
-            BasicOperator::Sub => Expr::Float(value as f64 - x),
+            BasicOperator::Add => Types::Float(value as f64 + x),
+            BasicOperator::Sub => Types::Float(value as f64 - x),
             BasicOperator::Divide => {
                 math_to_type!(value as f64 / x)
             }
@@ -62,12 +62,12 @@ pub fn float_ops(x: f64, output: Expr, current_operator: BasicOperator) -> Expr 
                     ),
                     "",
                 );
-                Expr::Null
+                Types::Null
             }
         }
-    } else if let Expr::Operation(y) = output {
+    } else if let Types::Operation(y) = output {
         if let BasicOperator::Sub = y {
-            Expr::Float(-x)
+            Types::Float(-x)
         } else {
             error(
                 &format!(
@@ -76,7 +76,7 @@ pub fn float_ops(x: f64, output: Expr, current_operator: BasicOperator) -> Expr 
                 ),
                 "",
             );
-            Expr::Null
+            Types::Null
         }
     } else {
         error(
@@ -87,7 +87,7 @@ pub fn float_ops(x: f64, output: Expr, current_operator: BasicOperator) -> Expr 
             ),
             "",
         );
-        Expr::Null
+        Types::Null
     }
 }
 
@@ -97,11 +97,11 @@ macro_rules! float_props {
         match $x.as_str() {
             "toInt" => {
                 assert_args_number!("toInt", $args.len(), 0);
-                $output = Expr::Integer($num as i64)
+                $output = Types::Integer($num as i64)
             }
             "toStr" => {
                 assert_args_number!("toStr", $args.len(), 0);
-                $output = Expr::String($num.to_smolstr())
+                $output = Types::String($num.to_smolstr())
             }
             _ => {}
         }

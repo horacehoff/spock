@@ -20,7 +20,7 @@ use crate::array::array_ops;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-use crate::parser::{parse_code, BasicOperator, Expr, Variable};
+use crate::parser::{parse_code, BasicOperator, Types, Variable};
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::string_ops;
@@ -40,47 +40,47 @@ use unroll::unroll_for_loops;
 #[const_currying]
 fn builtin_functions(
     x: &str,
-    #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] args: &Vec<Expr>,
-) -> (Expr, bool) {
+    #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] args: &Vec<Types>,
+) -> (Types, bool) {
     if x == "print" {
         assert_args_number!("print", args.len(), 1);
-        if let Expr::String(str) = &args[0] {
+        if let Types::String(str) = &args[0] {
             println!("{}", str);
         } else {
             println!("{}", get_printable_form(&args[0]));
         }
 
-        (Expr::Null, true)
+        (Types::Null, true)
     } else if x == "abs" {
         assert_args_number!("abs", args.len(), 1);
         match &args[0] {
-            Expr::Float(val) => return (Expr::Float(val.abs()), true),
-            Expr::Integer(val) => return (Expr::Integer(val.abs()), true),
+            Types::Float(val) => return (Types::Float(val.abs()), true),
+            Types::Integer(val) => return (Types::Integer(val.abs()), true),
             _ => error(
                 &format!("Cannot get absolute value of {:?} type", &args[0]),
                 "Change type",
             ),
         }
-        (Expr::Null, true)
+        (Types::Null, true)
     } else if x == "round" {
         assert_args_number!("round", args.len(), 1);
         match &args[0] {
-            Expr::Float(val) => return (Expr::Integer(val.round() as i64), true),
-            Expr::Integer(val) => return (Expr::Integer(*val), true),
+            Types::Float(val) => return (Types::Integer(val.round() as i64), true),
+            Types::Integer(val) => return (Types::Integer(*val), true),
             _ => error(
                 &format!("Cannot round {} type", get_printable_type!(&args[0])),
                 "Change type",
             ),
         }
-        (Expr::Null, true)
+        (Types::Null, true)
     } else if x == "len" {
         assert_args_number!("len", args.len(), 1);
         match &args[0] {
-            Expr::String(val) => {
-                return (Expr::Integer(val.len() as i64), true);
+            Types::String(val) => {
+                return (Types::Integer(val.len() as i64), true);
             }
-            Expr::Array(val) => {
-                return (Expr::Integer(val.len() as i64), true);
+            Types::Array(val) => {
+                return (Types::Integer(val.len() as i64), true);
             }
             _ => error(
                 &format!(
@@ -90,11 +90,11 @@ fn builtin_functions(
                 "Change type",
             ),
         }
-        (Expr::Null, true)
+        (Types::Null, true)
     } else if x == "input" {
         assert_args_number!("input", args.len(), 0, 1);
         if args.len() == 1 {
-            if_let!(likely, Expr::String(prompt), &args[0], {
+            if_let!(likely, Types::String(prompt), &args[0], {
                 print!("{}", prompt);
             }, else {
                 error(
@@ -105,7 +105,7 @@ fn builtin_functions(
         }
         io::stdout().flush().unwrap();
         return (
-            Expr::String(
+            Types::String(
                 BufReader::new(io::stdin())
                     .lines()
                     .next()
@@ -119,11 +119,11 @@ fn builtin_functions(
         );
     } else if x == "type" {
         assert_args_number!("type", args.len(), 1);
-        return (Expr::String(get_printable_type!(&args[0]).into()), true);
+        return (Types::String(get_printable_type!(&args[0]).into()), true);
     } else if x == "hash" {
         assert_args_number!("hash", args.len(), 1);
         (
-            Expr::String(
+            Types::String(
                 blake3::hash(
                     bincode::serialize(&args[0])
                         .expect(error_msg!(format!(
@@ -137,93 +137,93 @@ fn builtin_functions(
         )
     } else if x == "sqrt" {
         assert_args_number!("sqrt", args.len(), 1);
-        if let Expr::Integer(int) = args[0] {
-            return (Expr::Float((int as f64).sqrt()), true);
-        } else if let Expr::Float(float) = args[0] {
-            return (Expr::Float(float.sqrt()), true);
+        if let Types::Integer(int) = args[0] {
+            return (Types::Float((int as f64).sqrt()), true);
+        } else if let Types::Float(float) = args[0] {
+            return (Types::Float(float.sqrt()), true);
         } else {
             error(
                 format!("Cannot calculate the square root of {:?}", args[0]).as_str(),
                 "",
             );
-            (Expr::Null, false)
+            (Types::Null, false)
         }
     } else if x == "the_answer" {
         println!("42, the answer to the Ultimate Question of Life, the Universe, and Everything.");
-        (Expr::Integer(42), true)
+        (Types::Integer(42), true)
     } else if x == "range" {
         assert_args_number!("sqrt", args.len(), 1, 3);
         if args.len() == 1 {
-            if_let!(likely, Expr::Integer(lim), args[0], {
-                (Expr::Array((0..lim).map(Expr::Integer).collect()), true)
+            if_let!(likely, Types::Integer(lim), args[0], {
+                (Types::Array((0..lim).map(Types::Integer).collect()), true)
             }, else {
                 error("Invalid range limit", "");
-                (Expr::Null, false)
+                (Types::Null, false)
             })
         } else if args.len() == 2 {
-            if_let!(likely, Expr::Integer(lim), args[0], {
-                if_let!(Expr::Integer(upplim), args[1], {
+            if_let!(likely, Types::Integer(lim), args[0], {
+                if_let!(Types::Integer(upplim), args[1], {
                     (
-                        Expr::Array((lim..upplim).map(Expr::Integer).collect()),
+                        Types::Array((lim..upplim).map(Types::Integer).collect()),
                         true,
                     )
                 }, else {
                     error("Invalid range limit", "");
-                    (Expr::Null, false)
+                    (Types::Null, false)
                 })
             }, else {
                 error("Invalid range start", "");
-                (Expr::Null, false)
+                (Types::Null, false)
             })
         } else if args.len() == 3 {
-            if_let!(likely, Expr::Integer(start), args[0], {
-                if_let!(Expr::Integer(stop), args[1], {
-                    if_let!(Expr::Integer(step), args[2], {
+            if_let!(likely, Types::Integer(start), args[0], {
+                if_let!(Types::Integer(stop), args[1], {
+                    if_let!(Types::Integer(step), args[2], {
                         if unlikely(step == 0) {
                             error("Step cannot be zero", "");
-                            (Expr::Null, false)
+                            (Types::Null, false)
                         } else {
                             let range = if step > 0 {
                                 (start..stop).step_by(step as usize)
                             } else {
                                 (stop..start).step_by((-step) as usize)
                             };
-                            (Expr::Array(range.map(Expr::Integer).collect()), true)
+                            (Types::Array(range.map(Types::Integer).collect()), true)
                         }
                     }, else {
                         error("Invalid range step", "");
-                        (Expr::Null, false)
+                        (Types::Null, false)
                     })
                 }, else {
                     error("Invalid range limit", "");
-                    (Expr::Null, false)
+                    (Types::Null, false)
                 })
             }, else {
                 error("Invalid range start", "");
-                (Expr::Null, false)
+                (Types::Null, false)
             })
         } else {
             error("Invalid range arguments", "");
-            (Expr::Null, false)
+            (Types::Null, false)
         }
     } else {
-        (Expr::Null, false)
+        (Types::Null, false)
     }
 }
 
 
 #[unroll_for_loops]
 fn process_stack(
-    stack_in: &Vec<Expr>,
+    stack_in: &Vec<Types>,
     variables: &Vec<Variable>,
-    functions: &Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)>,
-) -> Expr {
-    let mut output: Expr = Expr::Null;
+    functions: &Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)>,
+) -> Types {
+    let mut output: Types = Types::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in {
-        let mut element: &Expr = p_element;
-        let mut val: Expr = Expr::Null;
-        if let Expr::VariableIdentifier(ref var) = element {
+        let mut element: &Types = p_element;
+        let mut val: Types = Types::Null;
+        if let Types::VariableIdentifier(ref var) = element {
             let variable = &variables
                 .iter()
                 .find(|x| x.name.eq(var))
@@ -231,25 +231,25 @@ fn process_stack(
             element = &variable.value
         } else {
             val = preprocess(variables, functions, element);
-            if val != Expr::Null {
+            if val != Types::Null {
                 element = &val;
             }
         }
 
-        if output != Expr::Null {
+        if output != Types::Null {
             match element {
-                Expr::Operation(op) => {
+                Types::Operation(op) => {
                     current_operator = *op;
                 }
-                Expr::OR(ref x) => {
+                Types::OR(ref x) => {
                     let parsed_exp = process_stack(&x, variables, functions);
                     if_let!(
                         likely,
-                        Expr::Bool(inbool),
+                        Types::Bool(inbool),
                         output,
                         {
-                            if_let!(likely, Expr::Bool(sidebool), parsed_exp, {
-                                output = Expr::Bool(inbool || sidebool)
+                            if_let!(likely, Types::Bool(sidebool), parsed_exp, {
+                                output = Types::Bool(inbool || sidebool)
                             }, else {
                                 error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
                             });
@@ -259,15 +259,15 @@ fn process_stack(
                         }
                     );
                 }
-                Expr::AND(ref x) => {
+                Types::AND(ref x) => {
                     let parsed_exp = process_stack(&x, variables, functions);
                     if_let!(
                         likely,
-                        Expr::Bool(inbool),
+                        Types::Bool(inbool),
                         output,
                         {
-                            if_let!(likely, Expr::Bool(sidebool), parsed_exp, {
-                                output = Expr::Bool(inbool && sidebool)
+                            if_let!(likely, Types::Bool(sidebool), parsed_exp, {
+                                output = Types::Bool(inbool && sidebool)
                             }, else {
                                 error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
                             });
@@ -277,21 +277,21 @@ fn process_stack(
                         }
                     )
                 }
-                Expr::String(x) => {
+                Types::String(x) => {
                     output = string_ops(x.to_smolstr(), output, current_operator);
                 }
-                Expr::Float(x) => {
+                Types::Float(x) => {
                     output = float_ops(*x, output, current_operator);
                 }
-                Expr::Integer(x) => {
+                Types::Integer(x) => {
                     output = integer_ops(*x, output, current_operator);
                 }
-                Expr::Array(x) => output = array_ops(x.to_owned(), output, current_operator),
-                Expr::Null => {
-                    if output == Expr::Null {
+                Types::Array(x) => output = array_ops(x.to_owned(), output, current_operator),
+                Types::Null => {
+                    if output == Types::Null {
                         match current_operator {
-                            BasicOperator::Equal => output = Expr::Bool(true),
-                            BasicOperator::NotEqual => output = Expr::Bool(false),
+                            BasicOperator::Equal => output = Types::Bool(true),
+                            BasicOperator::NotEqual => output = Types::Bool(false),
                             _ => error(
                                 &format!(
                                     "Cannot perform operation '{:?}' between Null and Null",
@@ -302,26 +302,26 @@ fn process_stack(
                         }
                     }
                 }
-                Expr::Property(x) => {
+                Types::Property(x) => {
                     // TODO
                     todo!("Properties aren't implented yet!")
                 }
-                Expr::PropertyFunction(ref x, ref y) => {
-                    let args: Vec<Expr> = y
+                Types::PropertyFunction(ref x, ref y) => {
+                    let args: Vec<Types> = y
                         .iter()
                         .map(|arg| process_stack(&arg, &variables, &functions))
                         .collect();
 
-                    if let Expr::String(ref str) = &output {
+                    if let Types::String(ref str) = &output {
                         string_props!(str, args, x, output);
                         // str.to_smolstr()
-                    } else if let Expr::Float(num) = output {
+                    } else if let Types::Float(num) = output {
                         float_props!(num, args, x, output);
-                    } else if let Expr::Integer(num) = output {
+                    } else if let Types::Integer(num) = output {
                         integer_props!(num, args, x, output);
-                    } else if let Expr::Array(ref arr) = output {
+                    } else if let Types::Array(ref arr) = output {
                         array_props!(arr, args, x, output);
-                    } else if let Expr::File(ref filepath) = &output {
+                    } else if let Types::File(ref filepath) = &output {
                         file_props!(filepath, args, x, output);
                     }
                 }
@@ -337,16 +337,16 @@ fn process_stack(
 #[unroll_for_loops]
 #[const_currying]
 fn process_function(
-    lines: &Vec<Vec<Expr>>,
+    lines: &Vec<Vec<Types>>,
     variables: &mut Vec<Variable>,
     expected_variables_len: usize,
     name: &str,
     #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] functions: &Vec<(
         SmolStr,
         Vec<SmolStr>,
-        Vec<Vec<Expr>>,
+        Vec<Vec<Types>>,
     )>,
-) -> (Expr, Vec<Variable>) {
+) -> (Types, Vec<Variable>) {
     if unlikely(variables.len() != expected_variables_len) {
         error(
             &format!(
@@ -363,11 +363,11 @@ fn process_function(
     for instructions in lines {
         for instruction in instructions {
             match instruction {
-                Expr::VariableDeclaration(x, y) => variables.push(Variable {
+                Types::VariableDeclaration(x, y) => variables.push(Variable {
                     name: x.to_smolstr(),
                     value: process_stack(&y, &variables, &functions),
                 }),
-                Expr::VariableRedeclaration(x, y) => {
+                Types::VariableRedeclaration(x, y) => {
                     let processed = process_stack(&y, &variables, &functions);
                     if let Some(position) = variables.iter().position(|var| var.name == *x) {
                         // If the variable exists, update it directly
@@ -379,21 +379,21 @@ fn process_function(
                         });
                     }
                 }
-                Expr::NamespaceFunctionCall(z, x, y) => {
-                    let args: Vec<Expr> = y
+                Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
+                    let args: Vec<Types> = z
                         .iter()
                         .map(|arg| process_stack(&arg, &variables, &functions))
                         .collect();
-                    if unlikely(!namespace_functions(&z, &x, &args).1) {
+                    if unlikely(!namespace_functions(&namespace, &y, &args).1) {
                         error(
-                            &format!("Unknown function '{}'", z.join(".") + "." + &x),
+                            &format!("Unknown function '{}'", namespace.join(".") + "." + &y),
                             "",
                         );
                     };
                 }
-                Expr::FunctionCall(x, y) => {
+                Types::FunctionCall(x, y) => {
                     // println!("{:?}", y);
-                    let args: Vec<Expr> = y
+                    let args: Vec<Types> = y
                         .iter()
                         .map(|arg| process_stack(arg, variables, functions))
                         .collect();
@@ -401,14 +401,14 @@ fn process_function(
                     let matched = builtin_functions(&x, &args);
                     if x == "executeline" && !matched.1 {
                         assert_args_number!("executeline", args.len(), 1);
-                        if_let!(likely, Expr::String(line), &args[0], {
+                        if_let!(likely, Types::String(line), &args[0], {
                             process_stack(&parse_code(line)[0], &variables, &functions);
                             continue;
                         }, else {
                             error(&format!("Cannot execute line {:?}", &args[0]), "")
                         })
                     } else if !matched.1 {
-                        let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>) = functions
+                        let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>) = functions
                             .into_iter()
                             .filter(|func| func.0 == *x)
                             .next()
@@ -434,13 +434,13 @@ fn process_function(
                         // println!("{:?}", target_args)
                     }
                 }
-                Expr::FunctionReturn(x) => {
+                Types::FunctionReturn(x) => {
                     return (process_stack(x, &variables, functions), return_variables);
                 }
-                Expr::Condition(x, y, z) => {
-                    if process_stack(x, &variables, functions) == Expr::Bool(true) {
+                Types::Condition(x, y, z) => {
+                    if process_stack(x, &variables, functions) == Types::Bool(true) {
                         let out = process_function(y, variables, variables.len(), name, functions);
-                        if Expr::Null != out.0 {
+                        if Types::Null != out.0 {
                             return out;
                         }
                     } else {
@@ -453,7 +453,7 @@ fn process_function(
                                     name,
                                     functions,
                                 );
-                                if Expr::Null == out.0 {
+                                if Types::Null == out.0 {
                                     if out.1 != vec![] {
                                         for replace_var in out.1 {
                                             let indx = variables
@@ -469,7 +469,7 @@ fn process_function(
                                 }
                             }
                             if process_stack(&else_block.0, &variables, &functions)
-                                == Expr::Bool(true)
+                                == Types::Bool(true)
                             {
                                 let out = process_function(
                                     &else_block.1,
@@ -478,7 +478,7 @@ fn process_function(
                                     name,
                                     functions,
                                 );
-                                if Expr::Null == out.0 {
+                                if Types::Null == out.0 {
                                     if out.1 != vec![] {
                                         for replace_var in out.1 {
                                             let indx = variables
@@ -496,15 +496,15 @@ fn process_function(
                         }
                     }
                 }
-                Expr::Loop(x, y, z) => {
+                Types::Loop(x, y, z) => {
                     let loop_array = process_stack(&y, &variables, &functions);
-                    if let Expr::Array(target_array) = loop_array {
+                    if let Types::Array(target_array) = loop_array {
 
                         let mut builtin_vars = [
                             &variables[..],
                             &vec![Variable {
                                 name: x.to_owned(),
-                                value: Expr::Null,
+                                value: Types::Null,
                             }][..],
                         ]
                             .concat();
@@ -515,7 +515,7 @@ fn process_function(
                             builtin_vars[position].value = elem;
 
                             let (out_expr, out_replacements) = process_function(z, &mut builtin_vars, len, name, functions);
-                            if out_expr != Expr::Null {
+                            if out_expr != Types::Null {
                                 return (out_expr, out_replacements);
                             }
                             for replace_var in out_replacements {
@@ -527,21 +527,21 @@ fn process_function(
                                 builtin_vars[indx] = replace_var;
                             }
                         }
-                    } else if let Expr::String(ref target_string) = loop_array {
+                    } else if let Types::String(ref target_string) = loop_array {
                         let mut builtin_vars = [
                             &variables[..],
                             &vec![Variable {
                                 name: x.to_smolstr(),
-                                value: Expr::Null,
+                                value: Types::Null,
                             }][..],
                         ]
                             .concat();
                         let position = builtin_vars.len()-1;
                         let len = builtin_vars.len();
                         for elem in target_string.chars() {
-                            builtin_vars[position].value = Expr::String(elem.to_smolstr());
+                            builtin_vars[position].value = Types::String(elem.to_smolstr());
                             let (out_expr, out_replacements) = process_function(z, &mut builtin_vars, len, name, functions);
-                            if out_expr != Expr::Null {
+                            if out_expr != Types::Null {
                                 return (out_expr, out_replacements);
                             }
                             for replace_var in out_replacements {
@@ -555,10 +555,10 @@ fn process_function(
                         }
                     }
                 }
-                Expr::While(x, y) => {
-                    while process_stack(x, &variables, functions) == Expr::Bool(true) {
+                Types::While(x, y) => {
+                    while process_stack(x, &variables, functions) == Types::Bool(true) {
                         let out = process_function(y, variables, variables.len(), name, functions);
-                        if Expr::Null != out.0 {
+                        if Types::Null != out.0 {
                             return out;
                         }
                         if out.1 != vec![] {
@@ -581,7 +581,7 @@ fn process_function(
         }
         // println!("{:?}", instructions)
     }
-    (Expr::Null, return_variables)
+    (Types::Null, return_variables)
     // println!("{:?}", variables)
 }
 
@@ -638,7 +638,7 @@ options:
         fs::read_to_string(arg).expect(error_msg!(format!("Unable to read file '{}'", arg)));
 
     let now = Instant::now();
-    let functions: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)> =
+    let functions: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> =
         parse_functions(content.trim(), true);
     log!("PARSED IN: {:.2?}", now.elapsed());
     log!("FUNCTIONS {:?}", functions);
@@ -647,7 +647,7 @@ options:
         .clone()
         .into_iter()
         .filter(|function| function.0 == "main")
-        .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Expr>>)>>();
+        .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)>>();
 
     let now = Instant::now();
     // thread::Builder::new()

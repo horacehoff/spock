@@ -1,27 +1,27 @@
-use crate::parser::{BasicOperator, Expr};
+use crate::parser::{BasicOperator, Types};
 use crate::util::error;
 use crate::{error_msg, get_printable_type, if_let, math_to_type};
 use branches::likely;
 
 
 // #[inline(always)]
-pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Expr {
-    if let Expr::Integer(value) = output {
+pub fn integer_ops(x: i64, output: Types, current_operator: BasicOperator) -> Types {
+    if let Types::Integer(value) = output {
         match current_operator {
-            BasicOperator::Add => Expr::Integer(value + x),
-            BasicOperator::Sub => Expr::Integer(value - x),
+            BasicOperator::Add => Types::Integer(value + x),
+            BasicOperator::Sub => Types::Integer(value - x),
             BasicOperator::Divide => {
                 math_to_type!(value as f64 / x as f64)
             }
-            BasicOperator::Multiply => Expr::Integer(value * x),
-            BasicOperator::Power => Expr::Integer(value.pow(x as u32)),
-            BasicOperator::Modulo => Expr::Integer(value % x),
-            BasicOperator::Equal => Expr::Bool(value == x),
-            BasicOperator::NotEqual => Expr::Bool(value != x),
-            BasicOperator::Inferior => Expr::Bool(value < x),
-            BasicOperator::InferiorEqual => Expr::Bool(value <= x),
-            BasicOperator::Superior => Expr::Bool(value > x),
-            BasicOperator::SuperiorEqual => Expr::Bool(value >= x),
+            BasicOperator::Multiply => Types::Integer(value * x),
+            BasicOperator::Power => Types::Integer(value.pow(x as u32)),
+            BasicOperator::Modulo => Types::Integer(value % x),
+            BasicOperator::Equal => Types::Bool(value == x),
+            BasicOperator::NotEqual => Types::Bool(value != x),
+            BasicOperator::Inferior => Types::Bool(value < x),
+            BasicOperator::InferiorEqual => Types::Bool(value <= x),
+            BasicOperator::Superior => Types::Bool(value > x),
+            BasicOperator::SuperiorEqual => Types::Bool(value >= x),
             _ => {
                 error(
                     &format!(
@@ -30,16 +30,16 @@ pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Exp
                     ),
                     "",
                 );
-                Expr::Null
+                Types::Null
             }
         }
-    } else if let Expr::Float(value) = output {
+    } else if let Types::Float(value) = output {
         match current_operator {
-            BasicOperator::Add => Expr::Float(value + x as f64),
-            BasicOperator::Sub => Expr::Float(value - x as f64),
-            BasicOperator::Divide => Expr::Float(value / x as f64),
-            BasicOperator::Multiply => Expr::Float(value * x as f64),
-            BasicOperator::Power => Expr::Float(value.powf(x as f64)),
+            BasicOperator::Add => Types::Float(value + x as f64),
+            BasicOperator::Sub => Types::Float(value - x as f64),
+            BasicOperator::Divide => Types::Float(value / x as f64),
+            BasicOperator::Multiply => Types::Float(value * x as f64),
+            BasicOperator::Power => Types::Float(value.powf(x as f64)),
             _ => {
                 error(
                     &format!(
@@ -48,12 +48,12 @@ pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Exp
                     ),
                     "",
                 );
-                Expr::Null
+                Types::Null
             }
         }
-    } else if let Expr::Operation(y) = output {
+    } else if let Types::Operation(y) = output {
         if_let!(likely, BasicOperator::Sub, y, {
-            Expr::Integer(-x)
+            Types::Integer(-x)
         }, else {
             error(
                 &format!(
@@ -62,15 +62,15 @@ pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Exp
                 ),
                 "",
             );
-            Expr::Null
+            Types::Null
         })
-    } else if let Expr::Array(ref y) = output {
+    } else if let Types::Array(ref y) = output {
         if_let!(likely, BasicOperator::Multiply, current_operator, {
-            let mut new_vec: Vec<Expr> = vec![];
+            let mut new_vec: Vec<Types> = vec![];
             for _ in 0..x {
                 new_vec.append(&mut y.clone());
             }
-            Expr::Array(new_vec)
+            Types::Array(new_vec)
         }, else {
             error(
                 &format!(
@@ -79,7 +79,7 @@ pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Exp
                 ),
                 "",
             );
-            Expr::Null
+            Types::Null
         })
     }
     else {
@@ -91,7 +91,7 @@ pub fn integer_ops(x: i64, output: Expr, current_operator: BasicOperator) -> Exp
             ),
             "",
         );
-        Expr::Null
+        Types::Null
     }
 }
 
@@ -101,11 +101,11 @@ macro_rules! integer_props {
         match $x.as_str() {
             "toFloat" => {
                 assert_args_number!("toFloat", $args.len(), 0);
-                $output = Expr::Float($num as f64)
+                $output = Types::Float($num as f64)
             }
             "toStr" => {
                 assert_args_number!("toStr", $args.len(), 0);
-                $output = Expr::String($num.to_smolstr())
+                $output = Types::String($num.to_smolstr())
             }
             _ => {}
         }

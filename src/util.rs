@@ -1,5 +1,5 @@
 use smol_str::{SmolStr, ToSmolStr};
-use crate::parser::Expr;
+use crate::parser::Types;
 
 pub fn error(message: &str, tip: &str) {
     if tip == "" {
@@ -78,11 +78,11 @@ macro_rules! assert_args_number {
 macro_rules! get_value {
     ($x:expr) => {
         match $x {
-            Expr::String(x) => x,
-            Expr::Float(x) => x,
-            Expr::Integer(x) => x,
-            Expr::Bool(x) => x,
-            Expr::Array(x) => x,
+            Types::String(x) => x,
+            Types::Float(x) => x,
+            Types::Integer(x) => x,
+            Types::Bool(x) => x,
+            Types::Array(x) => x,
             _ => panic!("{}", error_msg!(format!("Cannot get value of {:?}", $x))),
         }
     };
@@ -92,12 +92,12 @@ macro_rules! get_value {
 macro_rules! get_printable_type {
     ($x:expr) => {
         match $x {
-            Expr::String(_) => "String",
-            Expr::Float(_) => "Float",
-            Expr::Integer(_) => "Integer",
-            Expr::Bool(_) => "Boolean",
-            Expr::Array(_) => "Array",
-            Expr::Null => "Null",
+            Types::String(_) => "String",
+            Types::Float(_) => "Float",
+            Types::Integer(_) => "Integer",
+            Types::Bool(_) => "Boolean",
+            Types::Array(_) => "Array",
+            Types::Null => "Null",
             _ => panic!("{}", error_msg!(format!("Cannot get type of {:?}", $x))),
         }
     };
@@ -107,9 +107,9 @@ macro_rules! get_printable_type {
 macro_rules! math_to_type {
     ($x:expr) => {
         if $x.fract() != 0.0 {
-            Expr::Float($x)
+            Types::Float($x)
         } else {
-            Expr::Integer($x as i64)
+            Types::Integer($x as i64)
         }
     };
 }
@@ -174,13 +174,13 @@ macro_rules! if_let {
     };
 }
 
-pub fn get_printable_form(x: &Expr) -> SmolStr {
+pub fn get_printable_form(x: &Types) -> SmolStr {
     match x {
-        Expr::String(str) => str.to_owned(),
-        Expr::Float(float) => float.to_smolstr(),
-        Expr::Integer(int) => int.to_smolstr(),
-        Expr::Bool(boolean) => boolean.to_smolstr(),
-        Expr::Array(x) => {
+        Types::String(str) => str.to_owned(),
+        Types::Float(float) => float.to_smolstr(),
+        Types::Integer(int) => int.to_smolstr(),
+        Types::Bool(boolean) => boolean.to_smolstr(),
+        Types::Array(x) => {
             let arr = x;
             ("[".to_string()
                 + arr
@@ -193,7 +193,7 @@ pub fn get_printable_form(x: &Expr) -> SmolStr {
                     .as_str()
                 + "]").to_smolstr()
         }
-        Expr::Null => "Null".to_smolstr(),
+        Types::Null => "Null".to_smolstr(),
         _ => {
             error(
                 &format!("Cannot display {} type", get_printable_type!(x)),
