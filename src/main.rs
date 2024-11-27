@@ -220,7 +220,7 @@ fn builtin_functions(
 fn process_stack(
     stack_in: &[Types],
     variables: &HashMap<SmolStr, Types>,
-    functions: &Vec<(SmolStr, Vec<SmolStr>, &[Vec<Types>])>,
+    functions: &[(SmolStr, Vec<SmolStr>, &[Vec<Types>])],
 ) -> Types {
     let mut output: Types = {
         if let Types::VariableIdentifier(ref var) = stack_in.first().unwrap() {
@@ -362,32 +362,18 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 process_line_logic(x, variables);
             }
             Types::VariableDeclaration(ref x, ref y) => {
-                // variables.push(Variable {
-                //     name: x.to_smolstr(),
-                //     value: process_stack(y, variables, &vec![]),
-                // })
-                variables.insert(x.to_smolstr(), process_stack(y, variables, &vec![]));
-                // println!("{:?}VARS", variables);
+                variables.insert(x.to_smolstr(), process_stack(y, variables, &[]));
             },
             Types::VariableRedeclaration(ref x, ref y) => {
-                // let index = variables.iter().position(|var| var.name == *x).expect(error_msg!(format!("Unknown variable '{x}'")));
-                // variables[index].value = process_stack(y, variables, &vec![]);
-                // variables.get_mut(&*x).unwrap();
-                // println!("VARS BEFORE{y:?}");
-                let calculated =  process_stack(y, variables, &vec![]);
-                // println!("CALCS{calculated:?}");
-
-                // variables.entry(x.to_smolstr()) = calculated;
+                let calculated =  process_stack(y, variables, &[]);
                 if let Some(x) =  variables.get_mut(x) {
                     *x = calculated;
                 }
-                // println!("VARS AFTER{variables:?}");
-
             },
             Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
                 let args: Vec<Types> = z
                     .iter()
-                    .map(|arg| process_stack(arg, variables, &vec![]))
+                    .map(|arg| process_stack(arg, variables, &[]))
                     .collect();
                 if unlikely(!namespace_functions(namespace, y, &args).1) {
                     error(
@@ -400,14 +386,14 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 // println!("{:?}", y);
                 let args: Vec<Types> = y
                     .iter()
-                    .map(|arg| process_stack(arg, variables, &vec![]))
+                    .map(|arg| process_stack(arg, variables, &[]))
                     .collect();
 
                 let (_, matched) = builtin_functions(&x, &args);
                 if x == "executeline" && !matched {
                     assert_args_number!("executeline", args.len(), 1);
                     if_let!(likely, Types::String(line), &args[0], {
-                    process_stack(&parse_code(line)[0], &variables, &vec![]);
+                    process_stack(&parse_code(line)[0], &variables, &[]);
                     // continue;
                 }, else {
                     error(&format!("Cannot execute line {:?}", &args[0]), "")
@@ -441,14 +427,14 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 }
             }
             Types::Condition(ref x, ref y, ref z) => {
-                if process_stack(&x, &variables, &vec![]) == Types::Bool(true) {
+                if process_stack(&x, &variables, &[]) == Types::Bool(true) {
                     let out = process_function(y, variables);
                     if Types::Null != out {
                         return out;
                     }
                 } else {
                     for else_block in z {
-                        if else_block.0.len() == 0 || process_stack(&else_block.0, &variables, &vec![]) == Types::Bool(true)  {
+                        if else_block.0.len() == 0 || process_stack(&else_block.0, &variables, &[]) == Types::Bool(true)  {
                             let out = process_function(
                                 &else_block.1,
                                 variables
@@ -461,7 +447,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 }
             },
             Types::Loop(ref x, ref y,ref  z) => {
-                let loop_array = process_stack(&y, &variables, &vec![]);
+                let loop_array = process_stack(&y, &variables, &[]);
                 if let Types::Array(target_array) = loop_array {
                     variables.insert(x.to_smolstr(), Types::Null);
                     for elem in target_array {
@@ -496,7 +482,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
 fn process_function(lines: &[Vec<Types>], variables: &mut HashMap<SmolStr, Types>) -> Types {
     for line in lines.iter() {
         if let Types::FunctionReturn(x) = line.first().unwrap() {
-            return process_stack(&x, variables, &vec![]);
+            return process_stack(&x, variables, &[]);
         } else {
             let processed = process_line_logic(line, variables);
             if processed != Types::Null {
@@ -773,14 +759,6 @@ options:
         .into_iter()
         .filter(|function| function.0 == "main")
         .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)>>();
-    // for mut x in main_instructions {
-    //     for mut y in x.2 {
-    //         if y.len() == 1 {
-    //
-    //         }
-    //         // println!("{:?}", y.len())
-    //     }
-    // }
 
     let now = Instant::now();
     // thread::Builder::new()

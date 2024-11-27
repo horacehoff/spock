@@ -18,7 +18,7 @@ use unroll::unroll_for_loops;
 #[unroll_for_loops]
 pub fn preprocess(
     variables: &HashMap<SmolStr, Types>,
-    functions: &Vec<(SmolStr, Vec<SmolStr>, &[Vec<Types>])>,
+    functions: &[(SmolStr, Vec<SmolStr>, &[Vec<Types>])],
     element: &Types,
 ) -> Types {
     // println!("ELEM{:?}", element);
