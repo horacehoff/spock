@@ -11,6 +11,8 @@ use smol_str::{SmolStr, ToSmolStr};
 #[grammar = "parser/parser_grammar.pest"]
 pub struct ComputeParser;
 
+
+#[repr(u8)]
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq)]
 pub enum Types {
     Null,
