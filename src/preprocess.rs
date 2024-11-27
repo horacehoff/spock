@@ -1,6 +1,6 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap};
 use crate::namespaces::namespace_functions;
-use crate::parser::{parse_code, Types, Variable};
+use crate::parser::{parse_code, Types};
 use crate::util::{error, get_printable_form};
 use crate::{
     assert_args_number,
@@ -101,14 +101,11 @@ pub fn preprocess(
                 .next()
                 .expect(&format!("Unknown function '{}'", func_name));
             assert_args_number!(&func_name, args.len(), target_function.1.len());
-            let target_args: &Vec<Variable> = &target_function
+            let target_args: &HashMap<SmolStr, Types> = &target_function
                 .1
                 .iter()
                 .enumerate()
-                .map(|(i, arg)| Variable {
-                    name: arg.to_smolstr(),
-                    value: args[i].to_owned(),
-                })
+                .map(|(i, arg)| (arg.to_smolstr(), args[i].to_owned()))
                 .collect();
             // let result = process_function(
             //     &target_function.2,

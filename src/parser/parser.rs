@@ -80,12 +80,6 @@ pub enum BasicOperator {
     SuperiorEqual,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Variable {
-    pub(crate) name: SmolStr,
-    pub(crate) value: Types,
-}
-
 pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
     let mut output: Vec<Types> = vec![];
     let mut recursive = true;

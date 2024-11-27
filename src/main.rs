@@ -20,7 +20,7 @@ use crate::array::array_ops;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-use crate::parser::{parse_code, BasicOperator, Types, Variable};
+use crate::parser::{parse_code, BasicOperator, Types};
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::string_ops;
