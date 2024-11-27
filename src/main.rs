@@ -222,7 +222,6 @@ fn process_stack(
     variables: &HashMap<SmolStr, Types>,
     functions: &Vec<(SmolStr, Vec<SmolStr>, &[Vec<Types>])>,
 ) -> Types {
-    // println!("STACK IN {stack_in:?}");
     let mut output: Types = {
         if let Types::VariableIdentifier(ref var) = stack_in.first().unwrap() {
             let value = variables
@@ -237,22 +236,14 @@ fn process_stack(
             value
         }
     };
-    // let mut output = Types::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in.iter().skip(1) {
         let mut element: &Types = p_element;
         let mut val: Types = Types::Null;
         if let Types::VariableIdentifier(ref var) = element {
-            // let variable = &variables
-            //     .par_iter()
-            //     .find_any(|x| x.name.eq(var))
-            //     .expect(&error_msg!(format!("Unknown variable '{}'", var)));
-            // element = &variable.value
             let value = variables
                 .get(var)
-                .expect(&error_msg!("Unknown variable")); // Get the value associated with `var` or return an error
-
-            // Assign `element` to the value
+                .expect(&error_msg!(format!("Unknown variable '{var}'")));
             element = value;
         } else {
             val = preprocess(variables, functions, &element);
@@ -261,14 +252,12 @@ fn process_stack(
             }
         }
 
-        // println!("ELEM {element:?}");
         match element {
             Types::Operation(ref op) => {
                 current_operator = *op;
             }
             Types::Integer(ref x) => {
                 output = integer_ops(*x, output, current_operator);
-                // println!("OUTPUT: \n{output:?}")
             }
             Types::String(ref x) => {
                 output = string_ops(x.to_smolstr(), output, current_operator);
@@ -479,7 +468,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                         if let Some(value) = variables.get_mut(x) {
                             *value = elem;
                         }
-                        
+
                         let out_expr:Types = process_line_logic(z,variables);
                         if out_expr != Types::Null {
                             variables.remove(x);
