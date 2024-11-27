@@ -34,6 +34,8 @@ use std::path::Path;
 use std::time::Instant;
 use std::{fs, io};
 use branches::likely;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::prelude::ParallelSliceMut;
 use smol_str::{SmolStr, StrExt, ToSmolStr};
 use unroll::unroll_for_loops;
 
@@ -211,143 +213,161 @@ fn builtin_functions(
     }
 }
 
-
+#[inline(always)]
 #[unroll_for_loops]
 fn process_stack(
     stack_in: &[Types],
     variables: &Vec<Variable>,
     functions: &Vec<(SmolStr, Vec<SmolStr>, &[Vec<Types>])>,
 ) -> Types {
-    let mut output: Types = Types::Null;
+    let mut output: Types = {
+        if let Types::VariableIdentifier(ref var) = stack_in.first().unwrap() {
+            let variable = &variables
+                .par_iter()
+                .find_any(|x| x.name.eq(var))
+                .expect(&error_msg!(format!("Unknown variable '{}'", var)));
+            variable.value.clone()
+        } else {
+            let value = preprocess(variables, functions, stack_in.first().unwrap());
+            if value == Types::Null {
+                return stack_in.first().unwrap().to_owned()
+            }
+            value
+        }
+    };
+
     let mut current_operator: BasicOperator = BasicOperator::Null;
-    for p_element in stack_in {
+    for p_element in stack_in.iter().skip(1) {
         let mut element: &Types = p_element;
         let mut val: Types = Types::Null;
         if let Types::VariableIdentifier(ref var) = element {
             let variable = &variables
-                .iter()
-                .find(|x| x.name.eq(var))
+                .par_iter()
+                .find_any(|x| x.name.eq(var))
                 .expect(&error_msg!(format!("Unknown variable '{}'", var)));
             element = &variable.value
         } else {
-            val = preprocess(variables, functions, element);
+            val = preprocess(variables, functions, &element);
             if val != Types::Null {
                 element = &val;
             }
         }
-
-        if output != Types::Null {
-            match element {
-                Types::Operation(op) => {
-                    current_operator = *op;
-                }
-                Types::OR(ref x) => {
-                    let parsed_exp = process_stack(&x, variables, functions);
-                    if_let!(
-                        likely,
-                        Types::Bool(inbool),
-                        output,
-                        {
-                            if_let!(likely, Types::Bool(sidebool), parsed_exp, {
-                                output = Types::Bool(inbool || sidebool)
-                            }, else {
-                                error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
-                            });
-                        }, else
-                        {
-                            error(format!("{:?} is not a Boolean", output).as_str(), "");
-                        }
-                    );
-                }
-                Types::AND(ref x) => {
-                    let parsed_exp = process_stack(&x, variables, functions);
-                    if_let!(
-                        likely,
-                        Types::Bool(inbool),
-                        output,
-                        {
-                            if_let!(likely, Types::Bool(sidebool), parsed_exp, {
-                                output = Types::Bool(inbool && sidebool)
-                            }, else {
-                                error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
-                            });
-                        }, else
-                        {
-                            error(format!("{:?} is not a Boolean", output).as_str(), "");
-                        }
-                    )
-                }
-                Types::String(x) => {
-                    output = string_ops(x.to_smolstr(), output, current_operator);
-                }
-                Types::Float(x) => {
-                    output = float_ops(*x, output, current_operator);
-                }
-                Types::Integer(x) => {
-                    output = integer_ops(*x, output, current_operator);
-                }
-                Types::Array(x) => output = array_ops(x.to_owned(), output, current_operator),
-                Types::Null => {
-                    if output == Types::Null {
-                        match current_operator {
-                            BasicOperator::Equal => output = Types::Bool(true),
-                            BasicOperator::NotEqual => output = Types::Bool(false),
-                            _ => error(
-                                &format!(
-                                    "Cannot perform operation '{:?}' between Null and Null",
-                                    current_operator
-                                ),
-                                "",
-                            ),
-                        }
-                    }
-                }
-                Types::Property(x) => {
-                    // TODO
-                    todo!("Properties aren't implented yet!")
-                }
-                Types::PropertyFunction(ref x, ref y) => {
-                    let args: Vec<Types> = y
-                        .iter()
-                        .map(|arg| process_stack(&arg, &variables, &functions))
-                        .collect();
-
-                    if let Types::String(ref str) = &output {
-                        string_props!(str, args, x, output);
-                        // str.to_smolstr()
-                    } else if let Types::Float(num) = output {
-                        float_props!(num, args, x, output);
-                    } else if let Types::Integer(num) = output {
-                        integer_props!(num, args, x, output);
-                    } else if let Types::Array(ref arr) = output {
-                        array_props!(arr, args, x, output);
-                    } else if let Types::File(ref filepath) = &output {
-                        file_props!(filepath, args, x, output);
-                    }
-                }
-                _ => todo!(),
+        
+        match element {
+            Types::Operation(ref op) => {
+                current_operator = *op;
             }
-        } else {
-            output = element.to_owned();
+            Types::OR(ref x) => {
+                let parsed_exp = process_stack(x, variables, functions);
+                if_let!(
+                    likely,
+                    Types::Bool(inbool),
+                    output,
+                    {
+                        if_let!(likely, Types::Bool(sidebool), parsed_exp, {
+                            output = Types::Bool(inbool || sidebool)
+                        }, else {
+                            error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
+                        });
+                    }, else
+                    {
+                        error(format!("{:?} is not a Boolean", output).as_str(), "");
+                    }
+                );
+            }
+            Types::AND(ref x) => {
+                let parsed_exp = process_stack(&x, variables, functions);
+                if_let!(
+                    likely,
+                    Types::Bool(inbool),
+                    output,
+                    {
+                        if_let!(likely, Types::Bool(sidebool), parsed_exp, {
+                            output = Types::Bool(inbool && sidebool)
+                        }, else {
+                            error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
+                        });
+                    }, else
+                    {
+                        error(format!("{:?} is not a Boolean", output).as_str(), "");
+                    }
+                )
+            }
+            Types::String(ref x) => {
+                output = string_ops(x.to_smolstr(), output, current_operator);
+            }
+            Types::Float(ref x) => {
+                output = float_ops(*x, output, current_operator);
+            }
+            Types::Integer(ref x) => {
+                output = integer_ops(*x, output, current_operator);
+            }
+            Types::Array(ref x) => output = array_ops(x.to_owned(), output, current_operator),
+            Types::Null => {
+                if output == Types::Null {
+                    match current_operator {
+                        BasicOperator::Equal => output = Types::Bool(true),
+                        BasicOperator::NotEqual => output = Types::Bool(false),
+                        _ => error(
+                            &format!(
+                                "Cannot perform operation '{:?}' between Null and Null",
+                                current_operator
+                            ),
+                            "",
+                        ),
+                    }
+                }
+            }
+            Types::Property(x) => {
+                // TODO
+                todo!("Properties aren't implented yet!")
+            }
+            Types::PropertyFunction(ref x, ref y) => {
+                let args: Vec<Types> = y
+                    .iter()
+                    .map(|arg| process_stack(&arg, &variables, &functions))
+                    .collect();
+
+                if let Types::String(ref str) = &output {
+                    string_props!(str, args, x, output);
+                    // str.to_smolstr()
+                } else if let Types::Float(num) = output {
+                    float_props!(num, args, x, output);
+                } else if let Types::Integer(num) = output {
+                    integer_props!(num, args, x, output);
+                } else if let Types::Array(ref arr) = output {
+                    array_props!(arr, args, x, output);
+                } else if let Types::File(ref filepath) = &output {
+                    file_props!(filepath, args, x, output);
+                }
+            }
+            _ => todo!(),
         }
+        // }
+        // else {
+        //     output = element.to_owned();
+        // }
     }
     output
 }
 
+
+
+
 #[inline(always)]
 fn process_line_logic(line_array: &[Types], variables: &mut Vec<Variable>) -> Types {
-    for line in line_array {
+    for line in line_array.iter() {
         match line {
-            Types::Wrap(x) => {
+            Types::Wrap(ref x) => {
                 process_line_logic(x, variables);
             }
-            Types::VariableDeclaration(x, y) => {
+            Types::VariableDeclaration(ref x, ref y) => {
                 variables.push(Variable {
                     name: x.to_smolstr(),
                     value: process_stack(y, variables, &vec![]),
                 })
             },
-            Types::VariableRedeclaration(x, y) => {
+            Types::VariableRedeclaration(ref x, ref y) => {
                 let index = variables.iter().position(|var| var.name == *x).expect(error_msg!(format!("Unknown variable '{x}'")));
                 variables[index].value = process_stack(y, variables, &vec![]);
             },
@@ -363,15 +383,15 @@ fn process_line_logic(line_array: &[Types], variables: &mut Vec<Variable>) -> Ty
                     );
                 };
             }
-            Types::FunctionCall(x, y) => {
+            Types::FunctionCall(ref x, ref y) => {
                 // println!("{:?}", y);
                 let args: Vec<Types> = y
                     .iter()
                     .map(|arg| process_stack(arg, variables, &vec![]))
                     .collect();
 
-                let matched = builtin_functions(&x, &args);
-                if x == "executeline" && !matched.1 {
+                let (_, matched) = builtin_functions(&x, &args);
+                if x == "executeline" && !matched {
                     assert_args_number!("executeline", args.len(), 1);
                     if_let!(likely, Types::String(line), &args[0], {
                     process_stack(&parse_code(line)[0], &variables, &vec![]);
@@ -379,7 +399,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut Vec<Variable>) -> Ty
                 }, else {
                     error(&format!("Cannot execute line {:?}", &args[0]), "")
                 })
-                } else if !matched.1 {
+                } else if !matched {
                     todo!("Functions are WIP")
                     // let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>) = functions
                     //     .into_iter()
@@ -407,7 +427,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut Vec<Variable>) -> Ty
                     // );
                 }
             }
-            Types::Condition(x, y, z) => {
+            Types::Condition(ref x, ref y, ref z) => {
                 if process_stack(&x, &variables, &vec![]) == Types::Bool(true) {
                     let out = process_function(y, variables);
                     if Types::Null != out {
@@ -415,18 +435,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut Vec<Variable>) -> Ty
                     }
                 } else {
                     for else_block in z {
-                        if else_block.0.len() == 0 {
-                            let out = process_function(
-                                &else_block.1,
-                                variables
-                            );
-                            if out != Types::Null {
-                                return out;
-                            }
-                        }
-                        if process_stack(&else_block.0, &variables, &vec![])
-                            == Types::Bool(true)
-                        {
+                        if else_block.0.len() == 0 || process_stack(&else_block.0, &variables, &vec![]) == Types::Bool(true)  {
                             let out = process_function(
                                 &else_block.1,
                                 variables
@@ -438,7 +447,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut Vec<Variable>) -> Ty
                     }
                 }
             },
-            Types::Loop(x, y, z) => {
+            Types::Loop(ref x, ref y,ref  z) => {
                 let loop_array = process_stack(&y, &variables, &vec![]);
                 if let Types::Array(target_array) = loop_array {
                     let now = Instant::now();
@@ -469,7 +478,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut Vec<Variable>) -> Ty
 }
 
 fn process_function(lines: &[Vec<Types>], variables: &mut Vec<Variable>) -> Types {
-    for line in lines {
+    for line in lines.iter() {
         if let Types::FunctionReturn(x) = line.first().unwrap() {
             return process_stack(&x, variables, &vec![]);
         } else {
