@@ -257,50 +257,14 @@ fn process_stack(
             Types::Operation(ref op) => {
                 current_operator = *op;
             }
-            Types::OR(ref x) => {
-                let parsed_exp = process_stack(x, variables, functions);
-                if_let!(
-                    likely,
-                    Types::Bool(inbool),
-                    output,
-                    {
-                        if_let!(likely, Types::Bool(sidebool), parsed_exp, {
-                            output = Types::Bool(inbool || sidebool)
-                        }, else {
-                            error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
-                        });
-                    }, else
-                    {
-                        error(format!("{:?} is not a Boolean", output).as_str(), "");
-                    }
-                );
-            }
-            Types::AND(ref x) => {
-                let parsed_exp = process_stack(&x, variables, functions);
-                if_let!(
-                    likely,
-                    Types::Bool(inbool),
-                    output,
-                    {
-                        if_let!(likely, Types::Bool(sidebool), parsed_exp, {
-                            output = Types::Bool(inbool && sidebool)
-                        }, else {
-                            error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
-                        });
-                    }, else
-                    {
-                        error(format!("{:?} is not a Boolean", output).as_str(), "");
-                    }
-                )
+            Types::Integer(ref x) => {
+                output = integer_ops(*x, output, current_operator);
             }
             Types::String(ref x) => {
                 output = string_ops(x.to_smolstr(), output, current_operator);
             }
             Types::Float(ref x) => {
                 output = float_ops(*x, output, current_operator);
-            }
-            Types::Integer(ref x) => {
-                output = integer_ops(*x, output, current_operator);
             }
             Types::Array(ref x) => output = array_ops(x.to_owned(), output, current_operator),
             Types::Null => {
@@ -340,6 +304,42 @@ fn process_stack(
                 } else if let Types::File(ref filepath) = &output {
                     file_props!(filepath, args, x, output);
                 }
+            }
+            Types::OR(ref x) => {
+                let parsed_exp = process_stack(x, variables, functions);
+                if_let!(
+                    likely,
+                    Types::Bool(inbool),
+                    output,
+                    {
+                        if_let!(likely, Types::Bool(sidebool), parsed_exp, {
+                            output = Types::Bool(inbool || sidebool)
+                        }, else {
+                            error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
+                        });
+                    }, else
+                    {
+                        error(format!("{:?} is not a Boolean", output).as_str(), "");
+                    }
+                );
+            }
+            Types::AND(ref x) => {
+                let parsed_exp = process_stack(&x, variables, functions);
+                if_let!(
+                    likely,
+                    Types::Bool(inbool),
+                    output,
+                    {
+                        if_let!(likely, Types::Bool(sidebool), parsed_exp, {
+                            output = Types::Bool(inbool && sidebool)
+                        }, else {
+                            error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
+                        });
+                    }, else
+                    {
+                        error(format!("{:?} is not a Boolean", output).as_str(), "");
+                    }
+                )
             }
             _ => todo!(),
         }
