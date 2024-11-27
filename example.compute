@@ -1,7 +1,7 @@
 func main() {
 let result = 0;
 for i in range(1000000) {
-    result = result+1;
+    result = result+i;
 }
 print(result);
 }

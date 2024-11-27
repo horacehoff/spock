@@ -33,6 +33,8 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::time::Instant;
 use std::{fs, io};
+use std::collections::HashMap;
+use std::env::var;
 use branches::likely;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rayon::prelude::ParallelSliceMut;
@@ -217,48 +219,56 @@ fn builtin_functions(
 #[unroll_for_loops]
 fn process_stack(
     stack_in: &[Types],
-    variables: &Vec<Variable>,
+    variables: &HashMap<SmolStr, Types>,
     functions: &Vec<(SmolStr, Vec<SmolStr>, &[Vec<Types>])>,
 ) -> Types {
+    // println!("STACK IN {stack_in:?}");
     let mut output: Types = {
         if let Types::VariableIdentifier(ref var) = stack_in.first().unwrap() {
-            let variable = &variables
-                .par_iter()
-                .find_any(|x| x.name.eq(var))
-                .expect(&error_msg!(format!("Unknown variable '{}'", var)));
-            variable.value.clone()
+            let value = variables
+                .get(var)
+                .expect(&error_msg!("Unknown variable"));
+            value.to_owned()
         } else {
             let value = preprocess(variables, functions, stack_in.first().unwrap());
             if value == Types::Null {
-                return stack_in.first().unwrap().to_owned()
+                 return stack_in.first().unwrap().to_owned()
             }
             value
         }
     };
-
+    // let mut output = Types::Null;
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in.iter().skip(1) {
         let mut element: &Types = p_element;
         let mut val: Types = Types::Null;
         if let Types::VariableIdentifier(ref var) = element {
-            let variable = &variables
-                .par_iter()
-                .find_any(|x| x.name.eq(var))
-                .expect(&error_msg!(format!("Unknown variable '{}'", var)));
-            element = &variable.value
+            // let variable = &variables
+            //     .par_iter()
+            //     .find_any(|x| x.name.eq(var))
+            //     .expect(&error_msg!(format!("Unknown variable '{}'", var)));
+            // element = &variable.value
+            let value = variables
+                .get(var)
+                .expect(&error_msg!("Unknown variable")); // Get the value associated with `var` or return an error
+
+            // Assign `element` to the value
+            element = value;
         } else {
             val = preprocess(variables, functions, &element);
             if val != Types::Null {
                 element = &val;
             }
         }
-        
+
+        // println!("ELEM {element:?}");
         match element {
             Types::Operation(ref op) => {
                 current_operator = *op;
             }
             Types::Integer(ref x) => {
                 output = integer_ops(*x, output, current_operator);
+                // println!("OUTPUT: \n{output:?}")
             }
             Types::String(ref x) => {
                 output = string_ops(x.to_smolstr(), output, current_operator);
@@ -348,6 +358,7 @@ fn process_stack(
         //     output = element.to_owned();
         // }
     }
+    // println!("OUTP {output:?}");
     output
 }
 
@@ -355,21 +366,34 @@ fn process_stack(
 
 
 #[inline(always)]
-fn process_line_logic(line_array: &[Types], variables: &mut Vec<Variable>) -> Types {
+fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Types>) -> Types {
     for line in line_array.iter() {
         match line {
             Types::Wrap(ref x) => {
                 process_line_logic(x, variables);
             }
             Types::VariableDeclaration(ref x, ref y) => {
-                variables.push(Variable {
-                    name: x.to_smolstr(),
-                    value: process_stack(y, variables, &vec![]),
-                })
+                // variables.push(Variable {
+                //     name: x.to_smolstr(),
+                //     value: process_stack(y, variables, &vec![]),
+                // })
+                variables.insert(x.to_smolstr(), process_stack(y, variables, &vec![]));
+                // println!("{:?}VARS", variables);
             },
             Types::VariableRedeclaration(ref x, ref y) => {
-                let index = variables.iter().position(|var| var.name == *x).expect(error_msg!(format!("Unknown variable '{x}'")));
-                variables[index].value = process_stack(y, variables, &vec![]);
+                // let index = variables.iter().position(|var| var.name == *x).expect(error_msg!(format!("Unknown variable '{x}'")));
+                // variables[index].value = process_stack(y, variables, &vec![]);
+                // variables.get_mut(&*x).unwrap();
+                // println!("VARS BEFORE{y:?}");
+                let calculated =  process_stack(y, variables, &vec![]);
+                // println!("CALCS{calculated:?}");
+
+                // variables.entry(x.to_smolstr()) = calculated;
+                if let Some(x) =  variables.get_mut(x) {
+                    *x = calculated;
+                }
+                // println!("VARS AFTER{variables:?}");
+
             },
             Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
                 let args: Vec<Types> = z
@@ -450,16 +474,19 @@ fn process_line_logic(line_array: &[Types], variables: &mut Vec<Variable>) -> Ty
             Types::Loop(ref x, ref y,ref  z) => {
                 let loop_array = process_stack(&y, &variables, &vec![]);
                 if let Types::Array(target_array) = loop_array {
-                    let now = Instant::now();
-                    for elem in target_array.iter() {
-                        let out_expr:Types = process_line_logic(z, variables);
-
-
+                    variables.insert(x.to_smolstr(), Types::Null);
+                    for elem in target_array {
+                        if let Some(value) = variables.get_mut(x) {
+                            *value = elem;
+                        }
+                        
+                        let out_expr:Types = process_line_logic(z,variables);
                         if out_expr != Types::Null {
+                            variables.remove(x);
                             return out_expr;
                         }
                     }
-                    println!("LOOP DURATION {:.2?}", now.elapsed())
+                    variables.remove(x);
 
                 } else if let Types::String(ref target_string) = loop_array {
                     for elem in target_string.chars() {
@@ -477,7 +504,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut Vec<Variable>) -> Ty
     Types::Null
 }
 
-fn process_function(lines: &[Vec<Types>], variables: &mut Vec<Variable>) -> Types {
+fn process_function(lines: &[Vec<Types>], variables: &mut HashMap<SmolStr, Types>) -> Types {
     for line in lines.iter() {
         if let Types::FunctionReturn(x) = line.first().unwrap() {
             return process_stack(&x, variables, &vec![]);
@@ -778,7 +805,7 @@ options:
     //     .unwrap();
     // process_function(&main_instructions[0].2, &mut vec![], 0, "main", &functions,None);
 
-    let mut vars:Vec<Variable> = vec![];
+    let mut vars:HashMap<SmolStr, Types> = Default::default();
     // process_line_logic(&Types::VariableDeclaration("hey".to_smolstr(), vec![Types::Integer(56)]), &mut vars);
     // process_line_logic(&Types::VariableRedeclaration("hey".to_smolstr(), vec![Types::Integer(512)]), &mut vars);
 

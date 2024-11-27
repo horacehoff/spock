@@ -1,3 +1,4 @@
+use std::collections::{HashMap, VecDeque};
 use crate::namespaces::namespace_functions;
 use crate::parser::{parse_code, Types, Variable};
 use crate::util::{error, get_printable_form};
@@ -16,7 +17,7 @@ use unroll::unroll_for_loops;
 
 #[unroll_for_loops]
 pub fn preprocess(
-    variables: &Vec<Variable>,
+    variables: &HashMap<SmolStr, Types>,
     functions: &Vec<(SmolStr, Vec<SmolStr>, &[Vec<Types>])>,
     element: &Types,
 ) -> Types {
