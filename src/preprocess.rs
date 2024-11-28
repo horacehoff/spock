@@ -1,4 +1,4 @@
-use std::collections::{HashMap};
+use gxhash::HashMap;
 use crate::namespaces::namespace_functions;
 use crate::parser::{parse_code, Types};
 use crate::util::{error, get_printable_form};
