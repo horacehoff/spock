@@ -62,21 +62,21 @@ pub fn parse_functions(
         imported_functions.append(&mut parse_functions(&file_content, false));
     }
 
-    let hash = blake3::hash(content.as_bytes()).to_string();
-    if Path::new(&format!(".compute/{}", hash)).exists() {
-        let file = File::open(&format!(".compute/{}", hash)).unwrap();
-        let mut reader = BufReader::with_capacity(128 * 1024, file);
-        let mut buffer = Vec::new();
-        reader.read_to_end(&mut buffer).unwrap();
-
-        let mut deserialized_data: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> =
-            bincode::deserialize(&buffer).expect(error_msg!(
-                "Failed to read from cache",
-                "Delete the .compute folder"
-            ));
-        deserialized_data.append(&mut imported_functions);
-        return deserialized_data;
-    }
+    // let hash = blake3::hash(content.as_bytes()).to_string();
+    // if Path::new(&format!(".compute/{}", hash)).exists() {
+    //     let file = File::open(&format!(".compute/{}", hash)).unwrap();
+    //     let mut reader = BufReader::with_capacity(128 * 1024, file);
+    //     let mut buffer = Vec::new();
+    //     reader.read_to_end(&mut buffer).unwrap();
+    // 
+    //     let mut deserialized_data: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> =
+    //         bincode::deserialize(&buffer).expect(error_msg!(
+    //             "Failed to read from cache",
+    //             "Delete the .compute folder"
+    //         ));
+    //     deserialized_data.append(&mut imported_functions);
+    //     return deserialized_data;
+    // }
 
     let comment_regex = Regex::new(r"(?m)(?<=\}|;|\{|.)\s*//.*$").unwrap();
     let mut content: String = comment_regex.replace_all(content, "").to_string();
@@ -142,12 +142,12 @@ pub fn parse_functions(
     // println!("CURRENT FUNCS{:?}", functions);
 
     // Cache functions
-    let data = bincode::serialize(&functions).unwrap();
-    fs::create_dir_all(".compute/").unwrap();
-    File::create(format!(".compute/{}", hash))
-        .unwrap()
-        .write_all(&data)
-        .unwrap();
+    // let data = bincode::serialize(&functions).unwrap();
+    // fs::create_dir_all(".compute/").unwrap();
+    // File::create(format!(".compute/{}", hash))
+    //     .unwrap()
+    //     .write_all(&data)
+    //     .unwrap();
 
     if functions
         .clone()

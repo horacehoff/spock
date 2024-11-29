@@ -13,7 +13,7 @@ pub struct ComputeParser;
 
 
 #[repr(u8)]
-#[derive(Debug, Serialize, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Types {
     Null,
     Integer(i64),
