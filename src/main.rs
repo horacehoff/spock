@@ -35,8 +35,6 @@ use std::time::Instant;
 use std::{fs, io};
 use gxhash::HashMap;
 use branches::likely;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use rayon::prelude::ParallelSliceMut;
 use smol_str::{SmolStr, StrExt, ToSmolStr};
 use unroll::unroll_for_loops;
 
@@ -45,59 +43,63 @@ fn builtin_functions(
     x: &str,
     #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] args: &Vec<Types>,
 ) -> (Types, bool) {
-    if x == "print" {
-        assert_args_number!("print", args.len(), 1);
-        if let Types::String(str) = &args[0] {
-            println!("{}", str);
-        } else {
-            println!("{}", get_printable_form(&args[0]));
-        }
-
-        (Types::Null, true)
-    } else if x == "abs" {
-        assert_args_number!("abs", args.len(), 1);
-        match &args[0] {
-            Types::Float(val) => return (Types::Float(val.abs()), true),
-            Types::Integer(val) => return (Types::Integer(val.abs()), true),
-            _ => error(
-                &format!("Cannot get absolute value of {:?} type", &args[0]),
-                "Change type",
-            ),
-        }
-        (Types::Null, true)
-    } else if x == "round" {
-        assert_args_number!("round", args.len(), 1);
-        match &args[0] {
-            Types::Float(val) => return (Types::Integer(val.round() as i64), true),
-            Types::Integer(val) => return (Types::Integer(*val), true),
-            _ => error(
-                &format!("Cannot round {} type", get_printable_type!(&args[0])),
-                "Change type",
-            ),
-        }
-        (Types::Null, true)
-    } else if x == "len" {
-        assert_args_number!("len", args.len(), 1);
-        match &args[0] {
-            Types::String(val) => {
-                return (Types::Integer(val.len() as i64), true);
+    match x {
+        "print" => {
+            assert_args_number!("print", args.len(), 1);
+            if let Types::String(str) = &args[0] {
+                println!("{}", str);
+            } else {
+                println!("{}", get_printable_form(&args[0]));
             }
-            Types::Array(val) => {
-                return (Types::Integer(val.len() as i64), true);
-            }
-            _ => error(
-                &format!(
-                    "Cannot get length of type {}",
-                    get_printable_type!(&args[0])
+            return (Types::Null, true)
+        }
+        "abs" => {
+            assert_args_number!("abs", args.len(), 1);
+            match &args[0] {
+                Types::Float(val) => return (Types::Float(val.abs()), true),
+                Types::Integer(val) => return (Types::Integer(val.abs()), true),
+                _ => error(
+                    &format!("Cannot get absolute value of {:?} type", &args[0]),
+                    "Change type",
                 ),
-                "Change type",
-            ),
+            }
+            return (Types::Null, true)
         }
-        (Types::Null, true)
-    } else if x == "input" {
-        assert_args_number!("input", args.len(), 0, 1);
-        if args.len() == 1 {
-            if_let!(likely, Types::String(prompt), &args[0], {
+        "round" => {
+            assert_args_number!("round", args.len(), 1);
+            match &args[0] {
+                Types::Float(val) => return (Types::Integer(val.round() as i64), true),
+                Types::Integer(val) => return (Types::Integer(*val), true),
+                _ => error(
+                    &format!("Cannot round {} type", get_printable_type!(&args[0])),
+                    "Change type",
+                ),
+            }
+            return (Types::Null, true)
+        }
+        "len" => {
+            assert_args_number!("len", args.len(), 1);
+            match &args[0] {
+                Types::String(val) => {
+                    return (Types::Integer(val.len() as i64), true);
+                }
+                Types::Array(val) => {
+                    return (Types::Integer(val.len() as i64), true);
+                }
+                _ => error(
+                    &format!(
+                        "Cannot get length of type {}",
+                        get_printable_type!(&args[0])
+                    ),
+                    "Change type",
+                ),
+            }
+            return (Types::Null, true)
+        }
+        "input" => {
+            assert_args_number!("input", args.len(), 0, 1);
+            if args.len() == 1 {
+                if_let!(likely, Types::String(prompt), &args[0], {
                 print!("{}", prompt);
             }, else {
                 error(
@@ -105,113 +107,111 @@ fn builtin_functions(
                     "Change type",
                 );
             });
+            }
+            io::stdout().flush().unwrap();
+            return (
+                Types::String(
+                    BufReader::new(io::stdin())
+                        .lines()
+                        .next()
+                        .expect(error_msg!("Failed to read input"))
+                        .unwrap()
+                        .as_str()
+                        .parse()
+                        .unwrap(),
+                ),
+                true,
+            );
         }
-        io::stdout().flush().unwrap();
-        return (
-            Types::String(
-                BufReader::new(io::stdin())
-                    .lines()
-                    .next()
-                    .expect(error_msg!("Failed to read input"))
-                    .unwrap()
-                    .as_str()
-                    .parse()
-                    .unwrap(),
-            ),
-            true,
-        );
-    } else if x == "type" {
-        assert_args_number!("type", args.len(), 1);
-        return (Types::String(get_printable_type!(&args[0]).into()), true);
-    } else if x == "hash" {
-        assert_args_number!("hash", args.len(), 1);
-        (
-            Types::String(
-                blake3::hash(
-                    bincode::serialize(&args[0])
-                        .expect(error_msg!(format!(
+        "type" => {
+            assert_args_number!("type", args.len(), 1);
+            return (Types::String(get_printable_type!(&args[0]).into()), true);
+        }
+        "hash" => {
+            assert_args_number!("hash", args.len(), 1);
+            return (
+                Types::String(
+                    blake3::hash(
+                        bincode::serialize(&args[0])
+                            .expect(error_msg!(format!(
                             "Failed to compute hash of object {:?}",
                             &args[0]
                         )))
-                        .as_ref(),
-                ).to_smolstr(),
-            ),
-            true,
-        )
-    } else if x == "sqrt" {
-        assert_args_number!("sqrt", args.len(), 1);
-        if let Types::Integer(int) = args[0] {
-            return (Types::Float((int as f64).sqrt()), true);
-        } else if let Types::Float(float) = args[0] {
-            return (Types::Float(float.sqrt()), true);
-        } else {
-            error(
-                format!("Cannot calculate the square root of {:?}", args[0]).as_str(),
-                "",
-            );
-            (Types::Null, false)
+                            .as_ref(),
+                    ).to_smolstr(),
+                ),
+                true,
+            )
         }
-    } else if x == "the_answer" {
-        println!("42, the answer to the Ultimate Question of Life, the Universe, and Everything.");
-        (Types::Integer(42), true)
-    } else if x == "range" {
-        assert_args_number!("sqrt", args.len(), 1, 3);
-        if args.len() == 1 {
-            if_let!(likely, Types::Integer(lim), args[0], {
-                (Types::Array((0..lim).map(Types::Integer).collect()), true)
+        "sqrt" => {
+            assert_args_number!("sqrt", args.len(), 1);
+            if let Types::Integer(int) = args[0] {
+                return (Types::Float((int as f64).sqrt()), true);
+            } else if let Types::Float(float) = args[0] {
+                return (Types::Float(float.sqrt()), true);
+            } else {
+                error(
+                    format!("Cannot calculate the square root of {:?}", args[0]).as_str(),
+                    "",
+                );
+            }
+        }
+        "the_answer" => {
+            println!("42, the answer to the Ultimate Question of Life, the Universe, and Everything.");
+            return (Types::Integer(42), true)
+        }
+        "range" => {
+            assert_args_number!("sqrt", args.len(), 1, 3);
+            if args.len() == 1 {
+                if_let!(likely, Types::Integer(lim), args[0], {
+                return (Types::Array((0..lim).map(Types::Integer).collect()), true)
             }, else {
                 error("Invalid range limit", "");
-                (Types::Null, false)
             })
-        } else if args.len() == 2 {
-            if_let!(likely, Types::Integer(lim), args[0], {
+            } else if args.len() == 2 {
+                if_let!(likely, Types::Integer(lim), args[0], {
                 if_let!(Types::Integer(upplim), args[1], {
-                    (
+                    return (
                         Types::Array((lim..upplim).map(Types::Integer).collect()),
                         true,
                     )
                 }, else {
                     error("Invalid range limit", "");
-                    (Types::Null, false)
                 })
             }, else {
                 error("Invalid range start", "");
-                (Types::Null, false)
             })
-        } else if args.len() == 3 {
-            if_let!(likely, Types::Integer(start), args[0], {
+            } else if args.len() == 3 {
+                if_let!(likely, Types::Integer(start), args[0], {
                 if_let!(Types::Integer(stop), args[1], {
                     if_let!(Types::Integer(step), args[2], {
                         if unlikely(step == 0) {
                             error("Step cannot be zero", "");
-                            (Types::Null, false)
                         } else {
                             let range = if step > 0 {
                                 (start..stop).step_by(step as usize)
                             } else {
                                 (stop..start).step_by((-step) as usize)
                             };
-                            (Types::Array(range.map(Types::Integer).collect()), true)
+                            return (Types::Array(range.map(Types::Integer).collect()), true)
                         }
                     }, else {
                         error("Invalid range step", "");
-                        (Types::Null, false)
                     })
                 }, else {
                     error("Invalid range limit", "");
-                    (Types::Null, false)
                 })
             }, else {
                 error("Invalid range start", "");
-                (Types::Null, false)
             })
-        } else {
-            error("Invalid range arguments", "");
-            (Types::Null, false)
+            } else {
+                error("Invalid range arguments", "");
+            }
         }
-    } else {
-        (Types::Null, false)
+
+        _ => {return (Types::Null, false)}
     }
+    (Types::Null, false)
 }
 
 #[inline(always)]
