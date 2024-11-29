@@ -10,6 +10,7 @@ use std::path::Path;
 use libloading::{Library, library_filename};
 use smol_str::{SmolStr, ToSmolStr};
 use goblin::Object;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 pub fn parse_functions(
     content: &str,
@@ -68,7 +69,7 @@ pub fn parse_functions(
     //     let mut reader = BufReader::with_capacity(128 * 1024, file);
     //     let mut buffer = Vec::new();
     //     reader.read_to_end(&mut buffer).unwrap();
-    // 
+    //
     //     let mut deserialized_data: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> =
     //         bincode::deserialize(&buffer).expect(error_msg!(
     //             "Failed to read from cache",
@@ -149,14 +150,9 @@ pub fn parse_functions(
     //     .write_all(&data)
     //     .unwrap();
 
-    if functions
-        .clone()
-        .into_iter()
-        .filter(|function| function.0 == "main")
-        .collect::<Vec<(&str, Vec<&str>, Vec<Vec<Types>>)>>()
-        .len()
-        == 0
-        && check_main
+    if !functions
+        .iter()
+        .any(|function| function.0 == "main") && check_main
     {
         error("No main function", "Add 'func main() {}' to your file");
     }
