@@ -6,7 +6,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::process::exit;
 
-pub fn namespace_functions(x: &Vec<SmolStr>, y: &str, args: &Vec<Types>) -> (Types, bool) {
+pub fn namespace_functions(x: &[SmolStr], y: &str, args: &[Types]) -> (Types, bool) {
     if x[0] == "compute" {
         if y == "exit" {
             assert_args_number!(y, args.len(), 1);
@@ -29,7 +29,8 @@ pub fn namespace_functions(x: &Vec<SmolStr>, y: &str, args: &Vec<Types>) -> (Typ
                 OpenOptions::new()
                     .write(true)
                     .create(true)
-                    .open(&filename)
+                    .truncate(false)
+                    .open(filename)
                     .expect(error_msg!("Failed to check/create file"));
                 (Types::File(filename.to_smolstr()), true)
             } else {

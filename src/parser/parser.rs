@@ -73,11 +73,11 @@ pub enum BasicOperator {
     Equal,
     NotEqual,
     Power,
-    AND,
+    And,
     Modulo,
     Inferior,
     InferiorEqual,
-    OR,
+    Or,
     Superior,
     SuperiorEqual,
 }
@@ -93,18 +93,12 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
         Rule::float => output.push(Types::Float(pair.as_str().parse::<f64>().unwrap())),
         Rule::string => output.push(Types::String(
             pair.as_str()
-                .trim_end_matches("\"")
-                .trim_start_matches("\"")
+                .trim_end_matches('\"')
+                .trim_start_matches('\"')
                 .parse()
                 .unwrap(),
         )),
-        Rule::bool => output.push(Types::Bool({
-            if pair.as_str() == "true" {
-                true
-            } else {
-                false
-            }
-        })),
+        Rule::bool => output.push(Types::Bool(pair.as_str() == "true")),
         Rule::array_suite => {
             recursive = false;
             let mut suite: Vec<Types> = vec![];
@@ -113,15 +107,15 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                 // println!("MEM{:?}", suite);
             }
 
-            output.push(ArraySuite(suite))
+            output.push(ArraySuite(suite));
         }
         Rule::array => {
             let mut array: Vec<Vec<Types>> = vec![];
             for array_member in pair.clone().into_inner() {
-                array.push(parse_expression(array_member))
+                array.push(parse_expression(array_member));
             }
             recursive = false;
-            output.push(Types::ArrayParsed(array))
+            output.push(Types::ArrayParsed(array));
         }
         Rule::property => {
             recursive = false;
@@ -231,11 +225,11 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             "==" => output.push(Types::Operation(BasicOperator::Equal)),
             "!=" => output.push(Types::Operation(BasicOperator::NotEqual)),
             "^" => output.push(Types::Operation(BasicOperator::Power)),
-            "&&" => output.push(Types::Operation(BasicOperator::AND)),
+            "&&" => output.push(Types::Operation(BasicOperator::And)),
             "%" => output.push(Types::Operation(BasicOperator::Modulo)),
             "<" => output.push(Types::Operation(BasicOperator::Inferior)),
             "<=" => output.push(Types::Operation(BasicOperator::InferiorEqual)),
-            "||" => output.push(Types::Operation(BasicOperator::OR)),
+            "||" => output.push(Types::Operation(BasicOperator::Or)),
             ">" => output.push(Types::Operation(BasicOperator::Superior)),
             ">=" => output.push(Types::Operation(BasicOperator::SuperiorEqual)),
             _ => todo!(),

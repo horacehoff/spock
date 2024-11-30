@@ -265,15 +265,15 @@ fn process_stack(
                 current_operator = *op;
             }
             Types::Integer(ref x) => {
-                output = integer_ops(*x, output, current_operator);
+                output = integer_ops(*x, &output, current_operator);
             }
             Types::String(ref x) => {
                 output = string_ops(x, &output, current_operator);
             }
             Types::Float(ref x) => {
-                output = float_ops(*x, output, current_operator);
+                output = float_ops(*x, &output, current_operator);
             }
-            Types::Array(ref x) => output = array_ops(x.to_owned(), output, current_operator),
+            Types::Array(ref x) => output = array_ops(x, &output, current_operator),
             Types::Null => {
                 if output == Types::Null {
                     match current_operator {

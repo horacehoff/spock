@@ -3,26 +3,22 @@ use crate::get_printable_type;
 use crate::parser::{BasicOperator, Types};
 use crate::util::error;
 
-pub fn array_ops(x: Vec<Types>, output: Types, current_operator: BasicOperator) -> Types {
-    if let Types::Integer(value) = output {
-        match current_operator {
-            BasicOperator::Multiply => {
-                let mut new_vec: Vec<Types> = vec![];
+pub fn array_ops(x: &[Types], output: &Types, current_operator: BasicOperator) -> Types {
+    if let Types::Integer(value) = *output {
+        if current_operator == BasicOperator::Multiply {
+            let mut new_vec: Vec<Types> = vec![];
                 for _ in 0..value {
-                    new_vec.append(&mut x.clone());
+                    new_vec.append(&mut x.to_owned());
                 }
                 Types::Array(new_vec)
-            }
-            _ => {
-                error(
-                    &format!(
-                        "Cannot perform operation '{:?}' between Array and Integer",
-                        current_operator
-                    ),
-                    "",
-                );
-                Types::Null
-            }
+        } else {
+            error(
+                &format!(
+                    "Cannot perform operation '{current_operator:?}' between Array and Integer"
+                ),
+                "",
+            );
+            Types::Null
         }
     } else {
         error(

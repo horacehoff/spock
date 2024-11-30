@@ -70,7 +70,7 @@ pub fn preprocess(
                     } else {
                         "false".to_smolstr()
                     });
-                } else if let Types::Array(arr) = &args[0] {
+                } else if let Types::Array(_) = &args[0] {
                     return Types::String(get_printable_form(&args[0]));
                 } else {
                     error(

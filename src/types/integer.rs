@@ -5,8 +5,8 @@ use branches::likely;
 
 
 // #[inline(always)]
-pub fn integer_ops(x: i64, output: Types, current_operator: BasicOperator) -> Types {
-    if let Types::Integer(value) = output {
+pub fn integer_ops(x: i64, output: &Types, current_operator: BasicOperator) -> Types {
+    if let Types::Integer(value) = *output {
         match current_operator {
             BasicOperator::Add => Types::Integer(value + x),
             BasicOperator::Sub => Types::Integer(value - x),
@@ -25,8 +25,7 @@ pub fn integer_ops(x: i64, output: Types, current_operator: BasicOperator) -> Ty
             _ => {
                 error(
                     &format!(
-                        "Cannot perform operation '{:?}' between Integer and Integer",
-                        current_operator
+                        "Cannot perform operation '{current_operator:?}' between Integer and Integer"
                     ),
                     "",
                 );
@@ -43,8 +42,7 @@ pub fn integer_ops(x: i64, output: Types, current_operator: BasicOperator) -> Ty
             _ => {
                 error(
                     &format!(
-                        "Cannot perform operation '{:?}' between Float and Integer",
-                        current_operator
+                        "Cannot perform operation '{current_operator:?}' between Float and Integer"
                     ),
                     "",
                 );
@@ -74,8 +72,7 @@ pub fn integer_ops(x: i64, output: Types, current_operator: BasicOperator) -> Ty
         }, else {
             error(
                 &format!(
-                    "Cannot perform operation '{:?}' between Array and Integer",
-                    current_operator
+                    "Cannot perform operation '{current_operator:?}' between Array and Integer",
                 ),
                 "",
             );
