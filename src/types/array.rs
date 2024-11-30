@@ -121,7 +121,7 @@ macro_rules! array_props {
                 assert_args_number!("insert", $args.len(), 2);
                 let mut new_vec: Vec<Types> = $arr.clone();
                 if let Types::Integer(x) = $args[0] {
-                    new_vec.insert(x as usize, $args[1].clone());
+                    new_vec.insert(usize::try_from(x), $args[1].clone());
                     $output = Types::Array(new_vec)
                 } else {
                     error(format!("{:?} is not a valid index", $args[0]).as_str(), "");
@@ -131,7 +131,7 @@ macro_rules! array_props {
                 assert_args_number!("pop", $args.len(), 1);
                 let mut new_vec: Vec<Types> = $arr.clone();
                 if let Types::Integer(x) = $args[0] {
-                    new_vec.remove(x as usize);
+                    new_vec.remove(usize::try_from(x));
                     $output = Types::Array(new_vec)
                 } else {
                     error(format!("{:?} is not a valid index", $args[0]).as_str(), "");

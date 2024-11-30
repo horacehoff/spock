@@ -2,10 +2,10 @@ use crate::parser::Types;
 use smol_str::{SmolStr, ToSmolStr};
 
 pub fn error(message: &str, tip: &str) {
-    if tip == "" {
+    if tip.is_empty() {
         eprintln!(
-            "--------------\n{}\n{}\n--------------",
-            "\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m", message
+            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{}\n--------------",
+             message
         );
     } else {
         eprintln!(
@@ -187,7 +187,7 @@ pub fn get_printable_form(x: &Types) -> SmolStr {
                     .iter()
                     .map(|item| get_printable_form(item).to_string() + ",")
                     .collect::<String>()
-                    .trim_end_matches(",")
+                    .trim_end_matches(',')
                     .parse::<String>()
                     .unwrap()
                     .as_str()

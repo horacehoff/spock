@@ -230,7 +230,7 @@ fn process_stack(
         Types::VariableIdentifier(ref var) => {
             variables
             .get(var)
-            .expect(&error_msg!("Unknown variable"))
+            .expect(error_msg!("Unknown variable"))
             .to_owned()
         }
         other => {
@@ -244,17 +244,17 @@ fn process_stack(
     };
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in.iter().skip(1) {
-        let mut _process = Types::Null;
+        let mut process = Types::Null;
         let element = match p_element {
             Types::VariableIdentifier(var) => {
                 variables.get(var).expect(&error_msg!(format!("Unknown variable '{var}'")))
             }
             _ => {
-                _process = preprocess(variables, functions, p_element);
-                if _process == Types::Null {
+                process = preprocess(variables, functions, p_element);
+                if process == Types::Null {
                     p_element
                 } else {
-                    &_process
+                    &process
                 }
             }
         };
@@ -267,7 +267,7 @@ fn process_stack(
                 output = integer_ops(*x, output, current_operator);
             }
             Types::String(ref x) => {
-                output = string_ops(x.to_smolstr(), output, current_operator);
+                output = string_ops(x, &output, current_operator);
             }
             Types::Float(ref x) => {
                 output = float_ops(*x, output, current_operator);
@@ -280,8 +280,7 @@ fn process_stack(
                         BasicOperator::NotEqual => output = Types::Bool(false),
                         _ => error(
                             &format!(
-                                "Cannot perform operation '{:?}' between Null and Null",
-                                current_operator
+                                "Cannot perform operation '{current_operator:?}' between Null and Null"
                             ),
                             "",
                         ),
@@ -295,7 +294,7 @@ fn process_stack(
             Types::PropertyFunction(ref x, ref y) => {
                 let args: Vec<Types> = y
                     .iter()
-                    .map(|arg| process_stack(&arg, &variables, &functions))
+                    .map(|arg| process_stack(arg, variables, functions))
                     .collect();
 
                 if let Types::String(ref str) = &output {
@@ -319,13 +318,13 @@ fn process_stack(
                     output,
                     {
                         if_let!(likely, Types::Bool(sidebool), parsed_exp, {
-                            output = Types::Bool(inbool || sidebool)
+                            output = Types::Bool(inbool || sidebool);
                         }, else {
-                            error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
+                            error(format!("{parsed_exp:?} is not a Boolean").as_str(), "");
                         });
                     }, else
                     {
-                        error(format!("{:?} is not a Boolean", output).as_str(), "");
+                        error(format!("{output:?} is not a Boolean").as_str(), "");
                     }
                 );
             }

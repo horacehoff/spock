@@ -5,36 +5,32 @@ use crate::util::error;
 use smol_str::SmolStr;
 
 // #[inline(always)]
-pub fn string_ops(x: SmolStr, output: Types, current_operator: BasicOperator) -> Types {
-    if let Types::String(value) = &output {
+pub fn string_ops(x: &SmolStr, output: &Types, current_operator: BasicOperator) -> Types {
+    if let Types::String(value) = output {
         match current_operator {
-            BasicOperator::Add => Types::String(format!("{}{}", value, x).into()),
-            BasicOperator::Equal => Types::Bool(value.eq(&x)),
-            BasicOperator::NotEqual => Types::Bool(value.eq(&x)),
+            BasicOperator::Add => Types::String(format!("{value}{x}").into()),
+            BasicOperator::Equal | BasicOperator::NotEqual => Types::Bool(value.eq(x)),
             _ => {
                 error(
                     &format!(
-                        "Cannot perform operation '{:?}' between String and String",
-                        current_operator
+                        "Cannot perform operation '{current_operator:?}' between String and String"
                     ),
                     "",
                 );
                 Types::Null
             }
         }
-    } else if let Types::Integer(value) = &output {
-        match current_operator {
-            BasicOperator::Multiply => Types::String(x.repeat(*value as usize).parse().unwrap()),
-            _ => {
-                error(
-                    &format!(
-                        "Cannot perform operation '{:?}' between Integer and String",
-                        current_operator
-                    ),
-                    "",
-                );
-                Types::Null
-            }
+    } else if let Types::Integer(value) = output {
+        if current_operator == BasicOperator::Multiply {
+            Types::String(x.repeat(*value as usize).parse().unwrap())
+        } else {
+            error(
+                &format!(
+                    "Cannot perform operation '{current_operator:?}' between Integer and String"
+                ),
+                "",
+            );
+            Types::Null
         }
     } else {
         error(
