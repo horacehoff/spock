@@ -52,7 +52,7 @@ fn builtin_functions(
             } else {
                 println!("{}", get_printable_form(&args[0]));
             }
-            return (Types::Null, true)
+            return (Types::Null, true);
         }
         "abs" => {
             assert_args_number!("abs", args.len(), 1);
@@ -64,7 +64,7 @@ fn builtin_functions(
                     "Change type",
                 ),
             }
-            return (Types::Null, true)
+            return (Types::Null, true);
         }
         "round" => {
             assert_args_number!("round", args.len(), 1);
@@ -76,7 +76,7 @@ fn builtin_functions(
                     "Change type",
                 ),
             }
-            return (Types::Null, true)
+            return (Types::Null, true);
         }
         "len" => {
             assert_args_number!("len", args.len(), 1);
@@ -95,19 +95,19 @@ fn builtin_functions(
                     "Change type",
                 ),
             }
-            return (Types::Null, true)
+            return (Types::Null, true);
         }
         "input" => {
             assert_args_number!("input", args.len(), 0, 1);
             if args.len() == 1 {
                 if_let!(likely, Types::String(prompt), &args[0], {
-                print!("{}", prompt);
-            }, else {
-                error(
-                    &format!("Cannot print {} type", get_printable_type!(&args[0])),
-                    "Change type",
-                );
-            });
+                    print!("{}", prompt);
+                }, else {
+                    error(
+                        &format!("Cannot print {} type", get_printable_type!(&args[0])),
+                        "Change type",
+                    );
+                });
             }
             io::stdout().flush().unwrap();
             return (
@@ -135,14 +135,15 @@ fn builtin_functions(
                     blake3::hash(
                         bincode::serialize(&args[0])
                             .expect(error_msg!(format!(
-                            "Failed to compute hash of object {:?}",
-                            &args[0]
-                        )))
+                                "Failed to compute hash of object {:?}",
+                                &args[0]
+                            )))
                             .as_ref(),
-                    ).to_smolstr(),
+                    )
+                    .to_smolstr(),
                 ),
                 true,
-            )
+            );
         }
         "sqrt" => {
             assert_args_number!("sqrt", args.len(), 1);
@@ -158,64 +159,66 @@ fn builtin_functions(
             }
         }
         "the_answer" => {
-            println!("42, the answer to the Ultimate Question of Life, the Universe, and Everything.");
-            return (Types::Integer(42), true)
+            println!(
+                "42, the answer to the Ultimate Question of Life, the Universe, and Everything."
+            );
+            return (Types::Integer(42), true);
         }
         "range" => {
             assert_args_number!("sqrt", args.len(), 1, 3);
             if args.len() == 1 {
                 if_let!(likely, Types::Integer(lim), args[0], {
-                // return (Types::Array((0..lim).map(Types::Integer).collect()), true)
-                    let mut vec = Vec::with_capacity(lim as usize);
-                    for i in 0..lim {
-                        vec.push(Types::Integer(i));
-                    }
-                    return (Types::Array(vec), true);
-            }, else {
-                error("Invalid range limit", "");
-            })
+                    // return (Types::Array((0..lim).map(Types::Integer).collect()), true)
+                        let mut vec = Vec::with_capacity(lim as usize);
+                        for i in 0..lim {
+                            vec.push(Types::Integer(i));
+                        }
+                        return (Types::Array(vec), true);
+                }, else {
+                    error("Invalid range limit", "");
+                })
             } else if args.len() == 2 {
                 if_let!(likely, Types::Integer(lim), args[0], {
-                if_let!(Types::Integer(upplim), args[1], {
-                    return (
-                        Types::Array((lim..upplim).map(Types::Integer).collect()),
-                        true,
-                    )
-                }, else {
-                    error("Invalid range limit", "");
-                })
-            }, else {
-                error("Invalid range start", "");
-            })
-            } else if args.len() == 3 {
-                if_let!(likely, Types::Integer(start), args[0], {
-                if_let!(Types::Integer(stop), args[1], {
-                    if_let!(Types::Integer(step), args[2], {
-                        if unlikely(step == 0) {
-                            error("Step cannot be zero", "");
-                        } else {
-                            let range = if step > 0 {
-                                (start..stop).step_by(step as usize)
-                            } else {
-                                (stop..start).step_by((-step) as usize)
-                            };
-                            return (Types::Array(range.map(Types::Integer).collect()), true)
-                        }
+                    if_let!(Types::Integer(upplim), args[1], {
+                        return (
+                            Types::Array((lim..upplim).map(Types::Integer).collect()),
+                            true,
+                        )
                     }, else {
-                        error("Invalid range step", "");
+                        error("Invalid range limit", "");
                     })
                 }, else {
-                    error("Invalid range limit", "");
+                    error("Invalid range start", "");
                 })
-            }, else {
-                error("Invalid range start", "");
-            })
+            } else if args.len() == 3 {
+                if_let!(likely, Types::Integer(start), args[0], {
+                    if_let!(Types::Integer(stop), args[1], {
+                        if_let!(Types::Integer(step), args[2], {
+                            if unlikely(step == 0) {
+                                error("Step cannot be zero", "");
+                            } else {
+                                let range = if step > 0 {
+                                    (start..stop).step_by(step as usize)
+                                } else {
+                                    (stop..start).step_by((-step) as usize)
+                                };
+                                return (Types::Array(range.map(Types::Integer).collect()), true)
+                            }
+                        }, else {
+                            error("Invalid range step", "");
+                        })
+                    }, else {
+                        error("Invalid range limit", "");
+                    })
+                }, else {
+                    error("Invalid range start", "");
+                })
             } else {
                 error("Invalid range arguments", "");
             }
         }
 
-        _ => {return (Types::Null, false)}
+        _ => return (Types::Null, false),
     }
     (Types::Null, false)
 }
@@ -227,17 +230,15 @@ fn process_stack(
     variables: &HashMap<SmolStr, Types>,
     functions: &[(SmolStr, Vec<SmolStr>, &[Vec<Types>])],
 ) -> Types {
-    let mut output:Types = match stack_in.first().unwrap() {
-        Types::VariableIdentifier(ref var) => {
-            variables
+    let mut output: Types = match stack_in.first().unwrap() {
+        Types::VariableIdentifier(ref var) => variables
             .get(var)
             .expect(error_msg!("Unknown variable"))
-            .to_owned()
-        }
+            .to_owned(),
         other => {
             let value = preprocess(variables, functions, other);
             if value == Types::Null {
-                 other.to_owned()
+                other.to_owned()
             } else {
                 value
             }
@@ -247,9 +248,9 @@ fn process_stack(
     for p_element in stack_in.iter().skip(1) {
         let mut process = Types::Null;
         let element = match p_element {
-            Types::VariableIdentifier(var) => {
-                variables.get(var).expect(error_msg!(format!("Unknown variable '{var}'")))
-            }
+            Types::VariableIdentifier(var) => variables
+                .get(var)
+                .expect(error_msg!(format!("Unknown variable '{var}'"))),
             _ => {
                 process = preprocess(variables, functions, p_element);
                 if process == Types::Null {
@@ -358,9 +359,6 @@ fn process_stack(
     output
 }
 
-
-
-
 #[inline(always)]
 fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Types>) -> Types {
     for line in line_array {
@@ -370,13 +368,13 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
             }
             Types::VariableDeclaration(ref x, ref y) => {
                 variables.insert(x.to_smolstr(), process_stack(y, variables, &[]));
-            },
+            }
             Types::VariableRedeclaration(ref x, ref y) => {
-                let calculated =  process_stack(y, variables, &[]);
-                if let Some(x) =  variables.get_mut(x) {
+                let calculated = process_stack(y, variables, &[]);
+                if let Some(x) = variables.get_mut(x) {
                     *x = calculated;
                 }
-            },
+            }
             Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
                 let args: Vec<Types> = z
                     .iter()
@@ -400,10 +398,10 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 if x == "executeline" && !matched {
                     assert_args_number!("executeline", args.len(), 1);
                     if_let!(likely, Types::String(line), &args[0], {
-                    process_stack(&parse_code(line)[0], variables, &[]);
-                }, else {
-                    error(&format!("Cannot execute line {:?}", &args[0]), "");
-                });
+                        process_stack(&parse_code(line)[0], variables, &[]);
+                    }, else {
+                        error(&format!("Cannot execute line {:?}", &args[0]), "");
+                    });
                 } else if !matched {
                     todo!("Functions are WIP")
                     // let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>) = functions
@@ -440,19 +438,18 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                     }
                 } else {
                     for else_block in z {
-                        if else_block.0.is_empty()|| process_stack(&else_block.0, variables, &[]) == Types::Bool(true)  {
-                            let out = process_function(
-                                &else_block.1,
-                                variables
-                            );
+                        if else_block.0.is_empty()
+                            || process_stack(&else_block.0, variables, &[]) == Types::Bool(true)
+                        {
+                            let out = process_function(&else_block.1, variables);
                             if out != Types::Null {
                                 return out;
                             }
                         }
                     }
                 }
-            },
-            Types::Loop(ref x, ref y,ref  z) => {
+            }
+            Types::Loop(ref x, ref y, ref z) => {
                 let loop_array = process_stack(y, variables, &[]);
                 if let Types::Array(target_array) = loop_array {
                     variables.insert(x.to_smolstr(), Types::Null);
@@ -461,25 +458,24 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                             *value = elem;
                         }
 
-                        let out_expr:Types = process_line_logic(z,variables);
+                        let out_expr: Types = process_line_logic(z, variables);
                         if out_expr != Types::Null {
                             variables.remove(x);
                             return out_expr;
                         }
                     }
                     variables.remove(x);
-
                 } else if let Types::String(ref target_string) = loop_array {
                     for elem in target_string.chars() {
-                        let out_expr:Types = {
-                                let result = process_line_logic(z, variables);
+                        let out_expr: Types = {
+                            let result = process_line_logic(z, variables);
                             // };
                             Types::Null
                         };
                     }
                 }
             }
-            _ => panic!("{}", error_msg!("TODO!!"))
+            _ => panic!("{}", error_msg!("TODO!!")),
         }
     }
     Types::Null
@@ -705,7 +701,7 @@ fn process_function(lines: &[Vec<Types>], variables: &mut HashMap<SmolStr, Types
 fn main() {
     let totaltime = Instant::now();
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.is_empty(){
+    if args.is_empty() {
         println!(
             "
   ______   ______   .___  ___. .______    __    __  .___________. _______
@@ -778,7 +774,7 @@ options:
     //     .unwrap();
     // process_function(&main_instructions[0].2, &mut vec![], 0, "main", &functions,None);
 
-    let mut vars:HashMap<SmolStr, Types> = HashMap::default();
+    let mut vars: HashMap<SmolStr, Types> = HashMap::default();
     // process_line_logic(&Types::VariableDeclaration("hey".to_smolstr(), vec![Types::Integer(56)]), &mut vars);
     // process_line_logic(&Types::VariableRedeclaration("hey".to_smolstr(), vec![Types::Integer(512)]), &mut vars);
 

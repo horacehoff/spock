@@ -27,25 +27,32 @@ pub fn parse_functions(
             i += 1;
             match_content = &content[0..i];
         }
-        let name = String::from("./") + match_content.replace("import", "").trim().trim_end_matches(';');
+        let name = String::from("./")
+            + match_content
+                .replace("import", "")
+                .trim()
+                .trim_end_matches(';');
 
         if name.ends_with(".compute") {
             // IS COMPUTE FILE
             let file_content = fs::read_to_string(&name).expect(error_msg!(format!(
-            "Cannot find module {}",
-            name.trim_start_matches("./")
-        )));
+                "Cannot find module {}",
+                name.trim_start_matches("./")
+            )));
             imported_functions.append(&mut parse_functions(&file_content, false));
         } else {
             // IS LIB -> .dll, .so, .dylib
 
-            let libname = if cfg!(windows){format!("{name}.dll")} else if cfg!(target_os = "linux") {format!("{name}.so")} else {format!("{name}.dylib")};
+            let libname = if cfg!(windows) {
+                format!("{name}.dll")
+            } else if cfg!(target_os = "linux") {
+                format!("{name}.so")
+            } else {
+                format!("{name}.dylib")
+            };
 
             // let buffer = fs::read(path)
         }
-
-
-
     }
     for content_match in matches {
         let match_index = content_match.0;
@@ -150,10 +157,7 @@ pub fn parse_functions(
     //     .write_all(&data)
     //     .unwrap();
 
-    if !functions
-        .iter()
-        .any(|function| function.0 == "main") && check_main
-    {
+    if !functions.iter().any(|function| function.0 == "main") && check_main {
         error("No main function", "Add 'func main() {}' to your file");
     }
 

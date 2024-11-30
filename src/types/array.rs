@@ -7,10 +7,10 @@ pub fn array_ops(x: &[Types], output: &Types, current_operator: BasicOperator) -
     if let Types::Integer(value) = *output {
         if current_operator == BasicOperator::Multiply {
             let mut new_vec: Vec<Types> = vec![];
-                for _ in 0..value {
-                    new_vec.append(&mut x.to_owned());
-                }
-                Types::Array(new_vec)
+            for _ in 0..value {
+                new_vec.append(&mut x.to_owned());
+            }
+            Types::Array(new_vec)
         } else {
             error(
                 &format!(

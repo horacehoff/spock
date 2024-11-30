@@ -11,7 +11,6 @@ use smol_str::{SmolStr, ToSmolStr};
 #[grammar = "parser/parser_grammar.pest"]
 pub struct ComputeParser;
 
-
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Types {
@@ -329,44 +328,23 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                 Rule::if_statement => {
                     let condition: Vec<Types> =
                         parse_expression(inside.clone().into_inner().next().unwrap());
-                    let first_code: Vec<Vec<Types>> = parse_code(
-                        inside
-                            .clone()
-                            .into_inner()
-                            .nth(1)
-                            .unwrap()
-                            .as_str(),
-                    );
+                    let first_code: Vec<Vec<Types>> =
+                        parse_code(inside.clone().into_inner().nth(1).unwrap().as_str());
                     let mut else_groups: Vec<(Vec<Types>, Vec<Vec<Types>>)> = vec![];
                     for else_block in inside.into_inner().skip(2) {
-                        if else_block
-                            .clone()
-                            .into_inner()
-                            .next()
-                            .unwrap()
-                            .as_rule()
+                        if else_block.clone().into_inner().next().unwrap().as_rule()
                             == Rule::condition
                         {
                             // ELSE IF
                             else_groups.push((
-                                parse_expression(
-                                    else_block.clone().into_inner().next().unwrap(),
-                                ),
-                                parse_code(
-                                    else_block
-                                        .into_inner()
-                                        .nth(1)
-                                        .unwrap()
-                                        .as_str(),
-                                ),
+                                parse_expression(else_block.clone().into_inner().next().unwrap()),
+                                parse_code(else_block.into_inner().nth(1).unwrap().as_str()),
                             ));
                         } else {
                             // ELSE
                             else_groups.push((
                                 vec![],
-                                parse_code(
-                                    else_block.into_inner().next().unwrap().as_str(),
-                                ),
+                                parse_code(else_block.into_inner().next().unwrap().as_str()),
                             ));
                         }
                     }
@@ -394,25 +372,23 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                     }
                     line_instructions.push(Types::While(
                         condition,
-                        parse_code(
-                            inside
-                                .into_inner().nth(1)
-                                .unwrap()
-                                .as_str(),
-                        ),
+                        parse_code(inside.into_inner().nth(1).unwrap().as_str()),
                     ));
                 }
                 Rule::loop_statement => {
                     let mut inner = inside.into_inner();
                     let loop_var = inner.next().unwrap().as_str().into();
                     let target_array = parse_expression(inner.next().unwrap());
-                    let loop_code: Vec<Types> = parse_code(inner.next().unwrap().as_str()).iter().map(|x|
-                        if x.len() == 1 {
-                            return x.first().unwrap().clone()
-                        } else {
-                            return Types::Wrap(x.clone())
-                        }
-                    ).collect();
+                    let loop_code: Vec<Types> = parse_code(inner.next().unwrap().as_str())
+                        .iter()
+                        .map(|x| {
+                            if x.len() == 1 {
+                                return x.first().unwrap().clone();
+                            } else {
+                                return Types::Wrap(x.clone());
+                            }
+                        })
+                        .collect();
                     line_instructions.push(Types::Loop(loop_var, target_array, loop_code));
                 }
                 _ => {}

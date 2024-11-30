@@ -3,7 +3,6 @@ use crate::util::error;
 use crate::{error_msg, get_printable_type, if_let, math_to_type};
 use branches::likely;
 
-
 // #[inline(always)]
 pub fn integer_ops(x: i64, output: &Types, current_operator: BasicOperator) -> Types {
     if let Types::Integer(value) = *output {
@@ -78,8 +77,7 @@ pub fn integer_ops(x: i64, output: &Types, current_operator: BasicOperator) -> T
             );
             Types::Null
         })
-    }
-    else {
+    } else {
         error(
             &format!(
                 "Cannot perform operation '{:?}' between {:?} and Integer",

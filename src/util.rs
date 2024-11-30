@@ -188,7 +188,8 @@ pub fn get_printable_form(x: &Types) -> SmolStr {
                     .parse::<String>()
                     .unwrap()
                     .as_str()
-                + "]").to_smolstr()
+                + "]")
+                .to_smolstr()
         }
         Types::Null => "Null".to_smolstr(),
         _ => {
