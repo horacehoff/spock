@@ -25,17 +25,17 @@ use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::string_ops;
 use crate::util::{error, get_printable_form};
+use branches::likely;
 use branches::unlikely;
 use const_currying::const_currying;
+use gxhash::HashMap;
 use inflector::Inflector;
+use smol_str::{SmolStr, StrExt, ToSmolStr};
 use std::fs::remove_dir_all;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::time::Instant;
 use std::{fs, io};
-use gxhash::HashMap;
-use branches::likely;
-use smol_str::{SmolStr, StrExt, ToSmolStr};
 use unroll::unroll_for_loops;
 
 #[const_currying]

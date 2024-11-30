@@ -1,10 +1,10 @@
 use crate::error;
 use crate::parser::Types;
 use crate::{assert_args_number, error_msg, get_printable_form};
+use smol_str::{SmolStr, ToSmolStr};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::process::exit;
-use smol_str::{SmolStr, ToSmolStr};
 
 pub fn namespace_functions(x: &Vec<SmolStr>, y: &str, args: &Vec<Types>) -> (Types, bool) {
     if x[0] == "compute" {

@@ -3,14 +3,14 @@ use crate::parser::parse_code;
 use crate::parser::Types;
 use crate::util::error;
 use fancy_regex::Regex;
+use goblin::Object;
+use libloading::{library_filename, Library};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use smol_str::{SmolStr, ToSmolStr};
 use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
-use libloading::{Library, library_filename};
-use smol_str::{SmolStr, ToSmolStr};
-use goblin::Object;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 pub fn parse_functions(
     content: &str,

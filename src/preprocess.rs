@@ -1,4 +1,3 @@
-use gxhash::HashMap;
 use crate::namespaces::namespace_functions;
 use crate::parser::{parse_code, Types};
 use crate::util::{error, get_printable_form};
@@ -12,6 +11,7 @@ use crate::{
     process_stack,
 };
 use branches::likely;
+use gxhash::HashMap;
 use smol_str::{SmolStr, ToSmolStr};
 use unroll::unroll_for_loops;
 

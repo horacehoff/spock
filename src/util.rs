@@ -1,5 +1,5 @@
-use smol_str::{SmolStr, ToSmolStr};
 use crate::parser::Types;
+use smol_str::{SmolStr, ToSmolStr};
 
 pub fn error(message: &str, tip: &str) {
     if tip == "" {

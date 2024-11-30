@@ -1,8 +1,8 @@
-use smol_str::SmolStr;
 use crate::error_msg;
 use crate::get_printable_type;
 use crate::parser::{BasicOperator, Types};
 use crate::util::error;
+use smol_str::SmolStr;
 
 // #[inline(always)]
 pub fn string_ops(x: SmolStr, output: Types, current_operator: BasicOperator) -> Types {
