@@ -7,6 +7,9 @@ use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
 use smol_str::{SmolStr, ToSmolStr};
 
+pub type Stack = Vec<Types>;
+pub type StackLines = Vec<Vec<Types>>;
+
 #[derive(Parser)]
 #[grammar = "parser/parser_grammar.pest"]
 pub struct ComputeParser;
@@ -19,44 +22,44 @@ pub enum Types {
     Float(f64),
     String(SmolStr),
     Bool(bool),
-    Array(Vec<Types>),
-    ArrayParsed(Vec<Vec<Types>>),
-    ArraySuite(Vec<Types>),
-    OR(Vec<Types>),
-    AND(Vec<Types>),
+    Array(Stack),
+    ArrayParsed(StackLines),
+    ArraySuite(Stack),
+    Or(Stack),
+    And(Stack),
     Property(SmolStr),
-    PropertyFunction(SmolStr, Vec<Vec<Types>>),
+    PropertyFunction(SmolStr, StackLines),
     VariableIdentifier(SmolStr),
-    FunctionCall(SmolStr, Vec<Vec<Types>>),
-    NamespaceFunctionCall(Vec<SmolStr>, SmolStr, Vec<Vec<Types>>),
-    FunctionReturn(Vec<Types>),
-    Priority(Vec<Types>),
+    FunctionCall(SmolStr, StackLines),
+    NamespaceFunctionCall(Vec<SmolStr>, SmolStr, StackLines),
+    FunctionReturn(Stack),
+    Priority(Stack),
     Operation(BasicOperator),
-    VariableDeclaration(SmolStr, Vec<Types>),
-    VariableRedeclaration(SmolStr, Vec<Types>),
+    VariableDeclaration(SmolStr, Stack),
+    VariableRedeclaration(SmolStr, Stack),
     Condition(
         //Condition
-        Vec<Types>,
+        Stack,
         // Code to execute if true
-        Vec<Vec<Types>>,
+        StackLines,
         // For each else if/else block, (condition, code)
-        Vec<(Vec<Types>, Vec<Vec<Types>>)>,
+        Vec<(Stack, StackLines)>,
     ),
     // Condition
     While(
-        Vec<Types>,
+        Stack,
         // Code to execute while true
-        Vec<Vec<Types>>,
+        StackLines,
     ),
     Loop(
         // Loop identifier
         SmolStr,
         // Array/string to iterate
-        Vec<Types>,
+        Stack,
         // Code inside the loop to execute
-        Vec<Types>,
+        Stack,
     ),
-    Wrap(Vec<Types>),
+    Wrap(Stack),
 
     // Objects
     File(SmolStr),
@@ -275,7 +278,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             for priority_pair in pair.clone().into_inner() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
-            output.push(Types::AND(priority_calc));
+            output.push(Types::And(priority_calc));
         }
         Rule::or_operation => {
             recursive = false;
@@ -283,7 +286,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             for priority_pair in pair.clone().into_inner() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
-            output.push(Types::OR(priority_calc));
+            output.push(Types::Or(priority_calc));
         }
         _ => {}
     }
