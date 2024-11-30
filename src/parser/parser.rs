@@ -126,8 +126,8 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
         Rule::property => {
             recursive = false;
             output.push(Types::Property(
-                pair.as_str().trim_start_matches(".").parse().unwrap(),
-            ))
+                pair.as_str().trim_start_matches('.').parse().unwrap(),
+            ));
         }
         Rule::property_function => {
             recursive = false;
@@ -153,7 +153,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     .next()
                     .unwrap()
                     .as_str()
-                    .trim_start_matches(".")
+                    .trim_start_matches('.')
                     .parse()
                     .unwrap(),
                 priority_calc,
@@ -162,7 +162,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
         Rule::func_call => {
             recursive = false;
             let mut priority_calc: Vec<Vec<Types>> = vec![];
-            for priority_pair in pair.clone().into_inner().into_iter().skip(1) {
+            for priority_pair in pair.clone().into_inner().skip(1) {
                 for arg_pair in priority_pair.into_inner() {
                     priority_calc.push(parse_expression(arg_pair));
                 }
@@ -197,22 +197,22 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                 ));
             } else {
                 error(
-                    format!("{:?} is not a valid function", func_call).as_str(),
+                    format!("{func_call:?} is not a valid function").as_str(),
                     "",
                 );
             }
         }
         Rule::identifier => {
             if pair.as_str() == "Null" {
-                output.push(Types::Null)
+                output.push(Types::Null);
             } else {
                 output.push(Types::VariableIdentifier(
                     pair.as_str()
-                        .trim_end_matches("\"")
-                        .trim_start_matches("\"")
+                        .trim_end_matches('\"')
+                        .trim_start_matches('\"')
                         .parse()
                         .unwrap(),
-                ))
+                ));
             }
         }
         Rule::priority => {
