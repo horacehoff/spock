@@ -83,23 +83,15 @@ pub fn parse_functions(
     // let mut content: String = comment_regex.replace_all(content, "").to_string().lines().map(|ln| ln.trim()).collect();
     let mut i: i8 = 1;
     for content_lines in content.lines() {
-        if !(content_lines.starts_with("import")
-            || content_lines.starts_with("replace")
-            || content_lines.trim().is_empty())
-        {
-            if !(content_lines.ends_with('{')
-                || content_lines.ends_with('}')
-                || content_lines.ends_with(';'))
+        if !(content_lines.starts_with("import") || content_lines.starts_with("replace") || content_lines.trim().is_empty() || content_lines.ends_with('{') || content_lines.ends_with('}') || content_lines.ends_with(';')) {
+            if content_lines.starts_with("if")
+                || content_lines.starts_with("for")
+                || content_lines.starts_with("while")
+                || content_lines == "}"
             {
-                if content_lines.starts_with("if")
-                    || content_lines.starts_with("for")
-                    || content_lines.starts_with("while")
-                    || content_lines == "}"
-                {
-                    error(&format!("Missing bracket at line {i}"), "");
-                } else {
-                    error(&format!("Missing semicolon at line {i}"), "");
-                }
+                error(&format!("Missing bracket at line {i}"), "");
+            } else {
+                error(&format!("Missing semicolon at line {i}"), "");
             }
         }
         i += 1;

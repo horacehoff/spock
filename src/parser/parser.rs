@@ -297,18 +297,6 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
     output
 }
 
-// fn _visualize_parse_tree(pair: Pair<Rule>, indent: usize) {
-//     let rule = format!("{:?}", pair.as_rule());
-//     let span = pair.as_span();
-//     let text = span.as_str();
-//     println!("{}{}: \"{}\"", "  ".repeat(indent), rule, text);
-//
-//     // Recursively process the children
-//     for inner_pair in pair.into_inner() {
-//         _visualize_parse_tree(inner_pair, indent + 1);
-//     }
-// }
-
 pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
     let mut instructions: Vec<Vec<Types>> = Vec::new();
     for pair in ComputeParser::parse(Rule::code, content)
@@ -384,9 +372,8 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                         .map(|x| {
                             if x.len() == 1 {
                                 return x.first().unwrap().clone();
-                            } else {
-                                return Types::Wrap(x.clone());
                             }
+                            return Types::Wrap(x.clone());
                         })
                         .collect();
                     line_instructions.push(Types::Loop(loop_var, target_array, loop_code));

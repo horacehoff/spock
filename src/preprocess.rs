@@ -37,9 +37,8 @@ pub fn preprocess(
                 assert_args_number!("executeline", args.len(), 1);
                 if let Types::String(line) = &args[0] {
                     return process_stack(&parse_code(line)[0], variables, functions);
-                } else {
-                    error(&format!("Cannot execute {:?}", &args[0]), "");
                 }
+                error(&format!("Cannot execute {:?}", &args[0]), "");
             } else if func_name == "int" {
                 assert_args_number!("int", args.len(), 1);
                 if let Types::String(str) = &args[0] {
@@ -48,15 +47,15 @@ pub fn preprocess(
                     ),"");panic!()}));
                 } else if let Types::Float(float) = &args[0] {
                     return Types::Integer(float.round() as i64);
-                } else {
-                    error(
-                        &format!(
-                            "Cannot convert {} to Integer",
-                            get_printable_type!(&args[0])
-                        ),
-                        "",
-                    );
                 }
+                error(
+                    &format!(
+                        "Cannot convert {} to Integer",
+                        get_printable_type!(&args[0])
+                    ),
+                    "",
+                );
+                
             } else if func_name == "str" {
                 assert_args_number!("str", args.len(), 1);
                 if let Types::Integer(int) = &args[0] {
@@ -71,12 +70,11 @@ pub fn preprocess(
                     });
                 } else if let Types::Array(_) = &args[0] {
                     return Types::String(get_printable_form(&args[0]));
-                } else {
-                    error(
-                        &format!("Cannot convert {} to String", get_printable_type!(&args[0])),
-                        "",
-                    );
                 }
+                error(
+                    &format!("Cannot convert {} to String", get_printable_type!(&args[0])),
+                    "",
+                );
             } else if func_name == "float" {
                 assert_args_number!("float", args.len(), 1);
                 if let Types::String(str) = &args[0] {
@@ -85,12 +83,11 @@ pub fn preprocess(
                     ),"");panic!()}));
                 } else if let Types::Integer(int) = &args[0] {
                     return Types::Float(*int as f64);
-                } else {
-                    error(
-                        &format!("Cannot convert {} to Float", get_printable_type!(&args[0])),
-                        "",
-                    );
                 }
+                error(
+                    &format!("Cannot convert {} to Float", get_printable_type!(&args[0])),
+                    "",
+                );
             }
 
             let target_function: &(SmolStr, Vec<SmolStr>, &[Vec<Types>]) = functions
@@ -125,13 +122,12 @@ pub fn preprocess(
             let namespace_funcs = namespace_functions(namespace, y, &args);
             if likely(namespace_funcs.1) {
                 return namespace_funcs.0;
-            } else {
-                error(
-                    &format!("Unknown function {}", namespace.join(".") + "." + y),
-                    "",
-                );
-                // return Types::Null;
             }
+            error(
+                &format!("Unknown function {}", namespace.join(".") + "." + y),
+                "",
+            );
+
         }
 
         Types::Priority(ref calc) => {
@@ -296,13 +292,11 @@ pub fn preprocess(
                     }
                 }
                 return output;
-            } else {
-                error(
-                    &format!("Cannot index {} type", get_printable_type!(target_array)),
-                    "",
-                );
-                // return Types::Null;
             }
+            error(
+                &format!("Cannot index {} type", get_printable_type!(target_array)),
+                "",
+            );
         }
 
         _ => return Types::Null,
