@@ -298,10 +298,10 @@ pub fn preprocess(
                                 error(&format!("{:?} is not a valid index", index_array[0]), "");
                             }
                         } else {
-                            error(&format!("{:?} is not a valid index", index_array), "");
+                            error(&format!("{index_array:?} is not a valid index"), "");
                         }
                     } else {
-                        error(&format!("{:?} is not a valid index", target_index), "");
+                        error(&format!("{target_index:?} is not a valid index"), "");
                     }
                 }
                 return output;
