@@ -221,7 +221,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             for priority_pair in pair.clone().into_inner() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
-            output.push(Types::Priority(priority_calc))
+            output.push(Types::Priority(priority_calc));
         }
         Rule::ops => match pair.as_str() {
             "+" => output.push(Types::Operation(BasicOperator::Add)),
@@ -243,7 +243,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
         Rule::variableDeclaration => {
             recursive = false;
             let mut priority_calc: Vec<Types> = vec![];
-            for priority_pair in pair.clone().into_inner().into_iter().skip(1) {
+            for priority_pair in pair.clone().into_inner().skip(1) {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
             output.push(Types::VariableDeclaration(
@@ -261,7 +261,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
         Rule::variableRedeclaration => {
             recursive = false;
             let mut priority_calc: Vec<Types> = vec![];
-            for priority_pair in pair.clone().into_inner().into_iter().skip(1) {
+            for priority_pair in pair.clone().into_inner().skip(1) {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
             output.push(Types::VariableRedeclaration(
@@ -279,7 +279,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
         Rule::and_operation => {
             recursive = false;
             let mut priority_calc: Vec<Types> = vec![];
-            for priority_pair in pair.clone().into_inner().into_iter() {
+            for priority_pair in pair.clone().into_inner() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
             output.push(Types::AND(priority_calc));
@@ -287,7 +287,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
         Rule::or_operation => {
             recursive = false;
             let mut priority_calc: Vec<Types> = vec![];
-            for priority_pair in pair.clone().into_inner().into_iter() {
+            for priority_pair in pair.clone().into_inner() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
             output.push(Types::OR(priority_calc));
@@ -304,17 +304,17 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
     output
 }
 
-fn _visualize_parse_tree(pair: Pair<Rule>, indent: usize) {
-    let rule = format!("{:?}", pair.as_rule());
-    let span = pair.as_span();
-    let text = span.as_str();
-    println!("{}{}: \"{}\"", "  ".repeat(indent), rule, text);
-
-    // Recursively process the children
-    for inner_pair in pair.into_inner() {
-        _visualize_parse_tree(inner_pair, indent + 1);
-    }
-}
+// fn _visualize_parse_tree(pair: Pair<Rule>, indent: usize) {
+//     let rule = format!("{:?}", pair.as_rule());
+//     let span = pair.as_span();
+//     let text = span.as_str();
+//     println!("{}{}: \"{}\"", "  ".repeat(indent), rule, text);
+//
+//     // Recursively process the children
+//     for inner_pair in pair.into_inner() {
+//         _visualize_parse_tree(inner_pair, indent + 1);
+//     }
+// }
 
 pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
     let mut instructions: Vec<Vec<Types>> = vec![];
@@ -329,28 +329,25 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                     for pair in
                         ComputeParser::parse(Rule::expression, inside.as_str().trim()).unwrap()
                     {
-                        line_instructions.append(&mut parse_expression(pair))
+                        line_instructions.append(&mut parse_expression(pair));
                     }
                 }
                 Rule::if_statement => {
                     let condition: Vec<Types> =
-                        parse_expression(inside.clone().into_inner().into_iter().next().unwrap());
+                        parse_expression(inside.clone().into_inner().next().unwrap());
                     let first_code: Vec<Vec<Types>> = parse_code(
                         inside
                             .clone()
                             .into_inner()
-                            .into_iter()
-                            .skip(1)
-                            .next()
+                            .nth(1)
                             .unwrap()
                             .as_str(),
                     );
                     let mut else_groups: Vec<(Vec<Types>, Vec<Vec<Types>>)> = vec![];
-                    for else_block in inside.into_inner().into_iter().skip(2) {
+                    for else_block in inside.into_inner().skip(2) {
                         if else_block
                             .clone()
                             .into_inner()
-                            .into_iter()
                             .next()
                             .unwrap()
                             .as_rule()
@@ -359,14 +356,12 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                             // ELSE IF
                             else_groups.push((
                                 parse_expression(
-                                    else_block.clone().into_inner().into_iter().next().unwrap(),
+                                    else_block.clone().into_inner().next().unwrap(),
                                 ),
                                 parse_code(
                                     else_block
                                         .into_inner()
-                                        .into_iter()
-                                        .skip(1)
-                                        .next()
+                                        .nth(1)
                                         .unwrap()
                                         .as_str(),
                                 ),
@@ -376,15 +371,15 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                             else_groups.push((
                                 vec![],
                                 parse_code(
-                                    else_block.into_inner().into_iter().next().unwrap().as_str(),
+                                    else_block.into_inner().next().unwrap().as_str(),
                                 ),
                             ));
                         }
                     }
-                    line_instructions.push(Types::Condition(condition, first_code, else_groups))
+                    line_instructions.push(Types::Condition(condition, first_code, else_groups));
                 }
                 Rule::return_term => {
-                    line_instructions.push(Types::FunctionReturn(parse_expression(inside)))
+                    line_instructions.push(Types::FunctionReturn(parse_expression(inside)));
                 }
                 Rule::while_statement => {
                     let mut condition: Vec<Types> = vec![];
@@ -401,16 +396,13 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                     )
                     .unwrap()
                     {
-                        condition.append(&mut parse_expression(pair))
+                        condition.append(&mut parse_expression(pair));
                     }
                     line_instructions.push(Types::While(
                         condition,
                         parse_code(
                             inside
-                                .into_inner()
-                                .into_iter()
-                                .skip(1)
-                                .next()
+                                .into_inner().nth(1)
                                 .unwrap()
                                 .as_str(),
                         ),
@@ -427,7 +419,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                             return Types::Wrap(x.clone())
                         }
                     ).collect();
-                    line_instructions.push(Types::Loop(loop_var, target_array, loop_code))
+                    line_instructions.push(Types::Loop(loop_var, target_array, loop_code));
                 }
                 _ => {}
             }
