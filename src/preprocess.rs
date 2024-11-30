@@ -153,7 +153,7 @@ pub fn preprocess(
             // matches multiple arrays following one another => implies array indexing
             let arrays: &Vec<Types> = y;
             let target_array: Types =
-                process_stack(&vec![arrays[0].clone()], &variables, &functions);
+                process_stack(&[arrays[0].clone()], &variables, &functions);
             // 1 - matches if the contents of the array have yet to be fully evaluated
             if let Types::ArrayParsed(ref target_arr) = target_array {
                 // compute the "final" value of the first/target array

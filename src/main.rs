@@ -164,7 +164,12 @@ fn builtin_functions(
             assert_args_number!("sqrt", args.len(), 1, 3);
             if args.len() == 1 {
                 if_let!(likely, Types::Integer(lim), args[0], {
-                return (Types::Array((0..lim).map(Types::Integer).collect()), true)
+                // return (Types::Array((0..lim).map(Types::Integer).collect()), true)
+                    let mut vec = Vec::with_capacity(lim as usize);
+                    for i in 0..lim {
+                        vec.push(Types::Integer(i));
+                    }
+                    return (Types::Array(vec), true);
             }, else {
                 error("Invalid range limit", "");
             })
@@ -325,22 +330,22 @@ fn process_stack(
                 );
             }
             Types::AND(ref x) => {
-                let parsed_exp = process_stack(&x, variables, functions);
+                let parsed_exp = process_stack(x, variables, functions);
                 if_let!(
                     likely,
                     Types::Bool(inbool),
                     output,
                     {
                         if_let!(likely, Types::Bool(sidebool), parsed_exp, {
-                            output = Types::Bool(inbool && sidebool)
+                            output = Types::Bool(inbool && sidebool);
                         }, else {
-                            error(format!("{:?} is not a Boolean", parsed_exp).as_str(), "");
+                            error(format!("{parsed_exp:?} is not a Boolean").as_str(), "");
                         });
                     }, else
                     {
-                        error(format!("{:?} is not a Boolean", output).as_str(), "");
+                        error(format!("{output:?} is not a Boolean").as_str(), "");
                     }
-                )
+                );
             }
             _ => todo!(),
         }
@@ -358,7 +363,7 @@ fn process_stack(
 
 #[inline(always)]
 fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Types>) -> Types {
-    for line in line_array.iter() {
+    for line in line_array {
         match line {
             Types::Wrap(ref x) => {
                 process_line_logic(x, variables);
@@ -379,7 +384,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                     .collect();
                 if unlikely(!namespace_functions(namespace, y, &args).1) {
                     error(
-                        &format!("Unknown function '{}'", namespace.join(".") + "." + &y),
+                        &format!("Unknown function '{}'", namespace.join(".") + "." + y),
                         "",
                     );
                 };
@@ -391,14 +396,13 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                     .map(|arg| process_stack(arg, variables, &[]))
                     .collect();
 
-                let (_, matched) = builtin_functions(&x, &args);
+                let (_, matched) = builtin_functions(x, &args);
                 if x == "executeline" && !matched {
                     assert_args_number!("executeline", args.len(), 1);
                     if_let!(likely, Types::String(line), &args[0], {
-                    process_stack(&parse_code(line)[0], &variables, &[]);
-                    // continue;
+                    process_stack(&parse_code(line)[0], variables, &[]);
                 }, else {
-                    error(&format!("Cannot execute line {:?}", &args[0]), "")
+                    error(&format!("Cannot execute line {:?}", &args[0]), "");
                 })
                 } else if !matched {
                     todo!("Functions are WIP")
@@ -429,14 +433,14 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 }
             }
             Types::Condition(ref x, ref y, ref z) => {
-                if process_stack(&x, &variables, &[]) == Types::Bool(true) {
+                if process_stack(x, variables, &[]) == Types::Bool(true) {
                     let out = process_function(y, variables);
                     if Types::Null != out {
                         return out;
                     }
                 } else {
                     for else_block in z {
-                        if else_block.0.len() == 0 || process_stack(&else_block.0, &variables, &[]) == Types::Bool(true)  {
+                        if else_block.0.is_empty()|| process_stack(&else_block.0, variables, &[]) == Types::Bool(true)  {
                             let out = process_function(
                                 &else_block.1,
                                 variables
@@ -449,7 +453,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 }
             },
             Types::Loop(ref x, ref y,ref  z) => {
-                let loop_array = process_stack(&y, &variables, &[]);
+                let loop_array = process_stack(y, variables, &[]);
                 if let Types::Array(target_array) = loop_array {
                     variables.insert(x.to_smolstr(), Types::Null);
                     for elem in target_array {
@@ -482,9 +486,9 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
 }
 
 fn process_function(lines: &[Vec<Types>], variables: &mut HashMap<SmolStr, Types>) -> Types {
-    for line in lines.iter() {
+    for line in lines {
         if let Types::FunctionReturn(x) = line.first().unwrap() {
-            return process_stack(&x, variables, &[]);
+            return process_stack(x, variables, &[]);
         } else {
             let processed = process_line_logic(line, variables);
             if processed != Types::Null {
@@ -492,7 +496,7 @@ fn process_function(lines: &[Vec<Types>], variables: &mut HashMap<SmolStr, Types
             };
         }
     }
-    return Types::Null;
+    Types::Null
 }
 
 // #[unroll_for_loops]
@@ -701,7 +705,7 @@ fn process_function(lines: &[Vec<Types>], variables: &mut HashMap<SmolStr, Types
 fn main() {
     let totaltime = Instant::now();
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.len() == 0 {
+    if args.is_empty(){
         println!(
             "
   ______   ______   .___  ___. .______    __    __  .___________. _______
@@ -774,7 +778,7 @@ options:
     //     .unwrap();
     // process_function(&main_instructions[0].2, &mut vec![], 0, "main", &functions,None);
 
-    let mut vars:HashMap<SmolStr, Types> = Default::default();
+    let mut vars:HashMap<SmolStr, Types> = HashMap::default();
     // process_line_logic(&Types::VariableDeclaration("hey".to_smolstr(), vec![Types::Integer(56)]), &mut vars);
     // process_line_logic(&Types::VariableRedeclaration("hey".to_smolstr(), vec![Types::Integer(512)]), &mut vars);
 
