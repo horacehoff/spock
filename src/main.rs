@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_lines)]
 #[path = "types/array.rs"]
 mod array;
 #[path = "types/file.rs"]
@@ -246,10 +247,10 @@ fn process_stack(
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in.iter().skip(1) {
         let mut process = Types::Null;
-        let element = if let Types::VariableIdentifier(var) = p_element { 
+        let element = if let Types::VariableIdentifier(var) = p_element {
             variables
             .get(var)
-            .unwrap_or_else(|| { error(&format!("Unknown variable '{var}'"),"");panic!()}) 
+            .unwrap_or_else(|| { error(&format!("Unknown variable '{var}'"),"");panic!()})
         } else {
             process = preprocess(variables, functions, p_element);
             if process == Types::Null {
