@@ -21,7 +21,7 @@ use crate::array::array_ops;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-use crate::parser::{parse_code, BasicOperator, Stack, Types};
+use crate::parser::{parse_code, BasicOperator, Stack, StackLines, Types};
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::string_ops;
@@ -404,7 +404,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                     });
                 } else if !matched {
                     todo!("Functions are WIP")
-                    // let target_function: &(SmolStr, Vec<SmolStr>, Vec<Stack>) = functions
+                    // let target_function: &(SmolStr, Vec<SmolStr>, StackLines) = functions
                     //     .into_iter()
                     //     .filter(|func| func.0 == *x)
                     //     .next()
@@ -505,7 +505,7 @@ fn process_function(lines: &[Stack], variables: &mut HashMap<SmolStr, Types>) ->
 //     #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] functions: &Vec<(
 //         SmolStr,
 //         Vec<SmolStr>,
-//         Vec<Stack>,
+//         StackLines,
 //     )>,
 //     extra_variables: Option<&mut Vec<Variable>>
 // ) -> Types {
@@ -588,7 +588,7 @@ fn process_function(lines: &[Stack], variables: &mut HashMap<SmolStr, Types>) ->
 //                             error(&format!("Cannot execute line {:?}", &args[0]), "")
 //                         })
 //                     } else if !matched.1 {
-//                         let target_function: &(SmolStr, Vec<SmolStr>, Vec<Stack>) = functions
+//                         let target_function: &(SmolStr, Vec<SmolStr>, StackLines) = functions
 //                             .into_iter()
 //                             .filter(|func| func.0 == *x)
 //                             .next()
@@ -751,7 +751,7 @@ options:
         fs::read_to_string(arg).expect(error_msg!(format!("Unable to read file '{}'", arg)));
 
     let now = Instant::now();
-    let functions: Vec<(SmolStr, Vec<SmolStr>, Vec<Stack>)> =
+    let functions: Vec<(SmolStr, Vec<SmolStr>, StackLines)> =
         parse_functions(content.trim(), true);
     log!("PARSED IN: {:.2?}", now.elapsed());
     log!("FUNCTIONS {:?}", functions);
@@ -760,7 +760,7 @@ options:
         .clone()
         .into_iter()
         .filter(|function| function.0 == "main")
-        .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Stack>)>>();
+        .collect::<Vec<(SmolStr, Vec<SmolStr>, StackLines)>>();
 
     let now = Instant::now();
     // thread::Builder::new()

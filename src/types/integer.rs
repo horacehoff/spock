@@ -1,4 +1,4 @@
-use crate::parser::{BasicOperator, Types};
+use crate::parser::{BasicOperator, Stack, Types};
 use crate::util::error;
 use crate::{error_msg, get_printable_type, if_let, math_to_type};
 use branches::likely;
@@ -63,7 +63,7 @@ pub fn integer_ops(x: i64, output: &Types, current_operator: BasicOperator) -> T
         })
     } else if let Types::Array(ref y) = output {
         if_let!(likely, BasicOperator::Multiply, current_operator, {
-            let mut new_vec: Vec<Types> = vec![];
+            let mut new_vec: Stack = vec![];
             for _ in 0..x {
                 new_vec.append(&mut y.clone());
             }

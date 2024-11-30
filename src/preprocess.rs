@@ -1,5 +1,5 @@
 use crate::namespaces::namespace_functions;
-use crate::parser::{parse_code, Types};
+use crate::parser::{parse_code, Stack, Types};
 use crate::util::{error, get_printable_form};
 use crate::{
     assert_args_number,
@@ -18,14 +18,14 @@ use unroll::unroll_for_loops;
 #[unroll_for_loops]
 pub fn preprocess(
     variables: &HashMap<SmolStr, Types>,
-    functions: &[(SmolStr, Vec<SmolStr>, &[Vec<Types>])],
+    functions: &[(SmolStr, Vec<SmolStr>, &[Stack])],
     element: &Types,
 ) -> Types {
     // println!("ELEM{:?}", element);
     match element {
         Types::FunctionCall(ref func_name, ref func_args) => {
             // replace function call by its result (return value)
-            let args: Vec<Types> = func_args
+            let args: Stack = func_args
                 .iter()
                 .map(|arg| process_stack(arg, variables, functions))
                 .collect();
@@ -95,7 +95,7 @@ pub fn preprocess(
                 }
             }
 
-            let target_function: &(SmolStr, Vec<SmolStr>, &[Vec<Types>]) = functions
+            let target_function: &(SmolStr, Vec<SmolStr>, &[Stack]) = functions
                 .iter()
                 .find(|func| func.0 == *func_name)
                 .expect(&format!("Unknown function '{func_name}'"));
@@ -119,7 +119,7 @@ pub fn preprocess(
         }
         Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
             // execute "namespace functions"
-            let args: Vec<Types> = z
+            let args: Stack = z
                 .iter()
                 .map(|arg| process_stack(arg, variables, functions))
                 .collect();
@@ -142,7 +142,7 @@ pub fn preprocess(
         }
         Types::ArrayParsed(ref y) => {
             // compute final value of arrays
-            let mut new_array: Vec<Types> = vec![];
+            let mut new_array: Stack = vec![];
             for element in y {
                 new_array.push(process_stack(element, variables, functions));
             }
@@ -150,7 +150,7 @@ pub fn preprocess(
         }
         Types::ArraySuite(ref y) => {
             // matches multiple arrays following one another => implies array indexing
-            let arrays: &Vec<Types> = y;
+            let arrays: &Stack = y;
             let target_array: Types = process_stack(&[arrays[0].clone()], variables, functions);
             // 1 - matches if the contents of the array have yet to be fully evaluated
             if let Types::ArrayParsed(ref target_arr) = target_array {

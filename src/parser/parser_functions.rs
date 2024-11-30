@@ -1,5 +1,5 @@
 use crate::error_msg;
-use crate::parser::parse_code;
+use crate::parser::{parse_code, Stack, StackLines};
 use crate::parser::Types;
 use crate::util::error;
 use fancy_regex::Regex;
@@ -15,10 +15,10 @@ use std::path::Path;
 pub fn parse_functions(
     content: &str,
     check_main: bool,
-) -> Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> {
-    let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Types>>)> = vec![];
+) -> Vec<(SmolStr, Vec<SmolStr>, StackLines)> {
+    let mut functions: Vec<(&str, Vec<&str>, StackLines)> = vec![];
 
-    let mut imported_functions: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> = vec![];
+    let mut imported_functions: Vec<(SmolStr, Vec<SmolStr>, StackLines)> = vec![];
     let matches: Vec<(usize, &str)> = content.match_indices("\nimport").collect();
     if content.starts_with("import") {
         let mut i = 7;
@@ -77,7 +77,7 @@ pub fn parse_functions(
     //     let mut buffer = Vec::new();
     //     reader.read_to_end(&mut buffer).unwrap();
     //
-    //     let mut deserialized_data: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> =
+    //     let mut deserialized_data: Vec<(SmolStr, Vec<SmolStr>, StackLines)> =
     //         bincode::deserialize(&buffer).expect(error_msg!(
     //             "Failed to read from cache",
     //             "Delete the .compute folder"
@@ -170,7 +170,7 @@ pub fn parse_functions(
                 c.clone(),
             )
         })
-        .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)>>();
+        .collect::<Vec<(SmolStr, Vec<SmolStr>, StackLines)>>();
 
     return_functions.append(&mut imported_functions);
 
