@@ -8,9 +8,7 @@ pub fn error(message: &str, tip: &str) {
         );
     } else {
         eprintln!(
-            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{}\n--------------",
-            message,
-            tip
+            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{message}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{tip}\n--------------"
         );
     }
     std::process::exit(1);

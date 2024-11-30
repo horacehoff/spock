@@ -1,6 +1,6 @@
 use crate::parser::Types::ArraySuite;
 use crate::util::error;
-use crate::{error_msg, log};
+use crate::{log};
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
@@ -315,7 +315,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Stack {
 pub fn parse_code(content: &str) -> StackLines {
     let mut instructions: StackLines = vec![];
     for pair in ComputeParser::parse(Rule::code, content)
-        .expect(error_msg!("Failed to parse", "Check semicolons and syntax"))
+        .unwrap_or_else(|_|{error("Failed to parse", "Check semicolons and syntax");panic!()})
     {
         // _visualize_parse_tree(pair.clone(), 0);
         for inside in pair.into_inner() {

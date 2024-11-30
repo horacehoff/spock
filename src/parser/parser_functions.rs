@@ -1,16 +1,8 @@
-use crate::error_msg;
-use crate::parser::{parse_code, Stack, StackLines};
-use crate::parser::Types;
+use crate::parser::{parse_code, StackLines};
 use crate::util::error;
 use fancy_regex::Regex;
-use goblin::Object;
-use libloading::{library_filename, Library};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use smol_str::{SmolStr, ToSmolStr};
 use std::fs;
-use std::fs::File;
-use std::io::{BufReader, Read, Write};
-use std::path::Path;
 
 pub fn parse_functions(
     content: &str,
@@ -35,10 +27,10 @@ pub fn parse_functions(
 
         if name.ends_with(".compute") {
             // IS COMPUTE FILE
-            let file_content = fs::read_to_string(&name).expect(error_msg!(format!(
+            let file_content = fs::read_to_string(&name).unwrap_or_else(|_| { error(&format!(
                 "Cannot find module {}",
                 name.trim_start_matches("./")
-            )));
+            ),"");panic!()});
             imported_functions.append(&mut parse_functions(&file_content, false));
         } else {
             // IS LIB -> .dll, .so, .dylib
@@ -63,10 +55,10 @@ pub fn parse_functions(
             match_content = &content[match_index..match_index + i];
         }
         let name = String::from("./") + match_content.replace("import", "").trim();
-        let file_content = fs::read_to_string(&name).expect(error_msg!(format!(
+        let file_content = fs::read_to_string(&name).unwrap_or_else(|_| { error(&format!(
             "Cannot find module {}",
             name.trim_start_matches("./")
-        )));
+        ),"");panic!()});
         imported_functions.append(&mut parse_functions(&file_content, false));
     }
 
@@ -96,7 +88,7 @@ pub fn parse_functions(
             || content_lines.trim().is_empty())
         {
             if !(content_lines.ends_with('{')
-                || content_lines.ends_with("}")
+                || content_lines.ends_with('}')
                 || content_lines.ends_with(';'))
             {
                 if content_lines.starts_with("if")

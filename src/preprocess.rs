@@ -43,10 +43,9 @@ pub fn preprocess(
             } else if func_name == "int" {
                 assert_args_number!("int", args.len(), 1);
                 if let Types::String(str) = &args[0] {
-                    return Types::Integer(str.parse::<i64>().expect(error_msg!(format!(
-                        "Cannot convert String '{}' to Integer",
-                        str
-                    ))));
+                    return Types::Integer(str.parse::<i64>().unwrap_or_else(|_| { error(&format!(
+                        "Cannot convert String '{str}' to Integer",
+                    ),"");panic!()}));
                 } else if let Types::Float(float) = &args[0] {
                     return Types::Integer(float.round() as i64);
                 } else {
@@ -81,10 +80,9 @@ pub fn preprocess(
             } else if func_name == "float" {
                 assert_args_number!("float", args.len(), 1);
                 if let Types::String(str) = &args[0] {
-                    return Types::Float(str.parse::<f64>().expect(error_msg!(format!(
-                        "Cannot convert String '{}' to Float",
-                        str
-                    ))));
+                    return Types::Float(str.parse::<f64>().unwrap_or_else(|_| { error(&format!(
+                        "Cannot convert String '{str}' to Float",
+                    ),"");panic!()}));
                 } else if let Types::Integer(int) = &args[0] {
                     return Types::Float(*int as f64);
                 } else {
@@ -98,7 +96,7 @@ pub fn preprocess(
             let target_function: &(SmolStr, Vec<SmolStr>, &[Stack]) = functions
                 .iter()
                 .find(|func| func.0 == *func_name)
-                .expect(&format!("Unknown function '{func_name}'"));
+                .unwrap_or_else(|| {error(&format!("Unknown function '{func_name}'"),"");panic!("Unknown function '{func_name}'")});
             assert_args_number!(&func_name, args.len(), target_function.1.len());
             let target_args: &HashMap<SmolStr, Types> = &target_function
                 .1
@@ -171,7 +169,7 @@ pub fn preprocess(
                         if index_array.len() == 1 {
                             if let Types::Integer(intg) = index_array[0] {
                                 if output == Types::Null {
-                                    output = array[intg as usize].clone()
+                                    output = array[intg as usize].clone();
                                 } else {
                                     log!("{:?}OUTPUT", output);
                                     if let Types::Array(sub_arr) = output.clone() {
@@ -268,29 +266,24 @@ pub fn preprocess(
                                     output = Types::String(
                                         str.chars().nth(intg as usize).unwrap().to_smolstr(),
                                     );
+                                } else if let Types::Array(ref sub_arr) = output.clone() {
+                                    output = sub_arr[intg as usize].clone();
+                                } else if let Types::String(ref sub_str) = output.clone() {
+                                    output = Types::String(
+                                        sub_str
+                                            .chars()
+                                            .nth(intg as usize)
+                                            .unwrap_or_else(|| { error(&format!("Cannot index '{sub_str}'"),"");panic!()})
+                                            .to_smolstr(),
+                                    );
                                 } else {
-                                    if let Types::Array(ref sub_arr) = output.clone() {
-                                        output = sub_arr[intg as usize].clone();
-                                    } else if let Types::String(ref sub_str) = output.clone() {
-                                        output = Types::String(
-                                            sub_str
-                                                .chars()
-                                                .nth(intg as usize)
-                                                .expect(error_msg!(format!(
-                                                    "Cannot index '{}'",
-                                                    sub_str
-                                                )))
-                                                .to_smolstr(),
-                                        );
-                                    } else {
-                                        error(
-                                            &format!(
-                                                "Cannot index {} type",
-                                                get_printable_type!(output)
-                                            ),
-                                            "",
-                                        );
-                                    }
+                                    error(
+                                        &format!(
+                                            "Cannot index {} type",
+                                            get_printable_type!(output)
+                                        ),
+                                        "",
+                                    );
                                 }
                             } else {
                                 error(&format!("{:?} is not a valid index", index_array[0]), "");

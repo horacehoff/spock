@@ -1,4 +1,3 @@
-#[allow(clippy::cast_possible_truncation)]
 #[path = "types/array.rs"]
 mod array;
 #[path = "types/file.rs"]
@@ -233,7 +232,7 @@ fn process_stack(
     let mut output: Types = match stack_in.first().unwrap() {
         Types::VariableIdentifier(ref var) => variables
             .get(var)
-            .expect(error_msg!("Unknown variable"))
+            .unwrap_or_else(|| { error("Unknown variable","");panic!() })
             .to_owned(),
         other => {
             let value = preprocess(variables, functions, other);
@@ -247,17 +246,16 @@ fn process_stack(
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in.iter().skip(1) {
         let mut process = Types::Null;
-        let element = match p_element {
-            Types::VariableIdentifier(var) => variables
-                .get(var)
-                .expect(error_msg!(format!("Unknown variable '{var}'"))),
-            _ => {
-                process = preprocess(variables, functions, p_element);
-                if process == Types::Null {
-                    p_element
-                } else {
-                    &process
-                }
+        let element = if let Types::VariableIdentifier(var) = p_element { 
+            variables
+            .get(var)
+            .unwrap_or_else(|| { error(&format!("Unknown variable '{var}'"),"");panic!()}) 
+        } else {
+            process = preprocess(variables, functions, p_element);
+            if process == Types::Null {
+                p_element
+            } else {
+                &process
             }
         };
 
@@ -743,12 +741,12 @@ options:
         && Path::new(".compute").exists()
     {
         remove_dir_all(Path::new(".compute"))
-            .expect(error_msg!("Failed to delete the cache folder (.compute)"));
+            .unwrap_or_else(|_| {error("Failed to delete the cache folder (.compute)","");panic!()});
     }
     let arg = args.first().unwrap();
 
     let content =
-        fs::read_to_string(arg).expect(error_msg!(format!("Unable to read file '{}'", arg)));
+        fs::read_to_string(arg).unwrap_or_else(|_| {error(&format!("Unable to read file '{arg}'"),"");panic!()});
 
     let now = Instant::now();
     let functions: Vec<(SmolStr, Vec<SmolStr>, StackLines)> =

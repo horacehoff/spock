@@ -1,9 +1,8 @@
 use crate::error;
 use crate::parser::Types;
-use crate::{assert_args_number, error_msg, get_printable_form};
+use crate::{assert_args_number, get_printable_form};
 use smol_str::{SmolStr, ToSmolStr};
 use std::fs::OpenOptions;
-use std::io::Write;
 use std::process::exit;
 
 pub fn namespace_functions(x: &[SmolStr], y: &str, args: &[Types]) -> (Types, bool) {
@@ -31,7 +30,7 @@ pub fn namespace_functions(x: &[SmolStr], y: &str, args: &[Types]) -> (Types, bo
                     .create(true)
                     .truncate(false)
                     .open(filename)
-                    .expect(error_msg!("Failed to check/create file"));
+                    .unwrap_or_else(|_| {error("Failed to check/create file","");panic!()});
                 (Types::File(filename.to_smolstr()), true)
             } else {
                 error(
