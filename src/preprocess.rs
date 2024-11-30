@@ -27,18 +27,18 @@ pub fn preprocess(
             // replace function call by its result (return value)
             let args: Vec<Types> = func_args
                 .iter()
-                .map(|arg| process_stack(arg, &variables, &functions))
+                .map(|arg| process_stack(arg, variables, functions))
                 .collect();
-            let matched = builtin_functions(&func_name, &args);
+            let matched = builtin_functions(func_name, &args);
             // check if function is a built-in function, else search it among user-defined functions
             if matched.1 {
                 return matched.0;
             } else if func_name == "executeline" {
                 assert_args_number!("executeline", args.len(), 1);
                 if let Types::String(line) = &args[0] {
-                    return process_stack(&parse_code(line)[0], &variables, &functions);
+                    return process_stack(&parse_code(line)[0], variables, functions);
                 } else {
-                    error(&format!("Cannot execute {:?}", &args[0]), "")
+                    error(&format!("Cannot execute {:?}", &args[0]), "");
                 }
             } else if func_name == "int" {
                 assert_args_number!("int", args.len(), 1);
@@ -56,7 +56,7 @@ pub fn preprocess(
                             get_printable_type!(&args[0])
                         ),
                         "",
-                    )
+                    );
                 }
             } else if func_name == "str" {
                 assert_args_number!("str", args.len(), 1);
@@ -76,7 +76,7 @@ pub fn preprocess(
                     error(
                         &format!("Cannot convert {} to String", get_printable_type!(&args[0])),
                         "",
-                    )
+                    );
                 }
             } else if func_name == "float" {
                 assert_args_number!("float", args.len(), 1);
@@ -91,21 +91,20 @@ pub fn preprocess(
                     error(
                         &format!("Cannot convert {} to Float", get_printable_type!(&args[0])),
                         "",
-                    )
+                    );
                 }
             }
 
             let target_function: &(SmolStr, Vec<SmolStr>, &[Vec<Types>]) = functions
-                .into_iter()
-                .filter(|func| func.0 == *func_name)
-                .next()
-                .expect(&format!("Unknown function '{}'", func_name));
+                .iter()
+                .find(|func| func.0 == *func_name)
+                .expect(&format!("Unknown function '{func_name}'"));
             assert_args_number!(&func_name, args.len(), target_function.1.len());
             let target_args: &HashMap<SmolStr, Types> = &target_function
                 .1
                 .iter()
                 .enumerate()
-                .map(|(i, arg)| (arg.to_smolstr(), args[i].to_owned()))
+                .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
                 .collect();
             // let result = process_function(
             //     &target_function.2,
@@ -122,15 +121,15 @@ pub fn preprocess(
             // execute "namespace functions"
             let args: Vec<Types> = z
                 .iter()
-                .map(|arg| process_stack(arg, &variables, functions))
+                .map(|arg| process_stack(arg, variables, functions))
                 .collect();
 
-            let namespace_funcs = namespace_functions(&namespace, &y, &args);
+            let namespace_funcs = namespace_functions(namespace, y, &args);
             if likely(namespace_funcs.1) {
                 return namespace_funcs.0;
             } else {
                 error(
-                    &format!("Unknown function {}", namespace.join(".") + "." + &y),
+                    &format!("Unknown function {}", namespace.join(".") + "." + y),
                     "",
                 );
                 // return Types::Null;
@@ -139,13 +138,13 @@ pub fn preprocess(
 
         Types::Priority(ref calc) => {
             // execute content inside parentheses before all the other content in the second loop
-            return process_stack(&calc, &variables, &functions);
+            return process_stack(calc, variables, functions);
         }
         Types::ArrayParsed(ref y) => {
             // compute final value of arrays
             let mut new_array: Vec<Types> = vec![];
-            for element in y.iter() {
-                new_array.push(process_stack(&element, &variables, &functions));
+            for element in y {
+                new_array.push(process_stack(element, variables, functions));
             }
             return Types::Array(new_array);
         }
@@ -153,21 +152,21 @@ pub fn preprocess(
             // matches multiple arrays following one another => implies array indexing
             let arrays: &Vec<Types> = y;
             let target_array: Types =
-                process_stack(&[arrays[0].clone()], &variables, &functions);
+                process_stack(&[arrays[0].clone()], variables, functions);
             // 1 - matches if the contents of the array have yet to be fully evaluated
             if let Types::ArrayParsed(ref target_arr) = target_array {
                 // compute the "final" value of the first/target array
                 let mut array = vec![];
-                for element in target_arr.iter() {
-                    array.push(process_stack(&element, &variables, &functions));
+                for element in target_arr {
+                    array.push(process_stack(element, variables, functions));
                 }
                 let mut output = Types::Null;
                 // iterate over every array following the first one => they are indexes
                 for target_index in arrays.iter().skip(1) {
                     if let Types::ArrayParsed(ref target_index_arr) = target_index {
                         let mut index_array = vec![];
-                        for element in target_index_arr.iter() {
-                            index_array.push(process_stack(&element, &variables, &functions));
+                        for element in target_index_arr {
+                            index_array.push(process_stack(element, variables, functions));
                         }
 
                         if index_array.len() == 1 {
@@ -177,7 +176,7 @@ pub fn preprocess(
                                 } else {
                                     log!("{:?}OUTPUT", output);
                                     if let Types::Array(sub_arr) = output.clone() {
-                                        output = sub_arr[intg as usize].clone()
+                                        output = sub_arr[intg as usize].clone();
                                     } else if let Types::String(ref sub_str) = output.clone() {
                                         output = Types::String(
                                             sub_str
@@ -193,17 +192,17 @@ pub fn preprocess(
                                                 get_printable_type!(output)
                                             ),
                                             "",
-                                        )
+                                        );
                                     }
                                 }
                             } else {
                                 error(&format!("{:?} is not a valid index", index_array[0]), "");
                             }
                         } else {
-                            error(&format!("{:?} is not a valid index", index_array), "");
+                            error(&format!("{index_array:?} is not a valid index"), "");
                         }
                     } else {
-                        error(&format!("{:?} is not a valid index", target_index), "");
+                        error(&format!("{target_index:?} is not a valid index"), "");
                     }
                 }
                 return output;
@@ -213,18 +212,18 @@ pub fn preprocess(
                 for target_index in arrays.iter().skip(1) {
                     if let Types::ArrayParsed(ref target_index_arr) = target_index {
                         let mut index_array = vec![];
-                        for element in target_index_arr.iter() {
-                            index_array.push(process_stack(&element, &variables, &functions));
+                        for element in target_index_arr {
+                            index_array.push(process_stack(element, variables, functions));
                         }
 
                         if index_array.len() == 1 {
                             if let Types::Integer(intg) = index_array[0] {
                                 if output == Types::Null {
-                                    output = target_arr[intg as usize].clone()
+                                    output = target_arr[intg as usize].clone();
                                 } else {
                                     log!("{:?}OUTPUT", output);
                                     if let Types::Array(ref sub_arr) = &output {
-                                        output = sub_arr[intg as usize].clone()
+                                        output = sub_arr[intg as usize].clone();
                                     } else if let Types::String(ref sub_str) = &output {
                                         output = Types::String(
                                             sub_str
@@ -240,17 +239,17 @@ pub fn preprocess(
                                                 get_printable_type!(output.clone())
                                             ),
                                             "",
-                                        )
+                                        );
                                     }
                                 }
                             } else {
                                 error(&format!("{:?} is not a valid index", index_array[0]), "");
                             }
                         } else {
-                            error(&format!("{:?} is not a valid index", index_array), "");
+                            error(&format!("{index_array:?} is not a valid index"), "");
                         }
                     } else {
-                        error(&format!("{:?} is not a valid index", target_index), "");
+                        error(&format!("{target_index:?} is not a valid index"), "");
                     }
                 }
                 return output;
@@ -260,8 +259,8 @@ pub fn preprocess(
                 for target_index in arrays.iter().skip(1) {
                     if let Types::ArrayParsed(ref target_index_arr) = target_index {
                         let mut index_array = vec![];
-                        for element in target_index_arr.iter() {
-                            index_array.push(process_stack(&element, &variables, &functions));
+                        for element in target_index_arr {
+                            index_array.push(process_stack(element, variables, functions));
                         }
 
                         if index_array.len() == 1 {
@@ -272,7 +271,7 @@ pub fn preprocess(
                                     );
                                 } else {
                                     if let Types::Array(ref sub_arr) = output.clone() {
-                                        output = sub_arr[intg as usize].clone()
+                                        output = sub_arr[intg as usize].clone();
                                     } else if let Types::String(ref sub_str) = output.clone() {
                                         output = Types::String(
                                             sub_str
@@ -291,7 +290,7 @@ pub fn preprocess(
                                                 get_printable_type!(output)
                                             ),
                                             "",
-                                        )
+                                        );
                                     }
                                 }
                             } else {
@@ -316,5 +315,5 @@ pub fn preprocess(
 
         _ => return Types::Null,
     }
-    return Types::Null;
+    Types::Null
 }

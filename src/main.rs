@@ -1,3 +1,4 @@
+#[allow(clippy::cast_possible_truncation)]
 #[path = "types/array.rs"]
 mod array;
 #[path = "types/file.rs"]
@@ -247,7 +248,7 @@ fn process_stack(
         let mut process = Types::Null;
         let element = match p_element {
             Types::VariableIdentifier(var) => {
-                variables.get(var).expect(&error_msg!(format!("Unknown variable '{var}'")))
+                variables.get(var).expect(error_msg!(format!("Unknown variable '{var}'")))
             }
             _ => {
                 process = preprocess(variables, functions, p_element);
@@ -402,7 +403,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                     process_stack(&parse_code(line)[0], variables, &[]);
                 }, else {
                     error(&format!("Cannot execute line {:?}", &args[0]), "");
-                })
+                });
                 } else if !matched {
                     todo!("Functions are WIP")
                     // let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>) = functions

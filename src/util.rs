@@ -4,15 +4,12 @@ use smol_str::{SmolStr, ToSmolStr};
 pub fn error(message: &str, tip: &str) {
     if tip.is_empty() {
         eprintln!(
-            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{}\n--------------",
-             message
+            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{message}\n--------------"
         );
     } else {
         eprintln!(
-            "--------------\n{}\n{}\n{}\n{}\n--------------",
-            "\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m",
+            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{}\n--------------",
             message,
-            "\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m",
             tip
         );
     }

@@ -124,15 +124,15 @@ pub fn parse_functions(
         Regex::new(r"(?ms)func\s+(\w+)\s*\((.*?)\)\s*\{(.*?)}\s*?(?=func|\z)").unwrap();
     let function_results: Vec<_> = function_regex.captures_iter(&*content).collect();
 
-    for func_match in function_results.iter() {
+    for func_match in function_results {
         let function = func_match.as_ref().unwrap();
         let parsed = parse_code(function.get(3).unwrap().as_str().trim());
         let args = function
             .get(2)
             .unwrap()
             .as_str()
-            .split(",")
-            .map(|arg| arg.trim())
+            .split(',')
+            .map(str::trim)
             .collect::<Vec<&str>>();
         functions.push((
             function.get(1).unwrap().as_str(),
@@ -162,7 +162,7 @@ pub fn parse_functions(
         .map(|(a, b, c)| {
             (
                 a.to_smolstr(),
-                b.iter().map(|s| s.to_smolstr()).collect(),
+                b.iter().map(smol_str::ToSmolStr::to_smolstr).collect(),
                 c.clone(),
             )
         })
