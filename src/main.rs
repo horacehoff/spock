@@ -430,7 +430,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 }
             }
             Types::Condition(ref x, ref y, ref z) => {
-                if process_stack(x, variables, &[]) == Types::Bool(true) {
+                if let Types::Bool(true) = process_stack(x, variables, &[]) {
                     let out = process_function(y, variables);
                     if Types::Null != out {
                         return out;
@@ -473,6 +473,15 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                         };
                     }
                 }
+            }
+            Types::While(ref x, ref y) => {
+                while let Types::Bool(true) = process_stack(x, variables, &[]) {
+                    let out = process_function(y, variables);
+                    if Types::Null != out {
+                        return out;
+                    }
+                }
+
             }
             _ => panic!("{}", error_msg!("TODO!!")),
         }
