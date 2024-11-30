@@ -221,18 +221,20 @@ fn process_stack(
     variables: &HashMap<SmolStr, Types>,
     functions: &[(SmolStr, Vec<SmolStr>, &[Vec<Types>])],
 ) -> Types {
-    let mut output: Types = {
-        if let Types::VariableIdentifier(ref var) = stack_in.first().unwrap() {
-            let value = variables
-                .get(var)
-                .expect(&error_msg!("Unknown variable"));
-            value.to_owned()
-        } else {
-            let value = preprocess(variables, functions, stack_in.first().unwrap());
+    let mut output:Types = match stack_in.first().unwrap() {
+        Types::VariableIdentifier(ref var) => {
+            variables
+            .get(var)
+            .expect(&error_msg!("Unknown variable"))
+            .to_owned()
+        }
+        other => {
+            let value = preprocess(variables, functions, other);
             if value == Types::Null {
-                 return stack_in.first().unwrap().to_owned()
+                 other.to_owned()
+            } else {
+                value
             }
-            value
         }
     };
     let mut current_operator: BasicOperator = BasicOperator::Null;
