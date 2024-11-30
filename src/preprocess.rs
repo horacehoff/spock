@@ -1,5 +1,5 @@
 use crate::namespaces::namespace_functions;
-use crate::parser::{parse_code, Stack, Types};
+use crate::parser::{parse_code, Types};
 use crate::util::{error, get_printable_form};
 use crate::{
     assert_args_number,
@@ -18,14 +18,14 @@ use unroll::unroll_for_loops;
 #[unroll_for_loops]
 pub fn preprocess(
     variables: &HashMap<SmolStr, Types>,
-    functions: &[(SmolStr, Vec<SmolStr>, &[Stack])],
+    functions: &[(SmolStr, Vec<SmolStr>, &[Vec<Types>])],
     element: &Types,
 ) -> Types {
     // println!("ELEM{:?}", element);
     match element {
         Types::FunctionCall(ref func_name, ref func_args) => {
             // replace function call by its result (return value)
-            let args: Stack = func_args
+            let args: Vec<Types> = func_args
                 .iter()
                 .map(|arg| process_stack(arg, variables, functions))
                 .collect();
@@ -93,7 +93,7 @@ pub fn preprocess(
                 }
             }
 
-            let target_function: &(SmolStr, Vec<SmolStr>, &[Stack]) = functions
+            let target_function: &(SmolStr, Vec<SmolStr>, &[Vec<Types>]) = functions
                 .iter()
                 .find(|func| func.0 == *func_name)
                 .unwrap_or_else(|| {error(&format!("Unknown function '{func_name}'"),"");panic!("Unknown function '{func_name}'")});
@@ -117,7 +117,7 @@ pub fn preprocess(
         }
         Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
             // execute "namespace functions"
-            let args: Stack = z
+            let args: Vec<Types> = z
                 .iter()
                 .map(|arg| process_stack(arg, variables, functions))
                 .collect();
@@ -140,7 +140,7 @@ pub fn preprocess(
         }
         Types::ArrayParsed(ref y) => {
             // compute final value of arrays
-            let mut new_array: Stack = vec![];
+            let mut new_array: Vec<Types> = Vec::new();
             for element in y {
                 new_array.push(process_stack(element, variables, functions));
             }
@@ -148,12 +148,12 @@ pub fn preprocess(
         }
         Types::ArraySuite(ref y) => {
             // matches multiple arrays following one another => implies array indexing
-            let arrays: &Stack = y;
+            let arrays: &Vec<Types> = y;
             let target_array: Types = process_stack(&[arrays[0].clone()], variables, functions);
             // 1 - matches if the contents of the array have yet to be fully evaluated
             if let Types::ArrayParsed(ref target_arr) = target_array {
                 // compute the "final" value of the first/target array
-                let mut array = vec![];
+                let mut array = Vec::new();
                 for element in target_arr {
                     array.push(process_stack(element, variables, functions));
                 }
@@ -161,7 +161,7 @@ pub fn preprocess(
                 // iterate over every array following the first one => they are indexes
                 for target_index in arrays.iter().skip(1) {
                     if let Types::ArrayParsed(ref target_index_arr) = target_index {
-                        let mut index_array = vec![];
+                        let mut index_array = Vec::new();
                         for element in target_index_arr {
                             index_array.push(process_stack(element, variables, functions));
                         }
@@ -208,7 +208,7 @@ pub fn preprocess(
                 let mut output = Types::Null;
                 for target_index in arrays.iter().skip(1) {
                     if let Types::ArrayParsed(ref target_index_arr) = target_index {
-                        let mut index_array = vec![];
+                        let mut index_array = Vec::new();
                         for element in target_index_arr {
                             index_array.push(process_stack(element, variables, functions));
                         }
@@ -255,7 +255,7 @@ pub fn preprocess(
                 let mut output = Types::Null;
                 for target_index in arrays.iter().skip(1) {
                     if let Types::ArrayParsed(ref target_index_arr) = target_index {
-                        let mut index_array = vec![];
+                        let mut index_array = Vec::new();
                         for element in target_index_arr {
                             index_array.push(process_stack(element, variables, functions));
                         }

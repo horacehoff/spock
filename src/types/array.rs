@@ -1,12 +1,12 @@
 use crate::error_msg;
 use crate::get_printable_type;
-use crate::parser::{BasicOperator, Stack, Types};
+use crate::parser::{BasicOperator, Types};
 use crate::util::error;
 
 pub fn array_ops(x: &[Types], output: &Types, current_operator: BasicOperator) -> Types {
     if let Types::Integer(value) = *output {
         if current_operator == BasicOperator::Multiply {
-            let mut new_vec: Stack = vec![];
+            let mut new_vec: Vec<Types> = Vec::new();
             for _ in 0..value {
                 new_vec.append(&mut x.to_owned());
             }
@@ -56,7 +56,7 @@ macro_rules! array_props {
             }
             "clear" => {
                 assert_args_number!("clear", $args.len(), 0);
-                $output = Types::Array(vec![]);
+                $output = Types::Array(Vec::new());
             }
             "reverse" => {
                 assert_args_number!("clear", $args.len(), 0);
@@ -66,7 +66,7 @@ macro_rules! array_props {
             }
             "sort" => {
                 assert_args_number!("sort", $args.len(), 0);
-                let mut new_vec: Stack = $arr.clone();
+                let mut new_vec: Vec<Types> = $arr.clone();
                 new_vec.sort_by(|a, b| match a {
                     Types::Integer(x) => match b {
                         Types::Integer(y) => x.cmp(y),
@@ -105,7 +105,7 @@ macro_rules! array_props {
             }
             "extend" => {
                 assert_args_number!("extend", $args.len(), 1);
-                let mut new_vec: Stack = $arr.clone();
+                let mut new_vec: Vec<Types> = $arr.clone();
                 if let Types::Array(x) = $args[0].clone() {
                     new_vec.extend(x);
                     $output = Types::Array(new_vec);
@@ -115,7 +115,7 @@ macro_rules! array_props {
             }
             "insert" => {
                 assert_args_number!("insert", $args.len(), 2);
-                let mut new_vec: Stack = $arr.clone();
+                let mut new_vec: Vec<Types> = $arr.clone();
                 if let Types::Integer(x) = $args[0] {
                     new_vec.insert(x as usize, $args[1].clone());
                     $output = Types::Array(new_vec)
@@ -125,7 +125,7 @@ macro_rules! array_props {
             }
             "pop" => {
                 assert_args_number!("pop", $args.len(), 1);
-                let mut new_vec: Stack = $arr.clone();
+                let mut new_vec: Vec<Types> = $arr.clone();
                 if let Types::Integer(x) = $args[0] {
                     new_vec.remove(x as usize);
                     $output = Types::Array(new_vec)

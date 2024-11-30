@@ -7,9 +7,6 @@ use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
 use smol_str::{SmolStr, ToSmolStr};
 
-pub type Stack = Vec<Types>;
-pub type StackLines = Vec<Vec<Types>>;
-
 #[derive(Parser)]
 #[grammar = "parser/parser_grammar.pest"]
 pub struct ComputeParser;
@@ -22,44 +19,44 @@ pub enum Types {
     Float(f64),
     String(SmolStr),
     Bool(bool),
-    Array(Stack),
-    ArrayParsed(StackLines),
-    ArraySuite(Stack),
-    Or(Stack),
-    And(Stack),
+    Array(Vec<Types>),
+    ArrayParsed(Vec<Vec<Types>>),
+    ArraySuite(Vec<Types>),
+    Or(Vec<Types>),
+    And(Vec<Types>),
     Property(SmolStr),
-    PropertyFunction(SmolStr, StackLines),
+    PropertyFunction(SmolStr, Vec<Vec<Types>>),
     VariableIdentifier(SmolStr),
-    FunctionCall(SmolStr, StackLines),
-    NamespaceFunctionCall(Vec<SmolStr>, SmolStr, StackLines),
-    FunctionReturn(Stack),
-    Priority(Stack),
+    FunctionCall(SmolStr, Vec<Vec<Types>>),
+    NamespaceFunctionCall(Vec<SmolStr>, SmolStr, Vec<Vec<Types>>),
+    FunctionReturn(Vec<Types>),
+    Priority(Vec<Types>),
     Operation(BasicOperator),
-    VariableDeclaration(SmolStr, Stack),
-    VariableRedeclaration(SmolStr, Stack),
+    VariableDeclaration(SmolStr, Vec<Types>),
+    VariableRedeclaration(SmolStr, Vec<Types>),
     Condition(
         //Condition
-        Stack,
+        Vec<Types>,
         // Code to execute if true
-        StackLines,
+        Vec<Vec<Types>>,
         // For each else if/else block, (condition, code)
-        Vec<(Stack, StackLines)>,
+        Vec<(Vec<Types>, Vec<Vec<Types>>)>,
     ),
     // Condition
     While(
-        Stack,
+        Vec<Types>,
         // Code to execute while true
-        StackLines,
+        Vec<Vec<Types>>,
     ),
     Loop(
         // Loop identifier
         SmolStr,
         // Array/string to iterate
-        Stack,
+        Vec<Types>,
         // Code inside the loop to execute
-        Stack,
+        Vec<Types>,
     ),
-    Wrap(Stack),
+    Wrap(Vec<Types>),
 
     // Objects
     File(SmolStr),
@@ -84,8 +81,8 @@ pub enum BasicOperator {
     SuperiorEqual,
 }
 
-pub fn parse_expression(pair: Pair<Rule>) -> Stack {
-    let mut output: Stack = vec![];
+pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
+    let mut output: Vec<Types> = Vec::new();
     let mut recursive = true;
 
     // println!("{:?}", pair);
@@ -103,7 +100,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Stack {
         Rule::bool => output.push(Types::Bool(pair.as_str() == "true")),
         Rule::array_suite => {
             recursive = false;
-            let mut suite: Stack = vec![];
+            let mut suite: Vec<Types> = Vec::new();
             for extra in pair.clone().into_inner() {
                 suite.push(parse_expression(extra)[0].clone());
                 // println!("MEM{:?}", suite);
@@ -112,7 +109,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Stack {
             output.push(ArraySuite(suite));
         }
         Rule::array => {
-            let mut array: StackLines = vec![];
+            let mut array: Vec<Vec<Types>> = Vec::new();
             for array_member in pair.clone().into_inner() {
                 array.push(parse_expression(array_member));
             }
@@ -127,7 +124,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Stack {
         }
         Rule::property_function => {
             recursive = false;
-            let mut priority_calc: StackLines = vec![];
+            let mut priority_calc: Vec<Vec<Types>> = Vec::new();
             for priority_pair in pair
                 .clone()
                 .into_inner()
@@ -157,7 +154,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Stack {
         }
         Rule::func_call => {
             recursive = false;
-            let mut priority_calc: StackLines = vec![];
+            let mut priority_calc: Vec<Vec<Types>> = Vec::new();
             for priority_pair in pair.clone().into_inner().skip(1) {
                 for arg_pair in priority_pair.into_inner() {
                     priority_calc.push(parse_expression(arg_pair));
@@ -180,7 +177,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Stack {
                 .first()
                 .unwrap()
                 .clone();
-            let mut namespaces = vec![];
+            let mut namespaces = Vec::new();
             for namespace in pair.clone().into_inner().rev().skip(1).rev() {
                 namespaces.push(namespace.as_str().to_smolstr());
             }
@@ -213,7 +210,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Stack {
         }
         Rule::priority => {
             recursive = false;
-            let mut priority_calc: Stack = vec![];
+            let mut priority_calc: Vec<Types> = Vec::new();
             for priority_pair in pair.clone().into_inner() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
@@ -238,7 +235,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Stack {
         },
         Rule::variableDeclaration => {
             recursive = false;
-            let mut priority_calc: Stack = vec![];
+            let mut priority_calc: Vec<Types> = Vec::new();
             for priority_pair in pair.clone().into_inner().skip(1) {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
@@ -256,7 +253,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Stack {
         }
         Rule::variableRedeclaration => {
             recursive = false;
-            let mut priority_calc: Stack = vec![];
+            let mut priority_calc: Vec<Types> = Vec::new();
             for priority_pair in pair.clone().into_inner().skip(1) {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
@@ -274,7 +271,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Stack {
         }
         Rule::and_operation => {
             recursive = false;
-            let mut priority_calc: Stack = vec![];
+            let mut priority_calc: Vec<Types> = Vec::new();
             for priority_pair in pair.clone().into_inner() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
@@ -282,7 +279,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Stack {
         }
         Rule::or_operation => {
             recursive = false;
-            let mut priority_calc: Stack = vec![];
+            let mut priority_calc: Vec<Types> = Vec::new();
             for priority_pair in pair.clone().into_inner() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
@@ -312,14 +309,14 @@ pub fn parse_expression(pair: Pair<Rule>) -> Stack {
 //     }
 // }
 
-pub fn parse_code(content: &str) -> StackLines {
-    let mut instructions: StackLines = vec![];
+pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
+    let mut instructions: Vec<Vec<Types>> = Vec::new();
     for pair in ComputeParser::parse(Rule::code, content)
         .unwrap_or_else(|_|{error("Failed to parse", "Check semicolons and syntax");panic!()})
     {
         // _visualize_parse_tree(pair.clone(), 0);
         for inside in pair.into_inner() {
-            let mut line_instructions: Stack = vec![];
+            let mut line_instructions: Vec<Types> = Vec::new();
             match inside.as_rule() {
                 Rule::expression => {
                     for pair in
@@ -329,11 +326,11 @@ pub fn parse_code(content: &str) -> StackLines {
                     }
                 }
                 Rule::if_statement => {
-                    let condition: Stack =
+                    let condition: Vec<Types> =
                         parse_expression(inside.clone().into_inner().next().unwrap());
-                    let first_code: StackLines =
+                    let first_code: Vec<Vec<Types>> =
                         parse_code(inside.clone().into_inner().nth(1).unwrap().as_str());
-                    let mut else_groups: Vec<(Stack, StackLines)> = vec![];
+                    let mut else_groups: Vec<(Vec<Types>, Vec<Vec<Types>>)> = Vec::new();
                     for else_block in inside.into_inner().skip(2) {
                         if else_block.clone().into_inner().next().unwrap().as_rule()
                             == Rule::condition
@@ -346,7 +343,7 @@ pub fn parse_code(content: &str) -> StackLines {
                         } else {
                             // ELSE
                             else_groups.push((
-                                vec![],
+                                Vec::new(),
                                 parse_code(else_block.into_inner().next().unwrap().as_str()),
                             ));
                         }
@@ -357,7 +354,7 @@ pub fn parse_code(content: &str) -> StackLines {
                     line_instructions.push(Types::FunctionReturn(parse_expression(inside)));
                 }
                 Rule::while_statement => {
-                    let mut condition: Stack = vec![];
+                    let mut condition: Vec<Types> = Vec::new();
                     for pair in ComputeParser::parse(
                         Rule::expression,
                         inside
@@ -382,7 +379,7 @@ pub fn parse_code(content: &str) -> StackLines {
                     let mut inner = inside.into_inner();
                     let loop_var = inner.next().unwrap().as_str().into();
                     let target_array = parse_expression(inner.next().unwrap());
-                    let loop_code: Stack = parse_code(inner.next().unwrap().as_str())
+                    let loop_code: Vec<Types> = parse_code(inner.next().unwrap().as_str())
                         .iter()
                         .map(|x| {
                             if x.len() == 1 {

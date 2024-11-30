@@ -21,7 +21,7 @@ use crate::array::array_ops;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-use crate::parser::{parse_code, BasicOperator, Stack, StackLines, Types};
+use crate::parser::{parse_code, BasicOperator, Types};
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::string_ops;
@@ -42,7 +42,7 @@ use unroll::unroll_for_loops;
 #[const_currying]
 fn builtin_functions(
     x: &str,
-    #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] args: &Stack,
+    #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] args: &Vec<Types>,
 ) -> (Types, bool) {
     match x {
         "print" => {
@@ -228,7 +228,7 @@ fn builtin_functions(
 fn process_stack(
     stack_in: &[Types],
     variables: &HashMap<SmolStr, Types>,
-    functions: &[(SmolStr, Vec<SmolStr>, &[Stack])],
+    functions: &[(SmolStr, Vec<SmolStr>, &[Vec<Types>])],
 ) -> Types {
     let mut output: Types = match stack_in.first().unwrap() {
         Types::VariableIdentifier(ref var) => variables
@@ -293,7 +293,7 @@ fn process_stack(
                 todo!("Properties aren't implented yet!")
             }
             Types::PropertyFunction(ref x, ref y) => {
-                let args: Stack = y
+                let args: Vec<Types> = y
                     .iter()
                     .map(|arg| process_stack(arg, variables, functions))
                     .collect();
@@ -375,7 +375,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 }
             }
             Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
-                let args: Stack = z
+                let args: Vec<Types> = z
                     .iter()
                     .map(|arg| process_stack(arg, variables, &[]))
                     .collect();
@@ -388,7 +388,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
             }
             Types::FunctionCall(ref x, ref y) => {
                 // println!("{:?}", y);
-                let args: Stack = y
+                let args: Vec<Types> = y
                     .iter()
                     .map(|arg| process_stack(arg, variables, &[]))
                     .collect();
@@ -403,7 +403,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                     });
                 } else if !matched {
                     todo!("Functions are WIP")
-                    // let target_function: &(SmolStr, Vec<SmolStr>, StackLines) = functions
+                    // let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>) = functions
                     //     .into_iter()
                     //     .filter(|func| func.0 == *x)
                     //     .next()
@@ -480,7 +480,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
     Types::Null
 }
 
-fn process_function(lines: &[Stack], variables: &mut HashMap<SmolStr, Types>) -> Types {
+fn process_function(lines: &[Vec<Types>], variables: &mut HashMap<SmolStr, Types>) -> Types {
     for line in lines {
         if let Types::FunctionReturn(x) = line.first().unwrap() {
             return process_stack(x, variables, &[]);
@@ -497,14 +497,14 @@ fn process_function(lines: &[Stack], variables: &mut HashMap<SmolStr, Types>) ->
 // #[unroll_for_loops]
 // #[const_currying]
 // fn process_function(
-//     lines: &Stack,
+//     lines: &Vec<Types>,
 //     variables: &mut Vec<Variable>,
 //     expected_variables_len: usize,
 //     name: &str,
 //     #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] functions: &Vec<(
 //         SmolStr,
 //         Vec<SmolStr>,
-//         StackLines,
+//         Vec<Vec<Types>>,
 //     )>,
 //     extra_variables: Option<&mut Vec<Variable>>
 // ) -> Types {
@@ -519,7 +519,7 @@ fn process_function(lines: &[Stack], variables: &mut HashMap<SmolStr, Types>) ->
 //             "Remove the excess arguments",
 //         )
 //     }
-//     let mut temp_vars: Vec<Variable> = if let Some(var) = extra_variables {var.to_owned()} else {vec![]};
+//     let mut temp_vars: Vec<Variable> = if let Some(var) = extra_variables {var.to_owned()} else {Vec::new()};
 //
 //     let mut global_vars: Vec<Variable> = [
 //         &variables[..],
@@ -559,7 +559,7 @@ fn process_function(lines: &[Stack], variables: &mut HashMap<SmolStr, Types>) ->
 //                     update_global!();
 //                 }
 //                 Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
-//                     let args: Stack = z
+//                     let args: Vec<Types> = z
 //                         .iter()
 //                         .map(|arg| process_stack(&arg, &global_vars, &functions))
 //                         .collect();
@@ -572,7 +572,7 @@ fn process_function(lines: &[Stack], variables: &mut HashMap<SmolStr, Types>) ->
 //                 }
 //                 Types::FunctionCall(x, y) => {
 //                     // println!("{:?}", y);
-//                     let args: Stack = y
+//                     let args: Vec<Types> = y
 //                         .iter()
 //                         .map(|arg| process_stack(arg, &global_vars, functions))
 //                         .collect();
@@ -587,7 +587,7 @@ fn process_function(lines: &[Stack], variables: &mut HashMap<SmolStr, Types>) ->
 //                             error(&format!("Cannot execute line {:?}", &args[0]), "")
 //                         })
 //                     } else if !matched.1 {
-//                         let target_function: &(SmolStr, Vec<SmolStr>, StackLines) = functions
+//                         let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>) = functions
 //                             .into_iter()
 //                             .filter(|func| func.0 == *x)
 //                             .next()
@@ -750,7 +750,7 @@ options:
         fs::read_to_string(arg).unwrap_or_else(|_| {error(&format!("Unable to read file '{arg}'"),"");panic!()});
 
     let now = Instant::now();
-    let functions: Vec<(SmolStr, Vec<SmolStr>, StackLines)> =
+    let functions: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> =
         parse_functions(content.trim(), true);
     log!("PARSED IN: {:.2?}", now.elapsed());
     log!("FUNCTIONS {:?}", functions);
@@ -759,19 +759,19 @@ options:
         .clone()
         .into_iter()
         .filter(|function| function.0 == "main")
-        .collect::<Vec<(SmolStr, Vec<SmolStr>, StackLines)>>();
+        .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)>>();
 
     let now = Instant::now();
     // thread::Builder::new()
     //     // 16MB stack size
     //     .stack_size(16 * 1024 * 1024)
     //     .spawn(move || {
-    //         process_function(&main_instructions[0].2, &mut vec![], 0, "main", &functions);
+    //         process_function(&main_instructions[0].2, &mut Vec::new(), 0, "main", &functions);
     //     })
     //     .unwrap()
     //     .join()
     //     .unwrap();
-    // process_function(&main_instructions[0].2, &mut vec![], 0, "main", &functions,None);
+    // process_function(&main_instructions[0].2, &mut Vec::new(), 0, "main", &functions,None);
 
     let mut vars: HashMap<SmolStr, Types> = HashMap::default();
     // process_line_logic(&Types::VariableDeclaration("hey".to_smolstr(), vec![Types::Integer(56)]), &mut vars);
