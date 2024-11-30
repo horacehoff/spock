@@ -237,19 +237,20 @@ fn process_stack(
     };
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in.iter().skip(1) {
-        let mut element: &Types = p_element;
-        let mut val: Types = Types::Null;
-        if let Types::VariableIdentifier(ref var) = element {
-            let value = variables
-                .get(var)
-                .expect(&error_msg!(format!("Unknown variable '{var}'")));
-            element = value;
-        } else {
-            val = preprocess(variables, functions, &element);
-            if val != Types::Null {
-                element = &val;
+        let mut _process = Types::Null;
+        let element = match p_element {
+            Types::VariableIdentifier(var) => {
+                variables.get(var).expect(&error_msg!(format!("Unknown variable '{var}'")))
             }
-        }
+            _ => {
+                _process = preprocess(variables, functions, p_element);
+                if _process == Types::Null {
+                    p_element
+                } else {
+                    &_process
+                }
+            }
+        };
 
         match element {
             Types::Operation(ref op) => {
