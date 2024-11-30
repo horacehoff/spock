@@ -27,7 +27,7 @@ pub fn parse_functions(
             i += 1;
             match_content = &content[0..i];
         }
-        let name = String::from("./") + match_content.replace("import", "").trim().trim_end_matches(";");
+        let name = String::from("./") + match_content.replace("import", "").trim().trim_end_matches(';');
 
         if name.ends_with(".compute") {
             // IS COMPUTE FILE
@@ -88,24 +88,24 @@ pub fn parse_functions(
             || content_lines.starts_with("replace")
             || content_lines.trim().is_empty())
         {
-            if !(content_lines.ends_with("{")
+            if !(content_lines.ends_with('{')
                 || content_lines.ends_with("}")
-                || content_lines.ends_with(";"))
+                || content_lines.ends_with(';'))
             {
                 if content_lines.starts_with("if")
                     || content_lines.starts_with("for")
                     || content_lines.starts_with("while")
                     || content_lines == "}"
                 {
-                    error(&format!("Missing bracket at line {}", i), "")
+                    error(&format!("Missing bracket at line {i}"), "");
                 } else {
-                    error(&format!("Missing semicolon at line {}", i), "")
+                    error(&format!("Missing semicolon at line {i}"), "");
                 }
             }
         }
         i += 1;
     }
-    content = content.lines().map(|ln| ln.trim()).collect();
+    content = content.lines().map(str::trim).collect();
 
     let replace_regex =
         Regex::new(r"(?m)^replace (.+?)\s*->\s*(.+?)(?=\s*(?:func|import|replace|\z))").unwrap();
@@ -122,7 +122,7 @@ pub fn parse_functions(
     // Parse functions
     let function_regex =
         Regex::new(r"(?ms)func\s+(\w+)\s*\((.*?)\)\s*\{(.*?)}\s*?(?=func|\z)").unwrap();
-    let function_results: Vec<_> = function_regex.captures_iter(&*content).collect();
+    let function_results: Vec<_> = function_regex.captures_iter(&content).collect();
 
     for func_match in function_results {
         let function = func_match.as_ref().unwrap();
