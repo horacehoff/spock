@@ -443,7 +443,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                         if else_block.0.is_empty()
                             || process_stack(&else_block.0, variables, &[]) == Types::Bool(true)
                         {
-                            let out = process_function(&else_block.1, variables, false);
+                            let out = process_line_logic(&else_block.1, variables);
                             if out != Types::Null {
                                 return out;
                             }

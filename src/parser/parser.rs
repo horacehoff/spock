@@ -40,7 +40,7 @@ pub enum Types {
         // Code to execute if true
         Vec<Types>,
         // For each else if/else block, (condition, code)
-        Vec<(Vec<Types>, Vec<Vec<Types>>)>,
+        Vec<(Vec<Types>, Vec<Types>)>,
     ),
     // Condition
     While(
@@ -326,7 +326,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                                 return Types::Wrap(x.clone());
                             })
                             .collect();
-                    let mut else_groups: Vec<(Vec<Types>, Vec<Vec<Types>>)> = Vec::new();
+                    let mut else_groups: Vec<(Vec<Types>, Vec<Types>)> = Vec::new();
                     for else_block in inside.into_inner().skip(2) {
                         if else_block.clone().into_inner().next().unwrap().as_rule()
                             == Rule::condition
@@ -334,13 +334,29 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                             // ELSE IF
                             else_groups.push((
                                 parse_expression(else_block.clone().into_inner().next().unwrap()),
-                                parse_code(else_block.into_inner().nth(1).unwrap().as_str()),
+                                parse_code(else_block.into_inner().nth(1).unwrap().as_str()).iter()
+                                    .map(|x| {
+                                        if x.len() == 1 {
+                                            x.first().unwrap().clone()
+                                        } else {
+                                            Types::Wrap(x.clone())
+                                        }
+                                    })
+                                    .collect(),
                             ));
                         } else {
                             // ELSE
                             else_groups.push((
                                 Vec::new(),
-                                parse_code(else_block.into_inner().next().unwrap().as_str()),
+                                parse_code(else_block.into_inner().next().unwrap().as_str()).iter()
+                                    .map(|x| {
+                                        if x.len() == 1 {
+                                            x.first().unwrap().clone()
+                                        } else {
+                                            Types::Wrap(x.clone())
+                                        }
+                                    })
+                                    .collect(),
                             ));
                         }
                     }
