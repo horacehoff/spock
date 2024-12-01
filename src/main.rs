@@ -251,7 +251,7 @@ fn process_stack(
     };
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in.iter().skip(1) {
-        let mut process = Types::Null;
+        let process;
         let element = if let Types::VariableIdentifier(var) = p_element {
             variables.get(var).unwrap_or_else(|| {
                 error(&format!("Unknown variable '{var}'"), "");
@@ -604,23 +604,9 @@ options:
         .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)>>();
 
     let now = Instant::now();
-    // thread::Builder::new()
-    //     // 16MB stack size
-    //     .stack_size(16 * 1024 * 1024)
-    //     .spawn(move || {
-    //         process_function(&main_instructions[0].2, &mut Vec::new(), 0, "main", &functions);
-    //     })
-    //     .unwrap()
-    //     .join()
-    //     .unwrap();
-    // process_function(&main_instructions[0].2, &mut Vec::new(), 0, "main", &functions,None);
-
     let mut vars: HashMap<SmolStr, Types> = HashMap::default();
-    // process_line_logic(&Types::VariableDeclaration("hey".to_smolstr(), vec![Types::Integer(56)]), &mut vars);
-    // process_line_logic(&Types::VariableRedeclaration("hey".to_smolstr(), vec![Types::Integer(512)]), &mut vars);
 
     process_function(&main_instructions.first().unwrap().2, &mut vars, false);
-    // println!("{:?}VARS", vars);
 
     log_release!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());
