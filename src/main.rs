@@ -436,7 +436,10 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 if let Types::Bool(true) = process_stack(x, variables, &[]) {
                     let out = process_line_logic(y, variables);
                     if Types::Null != out {
+                        // if out != Types::Break {
                         return out;
+                        // }
+                        // error("Cannot break in a conditional statement","Remove the \"break\" statement");
                     }
                 } else {
                     for else_block in z {
@@ -460,10 +463,13 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                             *value = elem;
                         }
 
-                        let out_expr: Types = process_line_logic(z, variables);
-                        if out_expr != Types::Null {
+                        let out: Types = process_line_logic(z, variables);
+                        if out != Types::Null {
                             variables.remove(x);
-                            return out_expr;
+                            if out == Types::Break {
+                                break;
+                            }
+                            return out;
                         }
                     }
                     variables.remove(x);

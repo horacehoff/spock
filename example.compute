@@ -8,24 +8,20 @@ func main() {
 //     if result > 1000000 {
 //         result = result % 1000000;
 //     }
-//     if result > 2000 {
-//         break;
-//     }
+// //     if result > 2000 {
+// //         break;
+// //     }
 //     counter = counter + 1;
 // }
 //
 // print("Final result: "+str(result));
 let res = 0;
 let i = 0;
-while i < 10 {
-print(i);
-res = i;
-if i == 2 {
-break;
-} else if i == 1 {
-print("TEST!");
-}
-i = i +1;
+for x in [0, 1, 2, 3] {
+    res = x;
+    if x == 2 {
+    break;
+    }
 }
 print("RES"+str(res));
 }
