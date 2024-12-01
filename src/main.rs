@@ -474,13 +474,22 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                     }
                     variables.remove(x);
                 } else if let Types::String(ref target_string) = loop_array {
+                    variables.insert(x.to_smolstr(), Types::Null);
                     for elem in target_string.chars() {
-                        let out_expr: Types = {
-                            let result = process_line_logic(z, variables);
-                            // };
-                            Types::Null
-                        };
+                        if let Some(value) = variables.get_mut(x) {
+                            *value = Types::String(elem.to_smolstr());
+                        }
+
+                        let out: Types = process_line_logic(z, variables);
+                        if out != Types::Null {
+                            variables.remove(x);
+                            if out == Types::Break {
+                                break;
+                            }
+                            return out;
+                        }
                     }
+                    variables.remove(x);
                 }
             }
             Types::While(ref x, ref y) => {

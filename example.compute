@@ -1,27 +1,15 @@
 func main() {
-// let counter = 0;
-// let limit = 1000000;
-// let result= 1;
-//
-// while counter < limit {
-//     result = result * 2;
-//     if result > 1000000 {
-//         result = result % 1000000;
-//     }
-// //     if result > 2000 {
-// //         break;
-// //     }
-//     counter = counter + 1;
-// }
-//
-// print("Final result: "+str(result));
-let res = 0;
-let i = 0;
-for x in [0, 1, 2, 3] {
-    res = x;
-    if x == 2 {
-    break;
+let counter = 0;
+let limit = 1000000;
+let result= 1;
+
+while counter < limit {
+    result = result * 2;
+    if result > 1000000 {
+        result = result % 1000000;
     }
+    counter = counter + 1;
 }
-print("RES"+str(res));
+
+print("Final result: "+str(result));
 }
