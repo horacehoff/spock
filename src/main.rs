@@ -361,7 +361,6 @@ fn process_stack(
 #[inline(always)]
 fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Types>) -> Types {
     for line in line_array {
-        println!("LINE {line:?}");
         match line {
             Types::Wrap(ref x) => {
                 let x = process_line_logic(x, variables);
@@ -479,12 +478,13 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 }
             }
             Types::While(ref x, ref y) => {
-                'outer: while let Types::Bool(true) = process_stack(x, variables, &[]) {
+                while let Types::Bool(true) = process_stack(x, variables, &[]) {
                     let out = process_line_logic(y, variables);
-                    if Types::Null != out {
+                    if out != Types::Null {
+                        if out == Types::Break {
+                            break;
+                        }
                         return out;
-                    } else if out == Types::Break {
-                        break 'outer;
                     }
                 }
             }
@@ -492,7 +492,6 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 return process_stack(x, variables, &[]);
             }
             Types::Break => {
-                // DOESNT WORK
                 return Types::Break;
             }
             _ => panic!("{}", error_msg!("TODO!!")),
