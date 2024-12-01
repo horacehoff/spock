@@ -594,7 +594,7 @@ options:
     let now = Instant::now();
     let functions: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> =
         parse_functions(content.trim(), true);
-    log_release!("PARSED IN: {:.2?}", now.elapsed());
+    log!("PARSED IN: {:.2?}", now.elapsed());
     log!("FUNCTIONS {:?}", functions);
 
     let main_instructions = functions

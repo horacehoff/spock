@@ -1,14 +1,7 @@
 func main() {
-let counter = 0;
-let limit = 1000000;
-let result= 1;
-
-while counter < limit {
-    result = result * 2;
-    if result > 1000000 {
-        result = result % 1000000;
-    }
-    counter = counter + 1;
+let result = 0;
+for x in range(1000000) {
+    result = result + x;
 }
-print("Final result: "+str(result.upper));
+print(result);
 }
