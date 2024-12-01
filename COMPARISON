@@ -1,0 +1,8 @@
+FIBONACCI (90):
+    First run / Other runs
+    - Python: 0.316 / 0.055
+    - Compute: 0.209 / 0.015
+INCREMENT A VARIABLE BY 1 TO 100000:
+    First run / Other runs
+    - Python: 0.088 / 0.062
+    - Compute: 0.044 / 0.041

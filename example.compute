@@ -10,6 +10,5 @@ while counter < limit {
     }
     counter = counter + 1;
 }
-
-print("Final result: "+str(result));
+print("Final result: "+str(result.upper));
 }

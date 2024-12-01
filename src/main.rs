@@ -230,10 +230,15 @@ fn process_stack(
     variables: &HashMap<SmolStr, Types>,
     functions: &[(SmolStr, Vec<SmolStr>, &[Vec<Types>])],
 ) -> Types {
-    let mut output: Types = match stack_in.first().unwrap_or_else(|| {return &Types::Integer(0); panic!()}) {
+    let mut output: Types = match stack_in.first().unwrap_or_else(|| {
+        return &Types::Integer(0);
+    }) {
         Types::VariableIdentifier(ref var) => variables
             .get(var)
-            .unwrap_or_else(|| { error("Unknown variable","");panic!() })
+            .unwrap_or_else(|| {
+                error("Unknown variable", "");
+                panic!()
+            })
             .to_owned(),
         other => {
             let value = preprocess(variables, functions, other);
@@ -248,9 +253,10 @@ fn process_stack(
     for p_element in stack_in.iter().skip(1) {
         let mut process = Types::Null;
         let element = if let Types::VariableIdentifier(var) = p_element {
-            variables
-            .get(var)
-            .unwrap_or_else(|| { error(&format!("Unknown variable '{var}'"),"");panic!()})
+            variables.get(var).unwrap_or_else(|| {
+                error(&format!("Unknown variable '{var}'"), "");
+                panic!()
+            })
         } else {
             process = preprocess(variables, functions, p_element);
             if process == Types::Null {
@@ -515,9 +521,13 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
     Types::Null
 }
 
-fn process_function(lines: &[Vec<Types>], variables: &mut HashMap<SmolStr, Types>, is_loop: bool) -> Types {
+fn process_function(
+    lines: &[Vec<Types>],
+    variables: &mut HashMap<SmolStr, Types>,
+    is_loop: bool,
+) -> Types {
     for line in lines {
-        let processed:Types = process_line_logic(line, variables);
+        let processed: Types = process_line_logic(line, variables);
         if processed != Types::Null {
             return processed;
         };
@@ -569,18 +579,22 @@ options:
         && (&args[1] == "-c" || &args[1] == "--clear-cache")
         && Path::new(".compute").exists()
     {
-        remove_dir_all(Path::new(".compute"))
-            .unwrap_or_else(|_| {error("Failed to delete the cache folder (.compute)","");panic!()});
+        remove_dir_all(Path::new(".compute")).unwrap_or_else(|_| {
+            error("Failed to delete the cache folder (.compute)", "");
+            panic!()
+        });
     }
     let arg = args.first().unwrap();
 
-    let content =
-        fs::read_to_string(arg).unwrap_or_else(|_| {error(&format!("Unable to read file '{arg}'"),"");panic!()});
+    let content = fs::read_to_string(arg).unwrap_or_else(|_| {
+        error(&format!("Unable to read file '{arg}'"), "");
+        panic!()
+    });
 
     let now = Instant::now();
     let functions: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> =
         parse_functions(content.trim(), true);
-    log!("PARSED IN: {:.2?}", now.elapsed());
+    log_release!("PARSED IN: {:.2?}", now.elapsed());
     log!("FUNCTIONS {:?}", functions);
 
     let main_instructions = functions
