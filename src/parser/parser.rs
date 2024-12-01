@@ -46,7 +46,7 @@ pub enum Types {
     While(
         Vec<Types>,
         // Code to execute while true
-        Vec<Vec<Types>>,
+        Vec<Types>,
     ),
     Loop(
         // Loop identifier
@@ -360,7 +360,14 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                     }
                     line_instructions.push(Types::While(
                         condition,
-                        parse_code(inside.into_inner().nth(1).unwrap().as_str()),
+                        parse_code(inside.into_inner().nth(1).unwrap().as_str()).iter()
+                            .map(|x| {
+                                if x.len() == 1 {
+                                    return x.first().unwrap().clone();
+                                }
+                                return Types::Wrap(x.clone());
+                            })
+                            .collect(),
                     ));
                 }
                 Rule::loop_statement => {

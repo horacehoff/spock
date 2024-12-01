@@ -50,7 +50,7 @@ expression_unit = _{
 
 expression = {expression_unit+}
 
-return_term = {"return" ~ expression}
+return_term = {"return" ~ expression*}
 
 line = _{(return_term | expression) ~ ";"}
 

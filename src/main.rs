@@ -230,7 +230,7 @@ fn process_stack(
     variables: &HashMap<SmolStr, Types>,
     functions: &[(SmolStr, Vec<SmolStr>, &[Vec<Types>])],
 ) -> Types {
-    let mut output: Types = match stack_in.first().unwrap() {
+    let mut output: Types = match stack_in.first().unwrap_or_else(|| {return &Types::Integer(0); panic!()}) {
         Types::VariableIdentifier(ref var) => variables
             .get(var)
             .unwrap_or_else(|| { error("Unknown variable","");panic!() })
@@ -363,7 +363,10 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
     for line in line_array {
         match line {
             Types::Wrap(ref x) => {
-                process_line_logic(x, variables);
+                let x = process_line_logic(x, variables);
+                if x != Types::Null {
+                    return x;
+                }
             }
             Types::VariableDeclaration(ref x, ref y) => {
                 variables.insert(x.to_smolstr(), process_stack(y, variables, &[]));
@@ -431,7 +434,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
             }
             Types::Condition(ref x, ref y, ref z) => {
                 if let Types::Bool(true) = process_stack(x, variables, &[]) {
-                    let out = process_function(y, variables);
+                    let out = process_function(y, variables, false);
                     if Types::Null != out {
                         return out;
                     }
@@ -440,7 +443,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                         if else_block.0.is_empty()
                             || process_stack(&else_block.0, variables, &[]) == Types::Bool(true)
                         {
-                            let out = process_function(&else_block.1, variables);
+                            let out = process_function(&else_block.1, variables, false);
                             if out != Types::Null {
                                 return out;
                             }
@@ -476,12 +479,14 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
             }
             Types::While(ref x, ref y) => {
                 while let Types::Bool(true) = process_stack(x, variables, &[]) {
-                    let out = process_function(y, variables);
+                    let out = process_line_logic(y, variables);
                     if Types::Null != out {
                         return out;
                     }
                 }
-
+            }
+            Types::FunctionReturn(ref x) => {
+                return process_stack(x, variables, &[]);
             }
             _ => panic!("{}", error_msg!("TODO!!")),
         }
@@ -489,16 +494,12 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
     Types::Null
 }
 
-fn process_function(lines: &[Vec<Types>], variables: &mut HashMap<SmolStr, Types>) -> Types {
+fn process_function(lines: &[Vec<Types>], variables: &mut HashMap<SmolStr, Types>, is_loop: bool) -> Types {
     for line in lines {
-        if let Types::FunctionReturn(x) = line.first().unwrap() {
-            return process_stack(x, variables, &[]);
-        } else {
-            let processed = process_line_logic(line, variables);
-            if processed != Types::Null {
-                return processed;
-            };
-        }
+        let processed:Types = process_line_logic(line, variables);
+        if processed != Types::Null {
+            return processed;
+        };
     }
     Types::Null
 }
@@ -786,7 +787,7 @@ options:
     // process_line_logic(&Types::VariableDeclaration("hey".to_smolstr(), vec![Types::Integer(56)]), &mut vars);
     // process_line_logic(&Types::VariableRedeclaration("hey".to_smolstr(), vec![Types::Integer(512)]), &mut vars);
 
-    process_function(&main_instructions.first().unwrap().2, &mut vars);
+    process_function(&main_instructions.first().unwrap().2, &mut vars, false);
     // println!("{:?}VARS", vars);
 
     println!("EXECUTED IN: {:.2?}", now.elapsed());
