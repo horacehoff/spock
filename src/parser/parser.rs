@@ -57,6 +57,7 @@ pub enum Types {
         Vec<Types>,
     ),
     Wrap(Vec<Types>),
+    Break,
 
     // Objects
     File(SmolStr),
@@ -340,6 +341,9 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                 }
                 Rule::return_term => {
                     line_instructions.push(Types::FunctionReturn(parse_expression(inside)));
+                }
+                Rule::break_term => {
+                    line_instructions.push(Types::Break)
                 }
                 Rule::while_statement => {
                     let mut condition: Vec<Types> = Vec::new();

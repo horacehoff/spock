@@ -51,8 +51,9 @@ expression_unit = _{
 expression = {expression_unit+}
 
 return_term = {"return" ~ expression*}
+break_term = {"break"}
 
-line = _{(return_term | expression) ~ ";"}
+line = _{(return_term | break_term | expression) ~ ";"}
 
 code = {statement+}
 

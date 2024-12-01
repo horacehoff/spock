@@ -8,6 +8,9 @@ while counter < limit {
     if result > 1000000 {
         result = result % 1000000;
     }
+    if result > 2000 {
+        break;
+    }
     counter = counter + 1;
 }
 
