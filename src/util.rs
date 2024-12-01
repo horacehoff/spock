@@ -40,7 +40,14 @@ macro_rules! error_msg {
 macro_rules! log {
     ($($rest:tt)*) => {
         #[cfg(debug_assertions)]
-        std::println!($($rest)*)
+        println!("\x1b[33m[LOG] {}\x1b[0m", format!($($rest)*));
+    }
+}
+
+#[macro_export]
+macro_rules! log_release {
+    ($($rest:tt)*) => {
+        println!("\x1b[33m[LOG] {}\x1b[0m", format!($($rest)*));
     }
 }
 

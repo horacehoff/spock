@@ -38,7 +38,7 @@ pub enum Types {
         //Condition
         Vec<Types>,
         // Code to execute if true
-        Vec<Vec<Types>>,
+        Vec<Types>,
         // For each else if/else block, (condition, code)
         Vec<(Vec<Types>, Vec<Vec<Types>>)>,
     ),
@@ -317,8 +317,15 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                 Rule::if_statement => {
                     let condition: Vec<Types> =
                         parse_expression(inside.clone().into_inner().next().unwrap());
-                    let first_code: Vec<Vec<Types>> =
-                        parse_code(inside.clone().into_inner().nth(1).unwrap().as_str());
+                    let first_code: Vec<Types> =
+                        parse_code(inside.clone().into_inner().nth(1).unwrap().as_str()).iter()
+                            .map(|x| {
+                                if x.len() == 1 {
+                                    return x.first().unwrap().clone();
+                                }
+                                return Types::Wrap(x.clone());
+                            })
+                            .collect();
                     let mut else_groups: Vec<(Vec<Types>, Vec<Vec<Types>>)> = Vec::new();
                     for else_block in inside.into_inner().skip(2) {
                         if else_block.clone().into_inner().next().unwrap().as_rule()

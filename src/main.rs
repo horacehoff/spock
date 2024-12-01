@@ -434,7 +434,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
             }
             Types::Condition(ref x, ref y, ref z) => {
                 if let Types::Bool(true) = process_stack(x, variables, &[]) {
-                    let out = process_function(y, variables, false);
+                    let out = process_line_logic(y, variables);
                     if Types::Null != out {
                         return out;
                     }
@@ -593,6 +593,6 @@ options:
     process_function(&main_instructions.first().unwrap().2, &mut vars, false);
     // println!("{:?}VARS", vars);
 
-    println!("EXECUTED IN: {:.2?}", now.elapsed());
-    println!("TOTAL: {:.2?}", totaltime.elapsed());
+    log_release!("EXECUTED IN: {:.2?}", now.elapsed());
+    log_release!("TOTAL: {:.2?}", totaltime.elapsed());
 }
