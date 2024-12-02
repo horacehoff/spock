@@ -8,8 +8,8 @@ use smol_str::SmolStr;
 pub fn string_ops(x: &SmolStr, output: &Types, current_operator: BasicOperator) -> Types {
     if let Types::String(value) = output {
         match current_operator {
-            BasicOperator::Add => Types::String(format!("{value}{x}").into()),
-            BasicOperator::Equal | BasicOperator::NotEqual => Types::Bool(value.eq(x)),
+            BasicOperator::Add => return Types::String(format!("{value}{x}").into()),
+            BasicOperator::Equal | BasicOperator::NotEqual => return Types::Bool(value.eq(x)),
             _ => {
                 error(
                     &format!(
@@ -17,12 +17,12 @@ pub fn string_ops(x: &SmolStr, output: &Types, current_operator: BasicOperator) 
                     ),
                     "",
                 );
-                Types::Null
+                return Types::Null;
             }
         }
     } else if let Types::Integer(value) = output {
         if current_operator == BasicOperator::Multiply {
-            Types::String(x.repeat(*value as usize).parse().unwrap())
+            return Types::String(x.repeat(*value as usize).parse().unwrap());
         } else {
             error(
                 &format!(
@@ -30,7 +30,7 @@ pub fn string_ops(x: &SmolStr, output: &Types, current_operator: BasicOperator) 
                 ),
                 "",
             );
-            Types::Null
+            return Types::Null;
         }
     } else {
         error(
@@ -41,7 +41,7 @@ pub fn string_ops(x: &SmolStr, output: &Types, current_operator: BasicOperator) 
             ),
             "",
         );
-        Types::Null
+        return Types::Null;
     }
 }
 

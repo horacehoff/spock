@@ -30,10 +30,10 @@ use branches::likely;
 use branches::unlikely;
 use const_currying::const_currying;
 use gxhash::HashMap;
-use inflector::Inflector;
-use smol_str::{SmolStr, StrExt, ToSmolStr};
+use inflector::Inflector as _;
+use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
 use std::fs::remove_dir_all;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead as _, BufReader, Write as _};
 use std::path::Path;
 use std::time::Instant;
 use std::{fs, io};
@@ -230,9 +230,7 @@ fn process_stack(
     variables: &HashMap<SmolStr, Types>,
     functions: &[(SmolStr, Vec<SmolStr>, &[Vec<Types>])],
 ) -> Types {
-    let mut output: Types = match stack_in.first().unwrap_or_else(|| {
-        return &Types::Integer(0);
-    }) {
+    let mut output: Types = match stack_in.first().unwrap_or_else(|| &Types::Integer(0)) {
         Types::VariableIdentifier(ref var) => variables
             .get(var)
             .unwrap_or_else(|| {
@@ -255,7 +253,7 @@ fn process_stack(
         let element = if let Types::VariableIdentifier(var) = p_element {
             variables.get(var).unwrap_or_else(|| {
                 error(&format!("Unknown variable '{var}'"), "");
-                panic!()
+                std::process::exit(1)
             })
         } else {
             process = preprocess(variables, functions, p_element);
@@ -294,14 +292,14 @@ fn process_stack(
                     }
                 }
             }
-            Types::Property(x) => {
+            Types::Property(_) => {
                 // TODO
-                todo!("Properties aren't implented yet!")
+                error("Properties aren't implented yet!", "")
             }
             Types::PropertyFunction(ref x, ref y) => {
                 let args: Vec<Types> = y
                     .iter()
-                    .map(|arg| process_stack(arg, variables, functions))
+                    .map(|arg| return process_stack(arg, variables, functions))
                     .collect();
 
                 if let Types::String(ref str) = &output {
@@ -353,7 +351,7 @@ fn process_stack(
                     }
                 );
             }
-            _ => todo!(),
+            _ => error("TODO", ""),
         }
         // }
         // else {
@@ -399,19 +397,19 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 // println!("{:?}", y);
                 let args: Vec<Types> = y
                     .iter()
-                    .map(|arg| process_stack(arg, variables, &[]))
+                    .map(|arg| return process_stack(arg, variables, &[]))
                     .collect();
 
                 let (_, matched) = builtin_functions(x, &args);
                 if x == "executeline" && !matched {
-                    assert_args_number!("executeline", args.len(), 1);
+                    assert_args_number!("executeline", args.len(), 1_usize);
                     if_let!(likely, Types::String(line), &args[0], {
                         process_stack(&parse_code(line)[0], variables, &[]);
                     }, else {
                         error(&format!("Cannot execute line {:?}", &args[0]), "");
                     });
                 } else if !matched {
-                    todo!("Functions are WIP")
+                    error("Functions are WIP", "")
                     // let target_function: &(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>) = functions
                     //     .into_iter()
                     //     .filter(|func| func.0 == *x)
@@ -515,24 +513,20 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
             Types::Break => {
                 return Types::Break;
             }
-            _ => panic!("{}", error_msg!("TODO!!")),
+            _ => error("TODO", ""),
         }
     }
-    Types::Null
+    return Types::Null;
 }
 
-fn process_function(
-    lines: &[Vec<Types>],
-    variables: &mut HashMap<SmolStr, Types>,
-    is_loop: bool,
-) -> Types {
+fn process_function(lines: &[Vec<Types>], variables: &mut HashMap<SmolStr, Types>) -> Types {
     for line in lines {
         let processed: Types = process_line_logic(line, variables);
         if processed != Types::Null {
             return processed;
         };
     }
-    Types::Null
+    return Types::Null;
 }
 
 fn main() {
@@ -581,14 +575,14 @@ options:
     {
         remove_dir_all(Path::new(".compute")).unwrap_or_else(|_| {
             error("Failed to delete the cache folder (.compute)", "");
-            panic!()
+            std::process::exit(1)
         });
     }
     let arg = args.first().unwrap();
 
     let content = fs::read_to_string(arg).unwrap_or_else(|_| {
         error(&format!("Unable to read file '{arg}'"), "");
-        panic!()
+        std::process::exit(1)
     });
 
     let now = Instant::now();
@@ -598,15 +592,14 @@ options:
     log!("FUNCTIONS {:?}", functions);
 
     let main_instructions = functions
-        .clone()
         .into_iter()
-        .filter(|function| function.0 == "main")
+        .filter(|function| return function.0 == "main")
         .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)>>();
 
     let now = Instant::now();
     let mut vars: HashMap<SmolStr, Types> = HashMap::default();
 
-    process_function(&main_instructions.first().unwrap().2, &mut vars, false);
+    process_function(&main_instructions.first().unwrap().2, &mut vars);
 
     log_release!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());

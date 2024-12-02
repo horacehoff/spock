@@ -50,7 +50,7 @@ macro_rules! array_props {
             "remove" => {
                 assert_args_number!("add", $args.len(), 1);
                 let mut new_vec = $arr.clone();
-                let index = new_vec.iter().position(|x| *x == $args[0]).unwrap();
+                let index = new_vec.iter().position(|x| return *x == $args[0]).unwrap();
                 new_vec.remove(index);
                 $output = Types::Array(new_vec);
             }
@@ -69,24 +69,24 @@ macro_rules! array_props {
                 let mut new_vec: Vec<Types> = $arr.clone();
                 new_vec.sort_by(|a, b| match a {
                     Types::Integer(x) => match b {
-                        Types::Integer(y) => x.cmp(y),
-                        Types::Float(y) => x.cmp(&(*y as i64)),
+                        Types::Integer(y) => return x.cmp(y),
+                        Types::Float(y) => return x.cmp(&(*y as i64)),
                         _ => {
                             error(format!("Cannot compare Integer with {:?}", b).as_str(), "");
-                            std::cmp::Ordering::Equal
+                            return core::cmp::Ordering::Equal;
                         }
                     },
                     Types::Float(x) => match b {
-                        Types::Integer(y) => (*x as i64).cmp(y),
-                        Types::Float(y) => x.partial_cmp(y).unwrap(),
+                        Types::Integer(y) => return (*x as i64).cmp(y),
+                        Types::Float(y) => return x.partial_cmp(y).unwrap(),
                         _ => {
                             error(format!("Cannot compare Integer with {:?}", b).as_str(), "");
-                            std::cmp::Ordering::Equal
+                            return core::cmp::Ordering::Equal;
                         }
                     },
                     _ => {
                         error(format!("Cannot sort {:?}", a).as_str(), "");
-                        std::cmp::Ordering::Equal
+                        return core::cmp::Ordering::Equal;
                     }
                 });
                 $output = Types::Array(new_vec);
@@ -96,7 +96,7 @@ macro_rules! array_props {
                 $output = Types::Integer(
                     $arr.clone()
                         .iter()
-                        .position(|elem| *elem == $args[0])
+                        .position(|elem| return *elem == $args[0])
                         .expect(error_msg!(format!(
                             "{:?} was not found in the list",
                             $args[0]

@@ -42,9 +42,10 @@ pub fn preprocess(
             } else if func_name == "int" {
                 assert_args_number!("int", args.len(), 1);
                 if let Types::String(str) = &args[0] {
-                    return Types::Integer(str.parse::<i64>().unwrap_or_else(|_| { error(&format!(
-                        "Cannot convert String '{str}' to Integer",
-                    ),"");panic!()}));
+                    return Types::Integer(str.parse::<i64>().unwrap_or_else(|_| {
+                        error(&format!("Cannot convert String '{str}' to Integer",), "");
+                        panic!()
+                    }));
                 } else if let Types::Float(float) = &args[0] {
                     return Types::Integer(float.round() as i64);
                 }
@@ -55,7 +56,6 @@ pub fn preprocess(
                     ),
                     "",
                 );
-                
             } else if func_name == "str" {
                 assert_args_number!("str", args.len(), 1);
                 if let Types::Integer(int) = &args[0] {
@@ -78,9 +78,10 @@ pub fn preprocess(
             } else if func_name == "float" {
                 assert_args_number!("float", args.len(), 1);
                 if let Types::String(str) = &args[0] {
-                    return Types::Float(str.parse::<f64>().unwrap_or_else(|_| { error(&format!(
-                        "Cannot convert String '{str}' to Float",
-                    ),"");panic!()}));
+                    return Types::Float(str.parse::<f64>().unwrap_or_else(|_| {
+                        error(&format!("Cannot convert String '{str}' to Float",), "");
+                        panic!()
+                    }));
                 } else if let Types::Integer(int) = &args[0] {
                     return Types::Float(*int as f64);
                 }
@@ -93,7 +94,10 @@ pub fn preprocess(
             let target_function: &(SmolStr, Vec<SmolStr>, &[Vec<Types>]) = functions
                 .iter()
                 .find(|func| func.0 == *func_name)
-                .unwrap_or_else(|| {error(&format!("Unknown function '{func_name}'"),"");panic!("Unknown function '{func_name}'")});
+                .unwrap_or_else(|| {
+                    error(&format!("Unknown function '{func_name}'"), "");
+                    panic!("Unknown function '{func_name}'")
+                });
             assert_args_number!(&func_name, args.len(), target_function.1.len());
             let target_args: &HashMap<SmolStr, Types> = &target_function
                 .1
@@ -127,7 +131,6 @@ pub fn preprocess(
                 &format!("Unknown function {}", namespace.join(".") + "." + y),
                 "",
             );
-
         }
 
         Types::Priority(ref calc) => {
@@ -260,7 +263,10 @@ pub fn preprocess(
                             if let Types::Integer(intg) = index_array[0] {
                                 if output == Types::Null {
                                     output = Types::String(
-                                        str.chars().nth(intg as usize).unwrap().to_smolstr(),
+                                        str.chars()
+                                            .nth(intg as usize)
+                                            .expect(error_msg!("Failed to get "))
+                                            .to_smolstr(),
                                     );
                                 } else if let Types::Array(ref sub_arr) = output.clone() {
                                     output = sub_arr[intg as usize].clone();
@@ -269,7 +275,10 @@ pub fn preprocess(
                                         sub_str
                                             .chars()
                                             .nth(intg as usize)
-                                            .unwrap_or_else(|| { error(&format!("Cannot index '{sub_str}'"),"");panic!()})
+                                            .unwrap_or_else(|| {
+                                                error(&format!("Cannot index '{sub_str}'"), "");
+                                                std::process::exit(1)
+                                            })
                                             .to_smolstr(),
                                     );
                                 } else {
