@@ -1,6 +1,6 @@
+use crate::log;
 use crate::parser::Types::ArraySuite;
 use crate::util::error;
-use crate::{log};
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
@@ -300,9 +300,10 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
 
 pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
     let mut instructions: Vec<Vec<Types>> = Vec::new();
-    for pair in ComputeParser::parse(Rule::code, content)
-        .unwrap_or_else(|_|{error("Failed to parse", "Check semicolons and syntax");panic!()})
-    {
+    for pair in ComputeParser::parse(Rule::code, content).unwrap_or_else(|_| {
+        error("Failed to parse", "Check semicolons and syntax");
+        std::process::exit(1)
+    }) {
         // _visualize_parse_tree(pair.clone(), 0);
         for inside in pair.into_inner() {
             let mut line_instructions: Vec<Types> = Vec::new();
@@ -318,7 +319,8 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                     let condition: Vec<Types> =
                         parse_expression(inside.clone().into_inner().next().unwrap());
                     let first_code: Vec<Types> =
-                        parse_code(inside.clone().into_inner().nth(1).unwrap().as_str()).iter()
+                        parse_code(inside.clone().into_inner().nth(1).unwrap().as_str())
+                            .iter()
                             .map(|x| {
                                 if x.len() == 1 {
                                     return x.first().unwrap().clone();
@@ -334,7 +336,8 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                             // ELSE IF
                             else_groups.push((
                                 parse_expression(else_block.clone().into_inner().next().unwrap()),
-                                parse_code(else_block.into_inner().nth(1).unwrap().as_str()).iter()
+                                parse_code(else_block.into_inner().nth(1).unwrap().as_str())
+                                    .iter()
                                     .map(|x| {
                                         if x.len() == 1 {
                                             x.first().unwrap().clone()
@@ -348,7 +351,8 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                             // ELSE
                             else_groups.push((
                                 Vec::new(),
-                                parse_code(else_block.into_inner().next().unwrap().as_str()).iter()
+                                parse_code(else_block.into_inner().next().unwrap().as_str())
+                                    .iter()
                                     .map(|x| {
                                         if x.len() == 1 {
                                             x.first().unwrap().clone()
@@ -387,7 +391,8 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                     }
                     line_instructions.push(Types::While(
                         condition,
-                        parse_code(inside.into_inner().nth(1).unwrap().as_str()).iter()
+                        parse_code(inside.into_inner().nth(1).unwrap().as_str())
+                            .iter()
                             .map(|x| {
                                 if x.len() == 1 {
                                     return x.first().unwrap().clone();

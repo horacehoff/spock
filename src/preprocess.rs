@@ -44,7 +44,7 @@ pub fn preprocess(
                 if let Types::String(str) = &args[0] {
                     return Types::Integer(str.parse::<i64>().unwrap_or_else(|_| {
                         error(&format!("Cannot convert String '{str}' to Integer",), "");
-                        panic!()
+                        std::process::exit(1)
                     }));
                 } else if let Types::Float(float) = &args[0] {
                     return Types::Integer(float.round() as i64);
@@ -80,7 +80,7 @@ pub fn preprocess(
                 if let Types::String(str) = &args[0] {
                     return Types::Float(str.parse::<f64>().unwrap_or_else(|_| {
                         error(&format!("Cannot convert String '{str}' to Float",), "");
-                        panic!()
+                        std::process::exit(1)
                     }));
                 } else if let Types::Integer(int) = &args[0] {
                     return Types::Float(*int as f64);
@@ -93,17 +93,17 @@ pub fn preprocess(
 
             let target_function: &(SmolStr, Vec<SmolStr>, &[Vec<Types>]) = functions
                 .iter()
-                .find(|func| func.0 == *func_name)
+                .find(|func| return func.0 == *func_name)
                 .unwrap_or_else(|| {
                     error(&format!("Unknown function '{func_name}'"), "");
-                    panic!("Unknown function '{func_name}'")
+                    std::process::exit(1)
                 });
             assert_args_number!(&func_name, args.len(), target_function.1.len());
             let target_args: &HashMap<SmolStr, Types> = &target_function
                 .1
                 .iter()
                 .enumerate()
-                .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
+                .map(|(i, arg)| return (arg.to_smolstr(), args[i].clone()))
                 .collect();
             // let result = process_function(
             //     &target_function.2,
@@ -120,7 +120,7 @@ pub fn preprocess(
             // execute "namespace functions"
             let args: Vec<Types> = z
                 .iter()
-                .map(|arg| process_stack(arg, variables, functions))
+                .map(|arg| return process_stack(arg, variables, functions))
                 .collect();
 
             let namespace_funcs = namespace_functions(namespace, y, &args);
@@ -178,7 +178,9 @@ pub fn preprocess(
                                             sub_str
                                                 .chars()
                                                 .nth(intg as usize)
-                                                .unwrap()
+                                                .expect(error_msg!(format!(
+                                                    "Failed to get letter n.{intg}"
+                                                )))
                                                 .to_smolstr(),
                                         );
                                     } else {
@@ -225,7 +227,9 @@ pub fn preprocess(
                                             sub_str
                                                 .chars()
                                                 .nth(intg as usize)
-                                                .unwrap()
+                                                .expect(error_msg!(format!(
+                                                    "Failed to get letter n.{intg}"
+                                                )))
                                                 .to_smolstr(),
                                         );
                                     } else {
@@ -265,7 +269,9 @@ pub fn preprocess(
                                     output = Types::String(
                                         str.chars()
                                             .nth(intg as usize)
-                                            .expect(error_msg!("Failed to get "))
+                                            .expect(error_msg!(format!(
+                                                "Failed to get letter n.{intg}"
+                                            )))
                                             .to_smolstr(),
                                     );
                                 } else if let Types::Array(ref sub_arr) = output.clone() {

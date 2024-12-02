@@ -27,10 +27,13 @@ pub fn parse_functions(
 
         if name.ends_with(".compute") {
             // IS COMPUTE FILE
-            let file_content = fs::read_to_string(&name).unwrap_or_else(|_| { error(&format!(
-                "Cannot find module {}",
-                name.trim_start_matches("./")
-            ),"");panic!()});
+            let file_content = fs::read_to_string(&name).unwrap_or_else(|_| {
+                error(
+                    &format!("Cannot find module {}", name.trim_start_matches("./")),
+                    "",
+                );
+                std::process::exit(1)
+            });
             imported_functions.append(&mut parse_functions(&file_content, false));
         } else {
             // IS LIB -> .dll, .so, .dylib
@@ -55,10 +58,13 @@ pub fn parse_functions(
             match_content = &content[match_index..match_index + i];
         }
         let name = String::from("./") + match_content.replace("import", "").trim();
-        let file_content = fs::read_to_string(&name).unwrap_or_else(|_| { error(&format!(
-            "Cannot find module {}",
-            name.trim_start_matches("./")
-        ),"");panic!()});
+        let file_content = fs::read_to_string(&name).unwrap_or_else(|_| {
+            error(
+                &format!("Cannot find module {}", name.trim_start_matches("./")),
+                "",
+            );
+            std::process::exit(1)
+        });
         imported_functions.append(&mut parse_functions(&file_content, false));
     }
 
@@ -83,7 +89,13 @@ pub fn parse_functions(
     // let mut content: String = comment_regex.replace_all(content, "").to_string().lines().map(|ln| ln.trim()).collect();
     let mut i: i8 = 1;
     for content_lines in content.lines() {
-        if !(content_lines.starts_with("import") || content_lines.starts_with("replace") || content_lines.trim().is_empty() || content_lines.ends_with('{') || content_lines.ends_with('}') || content_lines.ends_with(';')) {
+        if !(content_lines.starts_with("import")
+            || content_lines.starts_with("replace")
+            || content_lines.trim().is_empty()
+            || content_lines.ends_with('{')
+            || content_lines.ends_with('}')
+            || content_lines.ends_with(';'))
+        {
             if content_lines.starts_with("if")
                 || content_lines.starts_with("for")
                 || content_lines.starts_with("while")

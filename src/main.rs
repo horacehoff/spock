@@ -235,7 +235,7 @@ fn process_stack(
             .get(var)
             .unwrap_or_else(|| {
                 error("Unknown variable", "");
-                panic!()
+                std::process::exit(1)
             })
             .to_owned(),
         other => {

@@ -85,7 +85,10 @@ macro_rules! get_value {
             Types::Integer(x) => x,
             Types::Bool(x) => x,
             Types::Array(x) => x,
-            _ => panic!("{}", error_msg!(format!("Cannot get value of {:?}", $x))),
+            _ => error(
+                format!("{}", error_msg!(format!("Cannot get value of {:?}", $x))),
+                "",
+            ),
         }
     };
 }
@@ -100,7 +103,13 @@ macro_rules! get_printable_type {
             Types::Bool(_) => "Boolean",
             Types::Array(_) => "Array",
             Types::Null => "Null",
-            _ => panic!("{}", error_msg!(format!("Cannot get type of {:?}", $x))),
+            _ => {
+                error(
+                    &format!("{}", error_msg!(format!("Cannot get value of {:?}", $x))),
+                    "",
+                );
+                ""
+            }
         }
     };
 }

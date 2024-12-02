@@ -30,7 +30,10 @@ pub fn namespace_functions(x: &[SmolStr], y: &str, args: &[Types]) -> (Types, bo
                     .create(true)
                     .truncate(false)
                     .open(filename)
-                    .unwrap_or_else(|_| {error("Failed to check/create file","");panic!()});
+                    .unwrap_or_else(|_| {
+                        error("Failed to check/create file", "");
+                        std::process::exit(1)
+                    });
                 (Types::File(filename.to_smolstr()), true)
             } else {
                 error(
