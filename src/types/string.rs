@@ -23,26 +23,22 @@ pub fn string_ops(x: &SmolStr, output: &Types, current_operator: BasicOperator) 
     } else if let Types::Integer(value) = output {
         if current_operator == BasicOperator::Multiply {
             return Types::String(x.repeat(*value as usize).parse().unwrap());
-        } else {
-            error(
-                &format!(
-                    "Cannot perform operation '{current_operator:?}' between Integer and String"
-                ),
-                "",
-            );
-            return Types::Null;
         }
-    } else {
         error(
-            &format!(
-                "Cannot perform operation '{:?}' between {:?} and String",
-                current_operator,
-                get_printable_type!(output)
-            ),
+            &format!("Cannot perform operation '{current_operator:?}' between Integer and String"),
             "",
         );
         return Types::Null;
     }
+    error(
+        &format!(
+            "Cannot perform operation '{:?}' between {:?} and String",
+            current_operator,
+            get_printable_type!(output)
+        ),
+        "",
+    );
+    return Types::Null;
 }
 
 #[macro_export]

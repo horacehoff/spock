@@ -27,7 +27,13 @@ pub fn preprocess(
             // replace function call by its result (return value)
             let args: Vec<Types> = func_args
                 .iter()
-                .map(|arg| process_stack(arg, variables, functions))
+                .map(|arg| {
+                    if let Types::Wrap(x) = &arg {
+                        process_stack(&x, variables, &[])
+                    } else {
+                        process_stack(&[arg.clone()], variables, &[])
+                    }
+                })
                 .collect();
             let matched = builtin_functions(func_name, &args);
             // check if function is a built-in function, else search it among user-defined functions
@@ -120,7 +126,13 @@ pub fn preprocess(
             // execute "namespace functions"
             let args: Vec<Types> = z
                 .iter()
-                .map(|arg| return process_stack(arg, variables, functions))
+                .map(|arg| {
+                    if let Types::Wrap(x) = &arg {
+                        process_stack(&x, variables, &[])
+                    } else {
+                        process_stack(&[arg.clone()], variables, &[])
+                    }
+                })
                 .collect();
 
             let namespace_funcs = namespace_functions(namespace, y, &args);
@@ -178,9 +190,13 @@ pub fn preprocess(
                                             sub_str
                                                 .chars()
                                                 .nth(intg as usize)
-                                                .expect(error_msg!(format!(
-                                                    "Failed to get letter n.{intg}"
-                                                )))
+                                                .unwrap_or_else(|| {
+                                                    error(
+                                                        &format!("Failed to get letter n.{intg}"),
+                                                        "",
+                                                    );
+                                                    std::process::exit(1)
+                                                })
                                                 .to_smolstr(),
                                         );
                                     } else {
@@ -269,9 +285,13 @@ pub fn preprocess(
                                     output = Types::String(
                                         str.chars()
                                             .nth(intg as usize)
-                                            .expect(error_msg!(format!(
-                                                "Failed to get letter n.{intg}"
-                                            )))
+                                            .unwrap_or_else(|| {
+                                                error(
+                                                    &format!("Failed to get letter n.{intg}"),
+                                                    "",
+                                                );
+                                                std::process::exit(1)
+                                            })
                                             .to_smolstr(),
                                     );
                                 } else if let Types::Array(ref sub_arr) = output.clone() {

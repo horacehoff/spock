@@ -230,7 +230,7 @@ fn process_stack(
     variables: &HashMap<SmolStr, Types>,
     functions: &[(SmolStr, Vec<SmolStr>, &[Vec<Types>])],
 ) -> Types {
-    let mut output: Types = match stack_in.first().unwrap_or_else(|| &Types::Integer(0)) {
+    let mut output: Types = match stack_in.first().unwrap_or(&Types::Integer(0)) {
         Types::VariableIdentifier(ref var) => variables
             .get(var)
             .unwrap_or_else(|| {
@@ -384,7 +384,13 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
             Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
                 let args: Vec<Types> = z
                     .iter()
-                    .map(|arg| process_stack(arg, variables, &[]))
+                    .map(|arg| {
+                        if let Types::Wrap(x) = &arg {
+                            process_stack(x, variables, &[])
+                        } else {
+                            process_stack(&[arg.clone()], variables, &[])
+                        }
+                    })
                     .collect();
                 if unlikely(!namespace_functions(namespace, y, &args).1) {
                     error(
@@ -397,7 +403,13 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 // println!("{:?}", y);
                 let args: Vec<Types> = y
                     .iter()
-                    .map(|arg| return process_stack(arg, variables, &[]))
+                    .map(|arg| {
+                        if let Types::Wrap(z) = arg {
+                            process_stack(z, variables, &[])
+                        } else {
+                            process_stack(&[arg.clone()], variables, &[])
+                        }
+                    })
                     .collect();
 
                 let (_, matched) = builtin_functions(x, &args);

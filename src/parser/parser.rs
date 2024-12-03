@@ -27,8 +27,8 @@ pub enum Types {
     Property(SmolStr),
     PropertyFunction(SmolStr, Vec<Vec<Types>>),
     VariableIdentifier(SmolStr),
-    FunctionCall(SmolStr, Vec<Vec<Types>>),
-    NamespaceFunctionCall(Vec<SmolStr>, SmolStr, Vec<Vec<Types>>),
+    FunctionCall(SmolStr, Vec<Types>),
+    NamespaceFunctionCall(Vec<SmolStr>, SmolStr, Vec<Types>),
     FunctionReturn(Vec<Types>),
     Priority(Vec<Types>),
     Operation(BasicOperator),
@@ -169,7 +169,15 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     .as_str()
                     .parse()
                     .unwrap(),
-                priority_calc,
+                priority_calc
+                    .iter()
+                    .map(|x| {
+                        if x.len() == 1 {
+                            return x.first().unwrap().clone();
+                        }
+                        return Types::Wrap(x.clone());
+                    })
+                    .collect(),
             ));
         }
         Rule::func_call_namespace => {
