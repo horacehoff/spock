@@ -29,9 +29,9 @@ pub fn preprocess(
                 .iter()
                 .map(|arg| {
                     if let Types::Wrap(x) = &arg {
-                        process_stack(&x, variables, &[])
+                        process_stack(x, variables, &[])
                     } else {
-                        process_stack(&[arg.clone()], variables, &[])
+                        process_stack(std::slice::from_ref(arg), variables, &[])
                     }
                 })
                 .collect();
@@ -128,9 +128,9 @@ pub fn preprocess(
                 .iter()
                 .map(|arg| {
                     if let Types::Wrap(x) = &arg {
-                        process_stack(&x, variables, &[])
+                        process_stack(x, variables, &[])
                     } else {
-                        process_stack(&[arg.clone()], variables, &[])
+                        process_stack(std::slice::from_ref(arg), variables, &[])
                     }
                 })
                 .collect();

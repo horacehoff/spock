@@ -388,7 +388,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                         if let Types::Wrap(x) = &arg {
                             process_stack(x, variables, &[])
                         } else {
-                            process_stack(&[arg.clone()], variables, &[])
+                            process_stack(std::slice::from_ref(arg), variables, &[])
                         }
                     })
                     .collect();
@@ -407,7 +407,7 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                         if let Types::Wrap(z) = arg {
                             process_stack(z, variables, &[])
                         } else {
-                            process_stack(&[arg.clone()], variables, &[])
+                            process_stack(std::slice::from_ref(arg), variables, &[])
                         }
                     })
                     .collect();
