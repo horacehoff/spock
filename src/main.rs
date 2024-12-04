@@ -111,11 +111,7 @@ fn process_stack(
                     }
                 }
             }
-            Types::Property(_) => {
-                // TODO
-                error("Properties are TBD", "")
-            }
-            Types::PropertyFunction(ref x, ref y) => {
+            Types::Property(ref x, ref y) => {
                 let args: Vec<Types> = y
                     .iter()
                     .map(|arg| process_stack(arg, variables, functions))
@@ -428,7 +424,7 @@ options:
     let now = Instant::now();
     let mut vars: HashMap<SmolStr, Types> = HashMap::default();
 
-    process_function(&main_instructions.first().unwrap().2, &mut vars);
+    // process_function(&main_instructions.first().unwrap().2, &mut vars);
 
     log_release!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());

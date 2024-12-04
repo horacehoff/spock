@@ -24,8 +24,8 @@ pub enum Types {
     ArraySuite(Vec<Types>),
     Or(Vec<Types>),
     And(Vec<Types>),
-    Property(SmolStr),
-    PropertyFunction(SmolStr, Vec<Vec<Types>>),
+    Property(SmolStr, Vec<Vec<Types>>),
+    PropertyFunc(SmolStr, Vec<Types>, SmolStr, Vec<Vec<Types>>),
     VariableIdentifier(SmolStr),
     FunctionCall(SmolStr, Vec<Types>),
     NamespaceFunctionCall(Vec<SmolStr>, SmolStr, Vec<Types>),
@@ -119,12 +119,6 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
         }
         Rule::property => {
             recursive = false;
-            output.push(Types::Property(
-                pair.as_str().trim_start_matches('.').parse().unwrap(),
-            ));
-        }
-        Rule::property_function => {
-            recursive = false;
             let mut priority_calc: Vec<Vec<Types>> = Vec::new();
             for priority_pair in pair
                 .clone()
@@ -138,7 +132,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     priority_calc.push(parse_expression(arg_pair));
                 }
             }
-            output.push(Types::PropertyFunction(
+            output.push(Types::Property(
                 pair.clone()
                     .into_inner()
                     .next()
@@ -148,10 +142,86 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     .unwrap()
                     .as_str()
                     .trim_start_matches('.')
-                    .parse()
-                    .unwrap(),
+                    .to_smolstr(),
                 priority_calc,
             ));
+        }
+        Rule::property_function => {
+            // BROKEN
+            println!("{:?}", pair.clone().into_inner());
+
+            let function_origin_name = pair
+                .clone()
+                .into_inner()
+                .next()
+                .unwrap()
+                .as_str()
+                .to_smolstr();
+
+            let mut priority_calc: Vec<Vec<Types>> = Vec::new();
+            for priority_pair in pair.clone().into_inner() {
+                for arg_pair in priority_pair.into_inner() {
+                    priority_calc.push(parse_expression(arg_pair));
+                }
+            }
+
+            let function_origin: Vec<Types> = priority_calc
+                .iter()
+                .map(|x| {
+                    if x.len() == 1 {
+                        return x.first().unwrap().clone();
+                    }
+                    return Types::Wrap(x.clone());
+                })
+                .collect();
+
+            // output.push(Types::FunctionCall(
+            //     pair.clone()
+            //         .into_inner()
+            //         .next()
+            //         .unwrap()
+            //         .as_str()
+            //         .to_smolstr(),
+            //     priority_calc
+            //         .iter()
+            //         .map(|x| {
+            //             if x.len() == 1 {
+            //                 return x.first().unwrap().clone();
+            //             }
+            //             return Types::Wrap(x.clone());
+            //         })
+            //         .collect(),
+            // ));
+
+            println!("{:?} {:?}", function_origin, function_origin_name);
+            recursive = false;
+            // let mut priority_calc: Vec<Vec<Types>> = Vec::new();
+            // for priority_pair in pair
+            //     .clone()
+            //     .into_inner()
+            //     .next()
+            //     .unwrap()
+            //     .into_inner()
+            //     .skip(1)
+            // {
+            //     for arg_pair in priority_pair.into_inner() {
+            //         priority_calc.push(parse_expression(arg_pair));
+            //     }
+            // }
+            // output.push(Types::PropertyFunction(
+            //     pair.clone()
+            //         .into_inner()
+            //         .next()
+            //         .unwrap()
+            //         .into_inner()
+            //         .next()
+            //         .unwrap()
+            //         .as_str()
+            //         .trim_start_matches('.')
+            //         .parse()
+            //         .unwrap(),
+            //     priority_calc,
+            // ));
         }
         Rule::func_call => {
             recursive = false;

@@ -8,9 +8,10 @@ string = @{ "\"" ~ ( "\"\"" | (!"\"" ~ ANY) )* ~ "\"" }
 
 identifier = @{(ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*}
 
-property = {"." ~ ASCII_ALPHA+}
+property = {"." ~ func_call}
 
-property_function = {"." ~ func_call}
+property_function = {func_call ~ "." ~ func_call}
+
 
 ops = {
     "-"  | "%" | "+"  | "*" | "<=" | "<"  | "==" | "!=" | "^" | ">=" | ">"  | "/"
