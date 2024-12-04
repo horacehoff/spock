@@ -113,25 +113,29 @@ fn process_stack(
             }
             Types::Property(_) => {
                 // TODO
-                error("Properties aren't implented yet!", "")
+                error("Properties are TBD", "")
             }
             Types::PropertyFunction(ref x, ref y) => {
                 let args: Vec<Types> = y
                     .iter()
-                    .map(|arg| return process_stack(arg, variables, functions))
+                    .map(|arg| process_stack(arg, variables, functions))
                     .collect();
 
-                if let Types::String(ref str) = &output {
-                    string_props!(str, args, x, output);
-                    // str.to_smolstr()
-                } else if let Types::Float(num) = output {
-                    float_props!(num, args, x, output);
-                } else if let Types::Integer(num) = output {
-                    integer_props!(num, args, x, output);
-                } else if let Types::Array(ref arr) = output {
-                    array_props!(arr, args, x, output);
-                } else if let Types::File(ref filepath) = &output {
-                    file_props!(filepath, args, x, output);
+                match output {
+                    Types::String(ref str) => string_props!(str, args, x, output),
+                    Types::Float(num) => float_props!(num, args, x, output),
+                    Types::Integer(num) => integer_props!(num, args, x, output),
+                    Types::Array(ref arr) => array_props!(arr, args, x, output),
+
+                    // OBJECTS
+                    Types::File(ref filepath) => file_props!(filepath, args, x, output),
+                    _ => error(
+                        &format!(
+                            "Unknown function {x} for object {}",
+                            get_printable_type!(output)
+                        ),
+                        "",
+                    ),
                 }
             }
             Types::Or(ref x) => {
@@ -170,7 +174,7 @@ fn process_stack(
                     }
                 );
             }
-            _ => error("TODO", ""),
+            _ => error(&format!("TODO {element:?}"), ""),
         }
     }
     output
@@ -338,10 +342,10 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
             Types::Break => {
                 return Types::Break;
             }
-            _ => error("TODO", ""),
+            _ => error(&format!("TODO {line:?}"), ""),
         }
     }
-    return Types::Null;
+    Types::Null
 }
 
 fn process_function(lines: &[Vec<Types>], variables: &mut HashMap<SmolStr, Types>) -> Types {
@@ -351,7 +355,7 @@ fn process_function(lines: &[Vec<Types>], variables: &mut HashMap<SmolStr, Types
             return processed;
         };
     }
-    return Types::Null;
+    Types::Null
 }
 
 fn main() {
