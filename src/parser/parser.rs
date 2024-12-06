@@ -30,6 +30,7 @@ pub enum Types {
     PropertyFunction(SmolStr, Vec<Types>, SmolStr, Vec<Types>),
     VariableIdentifier(SmolStr),
     FunctionCall(SmolStr, Vec<Types>),
+    FunctionPatternMatching(SmolStr, Vec<Types>),
     NamespaceFunctionCall(Vec<SmolStr>, SmolStr, Vec<Types>),
     FunctionReturn(Vec<Types>),
     Priority(Vec<Types>),
@@ -158,11 +159,6 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             ));
         }
         Rule::property_function => {
-            // BROKEN
-            // let function_origin_name = pair.clone().into_inner().next().unwrap().as_str();
-
-            // let func_one = parse_expression(pair.clone().into_inner().next().unwrap()).first().unwrap();
-            // let func_two = parse_expression(pair.clone().into_inner().nth(1).unwrap()).first().unwrap();
             if let Types::FunctionCall(x, y) =
                 parse_expression(pair.clone().into_inner().next().unwrap())
                     .first()
@@ -181,79 +177,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     ))
                 }
             }
-
-            // let function_origin_name = pair
-            //     .clone()
-            //     .into_inner()
-            //     .next()
-            //     .unwrap()
-            //     .as_str()
-            //     .to_smolstr();
-            //
-            // let mut priority_calc: Vec<Vec<Types>> = Vec::new();
-            // for priority_pair in pair.clone().into_inner() {
-            //     for arg_pair in priority_pair.into_inner() {
-            //         priority_calc.push(parse_expression(arg_pair));
-            //     }
-            // }
-            //
-            // let function_origin: Vec<Types> = priority_calc
-            //     .iter()
-            //     .map(|x| {
-            //         if x.len() == 1 {
-            //             return x.first().unwrap().clone();
-            //         }
-            //         return Types::Wrap(x.clone());
-            //     })
-            //     .collect();
-
-            // output.push(Types::FunctionCall(
-            //     pair.clone()
-            //         .into_inner()
-            //         .next()
-            //         .unwrap()
-            //         .as_str()
-            //         .to_smolstr(),
-            //     priority_calc
-            //         .iter()
-            //         .map(|x| {
-            //             if x.len() == 1 {
-            //                 return x.first().unwrap().clone();
-            //             }
-            //             return Types::Wrap(x.clone());
-            //         })
-            //         .collect(),
-            // ));
-
-            // println!("{:?} {:?}", function_origin, function_origin_name);
             recursive = false;
-            // let mut priority_calc: Vec<Vec<Types>> = Vec::new();
-            // for priority_pair in pair
-            //     .clone()
-            //     .into_inner()
-            //     .next()
-            //     .unwrap()
-            //     .into_inner()
-            //     .skip(1)
-            // {
-            //     for arg_pair in priority_pair.into_inner() {
-            //         priority_calc.push(parse_expression(arg_pair));
-            //     }
-            // }
-            // output.push(Types::PropertyFunction(
-            //     pair.clone()
-            //         .into_inner()
-            //         .next()
-            //         .unwrap()
-            //         .into_inner()
-            //         .next()
-            //         .unwrap()
-            //         .as_str()
-            //         .trim_start_matches('.')
-            //         .parse()
-            //         .unwrap(),
-            //     priority_calc,
-            // ));
         }
         Rule::func_call => {
             recursive = false;

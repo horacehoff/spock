@@ -38,7 +38,7 @@ macro_rules! array_props {
     ($arr: expr, $args:expr, $x: expr, $output: expr) => {
         match $x.as_str() {
             "len" => {
-                assert_args_number!("len", $args.len(), 0);
+                assert_args_number!($x, $args.len(), 0);
                 $output = Types::Integer($arr.len() as i64)
             }
             "add" => {
@@ -133,7 +133,10 @@ macro_rules! array_props {
                     error(format!("{:?} is not a valid index", $args[0]).as_str(), "");
                 }
             }
-            _ => {}
+            "filter" => {
+                assert_args_number!($x, $args.len(), 1);
+            }
+            _ => error(&format!("Unknown function '{}' for object Array", $x), ""),
         }
     };
 }

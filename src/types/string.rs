@@ -135,7 +135,7 @@ macro_rules! string_props {
                 assert_args_number!("rtrim", $args.len(), 0);
                 $output = Types::String($str.trim_end().to_smolstr());
             }
-            _ => {}
+            _ => error(&format!("Unknown function '{}' for object String", $x), ""),
         }
     };
 }

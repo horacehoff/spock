@@ -53,7 +53,7 @@ fn process_stack(
         Types::VariableIdentifier(ref var) => variables
             .get(var)
             .unwrap_or_else(|| {
-                error("Unknown variable", "");
+                error(&format!("Unknown variable '{var}'"), "");
                 std::process::exit(1)
             })
             .to_owned(),
@@ -141,15 +141,15 @@ fn process_stack(
 
                 match output {
                     Types::String(ref str) => string_props!(str, args, x, output),
-                    Types::Float(ref num) => float_props!(num, args, x, output),
-                    Types::Integer(ref num) => integer_props!(num, args, x, output),
+                    Types::Float(num) => float_props!(num, args, x, output),
+                    Types::Integer(num) => integer_props!(num, args, x, output),
                     Types::Array(ref arr) => array_props!(arr, args, x, output),
 
                     // OBJECTS
                     Types::File(ref filepath) => file_props!(filepath, args, x, output),
                     _ => error(
                         &format!(
-                            "Unknown function {x} for object {}",
+                            "Unknown function '{x}' for object {}",
                             get_printable_type!(output)
                         ),
                         "",

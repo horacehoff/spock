@@ -101,7 +101,7 @@ macro_rules! float_props {
                 assert_args_number!("toStr", $args.len(), 0);
                 $output = Types::String($num.to_smolstr())
             }
-            _ => {}
+            _ => error(&format!("Unknown function '{}' for object Float", $x), ""),
         }
     };
 }

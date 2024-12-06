@@ -60,7 +60,7 @@ macro_rules! assert_args_number {
                     "Function '{}' expected {} argument(s) but received {}",
                     $func_name, $expected_args_len, $received_args_len
                 ),
-                "Remove the excess arguments",
+                "",
             );
         }
     };

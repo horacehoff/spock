@@ -48,7 +48,7 @@ macro_rules! file_props {
                     );
                 }
             }
-            _ => {}
+            _ => error(&format!("Unknown function '{}' for object File", $x), ""),
         }
     };
 }
