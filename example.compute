@@ -11,5 +11,5 @@ func main() {
 // }
 // print("Final result: ".uppercase()+str(result));
 let arr = [1,0,2];
-print(arr.sort());
+print("hEy ThErE !".capitalize());
 }

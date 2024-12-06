@@ -2,7 +2,7 @@ use crate::error_msg;
 use crate::get_printable_type;
 use crate::parser::{BasicOperator, Types};
 use crate::util::error;
-use smol_str::SmolStr;
+use smol_str::{SmolStr, ToSmolStr};
 
 // #[inline(always)]
 pub fn string_ops(x: &SmolStr, output: &Types, current_operator: BasicOperator) -> Types {
@@ -41,6 +41,17 @@ pub fn string_ops(x: &SmolStr, output: &Types, current_operator: BasicOperator) 
     Types::Null
 }
 
+pub fn to_title_case(text: &SmolStr) -> SmolStr {
+    text.split_whitespace()
+        .map(|word| {
+            let (first, rest) = word.split_at(1);
+            first.to_uppercase() + &rest.to_lowercase()
+        })
+        .collect::<Vec<String>>()
+        .join(" ")
+        .to_smolstr()
+}
+
 #[macro_export]
 macro_rules! string_props {
     ($str: expr, $args:expr, $x: expr, $output: expr) => {
@@ -56,7 +67,7 @@ macro_rules! string_props {
             }
             "capitalize" => {
                 assert_args_number!("capitalize", $args.len(), 0);
-                $output = Types::String($str.to_title_case().to_smolstr());
+                $output = Types::String(to_title_case($str));
             }
             "replace" => {
                 assert_args_number!("replace", $args.len(), 2);
