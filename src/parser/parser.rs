@@ -151,7 +151,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                         if x.len() == 1 {
                             return x.first().unwrap().clone();
                         }
-                        return Types::Wrap(x.clone());
+                        Types::Wrap(x.clone())
                     })
                     .collect(),
             ));
@@ -276,7 +276,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                         if x.len() == 1 {
                             return x.first().unwrap().clone();
                         }
-                        return Types::Wrap(x.clone());
+                        Types::Wrap(x.clone())
                     })
                     .collect(),
             ));
@@ -434,7 +434,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                                 if x.len() == 1 {
                                     return x.first().unwrap().clone();
                                 }
-                                return Types::Wrap(x.clone());
+                                Types::Wrap(x.clone())
                             })
                             .collect();
                     let mut else_groups: Vec<(Vec<Types>, Vec<Types>)> = Vec::new();
@@ -506,7 +506,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                                 if x.len() == 1 {
                                     return x.first().unwrap().clone();
                                 }
-                                return Types::Wrap(x.clone());
+                                Types::Wrap(x.clone())
                             })
                             .collect(),
                     ));
@@ -521,7 +521,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                             if x.len() == 1 {
                                 return x.first().unwrap().clone();
                             }
-                            return Types::Wrap(x.clone());
+                            Types::Wrap(x.clone())
                         })
                         .collect();
                     line_instructions.push(Types::Loop(loop_var, target_array, loop_code));

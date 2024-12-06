@@ -187,31 +187,31 @@ macro_rules! if_let {
 
 pub fn get_printable_form(x: &Types) -> SmolStr {
     match x {
-        Types::String(str) => return str.to_owned(),
-        Types::Float(float) => return float.to_smolstr(),
-        Types::Integer(int) => return int.to_smolstr(),
-        Types::Bool(boolean) => return boolean.to_smolstr(),
+        Types::String(str) => str.to_owned(),
+        Types::Float(float) => float.to_smolstr(),
+        Types::Integer(int) => int.to_smolstr(),
+        Types::Bool(boolean) => boolean.to_smolstr(),
         Types::Array(x) => {
             let arr = x;
-            return ("[".to_owned()
+            ("[".to_owned()
                 + arr
                     .iter()
-                    .map(|item| return get_printable_form(item).to_string() + ",")
+                    .map(|item| get_printable_form(item).to_string() + ",")
                     .collect::<String>()
                     .trim_end_matches(',')
                     .parse::<String>()
                     .unwrap()
                     .as_str()
                 + "]")
-                .to_smolstr();
+                .to_smolstr()
         }
-        Types::Null => return "Null".to_smolstr(),
+        Types::Null => "Null".to_smolstr(),
         _ => {
             error(
                 &format!("Cannot display {} type", get_printable_type!(x)),
                 "",
             );
-            return "".to_smolstr();
+            "".to_smolstr()
         }
     }
 }

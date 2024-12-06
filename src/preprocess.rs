@@ -99,7 +99,7 @@ pub fn preprocess(
 
             let target_function: &(SmolStr, Vec<SmolStr>, &[Vec<Types>]) = functions
                 .iter()
-                .find(|func| return func.0 == *func_name)
+                .find(|func| func.0 == *func_name)
                 .unwrap_or_else(|| {
                     error(&format!("Unknown function '{func_name}'"), "");
                     std::process::exit(1)
@@ -109,7 +109,7 @@ pub fn preprocess(
                 .1
                 .iter()
                 .enumerate()
-                .map(|(i, arg)| return (arg.to_smolstr(), args[i].clone()))
+                .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
                 .collect();
             // let result = process_function(
             //     &target_function.2,

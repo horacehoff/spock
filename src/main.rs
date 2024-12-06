@@ -448,7 +448,7 @@ options:
 
     let main_instructions = functions
         .into_iter()
-        .filter(|function| return function.0 == "main")
+        .filter(|function| function.0 == "main")
         .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)>>();
 
     let now = Instant::now();

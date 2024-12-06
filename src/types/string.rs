@@ -38,7 +38,7 @@ pub fn string_ops(x: &SmolStr, output: &Types, current_operator: BasicOperator) 
         ),
         "",
     );
-    return Types::Null;
+    Types::Null
 }
 
 #[macro_export]
