@@ -65,6 +65,7 @@ pub enum Types {
     File(SmolStr),
 }
 
+#[repr(u8)]
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Copy)]
 pub enum BasicOperator {
     Null,

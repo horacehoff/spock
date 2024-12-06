@@ -17,9 +17,9 @@ pub fn string_ops(x: &SmolStr, output: &Types, current_operator: BasicOperator) 
                     ),
                     "",
                 );
-                return Types::Null;
             }
         }
+        return Types::Null;
     } else if let Types::Integer(value) = output {
         if current_operator == BasicOperator::Multiply {
             return Types::String(x.repeat(*value as usize).parse().unwrap());
