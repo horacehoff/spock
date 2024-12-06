@@ -236,7 +236,6 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 };
             }
             Types::FunctionCall(ref x, ref y) => {
-                // println!("{:?}", y);
                 let args: Vec<Types> = y
                     .iter()
                     .map(|arg| {
