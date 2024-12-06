@@ -1,4 +1,5 @@
 use crate::log;
+use crate::parser::Rule::func_call;
 use crate::parser::Types::ArraySuite;
 use crate::util::error;
 use pest::iterators::Pair;
@@ -24,8 +25,9 @@ pub enum Types {
     ArraySuite(Vec<Types>),
     Or(Vec<Types>),
     And(Vec<Types>),
-    Property(SmolStr, Vec<Vec<Types>>),
-    PropertyFunc(SmolStr, Vec<Types>, SmolStr, Vec<Vec<Types>>),
+    Property(SmolStr, Vec<Types>),
+    // FunctionCall1(SmolStr, Vec<Types>) -- FunctionCall2(SmolStr, Vec<Vec<Types)
+    PropertyFunction(SmolStr, Vec<Types>, SmolStr, Vec<Types>),
     VariableIdentifier(SmolStr),
     FunctionCall(SmolStr, Vec<Types>),
     NamespaceFunctionCall(Vec<SmolStr>, SmolStr, Vec<Types>),
@@ -143,37 +145,66 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     .as_str()
                     .trim_start_matches('.')
                     .to_smolstr(),
-                priority_calc,
+                priority_calc
+                    .iter()
+                    .map(|x| {
+                        if x.len() == 1 {
+                            return x.first().unwrap().clone();
+                        }
+                        return Types::Wrap(x.clone());
+                    })
+                    .collect(),
             ));
         }
         Rule::property_function => {
             // BROKEN
-            println!("{:?}", pair.clone().into_inner());
+            // let function_origin_name = pair.clone().into_inner().next().unwrap().as_str();
 
-            let function_origin_name = pair
-                .clone()
-                .into_inner()
-                .next()
-                .unwrap()
-                .as_str()
-                .to_smolstr();
-
-            let mut priority_calc: Vec<Vec<Types>> = Vec::new();
-            for priority_pair in pair.clone().into_inner() {
-                for arg_pair in priority_pair.into_inner() {
-                    priority_calc.push(parse_expression(arg_pair));
+            // let func_one = parse_expression(pair.clone().into_inner().next().unwrap()).first().unwrap();
+            // let func_two = parse_expression(pair.clone().into_inner().nth(1).unwrap()).first().unwrap();
+            if let Types::FunctionCall(x, y) =
+                parse_expression(pair.clone().into_inner().next().unwrap())
+                    .first()
+                    .unwrap()
+            {
+                if let Types::FunctionCall(a, b) =
+                    parse_expression(pair.clone().into_inner().nth(1).unwrap())
+                        .first()
+                        .unwrap()
+                {
+                    output.push(Types::PropertyFunction(
+                        x.clone(),
+                        y.clone(),
+                        a.clone(),
+                        b.clone(),
+                    ))
                 }
             }
 
-            let function_origin: Vec<Types> = priority_calc
-                .iter()
-                .map(|x| {
-                    if x.len() == 1 {
-                        return x.first().unwrap().clone();
-                    }
-                    return Types::Wrap(x.clone());
-                })
-                .collect();
+            // let function_origin_name = pair
+            //     .clone()
+            //     .into_inner()
+            //     .next()
+            //     .unwrap()
+            //     .as_str()
+            //     .to_smolstr();
+            //
+            // let mut priority_calc: Vec<Vec<Types>> = Vec::new();
+            // for priority_pair in pair.clone().into_inner() {
+            //     for arg_pair in priority_pair.into_inner() {
+            //         priority_calc.push(parse_expression(arg_pair));
+            //     }
+            // }
+            //
+            // let function_origin: Vec<Types> = priority_calc
+            //     .iter()
+            //     .map(|x| {
+            //         if x.len() == 1 {
+            //             return x.first().unwrap().clone();
+            //         }
+            //         return Types::Wrap(x.clone());
+            //     })
+            //     .collect();
 
             // output.push(Types::FunctionCall(
             //     pair.clone()
@@ -193,7 +224,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             //         .collect(),
             // ));
 
-            println!("{:?} {:?}", function_origin, function_origin_name);
+            // println!("{:?} {:?}", function_origin, function_origin_name);
             recursive = false;
             // let mut priority_calc: Vec<Vec<Types>> = Vec::new();
             // for priority_pair in pair
@@ -252,7 +283,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
         }
         Rule::func_call_namespace => {
             recursive = false;
-            let func_call = parse_expression(pair.clone().into_inner().last().unwrap())
+            let other_func_call = parse_expression(pair.clone().into_inner().last().unwrap())
                 .first()
                 .unwrap()
                 .clone();
@@ -261,7 +292,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                 namespaces.push(namespace.as_str().to_smolstr());
             }
             log!("{:?}", namespaces);
-            if let Types::FunctionCall(x, y) = func_call {
+            if let Types::FunctionCall(x, y) = other_func_call {
                 output.push(Types::NamespaceFunctionCall(
                     namespaces,
                     x.clone(),

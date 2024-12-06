@@ -69,7 +69,7 @@ fn process_stack(
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in.iter().skip(1) {
         let process;
-        let element = if let Types::VariableIdentifier(var) = p_element {
+        let element = if let Types::VariableIdentifier(ref var) = p_element {
             variables.get(var).unwrap_or_else(|| {
                 error(&format!("Unknown variable '{var}'"), "");
                 std::process::exit(1)
@@ -114,7 +114,29 @@ fn process_stack(
             Types::Property(ref x, ref y) => {
                 let args: Vec<Types> = y
                     .iter()
-                    .map(|arg| process_stack(arg, variables, functions))
+                    .map(|arg| {
+                        if let Types::Wrap(ref x) = arg {
+                            process_stack(x, variables, functions)
+                        } else {
+                            match arg {
+                                Types::VariableIdentifier(ref var) => variables
+                                    .get(var)
+                                    .unwrap_or_else(|| {
+                                        error("Unknown variable", "");
+                                        std::process::exit(1)
+                                    })
+                                    .to_owned(),
+                                other => {
+                                    let value = preprocess(variables, functions, other);
+                                    if value == Types::Null {
+                                        other.to_owned()
+                                    } else {
+                                        value
+                                    }
+                                }
+                            }
+                        }
+                    })
                     .collect();
 
                 match output {
@@ -260,6 +282,15 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                     //     None
                     // );
                 }
+            }
+            Types::PropertyFunction(ref a, ref b, ref c, ref d) => {
+                let result =
+                    process_line_logic(&[Types::FunctionCall(a.clone(), b.clone())], variables);
+                return process_stack(
+                    &[result, Types::Property(c.clone(), d.clone())],
+                    variables,
+                    &[],
+                );
             }
             Types::Condition(ref x, ref y, ref z) => {
                 if let Types::Bool(true) = process_stack(x, variables, &[]) {
@@ -424,7 +455,7 @@ options:
     let now = Instant::now();
     let mut vars: HashMap<SmolStr, Types> = HashMap::default();
 
-    // process_function(&main_instructions.first().unwrap().2, &mut vars);
+    process_function(&main_instructions.first().unwrap().2, &mut vars);
 
     log_release!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());
