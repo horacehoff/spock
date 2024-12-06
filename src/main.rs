@@ -141,8 +141,8 @@ fn process_stack(
 
                 match output {
                     Types::String(ref str) => string_props!(str, args, x, output),
-                    Types::Float(num) => float_props!(num, args, x, output),
-                    Types::Integer(num) => integer_props!(num, args, x, output),
+                    Types::Float(ref num) => float_props!(num, args, x, output),
+                    Types::Integer(ref num) => integer_props!(num, args, x, output),
                     Types::Array(ref arr) => array_props!(arr, args, x, output),
 
                     // OBJECTS
@@ -283,10 +283,12 @@ fn process_line_logic(line_array: &[Types], variables: &mut HashMap<SmolStr, Typ
                 }
             }
             Types::PropertyFunction(ref a, ref b, ref c, ref d) => {
-                let result =
-                    process_line_logic(&[Types::FunctionCall(a.clone(), b.clone())], variables);
+                let result = process_line_logic(
+                    &[Types::FunctionCall(a.to_smolstr(), b.clone())],
+                    variables,
+                );
                 return process_stack(
-                    &[result, Types::Property(c.clone(), d.clone())],
+                    &[result, Types::Property(c.to_smolstr(), d.clone())],
                     variables,
                     &[],
                 );
