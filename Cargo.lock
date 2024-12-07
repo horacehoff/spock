@@ -118,6 +118,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
+name = "cmake"
+version = "0.1.52"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c682c223677e0e5b6b7f63a64b9351844c3f1b1678a68b7ee617e30fb082620e"
+dependencies = [
+    "cc",
+]
+
+[[package]]
 name = "compute"
 version = "0.1.0"
 dependencies = [
@@ -131,6 +140,7 @@ dependencies = [
  "pest_derive",
  "serde",
  "smol_str",
+    "snmalloc-rs",
  "unroll",
 ]
 
@@ -435,6 +445,24 @@ checksum = "9676b89cd56310a87b93dec47b11af744f34d5fc9f367b829474eec0a891350d"
 dependencies = [
  "borsh",
  "serde",
+]
+
+[[package]]
+name = "snmalloc-rs"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d43ff92911d7d9705d1c0203300a3edfd00d16c8b8b0c27c56f9407a3f31e7a6"
+dependencies = [
+    "snmalloc-sys",
+]
+
+[[package]]
+name = "snmalloc-sys"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "954e1f984860770475196be81a547ed1517d34fcb8a15cb87bdb37cff3353230"
+dependencies = [
+    "cmake",
 ]
 
 [[package]]

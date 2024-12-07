@@ -34,12 +34,16 @@ use branches::likely;
 use branches::unlikely;
 use gxhash::HashMap;
 use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
+use snmalloc_rs::SnMalloc;
 use std::fs;
 use std::fs::remove_dir_all;
 use std::io::Write as _;
 use std::path::Path;
 use std::time::Instant;
 use unroll::unroll_for_loops;
+
+#[global_allocator]
+static ALLOC: SnMalloc = SnMalloc;
 
 #[inline(always)]
 #[unroll_for_loops]
@@ -68,20 +72,36 @@ fn process_stack(
     };
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in.iter().skip(1) {
-        let process;
-        let element = if let Types::VariableIdentifier(ref var) = p_element {
-            variables.get(var).unwrap_or_else(|| {
+        let process: Types;
+        // let element = if let Types::VariableIdentifier(ref var) = p_element {
+        //     variables.get(var).unwrap_or_else(|| {
+        //         error(&format!("Unknown variable '{var}'"), "");
+        //         std::process::exit(1)
+        //     })
+        // } else if let Types::Wrap(x) = p_element {
+        //     &process_stack(x, variables, functions)
+        // } else {
+        //     process = preprocess(variables, functions, p_element);
+        //     if process == Types::Null {
+        //         p_element
+        //     } else {
+        //         &process
+        //     }
+        // };
+        let element = match p_element {
+            Types::VariableIdentifier(var) => variables.get(var).unwrap_or_else(|| {
                 error(&format!("Unknown variable '{var}'"), "");
                 std::process::exit(1)
-            })
-        } else if let Types::Wrap(x) = p_element {
-            &process_stack(x, variables, functions)
-        } else {
-            process = preprocess(variables, functions, p_element);
-            if process == Types::Null {
-                p_element
-            } else {
-                &process
+            }),
+            Types::Wrap(x) => &process_stack(x, variables, functions),
+            other => {
+                let value = preprocess(variables, functions, other);
+                if value == Types::Null {
+                    other
+                } else {
+                    process = value;
+                    &process
+                }
             }
         };
 

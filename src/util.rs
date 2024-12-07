@@ -127,10 +127,10 @@ macro_rules! get_printable_type {
 #[macro_export]
 macro_rules! math_to_type {
     ($x:expr) => {
-        if $x.fract() != 0.0 {
-            Types::Float($x)
-        } else {
+        if $x == $x.trunc() {
             Types::Integer($x as i64)
+        } else {
+            Types::Float($x)
         }
     };
 }
