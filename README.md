@@ -4,7 +4,6 @@ A work-in-progress programming language written in Rust for the best performance
 Key facts:
 - ~5-6x faster than Python in most cases
   - Fix in progress to further optimize it
-  - Partial rewrite in progress - custom functions do not work at the moment
 - Does not support nested functions
 - Many bugs
 - Supports basic macros

@@ -2,12 +2,7 @@ use crate::namespaces::namespace_functions;
 use crate::parser::{parse_code, Types};
 use crate::util::{error, get_printable_form};
 use crate::{
-    assert_args_number,
-    builtin_functions,
-    error_msg,
-    get_printable_type,
-    log,
-    // process_function,
+    assert_args_number, builtin_functions, error_msg, get_printable_type, log, process_function,
     process_stack,
 };
 use branches::likely;
@@ -18,7 +13,7 @@ use unroll::unroll_for_loops;
 #[unroll_for_loops]
 pub fn preprocess(
     variables: &HashMap<SmolStr, Types>,
-    functions: &[(SmolStr, Vec<SmolStr>, &[Vec<Types>])],
+    functions: &[(SmolStr, &[SmolStr], &[&[Types]])],
     element: &Types,
 ) -> Types {
     // println!("ELEM{:?}", element);
@@ -27,13 +22,7 @@ pub fn preprocess(
             // replace function call by its result (return value)
             let args: Vec<Types> = func_args
                 .iter()
-                .map(|arg| {
-                    if let Types::Wrap(x) = &arg {
-                        process_stack(x, variables, &[])
-                    } else {
-                        process_stack(std::slice::from_ref(arg), variables, &[])
-                    }
-                })
+                .map(|arg| process_stack(std::slice::from_ref(arg), variables, &[]))
                 .collect();
             let matched = builtin_functions(func_name, &args);
             // check if function is a built-in function, else search it among user-defined functions
@@ -97,7 +86,7 @@ pub fn preprocess(
                 );
             }
 
-            let target_function: &(SmolStr, Vec<SmolStr>, &[Vec<Types>]) = functions
+            let target_function: &(SmolStr, &[SmolStr], &[&[Types]]) = functions
                 .iter()
                 .find(|func| func.0 == *func_name)
                 .unwrap_or_else(|| {
@@ -105,22 +94,13 @@ pub fn preprocess(
                     std::process::exit(1)
                 });
             assert_args_number!(&func_name, args.len(), target_function.1.len());
-            let target_args: &HashMap<SmolStr, Types> = &target_function
+            let mut target_args: HashMap<SmolStr, Types> = target_function
                 .1
                 .iter()
                 .enumerate()
                 .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
                 .collect();
-            // let result = process_function(
-            //     &target_function.2,
-            //     &mut target_args.clone(),
-            //     target_args.len(),
-            //     target_function.0.as_str(),
-            //     &functions,
-            //     None
-            // );
-            // return result;
-            // return Types::Null;
+            return process_function(&target_function.2, &mut target_args, functions);
         }
         Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
             // execute "namespace functions"

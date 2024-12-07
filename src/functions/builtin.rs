@@ -10,7 +10,7 @@ use std::io::{BufRead as _, BufReader};
 #[const_currying]
 pub fn builtin_functions(
     x: &str,
-    #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] args: &Vec<Types>,
+    #[maybe_const(dispatch = args, consts = [[Parser:Expr; 0]])] args: &[Types],
 ) -> (Types, bool) {
     match x {
         "print" => {

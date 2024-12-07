@@ -1,3 +1,8 @@
+func test() {
+print("okay!");
+return 10;
+}
+
 func main() {
 // let count = 0;
 // let limit = 1000000;
@@ -12,4 +17,6 @@ func main() {
 // print("Final result: ".uppercase()+str(result));
 let arr = [1+1,0,2];
 print(arr);
+
+print(test());
 }
