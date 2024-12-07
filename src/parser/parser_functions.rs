@@ -45,6 +45,7 @@ pub fn parse_functions(
             } else {
                 format!("{name}.dylib")
             };
+            println!("LIBNAME {libname}")
 
             // let buffer = fs::read(path)
         }

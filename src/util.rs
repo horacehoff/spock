@@ -54,26 +54,31 @@ macro_rules! log_release {
 #[macro_export]
 macro_rules! assert_args_number {
     ($func_name:expr, $received_args_len:expr, $expected_args_len:expr) => {
-        if $received_args_len != $expected_args_len {
-            error(
-                &format!(
-                    "Function '{}' expected {} argument(s) but received {}",
-                    $func_name, $expected_args_len, $received_args_len
-                ),
-                "",
-            );
-        }
+        // if $received_args_len != $expected_args_len {
+        //     error(
+        //         &format!(
+        //             "Function '{}' expected {} argument(s) but received {}",
+        //             $func_name, $expected_args_len, $received_args_len
+        //         ),
+        //         "",
+        //     );
+        // }
+        assert!($received_args_len == $expected_args_len, "Assert failed!")
     };
     ($func_name:expr, $received_args_len:expr, $min_args_len:expr, $max_args_len:expr) => {
-        if $received_args_len < $min_args_len || $received_args_len > $max_args_len {
-            error(
-                &format!(
-                    "Function '{}' expected between {} and {} arguments but received {}",
-                    $func_name, $min_args_len, $max_args_len, $received_args_len
-                ),
-                "Remove the excess arguments",
-            );
-        }
+        // if $received_args_len < $min_args_len || $received_args_len > $max_args_len {
+        //     error(
+        //         &format!(
+        //             "Function '{}' expected between {} and {} arguments but received {}",
+        //             $func_name, $min_args_len, $max_args_len, $received_args_len
+        //         ),
+        //         "Remove the excess arguments",
+        //     );
+        // }
+        assert!(
+            $received_args_len >= $min_args_len && $received_args_len <= $max_args_len,
+            "Assert failed!"
+        )
     };
 }
 

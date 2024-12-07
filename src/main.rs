@@ -205,7 +205,7 @@ fn process_line_logic(
     variables: &mut HashMap<SmolStr, Types>,
     functions: &[(SmolStr, &[SmolStr], &[&[Types]])],
 ) -> Types {
-    for line in line_array {
+    for line in line_array.iter() {
         match line {
             Types::Wrap(ref x) => {
                 let x = process_line_logic(x, variables, functions);
@@ -269,7 +269,7 @@ fn process_line_logic(
                         .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
                         .collect();
 
-                    process_function(&target_function.2, &mut target_args, functions);
+                    process_function(target_function.2, &mut target_args, functions);
                 }
             }
             Types::PropertyFunction(ref a, ref b, ref c, ref d) => {
@@ -329,9 +329,12 @@ fn process_line_logic(
                 } else if let Types::String(ref target_string) = loop_array {
                     variables.insert(x.to_smolstr(), Types::Null);
                     for elem in target_string.chars() {
-                        if let Some(value) = variables.get_mut(x) {
-                            *value = Types::String(elem.to_smolstr());
-                        }
+                        // if let Some(value) = variables.get_mut(x) {
+                        //     *value = Types::String(elem.to_smolstr());
+                        // }
+                        variables
+                            .entry(x.to_smolstr())
+                            .and_modify(|value| *value = Types::String(elem.to_smolstr()));
 
                         let out: Types = process_line_logic(z, variables, functions);
                         if out != Types::Null {
@@ -373,7 +376,7 @@ fn process_function(
     variables: &mut HashMap<SmolStr, Types>,
     functions: &[(SmolStr, &[SmolStr], &[&[Types]])],
 ) -> Types {
-    for line in lines {
+    for line in lines.iter() {
         let processed: Types = process_line_logic(line, variables, functions);
         if processed != Types::Null {
             return processed;
@@ -441,7 +444,7 @@ options:
     let now = Instant::now();
 
     let temp_funcs = parse_functions(content.trim(), true);
-    let functions: &[(SmolStr, &[SmolStr], &[&[Types]])];
+    // let functions: &[(SmolStr, &[SmolStr], &[&[Types]])];
     let mut main_function: (SmolStr, &[SmolStr], Vec<&[Types]>) = Default::default();
 
     let partial_convert: Vec<(SmolStr, &[SmolStr], Vec<&[Types]>)> = temp_funcs
@@ -462,7 +465,7 @@ options:
         .map(|(name, args, lines)| (name.clone(), *args, lines.as_slice()))
         .collect();
 
-    functions = converted.as_slice();
+    let functions: &[(SmolStr, &[SmolStr], &[&[Types]])] = converted.as_slice();
 
     log!("PARSED IN: {:.2?}", now.elapsed());
     log!("FUNCTIONS {:?}", functions);
@@ -470,7 +473,7 @@ options:
     let now = Instant::now();
 
     let mut vars: HashMap<SmolStr, Types> = HashMap::default();
-    process_function(&main_function.2, &mut vars, &functions);
+    process_function(&main_function.2, &mut vars, functions);
 
     log_release!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());

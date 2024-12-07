@@ -100,7 +100,7 @@ pub fn preprocess(
                 .enumerate()
                 .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
                 .collect();
-            return process_function(&target_function.2, &mut target_args, functions);
+            return process_function(target_function.2, &mut target_args, functions);
         }
         Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
             // execute "namespace functions"
@@ -239,9 +239,13 @@ pub fn preprocess(
                                             sub_str
                                                 .chars()
                                                 .nth(intg as usize)
-                                                .expect(error_msg!(format!(
-                                                    "Failed to get letter n.{intg}"
-                                                )))
+                                                .unwrap_or_else(|| {
+                                                    error(
+                                                        &format!("Failed to get letter n.{intg}"),
+                                                        "",
+                                                    );
+                                                    std::process::exit(1)
+                                                })
                                                 .to_smolstr(),
                                         );
                                     } else {

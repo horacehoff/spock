@@ -1,6 +1,4 @@
-func test(x) {
-print("okay!");
-}
+
 
 func main() {
 let count = 0;
@@ -14,5 +12,4 @@ while count < limit {
     count = count + 1;
 }
 print("Final result: ".uppercase()+str(result));
-test([0,1,2]);
 }
