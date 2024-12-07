@@ -1,5 +1,3 @@
-
-
 func main() {
 let count = 0;
 let limit = 1000000;

@@ -63,7 +63,10 @@ macro_rules! assert_args_number {
         //         "",
         //     );
         // }
-        assert!($received_args_len == $expected_args_len, "Assert failed!")
+        assert!($received_args_len == $expected_args_len,
+            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\nFunction '{}' expected {} argument(s) but received {}\n--------------",
+            $func_name, $expected_args_len, $received_args_len
+        )
     };
     ($func_name:expr, $received_args_len:expr, $min_args_len:expr, $max_args_len:expr) => {
         // if $received_args_len < $min_args_len || $received_args_len > $max_args_len {
@@ -77,7 +80,8 @@ macro_rules! assert_args_number {
         // }
         assert!(
             $received_args_len >= $min_args_len && $received_args_len <= $max_args_len,
-            "Assert failed!"
+            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\nFunction '{}' expected between {} and {} argument(s) but received {}\n--------------",
+            $func_name, $min_args_len, $max_args_len, $received_args_len
         )
     };
 }
