@@ -73,21 +73,6 @@ fn process_stack(
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in.iter().skip(1) {
         let process: Types;
-        // let element = if let Types::VariableIdentifier(ref var) = p_element {
-        //     variables.get(var).unwrap_or_else(|| {
-        //         error(&format!("Unknown variable '{var}'"), "");
-        //         std::process::exit(1)
-        //     })
-        // } else if let Types::Wrap(x) = p_element {
-        //     &process_stack(x, variables, functions)
-        // } else {
-        //     process = preprocess(variables, functions, p_element);
-        //     if process == Types::Null {
-        //         p_element
-        //     } else {
-        //         &process
-        //     }
-        // };
         let element = match p_element {
             Types::VariableIdentifier(var) => variables.get(var).unwrap_or_else(|| {
                 error(&format!("Unknown variable '{var}'"), "");
@@ -106,18 +91,10 @@ fn process_stack(
         };
 
         match element {
-            Types::Operation(ref op) => {
-                current_operator = *op;
-            }
-            Types::Integer(ref x) => {
-                output = integer_ops(*x, &output, current_operator);
-            }
-            Types::String(ref x) => {
-                output = string_ops(x, &output, current_operator);
-            }
-            Types::Float(ref x) => {
-                output = float_ops(*x, &output, current_operator);
-            }
+            Types::Operation(ref op) => current_operator = *op,
+            Types::Integer(ref x) => output = integer_ops(*x, &output, current_operator),
+            Types::String(ref x) => output = string_ops(x, &output, current_operator),
+            Types::Float(ref x) => output = float_ops(*x, &output, current_operator),
             Types::Array(ref x) => output = array_ops(x, &output, current_operator),
             Types::Null => {
                 if output == Types::Null {
