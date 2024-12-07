@@ -139,7 +139,6 @@ pub fn preprocess(
                     functions,
                 ));
             }
-            println!("{new_array:?}ARRAY");
             return Types::Array(new_array);
         }
         Types::ArraySuite(ref y) => {
