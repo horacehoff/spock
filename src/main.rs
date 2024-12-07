@@ -442,13 +442,19 @@ options:
 
     let temp_funcs = parse_functions(content.trim(), true);
     let functions: &[(SmolStr, &[SmolStr], &[&[Types]])];
+    let mut main_function: (SmolStr, &[SmolStr], Vec<&[Types]>) = Default::default();
 
     let partial_convert: Vec<(SmolStr, &[SmolStr], Vec<&[Types]>)> = temp_funcs
         .iter()
         .map(|(name, args, lines)| {
             let inner_slices: Vec<&[Types]> = lines.iter().map(|v| v.as_slice()).collect();
-            (name.clone(), args.as_slice(), inner_slices)
+            if name == "main" {
+                main_function = (name.clone(), args.as_slice(), inner_slices);
+                return (name.clone(), args.as_slice(), vec![]);
+            }
+            return (name.clone(), args.as_slice(), inner_slices);
         })
+        .filter(|(name, _, _)| name != "main")
         .collect();
 
     let converted: Vec<(SmolStr, &[SmolStr], &[&[Types]])> = partial_convert
@@ -457,10 +463,6 @@ options:
         .collect();
 
     functions = converted.as_slice();
-    let main_function = functions
-        .iter()
-        .find(|(name, _, _)| name == "main")
-        .unwrap();
 
     log!("PARSED IN: {:.2?}", now.elapsed());
     log!("FUNCTIONS {:?}", functions);
@@ -468,7 +470,7 @@ options:
     let now = Instant::now();
 
     let mut vars: HashMap<SmolStr, Types> = HashMap::default();
-    process_function(main_function.2, &mut vars, &functions);
+    process_function(&main_function.2, &mut vars, &functions);
 
     log_release!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());

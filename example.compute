@@ -1,22 +1,18 @@
-func test() {
+func test(x) {
 print("okay!");
-return 10;
 }
 
 func main() {
-// let count = 0;
-// let limit = 1000000;
-// let result = 1;
-// while count < limit {
-//     result = result * 2;
-//     if result > 1000000 {
-//         result = result % 1000000;
-//     }
-//     count = count + 1;
-// }
-// print("Final result: ".uppercase()+str(result));
-let arr = [1+1,0,2];
-print(arr);
-
-print(test());
+let count = 0;
+let limit = 1000000;
+let result = 1;
+while count < limit {
+    result = result * 2;
+    if result > 1000000 {
+        result = result % 1000000;
+    }
+    count = count + 1;
+}
+print("Final result: ".uppercase()+str(result));
+test([0,1,2]);
 }
