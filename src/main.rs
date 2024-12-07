@@ -56,6 +56,7 @@ fn process_stack(
                 std::process::exit(1)
             })
             .to_owned(),
+        Types::Wrap(ref x) => process_stack(x, variables, functions),
         other => {
             let value = preprocess(variables, functions, other);
             if value == Types::Null {
@@ -73,6 +74,8 @@ fn process_stack(
                 error(&format!("Unknown variable '{var}'"), "");
                 std::process::exit(1)
             })
+        } else if let Types::Wrap(x) = p_element {
+            &process_stack(x, variables, functions)
         } else {
             process = preprocess(variables, functions, p_element);
             if process == Types::Null {
@@ -137,7 +140,6 @@ fn process_stack(
                         }
                     })
                     .collect();
-
                 match output {
                     Types::String(ref str) => string_props!(str, args, x, output),
                     Types::Float(num) => float_props!(num, args, x, output),

@@ -21,7 +21,7 @@ pub enum Types {
     String(SmolStr),
     Bool(bool),
     Array(Vec<Types>),
-    ArrayParsed(Vec<Vec<Types>>),
+    ArrayParsed(Vec<Types>),
     ArraySuite(Vec<Types>),
     Or(Vec<Types>),
     And(Vec<Types>),
@@ -108,7 +108,6 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             let mut suite: Vec<Types> = Vec::new();
             for extra in pair.clone().into_inner() {
                 suite.push(parse_expression(extra)[0].clone());
-                // println!("MEM{:?}", suite);
             }
 
             output.push(ArraySuite(suite));
@@ -119,7 +118,17 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                 array.push(parse_expression(array_member));
             }
             recursive = false;
-            output.push(Types::ArrayParsed(array));
+            output.push(Types::ArrayParsed(
+                array
+                    .iter()
+                    .map(|x| {
+                        if x.len() == 1 {
+                            return x.first().unwrap().clone();
+                        }
+                        Types::Wrap(x.clone())
+                    })
+                    .collect(),
+            ));
         }
         Rule::property => {
             recursive = false;

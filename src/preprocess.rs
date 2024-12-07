@@ -153,8 +153,13 @@ pub fn preprocess(
             // compute final value of arrays
             let mut new_array: Vec<Types> = Vec::new();
             for element in y {
-                new_array.push(process_stack(element, variables, functions));
+                new_array.push(process_stack(
+                    std::slice::from_ref(element),
+                    variables,
+                    functions,
+                ));
             }
+            println!("{new_array:?}ARRAY");
             return Types::Array(new_array);
         }
         Types::ArraySuite(ref y) => {
@@ -166,7 +171,11 @@ pub fn preprocess(
                 // compute the "final" value of the first/target array
                 let mut array = Vec::new();
                 for element in target_arr {
-                    array.push(process_stack(element, variables, functions));
+                    array.push(process_stack(
+                        std::slice::from_ref(element),
+                        variables,
+                        functions,
+                    ));
                 }
                 let mut output = Types::Null;
                 // iterate over every array following the first one => they are indexes
@@ -174,7 +183,11 @@ pub fn preprocess(
                     if let Types::ArrayParsed(ref target_index_arr) = target_index {
                         let mut index_array = Vec::new();
                         for element in target_index_arr {
-                            index_array.push(process_stack(element, variables, functions));
+                            index_array.push(process_stack(
+                                std::slice::from_ref(element),
+                                variables,
+                                functions,
+                            ));
                         }
 
                         if index_array.len() == 1 {
@@ -227,7 +240,11 @@ pub fn preprocess(
                     if let Types::ArrayParsed(ref target_index_arr) = target_index {
                         let mut index_array = Vec::new();
                         for element in target_index_arr {
-                            index_array.push(process_stack(element, variables, functions));
+                            index_array.push(process_stack(
+                                std::slice::from_ref(element),
+                                variables,
+                                functions,
+                            ));
                         }
 
                         if index_array.len() == 1 {
@@ -276,7 +293,11 @@ pub fn preprocess(
                     if let Types::ArrayParsed(ref target_index_arr) = target_index {
                         let mut index_array = Vec::new();
                         for element in target_index_arr {
-                            index_array.push(process_stack(element, variables, functions));
+                            index_array.push(process_stack(
+                                std::slice::from_ref(element),
+                                variables,
+                                functions,
+                            ));
                         }
 
                         if index_array.len() == 1 {

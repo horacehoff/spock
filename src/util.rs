@@ -104,6 +104,7 @@ macro_rules! get_printable_type {
             Types::Array(_) => "Array",
             Types::Null => "Null",
             _ => {
+                println!("{:?}", $x);
                 error(
                     &format!("{}", error_msg!(format!("Cannot get value of {:?}", $x))),
                     "",
