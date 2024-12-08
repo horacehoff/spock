@@ -326,12 +326,9 @@ fn process_line_logic(
                 } else if let Types::String(ref target_string) = loop_array {
                     variables.insert(x.to_smolstr(), Types::Null);
                     for elem in target_string.chars() {
-                        // if let Some(value) = variables.get_mut(x) {
-                        //     *value = Types::String(elem.to_smolstr());
-                        // }
-                        variables
-                            .entry(x.to_smolstr())
-                            .and_modify(|value| *value = Types::String(elem.to_smolstr()));
+                        if let Some(value) = variables.get_mut(x) {
+                            *value = Types::String(elem.to_smolstr());
+                        }
 
                         let out: Types = process_line_logic(z, variables, functions);
                         if out != Types::Null {
