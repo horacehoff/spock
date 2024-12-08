@@ -118,29 +118,7 @@ fn process_stack(
             Types::Property(ref x, ref y) => {
                 let args: Vec<Types> = y
                     .iter()
-                    .map(|arg| {
-                        if let Types::Wrap(ref x) = arg {
-                            process_stack(x, variables, functions)
-                        } else {
-                            match arg {
-                                Types::VariableIdentifier(ref var) => variables
-                                    .get(var)
-                                    .unwrap_or_else(|| {
-                                        error("Unknown variable", "");
-                                        std::process::exit(1)
-                                    })
-                                    .to_owned(),
-                                other => {
-                                    let value = preprocess(variables, functions, other);
-                                    if value == Types::Null {
-                                        other.to_owned()
-                                    } else {
-                                        value
-                                    }
-                                }
-                            }
-                        }
-                    })
+                    .map(|arg| process_stack(std::slice::from_ref(arg), variables, functions))
                     .collect();
                 match output {
                     Types::String(ref str) => string_props!(str, args, x, output),
@@ -473,6 +451,6 @@ options:
     let mut vars: HashMap<SmolStr, Types> = HashMap::default();
     process_function(&main_function.2, &mut vars, functions);
 
-    log_release!("EXECUTED IN: {:.2?}", now.elapsed());
-    log_release!("TOTAL: {:.2?}", totaltime.elapsed());
+    log!("EXECUTED IN: {:.2?}", now.elapsed());
+    log!("TOTAL: {:.2?}", totaltime.elapsed());
 }
