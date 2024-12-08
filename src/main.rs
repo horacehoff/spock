@@ -45,7 +45,6 @@ use unroll::unroll_for_loops;
 #[global_allocator]
 static ALLOC: SnMalloc = SnMalloc;
 
-#[inline(always)]
 #[unroll_for_loops]
 fn process_stack(
     stack_in: &[Types],
@@ -59,14 +58,20 @@ fn process_stack(
                 error(&format!("Unknown variable '{var}'"), "");
                 std::process::exit(1)
             })
-            .to_owned(),
+            .clone(),
         Types::Wrap(ref x) => process_stack(x, variables, functions),
         other => {
-            let value = preprocess(variables, functions, other);
-            if value == Types::Null {
-                other.to_owned()
+            if matches!(
+                other,
+                Types::FunctionCall(_, _)
+                    | Types::NamespaceFunctionCall(_, _, _)
+                    | Types::Priority(_)
+                    | Types::ArrayParsed(_)
+                    | Types::ArraySuite(_)
+            ) {
+                preprocess(variables, functions, other)
             } else {
-                value
+                other.clone()
             }
         }
     };
@@ -196,7 +201,6 @@ fn process_stack(
     output
 }
 
-#[inline(always)]
 fn process_line_logic(
     line_array: &[Types],
     variables: &mut HashMap<SmolStr, Types>,
@@ -456,7 +460,7 @@ options:
 
     let converted: Vec<(SmolStr, &[SmolStr], &[&[Types]])> = partial_convert
         .iter()
-        .map(|(name, args, lines)| (name.clone(), *args, lines.as_slice()))
+        .map(|(name, args, lines)| (name.to_smolstr(), *args, lines.as_slice()))
         .collect();
 
     let functions: &[(SmolStr, &[SmolStr], &[&[Types]])] = converted.as_slice();
