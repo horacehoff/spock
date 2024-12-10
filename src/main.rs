@@ -85,13 +85,26 @@ fn process_stack(
             }),
             Types::Wrap(x) => &process_stack(x, variables, functions),
             other => {
-                let value = preprocess(variables, functions, other);
-                if value == Types::Null {
-                    other
-                } else {
-                    process = value;
+                if matches!(
+                    other,
+                    Types::FunctionCall(_, _)
+                        | Types::NamespaceFunctionCall(_, _, _)
+                        | Types::Priority(_)
+                        | Types::ArrayParsed(_)
+                        | Types::ArraySuite(_)
+                ) {
+                    process = preprocess(variables, functions, other);
                     &process
+                } else {
+                    other
                 }
+                // let value = preprocess(variables, functions, other);
+                // if value == Types::Null {
+                //     other
+                // } else {
+                //     process = value;
+                //     &process
+                // }
             }
         };
 
@@ -451,6 +464,6 @@ options:
     let mut vars: HashMap<SmolStr, Types> = HashMap::default();
     process_function(&main_function.2, &mut vars, functions);
 
-    log!("EXECUTED IN: {:.2?}", now.elapsed());
+    log_release!("EXECUTED IN: {:.2?}", now.elapsed());
     log!("TOTAL: {:.2?}", totaltime.elapsed());
 }
