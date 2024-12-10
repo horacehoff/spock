@@ -76,8 +76,8 @@ fn process_stack(
         }
     };
     let mut current_operator: BasicOperator = BasicOperator::Null;
+    let mut process: Types;
     for p_element in stack_in.iter().skip(1) {
-        let process: Types;
         let element = match p_element {
             Types::VariableIdentifier(var) => variables.get(var).unwrap_or_else(|| {
                 error(&format!("Unknown variable '{var}'"), "");
