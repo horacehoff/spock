@@ -57,7 +57,7 @@ print(x[0]);
 - `round(1, Integer/Float) -> Integer` - Rounds the given number to the nearest integer (Integer type simply returns itself)
 - `len(1, Array/String) -> Integer` - Returns the length of the given Array (number of elements) or String (number of letters)
 - `sqrt(1, Integer/Float) -> Integer/Float` - Returns the square root of the given number
-- `the_answer()` - Prints the answer to the Ultimate Question of Life, the Universe, and Everything.
+- `the_answer()` - Prints and returns the answer to the Ultimate Question of Life, the Universe, and Everything.
 - `range(1/2/3, Integer)` - Returns an array of integers:
   - `[0..<first argument>]` if only one argument was provided
   - `[<first argument>..<second argument>]` if two arguments were provided
