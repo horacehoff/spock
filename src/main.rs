@@ -98,13 +98,6 @@ fn process_stack(
                 } else {
                     other
                 }
-                // let value = preprocess(variables, functions, other);
-                // if value == Types::Null {
-                //     other
-                // } else {
-                //     process = value;
-                //     &process
-                // }
             }
         };
 
@@ -114,20 +107,6 @@ fn process_stack(
             Types::String(ref x) => output = string_ops(x, &output, current_operator),
             Types::Float(ref x) => output = float_ops(*x, &output, current_operator),
             Types::Array(ref x) => output = array_ops(x, &output, current_operator),
-            Types::Null => {
-                if output == Types::Null {
-                    match current_operator {
-                        BasicOperator::Equal => output = Types::Bool(true),
-                        BasicOperator::NotEqual => output = Types::Bool(false),
-                        _ => error(
-                            &format!(
-                                "Cannot perform operation '{current_operator:?}' between Null and Null"
-                            ),
-                            "",
-                        ),
-                    }
-                }
-            }
             Types::Property(ref x, ref y) => {
                 let args: Vec<Types> = y
                     .iter()
@@ -150,7 +129,7 @@ fn process_stack(
                     ),
                 }
             }
-            Types::Or(ref x) => {
+            Types::Or(ref x) | Types::And(ref x) => {
                 let parsed_exp = process_stack(x, variables, functions);
                 if_let!(
                     likely,
@@ -158,7 +137,11 @@ fn process_stack(
                     output,
                     {
                         if_let!(likely, Types::Bool(sidebool), parsed_exp, {
-                            output = Types::Bool(inbool || sidebool);
+                            output = Types::Bool(if matches!(element, Types::Or(_)) {
+                                inbool || sidebool
+                            } else {
+                                inbool && sidebool
+                            });
                         }, else {
                             error(format!("{parsed_exp:?} is not a Boolean").as_str(), "");
                         });
@@ -168,23 +151,19 @@ fn process_stack(
                     }
                 );
             }
-            Types::And(ref x) => {
-                let parsed_exp = process_stack(x, variables, functions);
-                if_let!(
-                    likely,
-                    Types::Bool(inbool),
-                    output,
-                    {
-                        if_let!(likely, Types::Bool(sidebool), parsed_exp, {
-                            output = Types::Bool(inbool && sidebool);
-                        }, else {
-                            error(format!("{parsed_exp:?} is not a Boolean").as_str(), "");
-                        });
-                    }, else
-                    {
-                        error(format!("{output:?} is not a Boolean").as_str(), "");
+            Types::Null => {
+                if output == Types::Null {
+                    match current_operator {
+                        BasicOperator::Equal => output = Types::Bool(true),
+                        BasicOperator::NotEqual => output = Types::Bool(false),
+                        _ => error(
+                            &format!(
+                                "Cannot perform operation '{current_operator:?}' between Null and Null"
+                            ),
+                            "",
+                        ),
                     }
-                );
+                }
             }
             _ => error(&format!("TODO {element:?}"), ""),
         }
