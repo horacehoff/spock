@@ -1,13 +1,14 @@
 func main() {
-let count = 0;
-let limit = 10000000;
-let result = 1;
-while count < limit {
-    result = result * 2;
-    if result > 1000000 {
-        result = result % 1000000;
-    }
-    count = count + 1;
-}
-print("Final result: ".uppercase()+str(result));
+let count = 0+27+test(7+10);
+print("hi!");
+// let limit = 10000000;
+// let result = 1;
+// while count < limit {
+//     result = result * 2;
+//     if result > 1000000 {
+//         result = result % 1000000;
+//     }
+//     count = count + 1;
+// }
+// print("Final result: ".uppercase()+str(result));
 }

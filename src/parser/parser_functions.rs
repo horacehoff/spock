@@ -74,20 +74,20 @@ pub fn parse_functions(
     }
 
     let hash = blake3::hash(content.as_bytes()).to_string();
-    if Path::new(&format!(".compute/{}", hash)).exists() {
-        let file = File::open(&format!(".compute/{}", hash)).unwrap();
-        let mut reader = BufReader::with_capacity(128 * 1024, file);
-        let mut buffer = Vec::new();
-        reader.read_to_end(&mut buffer).unwrap();
-
-        let mut deserialized_data: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> =
-            bincode::deserialize(&buffer).expect(error_msg!(
-                "Failed to read from cache",
-                "Delete the .compute folder"
-            ));
-        deserialized_data.append(&mut imported_functions);
-        return deserialized_data;
-    }
+    // if Path::new(&format!(".compute/{}", hash)).exists() {
+    //     let file = File::open(&format!(".compute/{}", hash)).unwrap();
+    //     let mut reader = BufReader::with_capacity(128 * 1024, file);
+    //     let mut buffer = Vec::new();
+    //     reader.read_to_end(&mut buffer).unwrap();
+    //
+    //     let mut deserialized_data: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> =
+    //         bincode::deserialize(&buffer).expect(error_msg!(
+    //             "Failed to read from cache",
+    //             "Delete the .compute folder"
+    //         ));
+    //     deserialized_data.append(&mut imported_functions);
+    //     return deserialized_data;
+    // }
 
     let comment_regex = Regex::new(r"(?m)(?<=\}|;|\{|.)\s*//.*$").unwrap();
     let mut content: String = comment_regex.replace_all(content, "").to_string();

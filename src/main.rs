@@ -25,6 +25,7 @@ use crate::builtin::builtin_functions;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
+use crate::parser::Types::{FUNC_CALL, STARTSTORE, STOP, VAR_STORE};
 use crate::parser::{parse_code, BasicOperator, Types};
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
@@ -341,15 +342,92 @@ fn process_line_logic(
     Types::Null
 }
 
+// Everything below this comment is very experimental and work-in-progress as of this moment
+fn simplify(lines: Vec<Types>, num: i8, store: (bool, i8)) -> (Vec<Types>, i8) {
+    let mut test: Vec<Types> = vec![];
+    let mut i: i8 = num;
+    for x in lines {
+        match x {
+            Types::VariableDeclaration(x, y) => {
+                let id = i;
+                test.push(STARTSTORE(id));
+                let result = simplify(y, i + 1, (false, 0));
+                i = result.1;
+                test.extend(result.0);
+                test.push(STOP(id));
+                test.push(VAR_STORE(x, id));
+                i += 1;
+            }
+            Types::FunctionCall(x, y) => {
+                let mut args: Vec<i8> = vec![];
+                for x in y {
+                    if let Types::Wrap(w) = x {
+                        let result = simplify(w, i, (true, i));
+                        test.extend(result.0);
+                        args.push(result.1);
+                        i += 1;
+                    } else {
+                        let result = simplify(vec![x], i, (true, i));
+                        test.extend(result.0);
+                        args.push(result.1);
+                        i += 1;
+                    }
+                }
+                test.push(FUNC_CALL(x, args));
+            }
+
+            _ => test.push(x),
+        }
+    }
+    if store.0 {
+        test.insert(0, Types::STARTSTORE(store.1));
+        test.push(Types::STOP(store.1))
+    }
+    (test, i)
+}
+
+fn execute(lines: Vec<Types>) {
+    let mut variables: HashMap<SmolStr, Types> = Default::default();
+    let mut register: HashMap<i8, Types> = Default::default();
+    let mut output: HashMap<i8, Types> = Default::default();
+    let mut operator: HashMap<i8, BasicOperator> = Default::default();
+
+    let mut depth: Vec<i8> = vec![];
+    for instruction in lines {
+        println!("INSTRUCTION {instruction:?}");
+        match instruction {
+            Types::STARTSTORE(x) => {
+                depth.push(x);
+            }
+            _ => {
+                if let Some(x) = register.get_mut(depth.last().unwrap()) {
+                    // *x = ;
+                }
+                // register.get
+            }
+        }
+    }
+}
+
 fn process_function(
     lines: &[Types],
     variables: &mut HashMap<SmolStr, Types>,
     functions: &[(SmolStr, &[SmolStr], &[Types])],
 ) -> Types {
-    let processed = process_line_logic(lines, variables, functions);
-    if processed != Types::Null {
-        return processed;
-    }
+    // let processed = process_line_logic(lines, variables, functions);
+    // if processed != Types::Null {
+    //     return processed;
+    // }
+    let simple = simplify(lines.to_vec(), 0, (false, 0)).0;
+    println!(
+        "SIMPLIFY:\n{}",
+        simple
+            .iter()
+            .map(|x| format!("{x:?}"))
+            .collect::<Vec<String>>()
+            .join("\n")
+    );
+    execute(simple);
     Types::Null
 }
 
@@ -438,7 +516,7 @@ options:
     let functions: &[(SmolStr, &[SmolStr], &[Types])] = converted.as_slice();
 
     log!("PARSED IN: {:.2?}", now.elapsed());
-    log!("MAIN {:?}", main_function);
+    // log!("MAIN\n{}", main_function.2.iter().map(|x| format!("{x:?}")).collect::<Vec<String>>().join("\n"));
 
     let now = Instant::now();
 
