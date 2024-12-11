@@ -46,6 +46,7 @@ use unroll::unroll_for_loops;
 static ALLOC: SnMalloc = SnMalloc;
 
 #[unroll_for_loops]
+#[inline(always)]
 fn process_stack(
     stack_in: &[Types],
     variables: &HashMap<SmolStr, Types>,
@@ -171,6 +172,7 @@ fn process_stack(
     output
 }
 
+#[inline(always)]
 fn process_line_logic(
     line_array: &[Types],
     variables: &mut HashMap<SmolStr, Types>,
@@ -344,11 +346,17 @@ fn process_function(
     variables: &mut HashMap<SmolStr, Types>,
     functions: &[(SmolStr, &[SmolStr], &[&[Types]])],
 ) -> Types {
+    let mut stack: Vec<Types> = Vec::new();
+
     for line in lines.iter() {
-        let processed: Types = process_line_logic(line, variables, functions);
-        if processed != Types::Null {
-            return processed;
-        };
+        for x in line.iter() {
+            stack.push((*x).clone());
+        }
+    }
+
+    let processed = process_line_logic(&stack, variables, functions);
+    if processed != Types::Null {
+        return processed;
     }
     Types::Null
 }
@@ -436,13 +444,14 @@ options:
     let functions: &[(SmolStr, &[SmolStr], &[&[Types]])] = converted.as_slice();
 
     log!("PARSED IN: {:.2?}", now.elapsed());
-    log!("FUNCTIONS {:?}", functions);
+    // log!("FUNCTIONS {:?}", functions);
+    log!("MAIN {:?}", main_function);
 
     let now = Instant::now();
 
     let mut vars: HashMap<SmolStr, Types> = HashMap::default();
     process_function(&main_function.2, &mut vars, functions);
 
-    log_release!("EXECUTED IN: {:.2?}", now.elapsed());
-    log!("TOTAL: {:.2?}", totaltime.elapsed());
+    log!("EXECUTED IN: {:.2?}", now.elapsed());
+    log_release!("TOTAL: {:.2?}", totaltime.elapsed());
 }
