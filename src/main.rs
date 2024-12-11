@@ -412,7 +412,6 @@ options:
     let now = Instant::now();
 
     let temp_funcs = parse_functions(content.trim(), true);
-    // let functions: &[(SmolStr, &[SmolStr], &[&[Types]])];
     let mut main_function: (SmolStr, &[SmolStr], Vec<Types>) = Default::default();
 
     let partial_convert: Vec<(SmolStr, &[SmolStr], Vec<Types>)> = temp_funcs
