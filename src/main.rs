@@ -50,7 +50,7 @@ static ALLOC: SnMalloc = SnMalloc;
 fn process_stack(
     stack_in: &[Types],
     variables: &HashMap<SmolStr, Types>,
-    functions: &[(SmolStr, &[SmolStr], &[&[Types]])],
+    functions: &[(SmolStr, &[SmolStr], &[Types])],
 ) -> Types {
     let mut output: Types = match stack_in.first().unwrap_or(&Types::Integer(0)) {
         Types::VariableIdentifier(ref var) => variables
@@ -176,7 +176,7 @@ fn process_stack(
 fn process_line_logic(
     line_array: &[Types],
     variables: &mut HashMap<SmolStr, Types>,
-    functions: &[(SmolStr, &[SmolStr], &[&[Types]])],
+    functions: &[(SmolStr, &[SmolStr], &[Types])],
 ) -> Types {
     for line in line_array.iter() {
         match line {
@@ -227,7 +227,7 @@ fn process_line_logic(
                         error(&format!("Cannot execute line {:?}", &args[0]), "");
                     });
                 } else if !matched {
-                    let target_function: &(SmolStr, &[SmolStr], &[&[Types]]) = functions
+                    let target_function: &(SmolStr, &[SmolStr], &[Types]) = functions
                         .iter()
                         .find(|func| func.0 == *x)
                         .unwrap_or_else(|| {
@@ -342,19 +342,11 @@ fn process_line_logic(
 }
 
 fn process_function(
-    lines: &[&[Types]],
+    lines: &[Types],
     variables: &mut HashMap<SmolStr, Types>,
-    functions: &[(SmolStr, &[SmolStr], &[&[Types]])],
+    functions: &[(SmolStr, &[SmolStr], &[Types])],
 ) -> Types {
-    let mut stack: Vec<Types> = Vec::new();
-
-    for line in lines.iter() {
-        for x in line.iter() {
-            stack.push((*x).clone());
-        }
-    }
-
-    let processed = process_line_logic(&stack, variables, functions);
+    let processed = process_line_logic(lines, variables, functions);
     if processed != Types::Null {
         return processed;
     }
@@ -421,30 +413,32 @@ options:
 
     let temp_funcs = parse_functions(content.trim(), true);
     // let functions: &[(SmolStr, &[SmolStr], &[&[Types]])];
-    let mut main_function: (SmolStr, &[SmolStr], Vec<&[Types]>) = Default::default();
+    let mut main_function: (SmolStr, &[SmolStr], Vec<Types>) = Default::default();
 
-    let partial_convert: Vec<(SmolStr, &[SmolStr], Vec<&[Types]>)> = temp_funcs
+    let partial_convert: Vec<(SmolStr, &[SmolStr], Vec<Types>)> = temp_funcs
         .iter()
         .map(|(name, args, lines)| {
-            let inner_slices: Vec<&[Types]> = lines.iter().map(|v| v.as_slice()).collect();
+            let stack: Vec<Types> = lines
+                .iter()
+                .flat_map(|line| line.iter().map(|x| (*x).clone()))
+                .collect();
             if name == "main" {
-                main_function = (name.clone(), args.as_slice(), inner_slices);
+                main_function = (name.clone(), args.as_slice(), stack);
                 return (name.clone(), args.as_slice(), vec![]);
             }
-            return (name.clone(), args.as_slice(), inner_slices);
+            return (name.clone(), args.as_slice(), stack);
         })
         .filter(|(name, _, _)| name != "main")
         .collect();
 
-    let converted: Vec<(SmolStr, &[SmolStr], &[&[Types]])> = partial_convert
+    let converted: Vec<(SmolStr, &[SmolStr], &[Types])> = partial_convert
         .iter()
         .map(|(name, args, lines)| (name.to_smolstr(), *args, lines.as_slice()))
         .collect();
 
-    let functions: &[(SmolStr, &[SmolStr], &[&[Types]])] = converted.as_slice();
+    let functions: &[(SmolStr, &[SmolStr], &[Types])] = converted.as_slice();
 
     log!("PARSED IN: {:.2?}", now.elapsed());
-    // log!("FUNCTIONS {:?}", functions);
     log!("MAIN {:?}", main_function);
 
     let now = Instant::now();

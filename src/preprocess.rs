@@ -13,7 +13,7 @@ use unroll::unroll_for_loops;
 #[unroll_for_loops]
 pub fn preprocess(
     variables: &HashMap<SmolStr, Types>,
-    functions: &[(SmolStr, &[SmolStr], &[&[Types]])],
+    functions: &[(SmolStr, &[SmolStr], &[Types])],
     element: &Types,
 ) -> Types {
     // println!("ELEM{:?}", element);
@@ -86,7 +86,7 @@ pub fn preprocess(
                 );
             }
 
-            let target_function: &(SmolStr, &[SmolStr], &[&[Types]]) = functions
+            let target_function: &(SmolStr, &[SmolStr], &[Types]) = functions
                 .iter()
                 .find(|func| func.0 == *func_name)
                 .unwrap_or_else(|| {
