@@ -395,15 +395,21 @@ fn execute(lines: Vec<Types>) {
     let mut depth: Vec<i8> = vec![];
     for instruction in lines {
         println!("INSTRUCTION {instruction:?}");
+        println!("REGISTER {register:?}");
+        println!("DEPTH {depth:?}");
+        println!("---");
         match instruction {
             Types::STARTSTORE(x) => {
                 depth.push(x);
+                register.insert(x, Types::Null);
+            }
+            Types::STOP(x) => {
+                depth.pop();
             }
             _ => {
                 if let Some(x) = register.get_mut(depth.last().unwrap()) {
-                    // *x = ;
+                    *x = instruction;
                 }
-                // register.get
             }
         }
     }
