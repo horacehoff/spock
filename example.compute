@@ -1,6 +1,11 @@
+func test(x) {
+return 10;
+}
+
 func main() {
-let count = 0+27+test(7+10);
-print("hi!");
+let count = 0+27;
+let test = count+27;
+print(test(20));
 // let limit = 10000000;
 // let result = 1;
 // while count < limit {

@@ -23,6 +23,7 @@ pub enum Types {
 
     VAR_STORE(SmolStr, i8),
     FUNC_CALL(SmolStr, Vec<i8>),
+    FUNC_RETURN(i8),
 
     Null,
     Integer(i64),

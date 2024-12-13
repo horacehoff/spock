@@ -25,7 +25,7 @@ use crate::builtin::builtin_functions;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-use crate::parser::Types::{FUNC_CALL, STARTSTORE, STOP, VAR_STORE};
+use crate::parser::Types::{FUNC_CALL, FUNC_RETURN, VAR_STORE};
 use crate::parser::{parse_code, BasicOperator, Types};
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
@@ -350,11 +350,11 @@ fn simplify(lines: Vec<Types>, num: i8, store: (bool, i8)) -> (Vec<Types>, i8) {
         match x {
             Types::VariableDeclaration(x, y) => {
                 let id = i;
-                test.push(STARTSTORE(id));
-                let result = simplify(y, i + 1, (false, 0));
+                // test.push(STARTSTORE(id));
+                let result = simplify(y, i + 1, (true, 0));
                 i = result.1;
                 test.extend(result.0);
-                test.push(STOP(id));
+                // test.push(STOP(id));
                 test.push(VAR_STORE(x, id));
                 i += 1;
             }
@@ -365,15 +365,25 @@ fn simplify(lines: Vec<Types>, num: i8, store: (bool, i8)) -> (Vec<Types>, i8) {
                         let result = simplify(w, i, (true, i));
                         test.extend(result.0);
                         args.push(result.1);
-                        i += 1;
+                        i = result.1;
                     } else {
                         let result = simplify(vec![x], i, (true, i));
                         test.extend(result.0);
                         args.push(result.1);
-                        i += 1;
+                        i = result.1;
                     }
                 }
                 test.push(FUNC_CALL(x, args));
+            }
+            Types::FunctionReturn(ret) => {
+                let id = i;
+                // test.push(STARTSTORE(id));
+                let result = simplify(ret, i, (true, i));
+                i = result.1;
+                test.extend(result.0);
+                // test.push(STOP(id));
+                test.push(FUNC_RETURN(id));
+                i += 1;
             }
 
             _ => test.push(x),
@@ -386,33 +396,198 @@ fn simplify(lines: Vec<Types>, num: i8, store: (bool, i8)) -> (Vec<Types>, i8) {
     (test, i)
 }
 
-fn execute(lines: Vec<Types>) {
-    let mut variables: HashMap<SmolStr, Types> = Default::default();
+fn execute(
+    lines: Vec<Types>,
+    functions: &[(SmolStr, &[SmolStr], &[Types])],
+    variables: &mut HashMap<SmolStr, Types>,
+) -> Types {
+    // let mut variables: HashMap<SmolStr, Types> = Default::default();
     let mut register: HashMap<i8, Types> = Default::default();
     let mut output: HashMap<i8, Types> = Default::default();
     let mut operator: HashMap<i8, BasicOperator> = Default::default();
 
     let mut depth: Vec<i8> = vec![];
-    for instruction in lines {
-        println!("INSTRUCTION {instruction:?}");
-        println!("REGISTER {register:?}");
-        println!("DEPTH {depth:?}");
-        println!("---");
+    for p_instruction in lines {
+        let mut instruction: Types = Types::Null;
+        match p_instruction {
+            Types::VariableIdentifier(x) => {
+                instruction = variables.get(&x).unwrap().clone();
+            }
+            Types::FUNC_CALL(func_name, y) => {
+                // if !depth.is_empty() {
+
+                let args: Vec<Types> = y
+                    .iter()
+                    .map(|arg| register.remove(arg).unwrap_or(Types::Null))
+                    .collect();
+                let matched = builtin_functions(&func_name, &args);
+                // check if function is a built-in function, else search it among user-defined functions
+                if matched.1 {
+                    instruction = matched.0;
+                }
+                // else if func_name == "executeline" {
+                //     assert_args_number!("executeline", args.len(), 1);
+                //     if let Types::String(line) = &args[0] {
+                //         return process_stack(&parse_code(line)[0], variables, functions);
+                //     }
+                //     error(&format!("Cannot execute {:?}", &args[0]), "");
+                // }
+                else if func_name == "int" {
+                    assert_args_number!("int", args.len(), 1);
+                    if let Types::String(str) = &args[0] {
+                        instruction = Types::Integer(str.parse::<i64>().unwrap_or_else(|_| {
+                            error(&format!("Cannot convert String '{str}' to Integer",), "");
+                            std::process::exit(1)
+                        }));
+                    } else if let Types::Float(float) = &args[0] {
+                        instruction = Types::Integer(float.round() as i64);
+                    }
+                    error(
+                        &format!(
+                            "Cannot convert {} to Integer",
+                            get_printable_type!(&args[0])
+                        ),
+                        "",
+                    );
+                } else if func_name == "str" {
+                    assert_args_number!("str", args.len(), 1);
+                    if let Types::Integer(int) = &args[0] {
+                        instruction = Types::String(int.to_smolstr());
+                    } else if let Types::Float(float) = &args[0] {
+                        instruction = Types::String(float.to_smolstr());
+                    } else if let Types::Bool(boolean) = &args[0] {
+                        instruction = Types::String(if *boolean {
+                            "true".to_smolstr()
+                        } else {
+                            "false".to_smolstr()
+                        });
+                    } else if let Types::Array(_) = &args[0] {
+                        instruction = Types::String(get_printable_form(&args[0]));
+                    }
+                    error(
+                        &format!("Cannot convert {} to String", get_printable_type!(&args[0])),
+                        "",
+                    );
+                } else if func_name == "float" {
+                    assert_args_number!("float", args.len(), 1);
+                    if let Types::String(str) = &args[0] {
+                        instruction = Types::Float(str.parse::<f64>().unwrap_or_else(|_| {
+                            error(&format!("Cannot convert String '{str}' to Float",), "");
+                            std::process::exit(1)
+                        }))
+                    } else if let Types::Integer(int) = &args[0] {
+                        instruction = Types::Float(*int as f64);
+                    }
+                    error(
+                        &format!("Cannot convert {} to Float", get_printable_type!(&args[0])),
+                        "",
+                    );
+                } else {
+                    let target_function: &(SmolStr, &[SmolStr], &[Types]) = functions
+                        .iter()
+                        .find(|func| func.0 == *func_name)
+                        .unwrap_or_else(|| {
+                            error(&format!("Unknown function '{func_name}'"), "");
+                            std::process::exit(1)
+                        });
+                    assert_args_number!(&func_name, args.len(), target_function.1.len());
+                    let mut target_args: HashMap<SmolStr, Types> = target_function
+                        .1
+                        .iter()
+                        .enumerate()
+                        .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
+                        .collect();
+                    instruction = process_function(target_function.2, &mut target_args, functions)
+                    // }
+                }
+            }
+            _ => instruction = p_instruction,
+        };
+        // }  else if let
+        // else {
+        //     p_instruction
+        // };
         match instruction {
             Types::STARTSTORE(x) => {
                 depth.push(x);
                 register.insert(x, Types::Null);
             }
-            Types::STOP(x) => {
+            Types::STOP(ref x) => {
                 depth.pop();
             }
+            Types::VAR_STORE(x, ref y) => {
+                variables.insert(x, register.remove(y).unwrap());
+            }
+            Types::FUNC_CALL(ref func_name, ref y) => {
+                if depth.is_empty() {
+                    let args: Vec<Types> =
+                        y.iter().map(|arg| register.remove(arg).unwrap()).collect();
+                    let (_, matched) = builtin_functions(&func_name, &args);
+                    if func_name == "executeline" && !matched {
+                        assert_args_number!("executeline", args.len(), 1_usize);
+                        if_let!(likely, Types::String(line), &args[0], {
+                            // process_stack(&parse_code(line)[0], &variables, functions);
+                        }, else {
+                            error(&format!("Cannot execute line {:?}", &args[0]), "");
+                        });
+                    } else if !matched {
+                        let target_function: &(SmolStr, &[SmolStr], &[Types]) = functions
+                            .iter()
+                            .find(|func| func.0 == *func_name)
+                            .unwrap_or_else(|| {
+                                error(&format!("Unknown function '{func_name}'"), "");
+                                std::process::exit(1)
+                            });
+                        assert_args_number!(&func_name, args.len(), target_function.1.len());
+                        let mut target_args: HashMap<SmolStr, Types> = target_function
+                            .1
+                            .iter()
+                            .enumerate()
+                            .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
+                            .collect();
+
+                        process_function(target_function.2, &mut target_args, functions);
+                    }
+                } else {
+                }
+            }
+            Types::FUNC_RETURN(ref return_term) => {
+                return register.remove(&return_term).unwrap();
+            }
             _ => {
-                if let Some(x) = register.get_mut(depth.last().unwrap()) {
-                    *x = instruction;
+                if depth.is_empty() {
+                } else {
+                    let last_depth = depth.last().unwrap();
+                    if let Some(x) = register.get_mut(last_depth) {
+                        // println!("TRUE THAT! {instruction:?} {x:?}");
+
+                        if matches!(x, Types::Null) {
+                            *x = instruction;
+                            continue;
+                        }
+
+                        if let Types::Operation(op) = instruction {
+                            operator.insert(*last_depth, op);
+                            // println!("OP {operator:?}");
+                        } else {
+                            match instruction {
+                                Types::Integer(ref int) => {
+                                    *x = integer_ops(*int, x, operator.remove(last_depth).unwrap())
+                                }
+                                _ => todo!(),
+                            }
+                        }
+                        // *x = instruction;
+                    }
                 }
             }
         }
+        // println!("REGISTER {register:?}");
+        // println!("DEPTH {depth:?}");
+        // println!("VARS {variables:?}");
+        // println!("---");
     }
+    Types::Null
 }
 
 fn process_function(
@@ -426,14 +601,17 @@ fn process_function(
     // }
     let simple = simplify(lines.to_vec(), 0, (false, 0)).0;
     println!(
-        "SIMPLIFY:\n{}",
+        "SIMPLIFY:\n{}\n----------",
         simple
             .iter()
             .map(|x| format!("{x:?}"))
             .collect::<Vec<String>>()
             .join("\n")
     );
-    execute(simple);
+    let result = execute(simple, functions, variables);
+    if result != Types::Null {
+        return result;
+    }
     Types::Null
 }
 
