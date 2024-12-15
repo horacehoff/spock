@@ -25,7 +25,7 @@ use crate::builtin::builtin_functions;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-use crate::parser::Types::{FUNC_CALL, FUNC_RETURN, VAR_STORE};
+// use crate::parser::Types::{FUNC_CALL, FUNC_RETURN, VAR_REPLACE, VAR_STORE, WHILE_BLOCK};
 use crate::parser::{parse_code, BasicOperator, Types};
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
@@ -343,275 +343,321 @@ fn process_line_logic(
 }
 
 // Everything below this comment is very experimental and work-in-progress as of this moment
-fn simplify(lines: Vec<Types>, num: i8, store: (bool, i8)) -> (Vec<Types>, i8) {
-    let mut test: Vec<Types> = vec![];
-    let mut i: i8 = num;
-    for x in lines {
-        match x {
-            Types::VariableDeclaration(x, y) => {
-                let id = i;
-                // test.push(STARTSTORE(id));
-                let result = simplify(y, i + 1, (true, 0));
-                i = result.1;
-                test.extend(result.0);
-                // test.push(STOP(id));
-                test.push(VAR_STORE(x, id));
-                i += 1;
-            }
-            Types::FunctionCall(x, y) => {
-                let mut args: Vec<i8> = vec![];
-                for x in y {
-                    if let Types::Wrap(w) = x {
-                        let result = simplify(w, i, (true, i));
-                        test.extend(result.0);
-                        args.push(result.1);
-                        i = result.1;
-                    } else {
-                        let result = simplify(vec![x], i, (true, i));
-                        test.extend(result.0);
-                        args.push(result.1);
-                        i = result.1;
-                    }
-                }
-                test.push(FUNC_CALL(x, args));
-            }
-            Types::FunctionReturn(ret) => {
-                let id = i;
-                // test.push(STARTSTORE(id));
-                let result = simplify(ret, i, (true, i));
-                i = result.1;
-                test.extend(result.0);
-                // test.push(STOP(id));
-                test.push(FUNC_RETURN(id));
-                i += 1;
-            }
-
-            _ => test.push(x),
-        }
-    }
-    if store.0 {
-        test.insert(0, Types::STARTSTORE(store.1));
-        test.push(Types::STOP(store.1))
-    }
-    (test, i)
-}
-
-fn execute(
-    lines: Vec<Types>,
-    functions: &[(SmolStr, &[SmolStr], &[Types])],
-    variables: &mut HashMap<SmolStr, Types>,
-) -> Types {
-    // let mut variables: HashMap<SmolStr, Types> = Default::default();
-    let mut register: HashMap<i8, Types> = Default::default();
-    let mut output: HashMap<i8, Types> = Default::default();
-    let mut operator: HashMap<i8, BasicOperator> = Default::default();
-
-    let mut depth: Vec<i8> = vec![];
-    for p_instruction in lines {
-        let mut instruction: Types = Types::Null;
-        match p_instruction {
-            Types::VariableIdentifier(x) => {
-                instruction = variables.get(&x).unwrap().clone();
-            }
-            Types::FUNC_CALL(func_name, y) => {
-                // if !depth.is_empty() {
-
-                let args: Vec<Types> = y
-                    .iter()
-                    .map(|arg| register.remove(arg).unwrap_or(Types::Null))
-                    .collect();
-                let matched = builtin_functions(&func_name, &args);
-                // check if function is a built-in function, else search it among user-defined functions
-                if matched.1 {
-                    instruction = matched.0;
-                }
-                // else if func_name == "executeline" {
-                //     assert_args_number!("executeline", args.len(), 1);
-                //     if let Types::String(line) = &args[0] {
-                //         return process_stack(&parse_code(line)[0], variables, functions);
-                //     }
-                //     error(&format!("Cannot execute {:?}", &args[0]), "");
-                // }
-                else if func_name == "int" {
-                    assert_args_number!("int", args.len(), 1);
-                    if let Types::String(str) = &args[0] {
-                        instruction = Types::Integer(str.parse::<i64>().unwrap_or_else(|_| {
-                            error(&format!("Cannot convert String '{str}' to Integer",), "");
-                            std::process::exit(1)
-                        }));
-                    } else if let Types::Float(float) = &args[0] {
-                        instruction = Types::Integer(float.round() as i64);
-                    }
-                    error(
-                        &format!(
-                            "Cannot convert {} to Integer",
-                            get_printable_type!(&args[0])
-                        ),
-                        "",
-                    );
-                } else if func_name == "str" {
-                    assert_args_number!("str", args.len(), 1);
-                    if let Types::Integer(int) = &args[0] {
-                        instruction = Types::String(int.to_smolstr());
-                    } else if let Types::Float(float) = &args[0] {
-                        instruction = Types::String(float.to_smolstr());
-                    } else if let Types::Bool(boolean) = &args[0] {
-                        instruction = Types::String(if *boolean {
-                            "true".to_smolstr()
-                        } else {
-                            "false".to_smolstr()
-                        });
-                    } else if let Types::Array(_) = &args[0] {
-                        instruction = Types::String(get_printable_form(&args[0]));
-                    }
-                    error(
-                        &format!("Cannot convert {} to String", get_printable_type!(&args[0])),
-                        "",
-                    );
-                } else if func_name == "float" {
-                    assert_args_number!("float", args.len(), 1);
-                    if let Types::String(str) = &args[0] {
-                        instruction = Types::Float(str.parse::<f64>().unwrap_or_else(|_| {
-                            error(&format!("Cannot convert String '{str}' to Float",), "");
-                            std::process::exit(1)
-                        }))
-                    } else if let Types::Integer(int) = &args[0] {
-                        instruction = Types::Float(*int as f64);
-                    }
-                    error(
-                        &format!("Cannot convert {} to Float", get_printable_type!(&args[0])),
-                        "",
-                    );
-                } else {
-                    let target_function: &(SmolStr, &[SmolStr], &[Types]) = functions
-                        .iter()
-                        .find(|func| func.0 == *func_name)
-                        .unwrap_or_else(|| {
-                            error(&format!("Unknown function '{func_name}'"), "");
-                            std::process::exit(1)
-                        });
-                    assert_args_number!(&func_name, args.len(), target_function.1.len());
-                    let mut target_args: HashMap<SmolStr, Types> = target_function
-                        .1
-                        .iter()
-                        .enumerate()
-                        .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
-                        .collect();
-                    instruction = process_function(target_function.2, &mut target_args, functions)
-                    // }
-                }
-            }
-            _ => instruction = p_instruction,
-        };
-        // }  else if let
-        // else {
-        //     p_instruction
-        // };
-        match instruction {
-            Types::STARTSTORE(x) => {
-                depth.push(x);
-                register.insert(x, Types::Null);
-            }
-            Types::STOP(ref x) => {
-                depth.pop();
-            }
-            Types::VAR_STORE(x, ref y) => {
-                variables.insert(x, register.remove(y).unwrap());
-            }
-            Types::FUNC_CALL(ref func_name, ref y) => {
-                if depth.is_empty() {
-                    let args: Vec<Types> =
-                        y.iter().map(|arg| register.remove(arg).unwrap()).collect();
-                    let (_, matched) = builtin_functions(&func_name, &args);
-                    if func_name == "executeline" && !matched {
-                        assert_args_number!("executeline", args.len(), 1_usize);
-                        if_let!(likely, Types::String(line), &args[0], {
-                            // process_stack(&parse_code(line)[0], &variables, functions);
-                        }, else {
-                            error(&format!("Cannot execute line {:?}", &args[0]), "");
-                        });
-                    } else if !matched {
-                        let target_function: &(SmolStr, &[SmolStr], &[Types]) = functions
-                            .iter()
-                            .find(|func| func.0 == *func_name)
-                            .unwrap_or_else(|| {
-                                error(&format!("Unknown function '{func_name}'"), "");
-                                std::process::exit(1)
-                            });
-                        assert_args_number!(&func_name, args.len(), target_function.1.len());
-                        let mut target_args: HashMap<SmolStr, Types> = target_function
-                            .1
-                            .iter()
-                            .enumerate()
-                            .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
-                            .collect();
-
-                        process_function(target_function.2, &mut target_args, functions);
-                    }
-                } else {
-                }
-            }
-            Types::FUNC_RETURN(ref return_term) => {
-                return register.remove(&return_term).unwrap();
-            }
-            _ => {
-                if depth.is_empty() {
-                } else {
-                    let last_depth = depth.last().unwrap();
-                    if let Some(x) = register.get_mut(last_depth) {
-                        // println!("TRUE THAT! {instruction:?} {x:?}");
-
-                        if matches!(x, Types::Null) {
-                            *x = instruction;
-                            continue;
-                        }
-
-                        if let Types::Operation(op) = instruction {
-                            operator.insert(*last_depth, op);
-                            // println!("OP {operator:?}");
-                        } else {
-                            match instruction {
-                                Types::Integer(ref int) => {
-                                    *x = integer_ops(*int, x, operator.remove(last_depth).unwrap())
-                                }
-                                _ => todo!(),
-                            }
-                        }
-                        // *x = instruction;
-                    }
-                }
-            }
-        }
-        // println!("REGISTER {register:?}");
-        // println!("DEPTH {depth:?}");
-        // println!("VARS {variables:?}");
-        // println!("---");
-    }
-    Types::Null
-}
+// fn simplify(lines: Vec<Types>, store: bool, current_num: i8) -> (Vec<Types>, i8) {
+//     let mut test: Vec<Types> = vec![];
+//     let mut i: i8 = current_num+1;
+//     for x in lines {
+//         match x {
+//             Types::VariableDeclaration(x, y) => {
+//                 let result = simplify(y, true,i);
+//                 i = result.1+1;
+//                 test.extend(result.0);
+//                 test.push(VAR_STORE(x, result.1));
+//             }
+//             Types::VariableRedeclaration(x, y) => {
+//                 let result = simplify(y, true,i);
+//                 i = result.1+1;
+//                 test.extend(result.0);
+//                 test.push(VAR_REPLACE(x, result.1));
+//             }
+//             Types::FunctionCall(x, y) => {
+//                 let mut args: Vec<i8> = vec![];
+//                 for x in y {
+//                     if let Types::Wrap(w) = x {
+//                         let result = simplify(w, true, i);
+//                         i = result.1+1;
+//                         test.extend(result.0);
+//                         args.push(result.1);
+//                     } else {
+//                         let result = simplify(vec![x], true, i);
+//                         i = result.1+1;
+//                         test.extend(result.0);
+//                         args.push(result.1);
+//                     }
+//                 }
+//                 test.push(FUNC_CALL(x, args));
+//             }
+//             Types::FunctionReturn(ret) => {
+//                 let result = simplify(ret, true, i);
+//                 i = result.1+1;
+//                 test.extend(result.0);
+//                 test.push(FUNC_RETURN(result.1));
+//             }
+//             Types::While(condition, code) => {
+//                 let result = simplify(condition, false, i);
+//                 i = result.1+1;
+//                 // test.extend(result.0);
+//                 let code = simplify(code, false, i);
+//                 i = code.1+1;
+//                 test.push(WHILE_BLOCK(result.0, code.0))
+//             }
+//
+//             _ => test.push(x),
+//         }
+//     }
+//     if store {
+//         test.insert(0, Types::STARTSTORE(i+1));
+//         test.push(Types::STOP(i+1))
+//     }
+//     (test, i+1)
+// }
+//
+// fn execute(
+//     lines: &Vec<Types>,
+//     functions: &[(SmolStr, &[SmolStr], &[Types])],
+//     variables: &mut HashMap<SmolStr, Types>,
+// ) -> Types {
+//     let mut register: HashMap<i8, Types> = Default::default();
+//     let mut operator: HashMap<i8, BasicOperator> = Default::default();
+//     let mut default_output: Types = Types::Null;
+//     let mut default_operator: BasicOperator = BasicOperator::Null;
+//
+//     let mut depth: Vec<i8> = vec![];
+//     for p_instruction in lines {
+//         let mut instruction: &Types = &Types::Null;
+//         log!("PINSTRUCT {p_instruction:?}");
+//         let matched:(Types,bool);
+//         let temp_value:Types;
+//         let other_temp:&Types;
+//         match p_instruction {
+//             Types::VariableIdentifier(x) => {
+//                 other_temp = variables.get(x).unwrap();
+//                 instruction = other_temp;
+//             }
+//             Types::FUNC_CALL(func_name, y) => {
+//                 // if !depth.is_empty() {
+//
+//                 let args: Vec<Types> = y
+//                     .iter()
+//                     .map(|arg| register.remove(arg).unwrap_or(Types::Null))
+//                     .collect();
+//                 matched = builtin_functions(&func_name, &args);
+//                 // check if function is a built-in function, else search it among user-defined functions
+//                 if matched.1 {
+//                     instruction = &matched.0;
+//                 }
+//                 // else if func_name == "executeline" {
+//                 //     assert_args_number!("executeline", args.len(), 1);
+//                 //     if let Types::String(line) = &args[0] {
+//                 //         return process_stack(&parse_code(line)[0], variables, functions);
+//                 //     }
+//                 //     error(&format!("Cannot execute {:?}", &args[0]), "");
+//                 // }
+//                 else if func_name == "int" {
+//                     assert_args_number!("int", args.len(), 1);
+//                     if let Types::String(str) = &args[0] {
+//                         temp_value = Types::Integer(str.parse::<i64>().unwrap_or_else(|_| {
+//                             error(&format!("Cannot convert String '{str}' to Integer",), "");
+//                             std::process::exit(1)
+//                         }));
+//                         instruction = &temp_value;
+//                     } else if let Types::Float(float) = &args[0] {
+//                         temp_value = Types::Integer(float.round() as i64);
+//                         instruction = &temp_value;
+//                     }
+//                     error(
+//                         &format!(
+//                             "Cannot convert {} to Integer",
+//                             get_printable_type!(&args[0])
+//                         ),
+//                         "",
+//                     );
+//                 } else if func_name == "str" {
+//                     assert_args_number!("str", args.len(), 1);
+//                     if let Types::Integer(int) = &args[0] {
+//                         temp_value = Types::String(int.to_smolstr());
+//                         instruction = &temp_value;
+//                     } else if let Types::Float(float) = &args[0] {
+//                         temp_value = Types::String(float.to_smolstr());
+//                         instruction = &temp_value;
+//                     } else if let Types::Bool(boolean) = &args[0] {
+//                         temp_value = Types::String(if *boolean {
+//                             "true".to_smolstr()
+//                         } else {
+//                             "false".to_smolstr()
+//                         });
+//                         instruction = &temp_value;
+//                     } else if let Types::Array(_) = &args[0] {
+//                         temp_value = Types::String(get_printable_form(&args[0]));
+//                         instruction = &temp_value;
+//                     }
+//                     error(
+//                         &format!("Cannot convert {} to String", get_printable_type!(&args[0])),
+//                         "",
+//                     );
+//                 } else if func_name == "float" {
+//                     assert_args_number!("float", args.len(), 1);
+//                     if let Types::String(str) = &args[0] {
+//                         temp_value = Types::Float(str.parse::<f64>().unwrap_or_else(|_| {
+//                             error(&format!("Cannot convert String '{str}' to Float",), "");
+//                             std::process::exit(1)
+//                         }));
+//                         instruction = &temp_value;
+//                     } else if let Types::Integer(int) = &args[0] {
+//                         temp_value = Types::Float(*int as f64);
+//                         instruction = &temp_value;
+//                     }
+//                     error(
+//                         &format!("Cannot convert {} to Float", get_printable_type!(&args[0])),
+//                         "",
+//                     );
+//                 } else {
+//                     let target_function: &(SmolStr, &[SmolStr], &[Types]) = functions
+//                         .iter()
+//                         .find(|func| func.0 == *func_name)
+//                         .unwrap_or_else(|| {
+//                             error(&format!("Unknown function '{func_name}'"), "");
+//                             std::process::exit(1)
+//                         });
+//                     assert_args_number!(&func_name, args.len(), target_function.1.len());
+//                     let mut target_args: HashMap<SmolStr, Types> = target_function
+//                         .1
+//                         .iter()
+//                         .enumerate()
+//                         .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
+//                         .collect();
+//                     temp_value = process_function(target_function.2, &mut target_args, functions);
+//                     instruction = &temp_value;
+//                     // }
+//                 }
+//             }
+//             _ => instruction = p_instruction,
+//         };
+//         match instruction {
+//             Types::STARTSTORE(x) => {
+//                 depth.push(*x);
+//                 register.insert(*x, Types::Null);
+//             }
+//             Types::STOP(ref x) => {
+//                 depth.pop();
+//             }
+//             Types::VAR_STORE(x, ref y) => {
+//                 variables.insert(x.to_smolstr(), register.remove(y).unwrap());
+//             }
+//             Types::VAR_REPLACE(x, ref y) => {
+//                 let value = register.remove(y).unwrap();
+//                 if let Some(x) = variables.get_mut(x) {
+//                     *x = value;
+//                 }
+//             }
+//             Types::FUNC_CALL(ref func_name, ref y) => {
+//                 if depth.is_empty() {
+//                     let args: Vec<Types> =
+//                         y.iter().map(|arg| register.remove(arg).unwrap()).collect();
+//                     let (_, matched) = builtin_functions(&func_name, &args);
+//                     if func_name == "executeline" && !matched {
+//                         assert_args_number!("executeline", args.len(), 1_usize);
+//                         if_let!(likely, Types::String(line), &args[0], {
+//                             // process_stack(&parse_code(line)[0], &variables, functions);
+//                         }, else {
+//                             error(&format!("Cannot execute line {:?}", &args[0]), "");
+//                         });
+//                     } else if !matched {
+//                         let target_function: &(SmolStr, &[SmolStr], &[Types]) = functions
+//                             .iter()
+//                             .find(|func| func.0 == *func_name)
+//                             .unwrap_or_else(|| {
+//                                 error(&format!("Unknown function '{func_name}'"), "");
+//                                 std::process::exit(1)
+//                             });
+//                         assert_args_number!(&func_name, args.len(), target_function.1.len());
+//                         let mut target_args: HashMap<SmolStr, Types> = target_function
+//                             .1
+//                             .iter()
+//                             .enumerate()
+//                             .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
+//                             .collect();
+//
+//                         process_function(target_function.2, &mut target_args, functions);
+//                     }
+//                 } else {
+//                 }
+//             }
+//             Types::FUNC_RETURN(ref return_term) => {
+//                 return register.remove(&return_term).unwrap();
+//             }
+//             Types::WHILE_BLOCK(condition, code) => {
+//                 while execute(&condition, functions, variables) == Types::Bool(true) {
+//                     // println!("EXECUTING WHILEBLOCK");
+//                     execute(&code, functions, variables);
+//                 }
+//             }
+//             _ => {
+//                 if depth.is_empty() {
+//                     if let Types::Operation(op) = instruction {
+//                         default_operator = *op;
+//                     } else {
+//                         log!("INSTRUCTION {instruction:?}");
+//                         if default_output == Types::Null {
+//                             default_output = instruction.clone();
+//                             continue;
+//                         }
+//                         match instruction {
+//                             Types::Integer(ref int) => {
+//                                 default_output = integer_ops(*int, &default_output, default_operator.clone())
+//                             }
+//                             Types::Float(ref float) => {
+//                                 default_output = float_ops(*float, &default_output, default_operator.clone())
+//                             }
+//                             _ => todo!(),
+//                         }
+//                     }
+//                 } else {
+//                     let last_depth = depth.last().unwrap();
+//                     if let Some(x) = register.get_mut(last_depth) {
+//                         if matches!(x, Types::Null) {
+//                             *x = instruction.clone();
+//                             continue;
+//                         }
+//
+//                         if let Types::Operation(op) = instruction {
+//                             operator.insert(*last_depth, *op);
+//                         } else {
+//                             match instruction {
+//                                 Types::Integer(ref int) => {
+//                                     *x = integer_ops(*int, x, operator.remove(last_depth).unwrap())
+//                                 }
+//                                 Types::Float(ref float) => {
+//                                     *x = float_ops(*float, x, operator.remove(last_depth).unwrap())
+//                                 }
+//                                 _ => todo!(),
+//                             }
+//                         }
+//                         // *x = instruction;
+//                     }
+//                 }
+//             }
+//         }
+//         // println!("REGISTER {register:?}");
+//         // println!("DEPTH {depth:?}");
+//         // println!("VARS {variables:?}");
+//         // println!("---");
+//     }
+//     default_output.clone()
+// }
 
 fn process_function(
     lines: &[Types],
     variables: &mut HashMap<SmolStr, Types>,
     functions: &[(SmolStr, &[SmolStr], &[Types])],
 ) -> Types {
-    // let processed = process_line_logic(lines, variables, functions);
-    // if processed != Types::Null {
-    //     return processed;
-    // }
-    let simple = simplify(lines.to_vec(), 0, (false, 0)).0;
-    println!(
-        "SIMPLIFY:\n{}\n----------",
-        simple
-            .iter()
-            .map(|x| format!("{x:?}"))
-            .collect::<Vec<String>>()
-            .join("\n")
-    );
-    let result = execute(simple, functions, variables);
-    if result != Types::Null {
-        return result;
+    let processed = process_line_logic(lines, variables, functions);
+    if processed != Types::Null {
+        return processed;
     }
+    // let simple = simplify(lines.to_vec(), false, 0).0;
+    // log!(
+    //     "SIMPLIFY:\n{}\n----------",
+    //     simple
+    //         .iter()
+    //         .map(|x| format!("{x:?}"))
+    //         .collect::<Vec<String>>()
+    //         .join("\n")
+    // );
+    // let result = execute(&simple, functions, variables);
+    // if result != Types::Null {
+    //     return result;
+    // }
     Types::Null
 }
 

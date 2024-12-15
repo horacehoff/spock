@@ -16,15 +16,18 @@ pub struct ComputeParser;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Types {
     // BASIC INSTR
-    STARTSTORE(i8),
-    STOP(i8),
-    RECALL(i8),
-    CLEAR(i8),
-
-    VAR_STORE(SmolStr, i8),
-    FUNC_CALL(SmolStr, Vec<i8>),
-    FUNC_RETURN(i8),
-
+    // STARTSTORE(i8),
+    // STOP(i8),
+    // RECALL(i8),
+    // CLEAR(i8),
+    //
+    // VAR_STORE(SmolStr, i8),
+    // VAR_REPLACE(SmolStr, i8),
+    // FUNC_CALL(SmolStr, Vec<i8>),
+    // FUNC_RETURN(i8),
+    //
+    // IF_BLOCK(i8, Vec<Types>),
+    // WHILE_BLOCK(Vec<Types>, Vec<Types>),
     Null,
     Integer(i64),
     Float(f64),
