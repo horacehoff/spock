@@ -44,7 +44,7 @@ use unroll::unroll_for_loops;
 static ALLOC: SnMalloc = SnMalloc;
 
 #[unroll_for_loops]
-#[inline(always)]
+#[inline]
 fn process_stack(
     stack_in: &[Types],
     variables: &HashMap<SmolStr, Types>,
