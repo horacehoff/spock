@@ -34,8 +34,8 @@ pub enum Types {
     FunctionReturn(Vec<Types>),
     Priority(Vec<Types>),
     Operation(BasicOperator),
-    VariableDeclaration(SmolStr, Vec<Types>),
-    VariableRedeclaration(SmolStr, Vec<Types>),
+    // NAME - VALUE - IS_REDECLARE
+    VariableDeclaration(SmolStr, Vec<Types>, bool),
     Condition(
         //Condition
         Vec<Types>,
@@ -294,6 +294,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     .parse()
                     .unwrap(),
                 priority_calc,
+                false,
             ));
         }
         Rule::variableRedeclaration => {
@@ -302,7 +303,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             for priority_pair in pair.clone().into_inner().skip(1) {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
-            output.push(Types::VariableRedeclaration(
+            output.push(Types::VariableDeclaration(
                 pair.clone()
                     .into_inner()
                     .next()
@@ -312,6 +313,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     .parse()
                     .unwrap(),
                 priority_calc,
+                true,
             ));
         }
         Rule::and_operation => {

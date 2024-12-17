@@ -186,15 +186,22 @@ fn process_line_logic(
                     return x;
                 }
             }
-            Types::VariableDeclaration(ref x, ref y) => {
-                variables.insert(x.to_smolstr(), process_stack(y, variables, functions));
-            }
-            Types::VariableRedeclaration(ref x, ref y) => {
-                let calculated = process_stack(y, variables, functions);
-                if let Some(x) = variables.get_mut(x) {
-                    *x = calculated;
+            Types::VariableDeclaration(ref x, ref y, ref is_redeclare) => {
+                if !is_redeclare {
+                    variables.insert(x.to_smolstr(), process_stack(y, variables, functions));
+                } else {
+                    let calculated = process_stack(y, variables, functions);
+                    if let Some(x) = variables.get_mut(x) {
+                        *x = calculated;
+                    }
                 }
             }
+            // Types::VariableRedeclaration(ref x, ref y) => {
+            //     let calculated = process_stack(y, variables, functions);
+            //     if let Some(x) = variables.get_mut(x) {
+            //         *x = calculated;
+            //     }
+            // }
             Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
                 let args: Vec<Types> = z
                     .iter()
