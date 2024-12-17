@@ -110,7 +110,7 @@ macro_rules! get_printable_type {
             Types::Float(_) => "Float",
             Types::Integer(_) => "Integer",
             Types::Bool(_) => "Boolean",
-            Types::Array(_) => "Array",
+            Types::Array(_, _, _) => "Array",
             Types::Null => "Null",
             _ => {
                 println!("{:?}", $x);
@@ -201,7 +201,7 @@ pub fn get_printable_form(x: &Types) -> SmolStr {
         Types::Float(float) => float.to_smolstr(),
         Types::Integer(int) => int.to_smolstr(),
         Types::Bool(boolean) => boolean.to_smolstr(),
-        Types::Array(x) => {
+        Types::Array(x, _, _) => {
             let arr = x;
             ("[".to_owned()
                 + arr

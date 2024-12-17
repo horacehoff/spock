@@ -1,6 +1,6 @@
 use crate::log;
 use crate::parser::Rule::func_call;
-use crate::parser::Types::ArraySuite;
+// use crate::parser::Types::ArraySuite;
 use crate::util::error;
 use pest::iterators::Pair;
 use pest::Parser;
@@ -15,27 +15,13 @@ pub struct ComputeParser;
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Types {
-    // BASIC INSTR
-    // STARTSTORE(i8),
-    // STOP(i8),
-    // RECALL(i8),
-    // CLEAR(i8),
-    //
-    // VAR_STORE(SmolStr, i8),
-    // VAR_REPLACE(SmolStr, i8),
-    // FUNC_CALL(SmolStr, Vec<i8>),
-    // FUNC_RETURN(i8),
-    //
-    // IF_BLOCK(i8, Vec<Types>),
-    // WHILE_BLOCK(Vec<Types>, Vec<Types>),
     Null,
     Integer(i64),
     Float(f64),
     String(SmolStr),
     Bool(bool),
-    Array(Vec<Types>),
-    ArrayParsed(Vec<Types>),
-    ArraySuite(Vec<Types>),
+    // ARRAY - IS_PARSED - IS_SUITE
+    Array(Vec<Types>, bool, bool),
     Or(Vec<Types>),
     And(Vec<Types>),
     Property(SmolStr, Vec<Types>),
@@ -123,7 +109,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                 suite.push(parse_expression(extra)[0].clone());
             }
 
-            output.push(ArraySuite(suite));
+            output.push(Types::Array(suite, false, true));
         }
         Rule::array => {
             let mut array: Vec<Vec<Types>> = Vec::new();
@@ -131,7 +117,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                 array.push(parse_expression(array_member));
             }
             recursive = false;
-            output.push(Types::ArrayParsed(
+            output.push(Types::Array(
                 array
                     .iter()
                     .map(|x| {
@@ -141,6 +127,8 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                         Types::Wrap(x.clone())
                     })
                     .collect(),
+                true,
+                false,
             ));
         }
         Rule::property => {

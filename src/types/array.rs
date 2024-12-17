@@ -10,7 +10,7 @@ pub fn array_ops(x: &[Types], output: &Types, current_operator: BasicOperator) -
             for _ in 0..value {
                 new_vec.append(&mut x.to_owned());
             }
-            Types::Array(new_vec)
+            Types::Array(new_vec, false, false)
         } else {
             error(
                 &format!(
@@ -45,24 +45,24 @@ macro_rules! array_props {
                 assert_args_number!("add", $args.len(), 1);
                 let mut new_vec = $arr.clone();
                 new_vec.push($args[0].clone());
-                $output = Types::Array(new_vec);
+                $output = Types::Array(new_vec, false, false);
             }
             "remove" => {
                 assert_args_number!("add", $args.len(), 1);
                 let mut new_vec = $arr.clone();
                 let index = new_vec.iter().position(|x| return *x == $args[0]).unwrap();
                 new_vec.remove(index);
-                $output = Types::Array(new_vec);
+                $output = Types::Array(new_vec, false, false);
             }
             "clear" => {
                 assert_args_number!("clear", $args.len(), 0);
-                $output = Types::Array(Vec::new());
+                $output = Types::Array(Vec::new(), false, false);
             }
             "reverse" => {
                 assert_args_number!("clear", $args.len(), 0);
                 let mut new_vec = $arr.clone();
                 new_vec.reverse();
-                $output = Types::Array(new_vec)
+                $output = Types::Array(new_vec, false, false)
             }
             "sort" => {
                 assert_args_number!("sort", $args.len(), 0);
@@ -89,7 +89,7 @@ macro_rules! array_props {
                         return core::cmp::Ordering::Equal;
                     }
                 });
-                $output = Types::Array(new_vec);
+                $output = Types::Array(new_vec, false, false);
             }
             "index" => {
                 assert_args_number!("index", $args.len(), 1);
@@ -106,9 +106,9 @@ macro_rules! array_props {
             "extend" => {
                 assert_args_number!("extend", $args.len(), 1);
                 let mut new_vec: Vec<Types> = $arr.clone();
-                if let Types::Array(x) = $args[0].clone() {
+                if let Types::Array(x, _, false) = $args[0].clone() {
                     new_vec.extend(x);
-                    $output = Types::Array(new_vec);
+                    $output = Types::Array(new_vec, false, false);
                 } else {
                     error(format!("{:?} is not a list", $args[0]).as_str(), "");
                 }
@@ -118,7 +118,7 @@ macro_rules! array_props {
                 let mut new_vec: Vec<Types> = $arr.clone();
                 if let Types::Integer(x) = $args[0] {
                     new_vec.insert(x as usize, $args[1].clone());
-                    $output = Types::Array(new_vec)
+                    $output = Types::Array(new_vec, false, false)
                 } else {
                     error(format!("{:?} is not a valid index", $args[0]).as_str(), "");
                 }
@@ -128,7 +128,7 @@ macro_rules! array_props {
                 let mut new_vec: Vec<Types> = $arr.clone();
                 if let Types::Integer(x) = $args[0] {
                     new_vec.remove(x as usize);
-                    $output = Types::Array(new_vec)
+                    $output = Types::Array(new_vec, false, false)
                 } else {
                     error(format!("{:?} is not a valid index", $args[0]).as_str(), "");
                 }

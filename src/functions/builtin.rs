@@ -52,7 +52,7 @@ pub fn builtin_functions(
                 Types::String(val) => {
                     return (Types::Integer(val.len() as i64), true);
                 }
-                Types::Array(val) => {
+                Types::Array(val, _, _) => {
                     return (Types::Integer(val.len() as i64), true);
                 }
                 _ => error(
@@ -141,7 +141,7 @@ pub fn builtin_functions(
                         for i in 0..lim {
                             vec.push(Types::Integer(i));
                         }
-                        return (Types::Array(vec), true);
+                        return (Types::Array(vec, false, false), true);
                 }, else {
                     error("Invalid range limit", "");
                 })
@@ -149,7 +149,7 @@ pub fn builtin_functions(
                 if_let!(likely, Types::Integer(lim), args[0], {
                     if_let!(Types::Integer(upplim), args[1], {
                         return (
-                            Types::Array((lim..upplim).map(Types::Integer).collect()),
+                            Types::Array((lim..upplim).map(Types::Integer).collect(), false, false),
                             true,
                         )
                     }, else {
@@ -170,7 +170,7 @@ pub fn builtin_functions(
                                 } else {
                                     (stop..start).step_by((-step) as usize)
                                 };
-                                return (Types::Array(range.map(Types::Integer).collect()), true)
+                                return (Types::Array(range.map(Types::Integer).collect(), false, false), true)
                             }
                         }, else {
                             error("Invalid range step", "");

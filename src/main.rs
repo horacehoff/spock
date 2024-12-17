@@ -25,7 +25,6 @@ use crate::builtin::builtin_functions;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-// use crate::parser::Types::{FUNC_CALL, FUNC_RETURN, VAR_REPLACE, VAR_STORE, WHILE_BLOCK};
 use crate::parser::{parse_code, BasicOperator, Types};
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
@@ -37,9 +36,7 @@ use gxhash::HashMap;
 use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
 use snmalloc_rs::SnMalloc;
 use std::fs;
-use std::fs::remove_dir_all;
 use std::io::Write as _;
-use std::path::Path;
 use std::time::Instant;
 use unroll::unroll_for_loops;
 
@@ -63,17 +60,16 @@ fn process_stack(
             .clone(),
         Types::Wrap(ref x) => process_stack(x, variables, functions),
         other => {
-            if matches!(
+            if !matches!(
                 other,
                 Types::FunctionCall(_, _)
                     | Types::NamespaceFunctionCall(_, _, _)
                     | Types::Priority(_)
-                    | Types::ArrayParsed(_)
-                    | Types::ArraySuite(_)
+                    | Types::Array(_, _, _)
             ) {
-                preprocess(variables, functions, other)
-            } else {
                 other.clone()
+            } else {
+                preprocess(variables, functions, other)
             }
         }
     };
@@ -92,8 +88,7 @@ fn process_stack(
                     Types::FunctionCall(_, _)
                         | Types::NamespaceFunctionCall(_, _, _)
                         | Types::Priority(_)
-                        | Types::ArrayParsed(_)
-                        | Types::ArraySuite(_)
+                        | Types::Array(_, _, _)
                 ) {
                     process = preprocess(variables, functions, other);
                     &process
@@ -108,7 +103,9 @@ fn process_stack(
             Types::Integer(ref x) => output = integer_ops(*x, &output, current_operator),
             Types::String(ref x) => output = string_ops(x, &output, current_operator),
             Types::Float(ref x) => output = float_ops(*x, &output, current_operator),
-            Types::Array(ref x) => output = array_ops(x, &output, current_operator),
+            Types::Array(ref x, ref is_parsed, ref is_suite) => {
+                output = array_ops(x, &output, current_operator)
+            }
             Types::Property(ref x, ref y) => {
                 let args: Vec<Types> = y
                     .iter()
@@ -118,7 +115,9 @@ fn process_stack(
                     Types::String(ref str) => string_props!(str, args, x, output),
                     Types::Float(num) => float_props!(num, args, x, output),
                     Types::Integer(num) => integer_props!(num, args, x, output),
-                    Types::Array(ref arr) => array_props!(arr, args, x, output),
+                    Types::Array(ref arr, ref is_parsed, ref is_suite) => {
+                        array_props!(arr, args, x, output)
+                    }
 
                     // OBJECTS
                     Types::File(ref filepath) => file_props!(filepath, args, x, output),
@@ -283,7 +282,7 @@ fn process_line_logic(
             }
             Types::Loop(ref x, ref y, ref z) => {
                 let loop_array = process_stack(y, variables, functions);
-                if let Types::Array(target_array) = loop_array {
+                if let Types::Array(target_array, false, false) = loop_array {
                     variables.insert(x.to_smolstr(), Types::Null);
                     for elem in target_array {
                         if let Some(value) = variables.get_mut(x) {
@@ -664,56 +663,56 @@ fn process_function(
 fn main() {
     let totaltime = Instant::now();
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.is_empty() {
-        println!(
-            "
-  ______   ______   .___  ___. .______    __    __  .___________. _______
- /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
-|  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
-|  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
-|  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
- \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
-\x1b[3mLive long and prosper!\x1b[0m\n- Spock
+    //     if args.is_empty() {
+    //         println!(
+    //             "
+    //   ______   ______   .___  ___. .______    __    __  .___________. _______
+    //  /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
+    // |  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
+    // |  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
+    // |  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
+    //  \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
+    // \x1b[3mLive long and prosper!\x1b[0m\n- Spock
+    //
+    // To run a file, run: `compute <file>`
+    // To get help, run `compute -h`
+    //         "
+    //         );
+    //         return;
+    //     } else if args == vec!["-h"] {
+    //         println!(
+    //             "
+    //   ______   ______   .___  ___. .______    __    __  .___________. _______
+    //  /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
+    // |  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
+    // |  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
+    // |  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
+    //  \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
+    // \x1b[3mHelp me, Obi-Wan Kenobi. You’re my only hope.\x1b[0m\n- Princess Leia
+    //
+    // compute [filename] [-c]
+    //
+    // positional arguments:
+    //   filename
+    //
+    // options:
+    //   -c, --clear-cache    Delete the cache folder
+    //         "
+    //         );
+    //         return;
+    //     } else if args.len() >= 2
+    //         && (&args[1] == "-c" || &args[1] == "--clear-cache")
+    //         && Path::new(".compute").exists()
+    //     {
+    //         remove_dir_all(Path::new(".compute")).unwrap_or_else(|_| {
+    //             error("Failed to delete the cache folder (.compute)", "");
+    //             std::process::exit(1)
+    //         });
+    //     }
+    //     let arg = args.first().unwrap();
 
-To run a file, run: `compute <file>`
-To get help, run `compute -h`
-        "
-        );
-        return;
-    } else if args == vec!["-h"] {
-        println!(
-            "
-  ______   ______   .___  ___. .______    __    __  .___________. _______
- /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
-|  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
-|  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
-|  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
- \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
-\x1b[3mHelp me, Obi-Wan Kenobi. You’re my only hope.\x1b[0m\n- Princess Leia
-
-compute [filename] [-c]
-
-positional arguments:
-  filename
-
-options:
-  -c, --clear-cache    Delete the cache folder
-        "
-        );
-        return;
-    } else if args.len() >= 2
-        && (&args[1] == "-c" || &args[1] == "--clear-cache")
-        && Path::new(".compute").exists()
-    {
-        remove_dir_all(Path::new(".compute")).unwrap_or_else(|_| {
-            error("Failed to delete the cache folder (.compute)", "");
-            std::process::exit(1)
-        });
-    }
-    let arg = args.first().unwrap();
-
-    let content = fs::read_to_string(arg).unwrap_or_else(|_| {
-        error(&format!("Unable to read file '{arg}'"), "");
+    let content = fs::read_to_string("example.compute").unwrap_or_else(|_| {
+        error(&format!("Unable to read file '{args:?}'"), "");
         std::process::exit(1)
     });
 

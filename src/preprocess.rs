@@ -63,7 +63,7 @@ pub fn preprocess(
                     } else {
                         "false".to_smolstr()
                     });
-                } else if let Types::Array(_) = &args[0] {
+                } else if let Types::Array(_, _, false) = &args[0] {
                     return Types::String(get_printable_form(&args[0]));
                 }
                 error(
@@ -129,7 +129,7 @@ pub fn preprocess(
             // execute content inside parentheses before all the other content in the second loop
             return process_stack(calc, variables, functions);
         }
-        Types::ArrayParsed(ref y) => {
+        Types::Array(ref y, true, false) => {
             // compute final value of arrays
             let mut new_array: Vec<Types> = Vec::new();
             for element in y {
@@ -139,14 +139,14 @@ pub fn preprocess(
                     functions,
                 ));
             }
-            return Types::Array(new_array);
+            return Types::Array(new_array, false, false);
         }
-        Types::ArraySuite(ref y) => {
+        Types::Array(ref y, false, true) => {
             // matches multiple arrays following one another => implies array indexing
             let arrays: &Vec<Types> = y;
             let target_array: Types = process_stack(&[arrays[0].clone()], variables, functions);
             // 1 - matches if the contents of the array have yet to be fully evaluated
-            if let Types::ArrayParsed(ref target_arr) = target_array {
+            if let Types::Array(ref target_arr, true, false) = target_array {
                 // compute the "final" value of the first/target array
                 let mut array = Vec::new();
                 for element in target_arr {
@@ -159,7 +159,7 @@ pub fn preprocess(
                 let mut output = Types::Null;
                 // iterate over every array following the first one => they are indexes
                 for target_index in arrays.iter().skip(1) {
-                    if let Types::ArrayParsed(ref target_index_arr) = target_index {
+                    if let Types::Array(ref target_index_arr, true, false) = target_index {
                         let mut index_array = Vec::new();
                         for element in target_index_arr {
                             index_array.push(process_stack(
@@ -175,7 +175,7 @@ pub fn preprocess(
                                     output = array[intg as usize].clone();
                                 } else {
                                     log!("{:?}OUTPUT", output);
-                                    if let Types::Array(sub_arr) = output.clone() {
+                                    if let Types::Array(sub_arr, _, false) = output.clone() {
                                         output = sub_arr[intg as usize].clone();
                                     } else if let Types::String(ref sub_str) = output.clone() {
                                         output = Types::String(
@@ -212,11 +212,11 @@ pub fn preprocess(
                     }
                 }
                 return output;
-            } else if let Types::Array(ref target_arr) = target_array {
+            } else if let Types::Array(ref target_arr, false, false) = target_array {
                 // 2 - matches if contents of target array have already been fully evaluated and the array only contains raw/basic values
                 let mut output = Types::Null;
                 for target_index in arrays.iter().skip(1) {
-                    if let Types::ArrayParsed(ref target_index_arr) = target_index {
+                    if let Types::Array(ref target_index_arr, true, false) = target_index {
                         let mut index_array = Vec::new();
                         for element in target_index_arr {
                             index_array.push(process_stack(
@@ -232,7 +232,7 @@ pub fn preprocess(
                                     output = target_arr[intg as usize].clone();
                                 } else {
                                     log!("{:?}OUTPUT", output);
-                                    if let Types::Array(ref sub_arr) = &output {
+                                    if let Types::Array(ref sub_arr, _, false) = &output {
                                         output = sub_arr[intg as usize].clone();
                                     } else if let Types::String(ref sub_str) = &output {
                                         output = Types::String(
@@ -273,7 +273,7 @@ pub fn preprocess(
                 // 3 - matches if "array" is a string => returns a letter
                 let mut output = Types::Null;
                 for target_index in arrays.iter().skip(1) {
-                    if let Types::ArrayParsed(ref target_index_arr) = target_index {
+                    if let Types::Array(ref target_index_arr, true, false) = target_index {
                         let mut index_array = Vec::new();
                         for element in target_index_arr {
                             index_array.push(process_stack(
@@ -298,7 +298,7 @@ pub fn preprocess(
                                             })
                                             .to_smolstr(),
                                     );
-                                } else if let Types::Array(ref sub_arr) = output.clone() {
+                                } else if let Types::Array(ref sub_arr, _, false) = output.clone() {
                                     output = sub_arr[intg as usize].clone();
                                 } else if let Types::String(ref sub_str) = output.clone() {
                                     output = Types::String(
