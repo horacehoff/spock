@@ -3,7 +3,7 @@ use crate::parser::{parse_code, Types};
 use crate::util::{error, get_printable_form};
 use crate::{
     assert_args_number, builtin_functions, error_msg, get_printable_type, log, process_function,
-    process_stack,
+    process_stack, split_vec_box,
 };
 use branches::likely;
 use gxhash::HashMap;
@@ -20,9 +20,9 @@ pub fn preprocess(
     match element {
         Types::FunctionCall(ref func_name, ref func_args) => {
             // replace function call by its result (return value)
-            let args: Vec<Types> = func_args
+            let args: Vec<Types> = split_vec_box(func_args, Types::Separator)
                 .iter()
-                .map(|arg| process_stack(std::slice::from_ref(arg), variables, &[]))
+                .map(|x| process_stack(x, variables, functions))
                 .collect();
             let matched = builtin_functions(func_name, &args);
             // check if function is a built-in function, else search it among user-defined functions

@@ -172,6 +172,50 @@ fn process_stack(
     output
 }
 
+fn split_vec<T: PartialEq>(input: Vec<T>, separator: T) -> Vec<Vec<T>> {
+    let mut result = Vec::with_capacity(input.len() / 2); // Pre-allocate capacity based on expected number of splits.
+    let mut current = Vec::new();
+
+    for item in input {
+        if item == separator {
+            if !current.is_empty() {
+                result.push(current);
+                current = Vec::new(); // Clear the current vector, don't reallocate.
+            }
+        } else {
+            current.push(item);
+        }
+    }
+
+    if !current.is_empty() {
+        result.push(current);
+    }
+
+    result
+}
+
+pub fn split_vec_box<T: PartialEq + Clone>(input: &Box<[T]>, separator: T) -> Vec<Vec<T>> {
+    let mut result = Vec::with_capacity(input.len() / 2); // Pre-allocate space for the result
+    let mut current = Vec::new();
+
+    for item in input.iter() {
+        if *item == separator {
+            if !current.is_empty() {
+                result.push(current);
+                current = Vec::new(); // Clear without reallocating
+            }
+        } else {
+            current.push(item.clone()); // Clone item to store owned value
+        }
+    }
+
+    if !current.is_empty() {
+        result.push(current);
+    }
+
+    result
+}
+
 #[inline(always)]
 fn process_line_logic(
     line_array: &[Types],
@@ -221,9 +265,9 @@ fn process_line_logic(
                 };
             }
             Types::FunctionCall(ref x, ref y) => {
-                let args: Vec<Types> = y
+                let args: Vec<Types> = split_vec_box(y, Types::Separator)
                     .iter()
-                    .map(|arg| process_stack(std::slice::from_ref(arg), variables, functions))
+                    .map(|x| process_stack(x, variables, functions))
                     .collect();
                 let (_, matched) = builtin_functions(x, &args);
                 if x == "executeline" && !matched {
@@ -752,7 +796,15 @@ fn main() {
     let functions: &[(SmolStr, &[SmolStr], &[Types])] = converted.as_slice();
 
     log!("PARSED IN: {:.2?}", now.elapsed());
-    // log!("MAIN\n{}", main_function.2.iter().map(|x| format!("{x:?}")).collect::<Vec<String>>().join("\n"));
+    log!(
+        "MAIN\n{}",
+        main_function
+            .2
+            .iter()
+            .map(|x| format!("{x:?}"))
+            .collect::<Vec<String>>()
+            .join("\n")
+    );
 
     let now = Instant::now();
 

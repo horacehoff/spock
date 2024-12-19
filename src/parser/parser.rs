@@ -22,43 +22,44 @@ pub enum Types {
     Bool(bool),
     // ARRAY - IS_PARSED - IS_SUITE
     Array(Vec<Types>, bool, bool),
-    Or(Vec<Types>),
-    And(Vec<Types>),
-    Property(SmolStr, Vec<Types>),
+    Or(Box<[Types]>),
+    And(Box<[Types]>),
+    Property(SmolStr, Box<[Types]>),
     // FunctionCall1(SmolStr, Vec<Types>) -- FunctionCall2(SmolStr, Vec<Vec<Types)
-    PropertyFunction(SmolStr, Vec<Types>, SmolStr, Vec<Types>),
+    PropertyFunction(SmolStr, Box<[Types]>, SmolStr, Box<[Types]>),
     VariableIdentifier(SmolStr),
-    FunctionCall(SmolStr, Vec<Types>),
-    FunctionPatternMatching(SmolStr, Vec<Types>),
-    NamespaceFunctionCall(Vec<SmolStr>, SmolStr, Vec<Types>),
-    FunctionReturn(Vec<Types>),
-    Priority(Vec<Types>),
+    FunctionCall(SmolStr, Box<[Types]>),
+    FunctionPatternMatching(SmolStr, Box<[Types]>),
+    NamespaceFunctionCall(Vec<SmolStr>, SmolStr, Box<[Types]>),
+    FunctionReturn(Box<[Types]>),
+    Priority(Box<[Types]>),
     Operation(BasicOperator),
     // NAME - VALUE - IS_REDECLARE
-    VariableDeclaration(SmolStr, Vec<Types>, bool),
+    VariableDeclaration(SmolStr, Box<[Types]>, bool),
     Condition(
         //Condition
-        Vec<Types>,
+        Box<[Types]>,
         // Code to execute if true
-        Vec<Types>,
+        Box<[Types]>,
         // For each else if/else block, (condition, code)
         Vec<(Vec<Types>, Vec<Types>)>,
     ),
     // Condition
     While(
-        Vec<Types>,
+        Box<[Types]>,
         // Code to execute while true
-        Vec<Types>,
+        Box<[Types]>,
     ),
     Loop(
         // Loop identifier
         SmolStr,
         // Array/string to iterate
-        Vec<Types>,
+        Box<[Types]>,
         // Code inside the loop to execute
-        Vec<Types>,
+        Box<[Types]>,
     ),
-    Wrap(Vec<Types>),
+    Wrap(Box<[Types]>),
+    Separator,
     Break,
 
     // Objects
@@ -83,6 +84,26 @@ pub enum BasicOperator {
     Or,
     Superior,
     SuperiorEqual,
+}
+
+pub fn wrap_to_flat(inp: Vec<Types>) -> Vec<Types> {
+    let mut new_vec: Vec<Types> = vec![];
+    for x in inp {
+        if let Types::Wrap(content) = x {
+            new_vec.extend(content);
+            new_vec.push(Types::Separator);
+        } else {
+            new_vec.push(x);
+            new_vec.push(Types::Separator);
+        }
+    }
+    if new_vec.first().unwrap().eq(&Types::Separator) {
+        new_vec.remove(0);
+    }
+    if new_vec.last().unwrap().eq(&Types::Separator) {
+        new_vec.pop();
+    }
+    new_vec
 }
 
 pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
@@ -124,7 +145,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                         if x.len() == 1 {
                             return x.first().unwrap().clone();
                         }
-                        Types::Wrap(x.clone())
+                        Types::Wrap(Box::from(x.clone()))
                     })
                     .collect(),
                 true,
@@ -163,7 +184,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                         if x.len() == 1 {
                             return x.first().unwrap().clone();
                         }
-                        Types::Wrap(x.clone())
+                        Types::Wrap(Box::from(x.clone()))
                     })
                     .collect(),
             ));
@@ -205,15 +226,17 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     .as_str()
                     .parse()
                     .unwrap(),
-                priority_calc
-                    .iter()
-                    .map(|x| {
-                        if x.len() == 1 {
-                            return x.first().unwrap().clone();
-                        }
-                        Types::Wrap(x.clone())
-                    })
-                    .collect(),
+                Box::from(wrap_to_flat(
+                    priority_calc
+                        .iter()
+                        .map(|x| {
+                            if x.len() == 1 {
+                                return x.first().unwrap().clone();
+                            }
+                            Types::Wrap(Box::from(x.clone()))
+                        })
+                        .collect(),
+                )),
             ));
         }
         Rule::func_call_namespace => {
@@ -259,7 +282,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             for priority_pair in pair.clone().into_inner() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
-            output.push(Types::Priority(priority_calc));
+            output.push(Types::Priority(Box::from(priority_calc)));
         }
         Rule::ops => match pair.as_str() {
             "+" => output.push(Types::Operation(BasicOperator::Add)),
@@ -293,7 +316,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     .trim()
                     .parse()
                     .unwrap(),
-                priority_calc,
+                Box::from(priority_calc),
                 false,
             ));
         }
@@ -312,7 +335,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     .trim()
                     .parse()
                     .unwrap(),
-                priority_calc,
+                Box::from(priority_calc),
                 true,
             ));
         }
@@ -322,7 +345,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             for priority_pair in pair.clone().into_inner() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
-            output.push(Types::And(priority_calc));
+            output.push(Types::And(Box::from(priority_calc)));
         }
         Rule::or_operation => {
             recursive = false;
@@ -330,7 +353,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             for priority_pair in pair.clone().into_inner() {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
-            output.push(Types::Or(priority_calc));
+            output.push(Types::Or(Box::from(priority_calc)));
         }
         _ => {}
     }
@@ -371,7 +394,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                                 if x.len() == 1 {
                                     return x.first().unwrap().clone();
                                 }
-                                Types::Wrap(x.clone())
+                                Types::Wrap(Box::from(x.clone()))
                             })
                             .collect();
                     let mut else_groups: Vec<(Vec<Types>, Vec<Types>)> = Vec::new();
@@ -388,7 +411,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                                         if x.len() == 1 {
                                             x.first().unwrap().clone()
                                         } else {
-                                            Types::Wrap(x.clone())
+                                            Types::Wrap(Box::from(x.clone()))
                                         }
                                     })
                                     .collect(),
@@ -403,17 +426,22 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                                         if x.len() == 1 {
                                             x.first().unwrap().clone()
                                         } else {
-                                            Types::Wrap(x.clone())
+                                            Types::Wrap(Box::from(x.clone()))
                                         }
                                     })
                                     .collect(),
                             ));
                         }
                     }
-                    line_instructions.push(Types::Condition(condition, first_code, else_groups));
+                    line_instructions.push(Types::Condition(
+                        Box::from(condition),
+                        Box::from(first_code),
+                        else_groups,
+                    ));
                 }
                 Rule::return_term => {
-                    line_instructions.push(Types::FunctionReturn(parse_expression(inside)));
+                    line_instructions
+                        .push(Types::FunctionReturn(Box::from(parse_expression(inside))));
                 }
                 Rule::break_term => {
                     line_instructions.push(Types::Break);
@@ -436,14 +464,14 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                         condition.append(&mut parse_expression(pair));
                     }
                     line_instructions.push(Types::While(
-                        condition,
+                        Box::from(condition),
                         parse_code(inside.into_inner().nth(1).unwrap().as_str())
                             .iter()
                             .map(|x| {
                                 if x.len() == 1 {
                                     return x.first().unwrap().clone();
                                 }
-                                Types::Wrap(x.clone())
+                                Types::Wrap(Box::from(x.clone()))
                             })
                             .collect(),
                     ));
@@ -458,10 +486,14 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                             if x.len() == 1 {
                                 return x.first().unwrap().clone();
                             }
-                            Types::Wrap(x.clone())
+                            Types::Wrap(Box::from(x.clone()))
                         })
                         .collect();
-                    line_instructions.push(Types::Loop(loop_var, target_array, loop_code));
+                    line_instructions.push(Types::Loop(
+                        loop_var,
+                        Box::from(target_array),
+                        Box::from(loop_code),
+                    ));
                 }
                 _ => {}
             }
