@@ -235,12 +235,15 @@ fn process_line_logic(
                     return x;
                 }
             }
-            Types::VariableDeclaration(ref x, ref y, ref is_redeclare) => {
-                if !is_redeclare {
-                    variables.insert(x.to_smolstr(), process_stack(y, variables, functions));
+            Types::VariableDeclaration(ref block) => {
+                if !block.is_declared {
+                    variables.insert(
+                        block.name.to_smolstr(),
+                        process_stack(&block.value, variables, functions),
+                    );
                 } else {
-                    let calculated = process_stack(y, variables, functions);
-                    if let Some(x) = variables.get_mut(x) {
+                    let calculated = process_stack(&block.value, variables, functions);
+                    if let Some(x) = variables.get_mut(&block.name) {
                         *x = calculated;
                     }
                 }
@@ -724,6 +727,7 @@ fn process_function(
 
 fn main() {
     dbg!(std::mem::size_of::<Types>());
+    dbg!(std::mem::size_of::<BasicOperator>());
     let totaltime = Instant::now();
     let args: Vec<String> = std::env::args().skip(1).collect();
     //     if args.is_empty() {

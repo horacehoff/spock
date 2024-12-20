@@ -53,6 +53,13 @@ pub struct NamespaceFunctionCallBlock {
     pub args: Box<[Types]>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VariableDeclarationBlock {
+    pub name: SmolStr,
+    pub value: Box<[Types]>,
+    pub is_declared: bool,
+}
+
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Types {
@@ -66,7 +73,6 @@ pub enum Types {
     Or(Box<[Types]>),
     And(Box<[Types]>),
     Property(SmolStr, Box<[Types]>),
-    // FunctionCall1(SmolStr, Vec<Types>) -- FunctionCall2(SmolStr, Vec<Vec<Types)
     PropertyFunction(Box<PropertyFunctionBlock>),
     VariableIdentifier(SmolStr),
     FunctionCall(SmolStr, Box<[Types]>),
@@ -76,7 +82,7 @@ pub enum Types {
     Priority(Box<[Types]>),
     Operation(BasicOperator),
     // NAME - VALUE - IS_REDECLARE
-    VariableDeclaration(SmolStr, Box<[Types]>, bool),
+    VariableDeclaration(Box<VariableDeclarationBlock>),
     Condition(Box<ConditionBlock>),
     // Condition
     While(Box<WhileBlock>),
@@ -338,18 +344,21 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             for priority_pair in pair.clone().into_inner().skip(1) {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
-            output.push(Types::VariableDeclaration(
-                pair.clone()
-                    .into_inner()
-                    .next()
-                    .unwrap()
-                    .as_str()
-                    .trim()
-                    .parse()
-                    .unwrap(),
-                Box::from(priority_calc),
-                false,
-            ));
+            output.push(Types::VariableDeclaration(Box::from(
+                VariableDeclarationBlock {
+                    name: pair
+                        .clone()
+                        .into_inner()
+                        .next()
+                        .unwrap()
+                        .as_str()
+                        .trim()
+                        .parse()
+                        .unwrap(),
+                    value: Box::from(priority_calc),
+                    is_declared: false,
+                },
+            )));
         }
         Rule::variableRedeclaration => {
             recursive = false;
@@ -357,18 +366,21 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             for priority_pair in pair.clone().into_inner().skip(1) {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
-            output.push(Types::VariableDeclaration(
-                pair.clone()
-                    .into_inner()
-                    .next()
-                    .unwrap()
-                    .as_str()
-                    .trim()
-                    .parse()
-                    .unwrap(),
-                Box::from(priority_calc),
-                true,
-            ));
+            output.push(Types::VariableDeclaration(Box::from(
+                VariableDeclarationBlock {
+                    name: pair
+                        .clone()
+                        .into_inner()
+                        .next()
+                        .unwrap()
+                        .as_str()
+                        .trim()
+                        .parse()
+                        .unwrap(),
+                    value: Box::from(priority_calc),
+                    is_declared: true,
+                },
+            )));
         }
         Rule::and_operation => {
             recursive = false;
