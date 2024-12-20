@@ -1,9 +1,9 @@
 use crate::namespaces::namespace_functions;
 use crate::parser::{parse_code, Types};
-use crate::util::{error, get_printable_form};
+use crate::util::{error, get_printable_form, split_vec_box};
 use crate::{
     assert_args_number, builtin_functions, error_msg, get_printable_type, log, process_function,
-    process_stack, split_vec_box,
+    process_stack,
 };
 use branches::likely;
 use gxhash::HashMap;

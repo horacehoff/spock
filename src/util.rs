@@ -225,3 +225,47 @@ pub fn get_printable_form(x: &Types) -> SmolStr {
         }
     }
 }
+
+pub fn split_vec<T: PartialEq>(input: Vec<T>, separator: T) -> Vec<Vec<T>> {
+    let mut result = Vec::with_capacity(input.len() / 2); // Pre-allocate capacity based on expected number of splits.
+    let mut current = Vec::new();
+
+    for item in input {
+        if item.eq(&separator) {
+            if !current.is_empty() {
+                result.push(current);
+                current = Vec::new(); // Clear the current vector, don't reallocate.
+            }
+        } else {
+            current.push(item);
+        }
+    }
+
+    if !current.is_empty() {
+        result.push(current);
+    }
+
+    result
+}
+
+pub fn split_vec_box<T: PartialEq + Clone>(input: &Box<[T]>, separator: T) -> Vec<Vec<T>> {
+    let mut result = Vec::with_capacity(input.len() / 2); // Pre-allocate space for the result
+    let mut current = Vec::new();
+
+    for item in input.iter() {
+        if *item == separator {
+            if !current.is_empty() {
+                result.push(current);
+                current = Vec::new(); // Clear without reallocating
+            }
+        } else {
+            current.push(item.clone()); // Clone item to store owned value
+        }
+    }
+
+    if !current.is_empty() {
+        result.push(current);
+    }
+
+    result
+}
