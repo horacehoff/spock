@@ -60,6 +60,12 @@ pub struct VariableDeclarationBlock {
     pub is_declared: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FunctionPropertyCallBlock {
+    pub name: SmolStr,
+    pub args: Box<[Types]>,
+}
+
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Types {
@@ -72,10 +78,10 @@ pub enum Types {
     Array(Vec<Types>, bool, bool),
     Or(Box<[Types]>),
     And(Box<[Types]>),
-    Property(SmolStr, Box<[Types]>),
+    Property(Box<FunctionPropertyCallBlock>),
     PropertyFunction(Box<PropertyFunctionBlock>),
     VariableIdentifier(SmolStr),
-    FunctionCall(SmolStr, Box<[Types]>),
+    FunctionCall(Box<FunctionPropertyCallBlock>),
     // FunctionPatternMatching(SmolStr, Box<[Types]>),
     NamespaceFunctionCall(Box<NamespaceFunctionCallBlock>),
     FunctionReturn(Box<[Types]>),
@@ -200,8 +206,9 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     priority_calc.push(parse_expression(arg_pair));
                 }
             }
-            output.push(Types::Property(
-                pair.clone()
+            output.push(Types::Property(Box::from(FunctionPropertyCallBlock {
+                name: pair
+                    .clone()
                     .into_inner()
                     .next()
                     .unwrap()
@@ -211,7 +218,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     .as_str()
                     .trim_start_matches('.')
                     .to_smolstr(),
-                Box::from(wrap_to_flat(
+                args: Box::from(wrap_to_flat(
                     priority_calc
                         .iter()
                         .map(|x| {
@@ -222,24 +229,24 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                         })
                         .collect(),
                 )),
-            ));
+            })));
         }
         Rule::property_function => {
-            if let Types::FunctionCall(x, y) =
+            if let Types::FunctionCall(ref block1) =
                 parse_expression(pair.clone().into_inner().next().unwrap())
                     .first()
                     .unwrap()
             {
-                if let Types::FunctionCall(a, b) =
+                if let Types::FunctionCall(ref block2) =
                     parse_expression(pair.clone().into_inner().nth(1).unwrap())
                         .first()
                         .unwrap()
                 {
                     output.push(Types::PropertyFunction(Box::from(PropertyFunctionBlock {
-                        func1_name: x.clone(),
-                        func1_args: y.clone(),
-                        func2_name: a.clone(),
-                        func2_args: b.clone(),
+                        func1_name: block1.name.to_smolstr(),
+                        func1_args: block1.args.clone(),
+                        func2_name: block2.name.to_smolstr(),
+                        func2_args: block2.args.clone(),
                     })))
                 }
             }
@@ -253,15 +260,16 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     priority_calc.push(parse_expression(arg_pair));
                 }
             }
-            output.push(Types::FunctionCall(
-                pair.clone()
+            output.push(Types::FunctionCall(Box::from(FunctionPropertyCallBlock {
+                name: pair
+                    .clone()
                     .into_inner()
                     .next()
                     .unwrap()
                     .as_str()
                     .parse()
                     .unwrap(),
-                Box::from(wrap_to_flat(
+                args: Box::from(wrap_to_flat(
                     priority_calc
                         .iter()
                         .map(|x| {
@@ -272,7 +280,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                         })
                         .collect(),
                 )),
-            ));
+            })));
         }
         Rule::func_call_namespace => {
             recursive = false;
@@ -285,12 +293,12 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                 namespaces.push(namespace.as_str().to_smolstr());
             }
             log!("{:?}", namespaces);
-            if let Types::FunctionCall(x, y) = other_func_call {
+            if let Types::FunctionCall(ref block) = other_func_call {
                 output.push(Types::NamespaceFunctionCall(Box::from(
                     NamespaceFunctionCallBlock {
                         namespace: Box::from(namespaces),
-                        name: x.clone(),
-                        args: y.clone(),
+                        name: block.name.to_smolstr(),
+                        args: block.args.clone(),
                     },
                 )));
             } else {

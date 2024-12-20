@@ -18,23 +18,23 @@ pub fn preprocess(
 ) -> Types {
     // println!("ELEM{:?}", element);
     match element {
-        Types::FunctionCall(ref func_name, ref func_args) => {
+        Types::FunctionCall(ref block) => {
             // replace function call by its result (return value)
-            let args: Vec<Types> = split_vec_box(func_args, Types::Separator)
+            let args: Vec<Types> = split_vec_box(&block.args, Types::Separator)
                 .iter()
                 .map(|x| process_stack(x, variables, functions))
                 .collect();
-            let matched = builtin_functions(func_name, &args);
+            let matched = builtin_functions(&block.name, &args);
             // check if function is a built-in function, else search it among user-defined functions
             if matched.1 {
                 return matched.0;
-            } else if func_name == "executeline" {
+            } else if block.name == "executeline" {
                 assert_args_number!("executeline", args.len(), 1);
                 if let Types::String(line) = &args[0] {
                     return process_stack(&parse_code(line)[0], variables, functions);
                 }
                 error(&format!("Cannot execute {:?}", &args[0]), "");
-            } else if func_name == "int" {
+            } else if block.name == "int" {
                 assert_args_number!("int", args.len(), 1);
                 if let Types::String(str) = &args[0] {
                     return Types::Integer(str.parse::<i64>().unwrap_or_else(|_| {
@@ -51,7 +51,7 @@ pub fn preprocess(
                     ),
                     "",
                 );
-            } else if func_name == "str" {
+            } else if block.name == "str" {
                 assert_args_number!("str", args.len(), 1);
                 if let Types::Integer(int) = &args[0] {
                     return Types::String(int.to_smolstr());
@@ -70,7 +70,7 @@ pub fn preprocess(
                     &format!("Cannot convert {} to String", get_printable_type!(&args[0])),
                     "",
                 );
-            } else if func_name == "float" {
+            } else if block.name == "float" {
                 assert_args_number!("float", args.len(), 1);
                 if let Types::String(str) = &args[0] {
                     return Types::Float(str.parse::<f64>().unwrap_or_else(|_| {
@@ -88,12 +88,12 @@ pub fn preprocess(
 
             let target_function: &(SmolStr, &[SmolStr], &[Types]) = functions
                 .iter()
-                .find(|func| func.0 == *func_name)
+                .find(|func| func.0 == *block.name)
                 .unwrap_or_else(|| {
-                    error(&format!("Unknown function '{func_name}'"), "");
+                    error(&format!("Unknown function '{}'", block.name), "");
                     std::process::exit(1)
                 });
-            assert_args_number!(&func_name, args.len(), target_function.1.len());
+            assert_args_number!(block.name, args.len(), target_function.1.len());
             let mut target_args: HashMap<SmolStr, Types> = target_function
                 .1
                 .iter()

@@ -25,7 +25,7 @@ use crate::builtin::builtin_functions;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-use crate::parser::{parse_code, BasicOperator, Types};
+use crate::parser::{parse_code, BasicOperator, FunctionPropertyCallBlock, Types};
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::{string_ops, to_title_case};
@@ -62,7 +62,7 @@ fn process_stack(
         other => {
             if !matches!(
                 other,
-                Types::FunctionCall(_, _)
+                Types::FunctionCall(_)
                     | Types::NamespaceFunctionCall(_)
                     | Types::Priority(_)
                     | Types::Array(_, _, _)
@@ -85,7 +85,7 @@ fn process_stack(
             other => {
                 if matches!(
                     other,
-                    Types::FunctionCall(_, _)
+                    Types::FunctionCall(_)
                         | Types::NamespaceFunctionCall(_)
                         | Types::Priority(_)
                         | Types::Array(_, _, _)
@@ -106,29 +106,30 @@ fn process_stack(
             Types::Array(ref x, ref is_parsed, ref is_suite) => {
                 output = array_ops(x, &output, current_operator)
             }
-            Types::Property(ref x, ref y) => {
+            Types::Property(ref block) => {
                 // let args: Vec<Types> = y
                 //     .iter()
                 //     .map(|arg| process_stack(std::slice::from_ref(arg), variables, functions))
                 //     .collect();
-                let args: Vec<Types> = split_vec_box(y, Types::Separator)
+                let args: Vec<Types> = split_vec_box(&block.args, Types::Separator)
                     .iter()
                     .map(|w| process_stack(w, variables, functions))
                     .collect();
-                println!("ARGS {args:?}");
+                println!("ARGS {:?}", block.args);
                 match output {
-                    Types::String(ref str) => string_props!(str, args, x, output),
-                    Types::Float(num) => float_props!(num, args, x, output),
-                    Types::Integer(num) => integer_props!(num, args, x, output),
+                    Types::String(ref str) => string_props!(str, args, block.name, output),
+                    Types::Float(num) => float_props!(num, args, block.name, output),
+                    Types::Integer(num) => integer_props!(num, args, block.name, output),
                     Types::Array(ref arr, ref is_parsed, ref is_suite) => {
-                        array_props!(arr, args, x, output)
+                        array_props!(arr, args, block.name, output)
                     }
 
                     // OBJECTS
-                    Types::File(ref filepath) => file_props!(filepath, args, x, output),
+                    Types::File(ref filepath) => file_props!(filepath, args, block.name, output),
                     _ => error(
                         &format!(
-                            "Unknown function '{x}' for object {}",
+                            "Unknown function '{}' for object {}",
+                            block.name,
                             get_printable_type!(output)
                         ),
                         "",
@@ -270,13 +271,13 @@ fn process_line_logic(
                     );
                 };
             }
-            Types::FunctionCall(ref x, ref y) => {
-                let args: Vec<Types> = split_vec_box(y, Types::Separator)
+            Types::FunctionCall(ref block) => {
+                let args: Vec<Types> = split_vec_box(&block.args, Types::Separator)
                     .iter()
                     .map(|x| process_stack(x, variables, functions))
                     .collect();
-                let (_, matched) = builtin_functions(x, &args);
-                if x == "executeline" && !matched {
+                let (_, matched) = builtin_functions(&block.name, &args);
+                if block.name == "executeline" && !matched {
                     assert_args_number!("executeline", args.len(), 1_usize);
                     if_let!(likely, Types::String(line), &args[0], {
                         process_stack(&parse_code(line)[0], variables, functions);
@@ -286,12 +287,12 @@ fn process_line_logic(
                 } else if !matched {
                     let target_function: &(SmolStr, &[SmolStr], &[Types]) = functions
                         .iter()
-                        .find(|func| func.0 == *x)
+                        .find(|func| func.0 == *block.name)
                         .unwrap_or_else(|| {
-                            error(&format!("Unknown function '{x}'"), "");
+                            error(&format!("Unknown function '{}'", block.name), "");
                             std::process::exit(1)
                         });
-                    assert_args_number!(&x, args.len(), target_function.1.len());
+                    assert_args_number!(block.name, args.len(), target_function.1.len());
                     let mut target_args: HashMap<SmolStr, Types> = target_function
                         .1
                         .iter()
@@ -304,17 +305,20 @@ fn process_line_logic(
             }
             Types::PropertyFunction(ref block) => {
                 let result = process_line_logic(
-                    &[Types::FunctionCall(
-                        block.func1_name.to_smolstr(),
-                        block.func1_args.clone(),
-                    )],
+                    &[Types::FunctionCall(Box::from(FunctionPropertyCallBlock {
+                        name: block.func1_name.to_smolstr(),
+                        args: block.func1_args.clone(),
+                    }))],
                     variables,
                     functions,
                 );
                 return process_stack(
                     &[
                         result,
-                        Types::Property(block.func2_name.to_smolstr(), block.func2_args.clone()),
+                        Types::Property(Box::from(FunctionPropertyCallBlock {
+                            name: block.func2_name.to_smolstr(),
+                            args: block.func2_args.clone(),
+                        })),
                     ],
                     variables,
                     functions,
