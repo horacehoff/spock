@@ -12,6 +12,36 @@ use smol_str::{SmolStr, ToSmolStr};
 #[grammar = "parser/parser_grammar.pest"]
 pub struct ComputeParser;
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ConditionBlock {
+    pub condition: Box<[Types]>,
+    // Code to execute if true
+    pub code: Box<[Types]>,
+    // For each else if/else block, (condition, code)
+    pub else_blocks: Box<[(Box<[Types]>, Box<[Types]>)]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LoopBlock {
+    // Loop identifier
+    pub id: SmolStr,
+    // Array/string to iterate
+    pub arr: Box<[Types]>,
+    // Code inside the loop to execute
+    pub code: Box<[Types]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WhileBlock {}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PropertyFunctionBlock {
+    pub func1_name: SmolStr,
+    pub func1_args: Box<[Types]>,
+    pub func2_name: SmolStr,
+    pub func2_args: Box<[Types]>,
+}
+
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Types {
@@ -26,7 +56,7 @@ pub enum Types {
     And(Box<[Types]>),
     Property(SmolStr, Box<[Types]>),
     // FunctionCall1(SmolStr, Vec<Types>) -- FunctionCall2(SmolStr, Vec<Vec<Types)
-    PropertyFunction(SmolStr, Box<[Types]>, SmolStr, Box<[Types]>),
+    PropertyFunction(Box<PropertyFunctionBlock>),
     VariableIdentifier(SmolStr),
     FunctionCall(SmolStr, Box<[Types]>),
     FunctionPatternMatching(SmolStr, Box<[Types]>),
@@ -36,28 +66,14 @@ pub enum Types {
     Operation(BasicOperator),
     // NAME - VALUE - IS_REDECLARE
     VariableDeclaration(SmolStr, Box<[Types]>, bool),
-    Condition(
-        //Condition
-        Box<[Types]>,
-        // Code to execute if true
-        Box<[Types]>,
-        // For each else if/else block, (condition, code)
-        Box<[(Box<[Types]>, Box<[Types]>)]>,
-    ),
+    Condition(Box<ConditionBlock>),
     // Condition
     While(
         Box<[Types]>,
         // Code to execute while true
         Box<[Types]>,
     ),
-    Loop(
-        // Loop identifier
-        SmolStr,
-        // Array/string to iterate
-        Box<[Types]>,
-        // Code inside the loop to execute
-        Box<[Types]>,
-    ),
+    Loop(Box<LoopBlock>),
     Wrap(Box<[Types]>),
     Separator,
     Break,
@@ -206,12 +222,12 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                         .first()
                         .unwrap()
                 {
-                    output.push(Types::PropertyFunction(
-                        x.clone(),
-                        y.clone(),
-                        a.clone(),
-                        b.clone(),
-                    ))
+                    output.push(Types::PropertyFunction(Box::from(PropertyFunctionBlock {
+                        func1_name: x.clone(),
+                        func1_args: y.clone(),
+                        func2_name: a.clone(),
+                        func2_args: b.clone(),
+                    })))
                 }
             }
             recursive = false;
@@ -441,11 +457,11 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                             ));
                         }
                     }
-                    line_instructions.push(Types::Condition(
-                        Box::from(condition),
-                        Box::from(first_code),
-                        Box::from(else_groups),
-                    ));
+                    line_instructions.push(Types::Condition(Box::from(ConditionBlock {
+                        condition: Box::from(condition),
+                        code: Box::from(first_code),
+                        else_blocks: Box::from(else_groups),
+                    })));
                 }
                 Rule::return_term => {
                     line_instructions
@@ -497,11 +513,11 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                             Types::Wrap(Box::from(x.clone()))
                         })
                         .collect();
-                    line_instructions.push(Types::Loop(
-                        loop_var,
-                        Box::from(target_array),
-                        Box::from(loop_code),
-                    ));
+                    line_instructions.push(Types::Loop(Box::from(LoopBlock {
+                        id: loop_var,
+                        arr: Box::from(target_array),
+                        code: Box::from(loop_code),
+                    })));
                 }
                 _ => {}
             }

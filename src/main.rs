@@ -295,21 +295,28 @@ fn process_line_logic(
                     process_function(target_function.2, &mut target_args, functions);
                 }
             }
-            Types::PropertyFunction(ref a, ref b, ref c, ref d) => {
+            Types::PropertyFunction(ref block) => {
                 let result = process_line_logic(
-                    &[Types::FunctionCall(a.to_smolstr(), b.clone())],
+                    &[Types::FunctionCall(
+                        block.func1_name.to_smolstr(),
+                        block.func1_args.clone(),
+                    )],
                     variables,
                     functions,
                 );
                 return process_stack(
-                    &[result, Types::Property(c.to_smolstr(), d.clone())],
+                    &[
+                        result,
+                        Types::Property(block.func2_name.to_smolstr(), block.func2_args.clone()),
+                    ],
                     variables,
                     functions,
                 );
             }
-            Types::Condition(ref x, ref y, ref z) => {
-                if let Types::Bool(true) = process_stack(x, variables, functions) {
-                    let out = process_line_logic(y, variables, functions);
+            Types::Condition(ref block) => {
+                // let data = block;
+                if let Types::Bool(true) = process_stack(&block.condition, variables, functions) {
+                    let out = process_line_logic(&block.code, variables, functions);
                     if Types::Null != out {
                         // if out != Types::Break {
                         return out;
@@ -317,7 +324,7 @@ fn process_line_logic(
                         // error("Cannot break in a conditional statement","Remove the \"break\" statement");
                     }
                 } else {
-                    for else_block in z {
+                    for else_block in &block.else_blocks {
                         if else_block.0.is_empty()
                             || process_stack(&else_block.0, variables, functions)
                                 == Types::Bool(true)
@@ -330,42 +337,42 @@ fn process_line_logic(
                     }
                 }
             }
-            Types::Loop(ref x, ref y, ref z) => {
-                let loop_array = process_stack(y, variables, functions);
+            Types::Loop(ref block) => {
+                let loop_array = process_stack(&block.arr, variables, functions);
                 if let Types::Array(target_array, false, false) = loop_array {
-                    variables.insert(x.to_smolstr(), Types::Null);
+                    variables.insert(block.id.to_smolstr(), Types::Null);
                     for elem in target_array {
-                        if let Some(value) = variables.get_mut(x) {
+                        if let Some(value) = variables.get_mut(&block.id) {
                             *value = elem;
                         }
 
-                        let out: Types = process_line_logic(z, variables, functions);
+                        let out: Types = process_line_logic(&block.code, variables, functions);
                         if out != Types::Null {
-                            variables.remove(x);
+                            variables.remove(&block.id);
                             if out == Types::Break {
                                 break;
                             }
                             return out;
                         }
                     }
-                    variables.remove(x);
+                    variables.remove(&block.id);
                 } else if let Types::String(ref target_string) = loop_array {
-                    variables.insert(x.to_smolstr(), Types::Null);
+                    variables.insert(block.id.to_smolstr(), Types::Null);
                     for elem in target_string.chars() {
-                        if let Some(value) = variables.get_mut(x) {
+                        if let Some(value) = variables.get_mut(&block.id) {
                             *value = Types::String(elem.to_smolstr());
                         }
 
-                        let out: Types = process_line_logic(z, variables, functions);
+                        let out: Types = process_line_logic(&block.code, variables, functions);
                         if out != Types::Null {
-                            variables.remove(x);
+                            variables.remove(&block.id);
                             if out == Types::Break {
                                 break;
                             }
                             return out;
                         }
                     }
-                    variables.remove(x);
+                    variables.remove(&block.id);
                 }
             }
             Types::While(ref x, ref y) => {
@@ -711,6 +718,7 @@ fn process_function(
 }
 
 fn main() {
+    dbg!(std::mem::size_of::<Types>());
     let totaltime = Instant::now();
     let args: Vec<String> = std::env::args().skip(1).collect();
     //     if args.is_empty() {

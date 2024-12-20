@@ -21,7 +21,4 @@ while count < limit {
     count = count + 1;
 }
 print("Final result: ".uppercase()+str(result));
-let x = [0];
-x = x.insert(0, 1+1);
-print(x);
 }
