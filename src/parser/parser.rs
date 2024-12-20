@@ -32,7 +32,11 @@ pub struct LoopBlock {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WhileBlock {}
+pub struct WhileBlock {
+    pub condition: Box<[Types]>,
+    // Code to execute while true
+    pub code: Box<[Types]>,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PropertyFunctionBlock {
@@ -68,11 +72,7 @@ pub enum Types {
     VariableDeclaration(SmolStr, Box<[Types]>, bool),
     Condition(Box<ConditionBlock>),
     // Condition
-    While(
-        Box<[Types]>,
-        // Code to execute while true
-        Box<[Types]>,
-    ),
+    While(Box<WhileBlock>),
     Loop(Box<LoopBlock>),
     Wrap(Box<[Types]>),
     Separator,
@@ -487,9 +487,9 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                     {
                         condition.append(&mut parse_expression(pair));
                     }
-                    line_instructions.push(Types::While(
-                        Box::from(condition),
-                        parse_code(inside.into_inner().nth(1).unwrap().as_str())
+                    line_instructions.push(Types::While(Box::from(WhileBlock {
+                        condition: Box::from(condition),
+                        code: parse_code(inside.into_inner().nth(1).unwrap().as_str())
                             .iter()
                             .map(|x| {
                                 if x.len() == 1 {
@@ -498,7 +498,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                                 Types::Wrap(Box::from(x.clone()))
                             })
                             .collect(),
-                    ));
+                    })));
                 }
                 Rule::loop_statement => {
                     let mut inner = inside.into_inner();

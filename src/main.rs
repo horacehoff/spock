@@ -375,9 +375,10 @@ fn process_line_logic(
                     variables.remove(&block.id);
                 }
             }
-            Types::While(ref x, ref y) => {
-                while let Types::Bool(true) = process_stack(x, variables, functions) {
-                    let out = process_line_logic(y, variables, functions);
+            Types::While(ref block) => {
+                while let Types::Bool(true) = process_stack(&block.condition, variables, functions)
+                {
+                    let out = process_line_logic(&block.code, variables, functions);
                     if out != Types::Null {
                         if out == Types::Break {
                             break;
