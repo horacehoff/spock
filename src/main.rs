@@ -111,6 +111,8 @@ fn process_stack(
                     .iter()
                     .map(|arg| process_stack(std::slice::from_ref(arg), variables, functions))
                     .collect();
+                // let args:Vec<Types> = split_vec_box(y, Types::Separator).iter().map(|w| process_stack(w, variables, functions)).collect();
+                println!("ARGS {args:?}");
                 match output {
                     Types::String(ref str) => string_props!(str, args, x, output),
                     Types::Float(num) => float_props!(num, args, x, output),
@@ -166,7 +168,7 @@ fn process_stack(
                     }
                 }
             }
-            _ => error(&format!("TODO {element:?}"), ""),
+            _ => error(&format!("TODO STACK {element:?}"), ""),
         }
     }
     output
@@ -386,7 +388,7 @@ fn process_line_logic(
             Types::Break => {
                 return Types::Break;
             }
-            _ => error(&format!("TODO {line:?}"), ""),
+            _ => error(&format!("TODO LINE LOGIC {line:?}"), ""),
         }
     }
     Types::Null

@@ -11,15 +11,19 @@ let count = 0;
 //     count = count+1;
 // }
 // print(count);
-let limit = 1000000;
-let result = 1;
-while count < limit {
-    result = result * 2;
-    if result > 1000000 {
-        result = result % 1000000;
-    }
-    count = count + 1;
-}
-print("Final result: ".uppercase()+str(result));
+// let limit = 1000000;
+// let result = 1;
+// while count < limit {
+//     result = result * 2;
+//     if result > 1000000 {
+//         result = result % 1000000;
+//     }
+//     count = count + 1;
+// }
+// print("Final result: ".uppercase()+str(result));
 print(test(20+10));
+
+let test = [0];
+test = test.add(2);
+print(test);
 }

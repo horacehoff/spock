@@ -97,11 +97,15 @@ pub fn wrap_to_flat(inp: Vec<Types>) -> Vec<Types> {
             new_vec.push(Types::Separator);
         }
     }
-    if new_vec.first().unwrap().eq(&Types::Separator) {
-        new_vec.remove(0);
-    }
-    if new_vec.last().unwrap().eq(&Types::Separator) {
-        new_vec.pop();
+    if new_vec.len() > 0 {
+        if new_vec.first().unwrap().eq(&Types::Separator) {
+            new_vec.remove(0);
+        }
+        if new_vec.len() > 0 {
+            if new_vec.last().unwrap().eq(&Types::Separator) {
+                new_vec.pop();
+            }
+        }
     }
     new_vec
 }
@@ -178,15 +182,17 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     .as_str()
                     .trim_start_matches('.')
                     .to_smolstr(),
-                priority_calc
-                    .iter()
-                    .map(|x| {
-                        if x.len() == 1 {
-                            return x.first().unwrap().clone();
-                        }
-                        Types::Wrap(Box::from(x.clone()))
-                    })
-                    .collect(),
+                Box::from(wrap_to_flat(
+                    priority_calc
+                        .iter()
+                        .map(|x| {
+                            if x.len() == 1 {
+                                return x.first().unwrap().clone();
+                            }
+                            Types::Wrap(Box::from(x.clone()))
+                        })
+                        .collect(),
+                )),
             ));
         }
         Rule::property_function => {

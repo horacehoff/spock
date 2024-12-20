@@ -27,7 +27,8 @@ func_call_namespace = {(identifier ~ "::")+ ~ func_call}
 
 array = {"[" ~ expression? ~ ("," ~ expression)* ~ "]"}
 
-array_suite = {(array | integer | float | string | bool |property| property_function | func_call_namespace | func_call | priority | identifier) ~ array+}
+
+array_suite = {(array | integer | float | string | bool | property| property_function | func_call_namespace | func_call | priority | identifier) ~ array+}
 
 term = _{ array_suite | array | integer | float | string | bool |property| property_function | func_call_namespace | func_call | priority | identifier }
 
