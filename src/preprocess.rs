@@ -104,17 +104,10 @@ pub fn preprocess(
         }
         Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
             // execute "namespace functions"
-            let args: Vec<Types> = z
+            let args: Vec<Types> = split_vec_box(z, Types::Separator)
                 .iter()
-                .map(|arg| {
-                    if let Types::Wrap(x) = &arg {
-                        process_stack(x, variables, &[])
-                    } else {
-                        process_stack(std::slice::from_ref(arg), variables, &[])
-                    }
-                })
+                .map(|w| process_stack(w, variables, functions))
                 .collect();
-
             let namespace_funcs = namespace_functions(namespace, y, &args);
             if likely(namespace_funcs.1) {
                 return namespace_funcs.0;

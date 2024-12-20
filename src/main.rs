@@ -107,11 +107,14 @@ fn process_stack(
                 output = array_ops(x, &output, current_operator)
             }
             Types::Property(ref x, ref y) => {
-                let args: Vec<Types> = y
+                // let args: Vec<Types> = y
+                //     .iter()
+                //     .map(|arg| process_stack(std::slice::from_ref(arg), variables, functions))
+                //     .collect();
+                let args: Vec<Types> = split_vec_box(y, Types::Separator)
                     .iter()
-                    .map(|arg| process_stack(std::slice::from_ref(arg), variables, functions))
+                    .map(|w| process_stack(w, variables, functions))
                     .collect();
-                // let args:Vec<Types> = split_vec_box(y, Types::Separator).iter().map(|w| process_stack(w, variables, functions)).collect();
                 println!("ARGS {args:?}");
                 match output {
                     Types::String(ref str) => string_props!(str, args, x, output),
@@ -249,15 +252,9 @@ fn process_line_logic(
             //     }
             // }
             Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
-                let args: Vec<Types> = z
+                let args: Vec<Types> = split_vec_box(z, Types::Separator)
                     .iter()
-                    .map(|arg| {
-                        if let Types::Wrap(x) = &arg {
-                            process_stack(x, variables, functions)
-                        } else {
-                            process_stack(std::slice::from_ref(arg), variables, functions)
-                        }
-                    })
+                    .map(|w| process_stack(w, variables, functions))
                     .collect();
                 if unlikely(!namespace_functions(namespace, y, &args).1) {
                     error(
