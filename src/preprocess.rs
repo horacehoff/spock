@@ -102,18 +102,22 @@ pub fn preprocess(
                 .collect();
             return process_function(target_function.2, &mut target_args, functions);
         }
-        Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
+        // Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
+        Types::NamespaceFunctionCall(ref block) => {
             // execute "namespace functions"
-            let args: Vec<Types> = split_vec_box(z, Types::Separator)
+            let args: Vec<Types> = split_vec_box(&block.args, Types::Separator)
                 .iter()
                 .map(|w| process_stack(w, variables, functions))
                 .collect();
-            let namespace_funcs = namespace_functions(namespace, y, &args);
+            let namespace_funcs = namespace_functions(&block.namespace, &block.name, &args);
             if likely(namespace_funcs.1) {
                 return namespace_funcs.0;
             }
             error(
-                &format!("Unknown function {}", namespace.join(".") + "." + y),
+                &format!(
+                    "Unknown function {}",
+                    block.namespace.join(".") + "." + &block.name
+                ),
                 "",
             );
         }

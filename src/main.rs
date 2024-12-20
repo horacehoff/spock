@@ -63,7 +63,7 @@ fn process_stack(
             if !matches!(
                 other,
                 Types::FunctionCall(_, _)
-                    | Types::NamespaceFunctionCall(_, _, _)
+                    | Types::NamespaceFunctionCall(_)
                     | Types::Priority(_)
                     | Types::Array(_, _, _)
             ) {
@@ -86,7 +86,7 @@ fn process_stack(
                 if matches!(
                     other,
                     Types::FunctionCall(_, _)
-                        | Types::NamespaceFunctionCall(_, _, _)
+                        | Types::NamespaceFunctionCall(_)
                         | Types::Priority(_)
                         | Types::Array(_, _, _)
                 ) {
@@ -251,14 +251,18 @@ fn process_line_logic(
             //         *x = calculated;
             //     }
             // }
-            Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
-                let args: Vec<Types> = split_vec_box(z, Types::Separator)
+            // Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
+            Types::NamespaceFunctionCall(ref block) => {
+                let args: Vec<Types> = split_vec_box(&block.args, Types::Separator)
                     .iter()
                     .map(|w| process_stack(w, variables, functions))
                     .collect();
-                if unlikely(!namespace_functions(namespace, y, &args).1) {
+                if unlikely(!namespace_functions(&block.namespace, &block.name, &args).1) {
                     error(
-                        &format!("Unknown function '{}'", namespace.join(".") + "." + y),
+                        &format!(
+                            "Unknown function '{}'",
+                            block.namespace.join(".") + "." + &block.name
+                        ),
                         "",
                     );
                 };

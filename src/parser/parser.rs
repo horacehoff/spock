@@ -46,6 +46,13 @@ pub struct PropertyFunctionBlock {
     pub func2_args: Box<[Types]>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NamespaceFunctionCallBlock {
+    pub namespace: Box<[SmolStr]>,
+    pub name: SmolStr,
+    pub args: Box<[Types]>,
+}
+
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Types {
@@ -63,8 +70,8 @@ pub enum Types {
     PropertyFunction(Box<PropertyFunctionBlock>),
     VariableIdentifier(SmolStr),
     FunctionCall(SmolStr, Box<[Types]>),
-    FunctionPatternMatching(SmolStr, Box<[Types]>),
-    NamespaceFunctionCall(Vec<SmolStr>, SmolStr, Box<[Types]>),
+    // FunctionPatternMatching(SmolStr, Box<[Types]>),
+    NamespaceFunctionCall(Box<NamespaceFunctionCallBlock>),
     FunctionReturn(Box<[Types]>),
     Priority(Box<[Types]>),
     Operation(BasicOperator),
@@ -273,11 +280,13 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             }
             log!("{:?}", namespaces);
             if let Types::FunctionCall(x, y) = other_func_call {
-                output.push(Types::NamespaceFunctionCall(
-                    namespaces,
-                    x.clone(),
-                    y.clone(),
-                ));
+                output.push(Types::NamespaceFunctionCall(Box::from(
+                    NamespaceFunctionCallBlock {
+                        namespace: Box::from(namespaces),
+                        name: x.clone(),
+                        args: y.clone(),
+                    },
+                )));
             } else {
                 error(
                     format!("{func_call:?} is not a valid function").as_str(),
