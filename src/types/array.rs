@@ -6,7 +6,7 @@ use crate::util::error;
 pub fn array_ops(x: &[Types], output: &Types, current_operator: BasicOperator) -> Types {
     if let Types::Integer(value) = *output {
         if current_operator == BasicOperator::Multiply {
-            let mut new_vec: Vec<Types> = Vec::new();
+            let mut new_vec: Vec<Types> = Vec::with_capacity(value as usize * x.len());
             for _ in 0..value {
                 new_vec.append(&mut x.to_owned());
             }

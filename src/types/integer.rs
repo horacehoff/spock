@@ -63,7 +63,7 @@ pub fn integer_ops(x: i64, output: &Types, current_operator: BasicOperator) -> T
         })
     } else if let Types::Array(ref y, false, false) = output {
         if_let!(likely, BasicOperator::Multiply, current_operator, {
-            let mut new_vec: Vec<Types> = Vec::new();
+            let mut new_vec: Vec<Types> = Vec::with_capacity(x as usize * y.len());
             for _ in 0..x {
                 new_vec.append(&mut y.clone());
             }

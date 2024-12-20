@@ -42,7 +42,7 @@ pub enum Types {
         // Code to execute if true
         Box<[Types]>,
         // For each else if/else block, (condition, code)
-        Vec<(Vec<Types>, Vec<Types>)>,
+        Box<[(Box<[Types]>, Box<[Types]>)]>,
     ),
     // Condition
     While(
@@ -397,14 +397,16 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                                 Types::Wrap(Box::from(x.clone()))
                             })
                             .collect();
-                    let mut else_groups: Vec<(Vec<Types>, Vec<Types>)> = Vec::new();
+                    let mut else_groups: Vec<(Box<[Types]>, Box<[Types]>)> = Vec::new();
                     for else_block in inside.into_inner().skip(2) {
                         if else_block.clone().into_inner().next().unwrap().as_rule()
                             == Rule::condition
                         {
                             // ELSE IF
                             else_groups.push((
-                                parse_expression(else_block.clone().into_inner().next().unwrap()),
+                                Box::from(parse_expression(
+                                    else_block.clone().into_inner().next().unwrap(),
+                                )),
                                 parse_code(else_block.into_inner().nth(1).unwrap().as_str())
                                     .iter()
                                     .map(|x| {
@@ -419,7 +421,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                         } else {
                             // ELSE
                             else_groups.push((
-                                Vec::new(),
+                                Vec::new().into(),
                                 parse_code(else_block.into_inner().next().unwrap().as_str())
                                     .iter()
                                     .map(|x| {
@@ -436,7 +438,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<Types>> {
                     line_instructions.push(Types::Condition(
                         Box::from(condition),
                         Box::from(first_code),
-                        else_groups,
+                        Box::from(else_groups),
                     ));
                 }
                 Rule::return_term => {
