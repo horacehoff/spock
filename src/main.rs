@@ -172,12 +172,12 @@ fn process_stack(
     output
 }
 
-fn split_vec<T: PartialEq>(input: Vec<T>, separator: T) -> Vec<Vec<T>> {
+pub fn split_vec<T: PartialEq>(input: Vec<T>, separator: T) -> Vec<Vec<T>> {
     let mut result = Vec::with_capacity(input.len() / 2); // Pre-allocate capacity based on expected number of splits.
     let mut current = Vec::new();
 
     for item in input {
-        if item == separator {
+        if item.eq(&separator) {
             if !current.is_empty() {
                 result.push(current);
                 current = Vec::new(); // Clear the current vector, don't reallocate.
