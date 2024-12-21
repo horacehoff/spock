@@ -181,12 +181,6 @@ fn process_line_logic(
 ) -> Types {
     for line in line_array {
         match line {
-            Types::Wrap(ref x) => {
-                let x = process_line_logic(x, variables, functions);
-                if x != Types::Null {
-                    return x;
-                }
-            }
             Types::VariableDeclaration(ref block) => {
                 if !block.is_declared {
                     variables.insert(
@@ -200,13 +194,6 @@ fn process_line_logic(
                     }
                 }
             }
-            // Types::VariableRedeclaration(ref x, ref y) => {
-            //     let calculated = process_stack(y, variables, functions);
-            //     if let Some(x) = variables.get_mut(x) {
-            //         *x = calculated;
-            //     }
-            // }
-            // Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
             Types::NamespaceFunctionCall(ref block) => {
                 let args: Vec<Types> = util::split_vec_box(&block.args, Types::Separator)
                     .iter()
@@ -356,6 +343,12 @@ fn process_line_logic(
             }
             Types::Break => {
                 return Types::Break;
+            }
+            Types::Wrap(ref x) => {
+                let x = process_line_logic(x, variables, functions);
+                if x != Types::Null {
+                    return x;
+                }
             }
             _ => error(&format!("TODO LINE LOGIC {line:?}"), ""),
         }
