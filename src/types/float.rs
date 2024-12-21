@@ -3,8 +3,8 @@ use crate::util::error;
 use crate::{error_msg, get_printable_type, math_to_type};
 
 // #[inline(always)]
-pub fn float_ops(x: f64, output: &Types, current_operator: BasicOperator) -> Types {
-    if let Types::Float(value) = *output {
+pub fn float_ops(x: f64, output: Types, current_operator: BasicOperator) -> Types {
+    if let Types::Float(value) = output {
         match current_operator {
             BasicOperator::Add => {
                 math_to_type!(value + x)
@@ -40,7 +40,7 @@ pub fn float_ops(x: f64, output: &Types, current_operator: BasicOperator) -> Typ
                 Types::Null
             }
         }
-    } else if let Types::Integer(value) = *output {
+    } else if let Types::Integer(value) = output {
         match current_operator {
             BasicOperator::Add => Types::Float(value as f64 + x),
             BasicOperator::Sub => Types::Float(value as f64 - x),

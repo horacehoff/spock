@@ -5,7 +5,7 @@ use crate::util::error;
 use smol_str::{SmolStr, ToSmolStr};
 
 // #[inline(always)]
-pub fn string_ops(x: &SmolStr, output: &Types, current_operator: BasicOperator) -> Types {
+pub fn string_ops(x: &SmolStr, output: Types, current_operator: BasicOperator) -> Types {
     if let Types::String(value) = output {
         match current_operator {
             BasicOperator::Add => return Types::String(format!("{value}{x}").into()),
@@ -22,7 +22,7 @@ pub fn string_ops(x: &SmolStr, output: &Types, current_operator: BasicOperator) 
         return Types::Null;
     } else if let Types::Integer(value) = output {
         if current_operator == BasicOperator::Multiply {
-            return Types::String(x.repeat(*value as usize).parse().unwrap());
+            return Types::String(x.repeat(value as usize).parse().unwrap());
         }
         error(
             &format!("Cannot perform operation '{current_operator:?}' between Integer and String"),

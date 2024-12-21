@@ -3,8 +3,8 @@ use crate::get_printable_type;
 use crate::parser::{BasicOperator, Types};
 use crate::util::error;
 
-pub fn array_ops(x: &[Types], output: &Types, current_operator: BasicOperator) -> Types {
-    if let Types::Integer(value) = *output {
+pub fn array_ops(x: &[Types], output: Types, current_operator: BasicOperator) -> Types {
+    if let Types::Integer(value) = output {
         if current_operator == BasicOperator::Multiply {
             let mut new_vec: Vec<Types> = Vec::with_capacity(value as usize * x.len());
             for _ in 0..value {

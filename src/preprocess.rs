@@ -11,12 +11,12 @@ use smol_str::{SmolStr, ToSmolStr};
 use unroll::unroll_for_loops;
 
 #[unroll_for_loops]
+#[inline(always)]
 pub fn preprocess(
     variables: &HashMap<SmolStr, Types>,
     functions: &[(SmolStr, &[SmolStr], &[Types])],
     element: &Types,
 ) -> Types {
-    // println!("ELEM{:?}", element);
     match element {
         Types::FunctionCall(ref block) => {
             // replace function call by its result (return value)

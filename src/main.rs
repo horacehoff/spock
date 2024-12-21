@@ -77,7 +77,7 @@ fn process_stack(
     let mut process: Types;
     for p_element in stack_in.iter().skip(1) {
         let element = match p_element {
-            Types::VariableIdentifier(var) => variables.get(var).unwrap_or_else(|| {
+            Types::VariableIdentifier(ref var) => variables.get(var).unwrap_or_else(|| {
                 error(&format!("Unknown variable '{var}'"), "");
                 std::process::exit(1)
             }),
@@ -100,10 +100,12 @@ fn process_stack(
 
         match element {
             Types::Operation(ref op) => current_operator = *op,
-            Types::Integer(ref x) => output = integer_ops(*x, &output, current_operator),
-            Types::String(ref x) => output = string_ops(x, &output, current_operator),
-            Types::Float(ref x) => output = float_ops(*x, &output, current_operator),
-            Types::Array(ref x, _, false) => output = array_ops(x, &output, current_operator),
+            Types::Integer(ref x) => {
+                output = integer_ops(*x, output, current_operator);
+            }
+            Types::String(ref x) => output = string_ops(x, output, current_operator),
+            Types::Float(ref x) => output = float_ops(*x, output, current_operator),
+            Types::Array(ref x, _, false) => output = array_ops(x, output, current_operator),
             Types::Property(ref block) => {
                 let args: Vec<Types> = util::split_vec_box(&block.args, Types::Separator)
                     .iter()
