@@ -179,7 +179,7 @@ fn process_line_logic(
     variables: &mut HashMap<SmolStr, Types>,
     functions: &[(SmolStr, &[SmolStr], &[Types])],
 ) -> Types {
-    for line in line_array.iter() {
+    for line in line_array {
         match line {
             Types::Wrap(ref x) => {
                 let x = process_line_logic(x, variables, functions);
@@ -340,7 +340,9 @@ fn process_line_logic(
             Types::While(ref block) => {
                 while let Types::Bool(true) = process_stack(&block.condition, variables, functions)
                 {
+                    // let now = Instant::now();
                     let out = process_line_logic(&block.code, variables, functions);
+                    // println!("WHILE ITERATION {:.2?}", now.elapsed());
                     if out != Types::Null {
                         if out == Types::Break {
                             break;
