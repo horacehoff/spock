@@ -69,14 +69,13 @@ fn process_stack(
             ) {
                 other.clone()
             } else {
-                preprocess(variables, functions, other)
+                preprocess(other, variables, functions)
             }
         }
     };
     let mut current_operator: BasicOperator = BasicOperator::Null;
-    let mut process: Types;
     for p_element in stack_in.iter().skip(1) {
-        let element = match p_element {
+        let element: &Types = match p_element {
             Types::VariableIdentifier(ref var) => variables.get(var).unwrap_or_else(|| {
                 error(&format!("Unknown variable '{var}'"), "");
                 std::process::exit(1)
@@ -88,12 +87,12 @@ fn process_stack(
                     Types::FunctionCall(_)
                         | Types::NamespaceFunctionCall(_)
                         | Types::Priority(_)
-                        | Types::Array(_, _, _)
+                        | Types::Array(_, true, false)
+                        | Types::Array(_, false, true)
                 ) {
                     other
                 } else {
-                    process = preprocess(variables, functions, other);
-                    &process
+                    &preprocess(other, variables, functions)
                 }
             }
         };
@@ -174,7 +173,7 @@ fn process_stack(
 }
 
 #[inline(always)]
-fn process_line_logic(
+fn process_lines(
     line_array: &[Types],
     variables: &mut HashMap<SmolStr, Types>,
     functions: &[(SmolStr, &[SmolStr], &[Types])],
@@ -238,21 +237,20 @@ fn process_line_logic(
                         .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
                         .collect();
 
-                    process_function(target_function.2, &mut target_args, functions);
+                    process_lines(target_function.2, &mut target_args, functions);
                 }
             }
             Types::PropertyFunction(ref block) => {
-                let result = process_line_logic(
-                    &[Types::FunctionCall(Box::from(FunctionPropertyCallBlock {
-                        name: block.func1_name.to_smolstr(),
-                        args: block.func1_args.clone(),
-                    }))],
-                    variables,
-                    functions,
-                );
                 return process_stack(
                     &[
-                        result,
+                        process_lines(
+                            &[Types::FunctionCall(Box::from(FunctionPropertyCallBlock {
+                                name: block.func1_name.to_smolstr(),
+                                args: block.func1_args.clone(),
+                            }))],
+                            variables,
+                            functions,
+                        ),
                         Types::Property(Box::from(FunctionPropertyCallBlock {
                             name: block.func2_name.to_smolstr(),
                             args: block.func2_args.clone(),
@@ -264,8 +262,8 @@ fn process_line_logic(
             }
             Types::Condition(ref block) => {
                 // let data = block;
-                if let Types::Bool(true) = process_stack(&block.condition, variables, functions) {
-                    let out = process_line_logic(&block.code, variables, functions);
+                if process_stack(&block.condition, variables, functions) == Types::Bool(true) {
+                    let out = process_lines(&block.code, variables, functions);
                     if Types::Null != out {
                         // if out != Types::Break {
                         return out;
@@ -278,7 +276,7 @@ fn process_line_logic(
                             || process_stack(&else_block.0, variables, functions)
                                 == Types::Bool(true)
                         {
-                            let out = process_line_logic(&else_block.1, variables, functions);
+                            let out = process_lines(&else_block.1, variables, functions);
                             if out != Types::Null {
                                 return out;
                             }
@@ -295,7 +293,7 @@ fn process_line_logic(
                             *value = elem;
                         }
 
-                        let out: Types = process_line_logic(&block.code, variables, functions);
+                        let out: Types = process_lines(&block.code, variables, functions);
                         if out != Types::Null {
                             variables.remove(&block.id);
                             if out == Types::Break {
@@ -312,7 +310,7 @@ fn process_line_logic(
                             *value = Types::String(elem.to_smolstr());
                         }
 
-                        let out: Types = process_line_logic(&block.code, variables, functions);
+                        let out: Types = process_lines(&block.code, variables, functions);
                         if out != Types::Null {
                             variables.remove(&block.id);
                             if out == Types::Break {
@@ -328,7 +326,7 @@ fn process_line_logic(
                 while let Types::Bool(true) = process_stack(&block.condition, variables, functions)
                 {
                     // let now = Instant::now();
-                    let out = process_line_logic(&block.code, variables, functions);
+                    let out = process_lines(&block.code, variables, functions);
                     // println!("WHILE ITERATION {:.2?}", now.elapsed());
                     if out != Types::Null {
                         if out == Types::Break {
@@ -345,7 +343,7 @@ fn process_line_logic(
                 return Types::Break;
             }
             Types::Wrap(ref x) => {
-                let x = process_line_logic(x, variables, functions);
+                let x = process_lines(x, variables, functions);
                 if x != Types::Null {
                     return x;
                 }
@@ -356,21 +354,10 @@ fn process_line_logic(
     Types::Null
 }
 
-fn process_function(
-    lines: &[Types],
-    variables: &mut HashMap<SmolStr, Types>,
-    functions: &[(SmolStr, &[SmolStr], &[Types])],
-) -> Types {
-    let processed = process_line_logic(lines, variables, functions);
-    if processed != Types::Null {
-        return processed;
-    }
-    Types::Null
-}
-
 fn main() {
     dbg!(std::mem::size_of::<Types>());
-    dbg!(std::mem::size_of::<BasicOperator>());
+    // dbg!(std::mem::size_of::<BasicOperator>());
+    // dbg!(std::mem::size_of::<Types>());
     let totaltime = Instant::now();
     let args: Vec<String> = std::env::args().skip(1).collect();
     //     if args.is_empty() {
@@ -468,7 +455,7 @@ fn main() {
     let now = Instant::now();
 
     let mut vars: HashMap<SmolStr, Types> = HashMap::default();
-    process_function(&main_function.2, &mut vars, functions);
+    process_lines(&main_function.2, &mut vars, functions);
 
     log!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());

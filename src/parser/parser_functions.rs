@@ -1,12 +1,10 @@
-use crate::error_msg;
 use crate::parser::{parse_code, Types};
 use crate::util::error;
 use fancy_regex::Regex;
 use smol_str::{SmolStr, ToSmolStr};
 use std::fs;
 use std::fs::File;
-use std::io::{BufReader, Read, Write};
-use std::path::Path;
+use std::io::Write;
 
 pub fn parse_functions(
     content: &str,

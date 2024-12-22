@@ -2,7 +2,7 @@ use crate::namespaces::namespace_functions;
 use crate::parser::{parse_code, Types};
 use crate::util::{error, get_printable_form, split_vec_box};
 use crate::{
-    assert_args_number, builtin_functions, error_msg, get_printable_type, log, process_function,
+    assert_args_number, builtin_functions, error_msg, get_printable_type, log, process_lines,
     process_stack,
 };
 use branches::likely;
@@ -13,9 +13,9 @@ use unroll::unroll_for_loops;
 #[unroll_for_loops]
 #[inline(always)]
 pub fn preprocess(
+    element: &Types,
     variables: &HashMap<SmolStr, Types>,
     functions: &[(SmolStr, &[SmolStr], &[Types])],
-    element: &Types,
 ) -> Types {
     match element {
         Types::FunctionCall(ref block) => {
@@ -100,7 +100,7 @@ pub fn preprocess(
                 .enumerate()
                 .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
                 .collect();
-            return process_function(target_function.2, &mut target_args, functions);
+            return process_lines(target_function.2, &mut target_args, functions);
         }
         // Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
         Types::NamespaceFunctionCall(ref block) => {
