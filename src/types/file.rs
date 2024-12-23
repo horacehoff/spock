@@ -1,3 +1,5 @@
+use smartstring::alias::String;
+
 #[macro_export]
 macro_rules! file_props {
     ($filepath: expr, $args:expr, $x: expr, $output: expr) => {
@@ -6,7 +8,7 @@ macro_rules! file_props {
                 assert_args_number!("read", $args.len(), 0);
                 let filecontent = fs::read_to_string($filepath)
                     .expect(error_msg!(format!("Failed to read {}", $filepath)));
-                $output = Types::String(filecontent.to_smolstr())
+                $output = Types::String(filecontent.parse().unwrap())
             }
             "write" => {
                 assert_args_number!("write", $args.len(), 1);
@@ -14,7 +16,7 @@ macro_rules! file_props {
                     let mut f = fs::OpenOptions::new()
                         .write(true)
                         .truncate(true)
-                        .open(&$filepath)
+                        .open($filepath)
                         .expect(error_msg!(format!("Failed to open {}", $filepath)));
                     f.write_all(filecontent.as_ref()).expect(error_msg!(format!(
                         "Failed to write {} to {}",
@@ -34,7 +36,7 @@ macro_rules! file_props {
                     let mut f = fs::OpenOptions::new()
                         .write(true)
                         .append(true)
-                        .open(&$filepath)
+                        .open($filepath)
                         .expect(error_msg!(format!("Failed to open {}", $filepath)));
                     f.write_all(filecontent.as_ref()).expect(error_msg!(format!(
                         "Failed to append {} to {}",

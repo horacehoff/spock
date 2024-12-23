@@ -2,7 +2,6 @@ use crate::parser::Types;
 use crate::{assert_args_number, error, error_msg, get_printable_form, get_printable_type, if_let};
 use branches::{likely, unlikely};
 use const_currying::const_currying;
-use smol_str::ToSmolStr as _;
 use std::io::Write as _;
 use std::io::{stdin, stdout};
 use std::io::{BufRead as _, BufReader};
@@ -108,7 +107,7 @@ pub fn builtin_functions(
                             )))
                             .as_ref(),
                     )
-                    .to_smolstr(),
+                    .to_string().parse().unwrap(),
                 ),
                 true,
             );

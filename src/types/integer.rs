@@ -100,7 +100,7 @@ macro_rules! integer_props {
             }
             "toStr" => {
                 assert_args_number!("toStr", $args.len(), 0);
-                $output = Types::String($num.to_smolstr())
+                $output = Types::String($num.to_string().parse().unwrap())
             }
             _ => error(&format!("Unknown function '{}' for object Integer", $x), ""),
         }

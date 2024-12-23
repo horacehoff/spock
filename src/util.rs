@@ -1,5 +1,6 @@
 use crate::parser::Types;
-use smol_str::{SmolStr, ToSmolStr as _};
+use smartstring::alias::String;
+// use smartstring::alias::
 
 pub fn error(message: &str, tip: &str) {
     if tip.is_empty() {
@@ -195,13 +196,13 @@ macro_rules! if_let {
     };
 }
 
-pub fn get_printable_form(x: &Types) -> SmolStr {
+pub fn get_printable_form(x: &Types) -> String {
     match x {
-        Types::String(str) => str.to_owned(),
-        Types::Float(float) => float.to_smolstr(),
-        Types::Integer(int) => int.to_smolstr(),
-        Types::Bool(boolean) => boolean.to_smolstr(),
-        Types::Array(x, _, _) => {
+        Types::String(ref str) => str.parse().unwrap(),
+        Types::Float(ref float) => float.to_string().parse().unwrap(),
+        Types::Integer(ref int) => int.to_string().parse().unwrap(),
+        Types::Bool(ref boolean) => boolean.to_string().parse().unwrap(),
+        Types::Array(ref x, _, _) => {
             let arr = x;
             ("[".to_owned()
                 + arr
@@ -213,15 +214,15 @@ pub fn get_printable_form(x: &Types) -> SmolStr {
                     .unwrap()
                     .as_str()
                 + "]")
-                .to_smolstr()
+                .parse().unwrap()
         }
-        Types::Null => "Null".to_smolstr(),
+        Types::Null => "Null".parse().unwrap(),
         _ => {
             error(
                 &format!("Cannot display {} type", get_printable_type!(x)),
                 "",
             );
-            "".to_smolstr()
+            "".parse().unwrap()
         }
     }
 }

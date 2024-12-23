@@ -2,10 +2,10 @@ use crate::error_msg;
 use crate::get_printable_type;
 use crate::parser::{BasicOperator, Types};
 use crate::util::error;
-use smol_str::{SmolStr, ToSmolStr};
+use smartstring::alias::String;
 
 // #[inline(always)]
-pub fn string_ops(x: &SmolStr, output: Types, current_operator: BasicOperator) -> Types {
+pub fn string_ops(x: &String, output: Types, current_operator: BasicOperator) -> Types {
     if let Types::String(value) = output {
         match current_operator {
             BasicOperator::Add => return Types::String(format!("{value}{x}").into()),
@@ -41,15 +41,15 @@ pub fn string_ops(x: &SmolStr, output: Types, current_operator: BasicOperator) -
     Types::Null
 }
 
-pub fn to_title_case(text: &SmolStr) -> SmolStr {
+pub fn to_title_case(text: &String) -> String {
     text.split_whitespace()
         .map(|word| {
             let (first, rest) = word.split_at(1);
-            first.to_uppercase() + &rest.to_lowercase()
+            first.to_uppercase().parse::<String>().unwrap() + &rest.to_lowercase()
         })
         .collect::<Vec<String>>()
         .join(" ")
-        .to_smolstr()
+        .parse().unwrap()
 }
 
 #[macro_export]
@@ -59,11 +59,11 @@ macro_rules! string_props {
             // TRANSFORM
             "uppercase" => {
                 assert_args_number!("uppercase", $args.len(), 0);
-                $output = Types::String($str.to_uppercase_smolstr());
+                $output = Types::String($str.to_uppercase().parse().unwrap());
             }
             "lowercase" => {
                 assert_args_number!("lowercase", $args.len(), 0);
-                $output = Types::String($str.to_lowercase_smolstr());
+                $output = Types::String($str.to_lowercase().parse().unwrap());
             }
             "capitalize" => {
                 assert_args_number!("capitalize", $args.len(), 0);
@@ -71,21 +71,21 @@ macro_rules! string_props {
             }
             "replace" => {
                 assert_args_number!("replace", $args.len(), 2);
-                if let Types::String(toreplace) = &$args[0] {
-                    if let Types::String(replaced) = &$args[1] {
-                        $output = Types::String($str.replace_smolstr(toreplace, replaced))
-                    } else {
-                        error(
-                            format!("{:?} is not a String", &$args[1]).as_str(),
-                            format!("Convert {:?} to a String", &$args[1]).as_str(),
-                        );
-                    }
-                } else {
-                    error(
-                        format!("{:?} is not a String", &$args[0]).as_str(),
-                        format!("Convert {:?} to a String", &$args[0]).as_str(),
-                    );
-                }
+                // if let Types::String(toreplace) = &$args[0] {
+                //     if let Types::String(replaced) = &$args[1] {
+                //         $output = Types::String(&$str.replace(toreplace, replaced).parse().unwrap())
+                //     } else {
+                //         error(
+                //             format!("{:?} is not a String", &$args[1]).as_str(),
+                //             format!("Convert {:?} to a String", &$args[1]).as_str(),
+                //         );
+                //     }
+                // } else {
+                //     error(
+                //         format!("{:?} is not a String", &$args[0]).as_str(),
+                //         format!("Convert {:?} to a String", &$args[0]).as_str(),
+                //     );
+                // }
             }
             "toInt" => {
                 assert_args_number!("toInt", $args.len(), 0);
@@ -136,15 +136,15 @@ macro_rules! string_props {
             }
             "trim" => {
                 assert_args_number!("trim", $args.len(), 0);
-                $output = Types::String($str.trim().to_smolstr());
+                $output = Types::String($str.trim().parse().unwrap());
             }
             "ltrim" => {
                 assert_args_number!("ltrim", $args.len(), 0);
-                $output = Types::String($str.trim_start().to_smolstr());
+                $output = Types::String($str.trim_start().parse().unwrap());
             }
             "rtrim" => {
                 assert_args_number!("rtrim", $args.len(), 0);
-                $output = Types::String($str.trim_end().to_smolstr());
+                $output = Types::String($str.trim_end().parse().unwrap());
             }
             _ => error(&format!("Unknown function '{}' for object String", $x), ""),
         }

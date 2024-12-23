@@ -1,18 +1,18 @@
 use crate::parser::{parse_code, Types};
 use crate::util::error;
 use fancy_regex::Regex;
-use smol_str::{SmolStr, ToSmolStr};
 use std::fs;
 use std::fs::File;
 use std::io::Write;
+use smartstring::alias::String;
 
 pub fn parse_functions(
     content: &str,
     check_main: bool,
-) -> Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> {
+) -> Vec<(String, Vec<String>, Vec<Vec<Types>>)> {
     let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Types>>)> = Vec::new();
 
-    let mut imported_functions: Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)> = Vec::new();
+    let mut imported_functions: Vec<(String, Vec<String>, Vec<Vec<Types>>)> = Vec::new();
     let matches: Vec<(usize, &str)> = content.match_indices("\nimport").collect();
     if content.starts_with("import") {
         let mut i = 7;
@@ -29,7 +29,7 @@ pub fn parse_functions(
 
         if name.ends_with(".compute") {
             // IS COMPUTE FILE
-            let file_content = fs::read_to_string(&name).unwrap_or_else(|_| {
+            let file_content = fs::read_to_string(name.as_str()).unwrap_or_else(|_| {
                 error(
                     &format!("Cannot find module {}", name.trim_start_matches("./")),
                     "",
@@ -61,7 +61,7 @@ pub fn parse_functions(
             match_content = &content[match_index..match_index + i];
         }
         let name = String::from("./") + match_content.replace("import", "").trim();
-        let file_content = fs::read_to_string(&name).unwrap_or_else(|_| {
+        let file_content = fs::read_to_string(name.as_str()).unwrap_or_else(|_| {
             error(
                 &format!("Cannot find module {}", name.trim_start_matches("./")),
                 "",
@@ -88,7 +88,7 @@ pub fn parse_functions(
     // }
 
     let comment_regex = Regex::new(r"(?m)(?<=\}|;|\{|.)\s*//.*$").unwrap();
-    let mut content: String = comment_regex.replace_all(content, "").to_string();
+    let mut content: String = comment_regex.replace_all(content, "").to_string().parse().unwrap();
     // let mut content: String = comment_regex.replace_all(content, "").to_string().lines().map(|ln| ln.trim()).collect();
     let mut i: i8 = 1;
     for content_lines in content.lines() {
@@ -122,7 +122,7 @@ pub fn parse_functions(
             .replace(
                 re_match.get(1).unwrap().as_str().trim(),
                 re_match.get(2).unwrap().as_str().trim(),
-            );
+            ).parse().unwrap();
     }
 
     // Parse functions
@@ -164,12 +164,12 @@ pub fn parse_functions(
         .iter()
         .map(|(a, b, c)| {
             (
-                a.to_smolstr(),
-                b.iter().map(smol_str::ToSmolStr::to_smolstr).collect(),
+                a.parse().unwrap(),
+                b.iter().map(|x| x.parse::<String>().unwrap()).collect(),
                 c.clone(),
             )
         })
-        .collect::<Vec<(SmolStr, Vec<SmolStr>, Vec<Vec<Types>>)>>();
+        .collect::<Vec<(String, Vec<String>, Vec<Vec<Types>>)>>();
 
     return_functions.append(&mut imported_functions);
 

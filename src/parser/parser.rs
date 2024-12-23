@@ -6,7 +6,8 @@ use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
-use smol_str::{SmolStr, ToSmolStr};
+use smartstring::alias::String;
+use thunderdome::{Arena, Index};
 
 #[derive(Parser)]
 #[grammar = "parser/parser_grammar.pest"]
@@ -24,7 +25,7 @@ pub struct ConditionBlock {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LoopBlock {
     // Loop identifier
-    pub id: SmolStr,
+    pub id: String,
     // Array/string to iterate
     pub arr: Box<[Types]>,
     // Code inside the loop to execute
@@ -40,29 +41,29 @@ pub struct WhileBlock {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PropertyFunctionBlock {
-    pub func1_name: SmolStr,
+    pub func1_name: String,
     pub func1_args: Box<[Types]>,
-    pub func2_name: SmolStr,
+    pub func2_name: String,
     pub func2_args: Box<[Types]>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NamespaceFunctionCallBlock {
-    pub namespace: Box<[SmolStr]>,
-    pub name: SmolStr,
+    pub namespace: Box<[String]>,
+    pub name: String,
     pub args: Box<[Types]>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VariableDeclarationBlock {
-    pub name: SmolStr,
+    pub name: String,
     pub value: Box<[Types]>,
     pub is_declared: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionPropertyCallBlock {
-    pub name: SmolStr,
+    pub name: String,
     pub args: Box<[Types]>,
 }
 
@@ -72,7 +73,7 @@ pub enum Types {
     Null,
     Integer(i64),
     Float(f64),
-    String(SmolStr),
+    String(String),
     Bool(bool),
     // ARRAY - IS_PARSED - IS_SUITE
     Array(Vec<Types>, bool, bool),
@@ -80,7 +81,7 @@ pub enum Types {
     And(Box<[Types]>),
     Property(Box<FunctionPropertyCallBlock>),
     PropertyFunction(Box<PropertyFunctionBlock>),
-    VariableIdentifier(SmolStr),
+    VariableIdentifier(String),
     FunctionCall(Box<FunctionPropertyCallBlock>),
     // FunctionPatternMatching(SmolStr, Box<[Types]>),
     NamespaceFunctionCall(Box<NamespaceFunctionCallBlock>),
@@ -98,7 +99,7 @@ pub enum Types {
     Break,
 
     // Objects
-    File(SmolStr),
+    File(String),
 }
 
 #[repr(u8)]
@@ -217,7 +218,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     .unwrap()
                     .as_str()
                     .trim_start_matches('.')
-                    .to_smolstr(),
+                    .parse().unwrap(),
                 args: Box::from(wrap_to_flat(
                     priority_calc
                         .iter()
@@ -243,9 +244,9 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                         .unwrap()
                 {
                     output.push(Types::PropertyFunction(Box::from(PropertyFunctionBlock {
-                        func1_name: block1.name.to_smolstr(),
+                        func1_name: block1.name.clone(),
                         func1_args: block1.args.clone(),
-                        func2_name: block2.name.to_smolstr(),
+                        func2_name: block2.name.clone(),
                         func2_args: block2.args.clone(),
                     })))
                 }
@@ -290,14 +291,14 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                 .clone();
             let mut namespaces = Vec::new();
             for namespace in pair.clone().into_inner().rev().skip(1).rev() {
-                namespaces.push(namespace.as_str().to_smolstr());
+                namespaces.push(namespace.as_str().parse().unwrap());
             }
             log!("{:?}", namespaces);
             if let Types::FunctionCall(ref block) = other_func_call {
                 output.push(Types::NamespaceFunctionCall(Box::from(
                     NamespaceFunctionCallBlock {
                         namespace: Box::from(namespaces),
-                        name: block.name.to_smolstr(),
+                        name: block.name.clone(),
                         args: block.args.clone(),
                     },
                 )));

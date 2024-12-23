@@ -33,10 +33,12 @@ use crate::util::{error, get_printable_form};
 use branches::likely;
 use branches::unlikely;
 use gxhash::HashMap;
-use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
+// use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
+use smartstring::alias::String;
 use snmalloc_rs::SnMalloc;
 use std::fs;
 use std::io::Write as _;
+use std::ops::Deref;
 use std::time::Instant;
 use unroll::unroll_for_loops;
 
@@ -44,20 +46,17 @@ use unroll::unroll_for_loops;
 static ALLOC: SnMalloc = SnMalloc;
 
 #[unroll_for_loops]
-#[inline(always)]
+// #[inline(always)]
 fn process_stack(
     stack_in: &[Types],
-    variables: &HashMap<SmolStr, Types>,
-    functions: &[(SmolStr, &[SmolStr], &[Types])],
+    variables: &Vec<(String, Types)>,
+    functions: &[(String, &[String], &[Types])],
 ) -> Types {
     let mut output: Types = match stack_in.first().unwrap_or(&Types::Integer(0)) {
-        Types::VariableIdentifier(ref var) => variables
-            .get(var)
-            .unwrap_or_else(|| {
-                error(&format!("Unknown variable '{var}'"), "");
-                std::process::exit(1)
-            })
-            .clone(),
+        Types::VariableIdentifier(ref var) => variables.iter().find(|(name, _)| name == var).unwrap_or_else(|| {
+            error(&format!("Unknown variable '{var}'"), "");
+            std::process::exit(1)
+        }).1.clone(),
         Types::Wrap(ref x) => process_stack(x, variables, functions),
         other => {
             if !matches!(
@@ -76,10 +75,14 @@ fn process_stack(
     let mut current_operator: BasicOperator = BasicOperator::Null;
     for p_element in stack_in.iter().skip(1) {
         let element: &Types = match p_element {
-            Types::VariableIdentifier(ref var) => variables.get(var).unwrap_or_else(|| {
+            // Types::VariableIdentifier(ref var) => variables.get(var).unwrap_or_else(|| {
+            //     error(&format!("Unknown variable '{var}'"), "");
+            //     std::process::exit(1)
+            // }),
+            Types::VariableIdentifier(ref var) => &variables.iter().find(|(name, _)| name == var).unwrap_or_else(|| {
                 error(&format!("Unknown variable '{var}'"), "");
                 std::process::exit(1)
-            }),
+            }).1,
             Types::Wrap(x) => &process_stack(x, variables, functions),
             other => {
                 if !matches!(
@@ -119,7 +122,7 @@ fn process_stack(
                     }
 
                     // OBJECTS
-                    Types::File(ref filepath) => file_props!(filepath, args, block.name, output),
+                    Types::File(ref filepath) => file_props!(filepath.to_string(), args, block.name, output),
                     _ => error(
                         &format!(
                             "Unknown function '{}' for object {}",
@@ -172,24 +175,28 @@ fn process_stack(
     output
 }
 
-#[inline(always)]
+// #[inline(always)]
 fn process_lines(
     line_array: &[Types],
-    variables: &mut HashMap<SmolStr, Types>,
-    functions: &[(SmolStr, &[SmolStr], &[Types])],
+    variables: &mut Vec<(String, Types)>,
+    functions: &[(String, &[String], &[Types])],
 ) -> Types {
     for line in line_array {
         match line {
             Types::VariableDeclaration(ref block) => {
                 if !block.is_declared {
-                    variables.insert(
-                        block.name.to_smolstr(),
-                        process_stack(&block.value, variables, functions),
+                    variables.push((
+                        block.name.parse().unwrap(),
+                        process_stack(&block.value, variables, functions))
                     );
                 } else {
                     let calculated = process_stack(&block.value, variables, functions);
-                    if let Some(x) = variables.get_mut(&block.name) {
-                        *x = calculated;
+                    // if let Some(x) = variables.get_mut((&block.name, _)) {
+                    //     *x = calculated;
+                    // }
+                    // variables.fin
+                    if let Some(x) = variables.iter_mut().find(|(name, _)| *name == block.name) {
+                        x.1 = calculated;
                     }
                 }
             }
@@ -202,7 +209,7 @@ fn process_lines(
                     error(
                         &format!(
                             "Unknown function '{}'",
-                            block.namespace.join(".") + "." + &block.name
+                            block.namespace.join(".") + "." + block.name.parse::<String>().unwrap()
                         ),
                         "",
                     );
@@ -222,7 +229,7 @@ fn process_lines(
                         error(&format!("Cannot execute line {:?}", &args[0]), "");
                     });
                 } else if !matched {
-                    let target_function: &(SmolStr, &[SmolStr], &[Types]) = functions
+                    let target_function: &(String, &[String], &[Types]) = functions
                         .iter()
                         .find(|func| func.0 == *block.name)
                         .unwrap_or_else(|| {
@@ -230,11 +237,11 @@ fn process_lines(
                             std::process::exit(1)
                         });
                     assert_args_number!(block.name, args.len(), target_function.1.len());
-                    let mut target_args: HashMap<SmolStr, Types> = target_function
+                    let mut target_args: Vec<(String, Types)> = target_function
                         .1
                         .iter()
                         .enumerate()
-                        .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
+                        .map(|(i, arg)| (arg.parse().unwrap(), args[i].clone()))
                         .collect();
 
                     process_lines(target_function.2, &mut target_args, functions);
@@ -245,14 +252,14 @@ fn process_lines(
                     &[
                         process_lines(
                             &[Types::FunctionCall(Box::from(FunctionPropertyCallBlock {
-                                name: block.func1_name.to_smolstr(),
+                                name: block.func1_name.parse().unwrap(),
                                 args: block.func1_args.clone(),
                             }))],
                             variables,
                             functions,
                         ),
                         Types::Property(Box::from(FunctionPropertyCallBlock {
-                            name: block.func2_name.to_smolstr(),
+                            name: block.func2_name.parse().unwrap(),
                             args: block.func2_args.clone(),
                         })),
                     ],
@@ -287,39 +294,50 @@ fn process_lines(
             Types::Loop(ref block) => {
                 let loop_array = process_stack(&block.arr, variables, functions);
                 if let Types::Array(target_array, false, false) = loop_array {
-                    variables.insert(block.id.to_smolstr(), Types::Null);
+                    variables.push((block.id.parse().unwrap(), Types::Null));
                     for elem in target_array {
-                        if let Some(value) = variables.get_mut(&block.id) {
-                            *value = elem;
+                        // if let Some(value) = variables.get_mut(&block.id) {
+                        //     *value = elem;
+                        // }
+                        if let Some(x) = variables.iter_mut().find(|(name, _)| *name == block.id) {
+                            x.1 = elem;
                         }
 
                         let out: Types = process_lines(&block.code, variables, functions);
                         if out != Types::Null {
-                            variables.remove(&block.id);
+                            variables.swap_remove(variables.iter().position(|(name, _)| *name == block.id).unwrap());
+                            // variables.remove(&block.id);
                             if out == Types::Break {
                                 break;
                             }
                             return out;
                         }
                     }
-                    variables.remove(&block.id);
+                    // variables.remove(&block.id);
+                    variables.swap_remove(variables.iter().position(|(name, _)| *name == block.id).unwrap());
                 } else if let Types::String(ref target_string) = loop_array {
-                    variables.insert(block.id.to_smolstr(), Types::Null);
+                    variables.push((block.id.parse().unwrap(), Types::Null));
                     for elem in target_string.chars() {
-                        if let Some(value) = variables.get_mut(&block.id) {
-                            *value = Types::String(elem.to_smolstr());
+                        // if let Some(value) = variables.get_mut(&block.id) {
+                        //     *value = Types::String(elem.to_smolstr());
+                        // }
+                        if let Some(x) = variables.iter_mut().find(|(name, _)| *name == block.id) {
+                            x.1 = Types::String(elem.to_string().parse().unwrap());
                         }
 
                         let out: Types = process_lines(&block.code, variables, functions);
                         if out != Types::Null {
-                            variables.remove(&block.id);
+                            // variables.remove(&block.id);
+                            variables.swap_remove(variables.iter().position(|(name, _)| *name == block.id).unwrap());
                             if out == Types::Break {
                                 break;
                             }
                             return out;
                         }
                     }
-                    variables.remove(&block.id);
+                    // variables.remove(&block.id);
+                    variables.swap_remove(variables.iter().position(|(name, _)| *name == block.id).unwrap());
+
                 }
             }
             Types::While(ref block) => {
@@ -359,7 +377,7 @@ fn main() {
     // dbg!(std::mem::size_of::<BasicOperator>());
     // dbg!(std::mem::size_of::<Types>());
     let totaltime = Instant::now();
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let args: Vec<String> = std::env::args().skip(1).map(|x| x.parse::<String>().unwrap()).collect();
     //     if args.is_empty() {
     //         println!(
     //             "
@@ -416,9 +434,9 @@ fn main() {
     let now = Instant::now();
 
     let temp_funcs = parse_functions(content.trim(), true);
-    let mut main_function: (SmolStr, &[SmolStr], Vec<Types>) = Default::default();
+    let mut main_function: (String, &[String], Vec<Types>) = Default::default();
 
-    let partial_convert: Vec<(SmolStr, &[SmolStr], Vec<Types>)> = temp_funcs
+    let partial_convert: Vec<(String, &[String], Vec<Types>)> = temp_funcs
         .iter()
         .map(|(name, args, lines)| {
             let stack: Vec<Types> = lines
@@ -426,20 +444,20 @@ fn main() {
                 .flat_map(|line| line.iter().map(|x| (*x).clone()))
                 .collect();
             if name == "main" {
-                main_function = (name.clone(), args.as_slice(), stack);
+                main_function = (name.to_string().parse().unwrap(), args, stack);
                 return (name.clone(), args.as_slice(), vec![]);
             }
             return (name.clone(), args.as_slice(), stack);
         })
-        .filter(|(name, _, _)| name != "main")
+        .filter(|(name, _, _)| *name != "main")
         .collect();
 
-    let converted: Vec<(SmolStr, &[SmolStr], &[Types])> = partial_convert
+    let converted: Vec<(String, &[String], &[Types])> = partial_convert
         .iter()
-        .map(|(name, args, lines)| (name.to_smolstr(), *args, lines.as_slice()))
+        .map(|(name, args, lines)| (name.parse().unwrap(), *args, lines.as_slice()))
         .collect();
 
-    let functions: &[(SmolStr, &[SmolStr], &[Types])] = converted.as_slice();
+    let functions: &[(String, &[String], &[Types])] = converted.as_slice();
 
     log!("PARSED IN: {:.2?}", now.elapsed());
     log!(
@@ -447,15 +465,15 @@ fn main() {
         main_function
             .2
             .iter()
-            .map(|x| format!("{x:?}"))
+            .map(|x| format!("{x:?}").parse().unwrap())
             .collect::<Vec<String>>()
             .join("\n")
     );
 
     let now = Instant::now();
 
-    let mut vars: HashMap<SmolStr, Types> = HashMap::default();
-    process_lines(&main_function.2, &mut vars, functions);
+    // let mut vars: HashMap<SmolStr, Types> = HashMap::default();
+    process_lines(&main_function.2, &mut vec![], functions);
 
     log!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());

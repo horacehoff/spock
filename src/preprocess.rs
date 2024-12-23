@@ -7,15 +7,15 @@ use crate::{
 };
 use branches::likely;
 use gxhash::HashMap;
-use smol_str::{SmolStr, ToSmolStr};
 use unroll::unroll_for_loops;
+use smartstring::alias::String;
 
-#[unroll_for_loops]
-#[inline(always)]
+// #[unroll_for_loops]
+// #[inline(always)]
 pub fn preprocess(
     element: &Types,
-    variables: &HashMap<SmolStr, Types>,
-    functions: &[(SmolStr, &[SmolStr], &[Types])],
+    variables: &Vec<(String, Types)>,
+    functions: &[(String, &[String], &[Types])],
 ) -> Types {
     match element {
         Types::FunctionCall(ref block) => {
@@ -54,14 +54,14 @@ pub fn preprocess(
             } else if block.name == "str" {
                 assert_args_number!("str", args.len(), 1);
                 if let Types::Integer(int) = &args[0] {
-                    return Types::String(int.to_smolstr());
+                    return Types::String(int.to_string().parse().unwrap());
                 } else if let Types::Float(float) = &args[0] {
-                    return Types::String(float.to_smolstr());
+                    return Types::String(float.to_string().parse().unwrap());
                 } else if let Types::Bool(boolean) = &args[0] {
                     return Types::String(if *boolean {
-                        "true".to_smolstr()
+                        "true".parse().unwrap()
                     } else {
-                        "false".to_smolstr()
+                        "false".parse().unwrap()
                     });
                 } else if let Types::Array(_, _, false) = &args[0] {
                     return Types::String(get_printable_form(&args[0]));
@@ -86,7 +86,7 @@ pub fn preprocess(
                 );
             }
 
-            let target_function: &(SmolStr, &[SmolStr], &[Types]) = functions
+            let target_function: &(String, &[String], &[Types]) = functions
                 .iter()
                 .find(|func| func.0 == *block.name)
                 .unwrap_or_else(|| {
@@ -94,11 +94,11 @@ pub fn preprocess(
                     std::process::exit(1)
                 });
             assert_args_number!(block.name, args.len(), target_function.1.len());
-            let mut target_args: HashMap<SmolStr, Types> = target_function
+            let mut target_args: Vec<(String, Types)> = target_function
                 .1
                 .iter()
                 .enumerate()
-                .map(|(i, arg)| (arg.to_smolstr(), args[i].clone()))
+                .map(|(i, arg)| (arg.parse().unwrap(), args[i].clone()))
                 .collect();
             return process_lines(target_function.2, &mut target_args, functions);
         }
@@ -116,7 +116,7 @@ pub fn preprocess(
             error(
                 &format!(
                     "Unknown function {}",
-                    block.namespace.join(".") + "." + &block.name
+                    block.namespace.join(".") + "." + block.name.parse::<String>().unwrap()
                 ),
                 "",
             );
@@ -186,7 +186,7 @@ pub fn preprocess(
                                                     );
                                                     std::process::exit(1)
                                                 })
-                                                .to_smolstr(),
+                                                .to_string().parse().unwrap(),
                                         );
                                     } else {
                                         error(
@@ -243,7 +243,7 @@ pub fn preprocess(
                                                     );
                                                     std::process::exit(1)
                                                 })
-                                                .to_smolstr(),
+                                                .to_string().parse().unwrap(),
                                         );
                                     } else {
                                         error(
@@ -293,7 +293,7 @@ pub fn preprocess(
                                                 );
                                                 std::process::exit(1)
                                             })
-                                            .to_smolstr(),
+                                            .to_string().parse().unwrap(),
                                     );
                                 } else if let Types::Array(ref sub_arr, _, false) = output.clone() {
                                     output = sub_arr[intg as usize].clone();
@@ -306,7 +306,7 @@ pub fn preprocess(
                                                 error(&format!("Cannot index '{sub_str}'"), "");
                                                 std::process::exit(1)
                                             })
-                                            .to_smolstr(),
+                                            .to_string().parse().unwrap(),
                                     );
                                 } else {
                                     error(
