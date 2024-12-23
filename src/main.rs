@@ -83,7 +83,7 @@ fn process_stack(
                 error(&format!("Unknown variable '{var}'"), "");
                 std::process::exit(1)
             }).1,
-            Types::Wrap(x) => &process_stack(x, variables, functions),
+            Types::Wrap(ref x) => &process_stack(x, variables, functions),
             other => {
                 if !matches!(
                     other,
