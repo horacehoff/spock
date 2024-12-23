@@ -34,7 +34,7 @@ use branches::likely;
 use branches::unlikely;
 use gxhash::HashMap;
 // use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
-use smartstring::alias::String;
+// use smartstring::alias::String;
 use snmalloc_rs::SnMalloc;
 use std::fs;
 use std::io::Write as _;
@@ -209,7 +209,7 @@ fn process_lines(
                     error(
                         &format!(
                             "Unknown function '{}'",
-                            block.namespace.join(".") + "." + block.name.parse::<String>().unwrap()
+                            block.namespace.join(".") + "." + block.name.as_str()
                         ),
                         "",
                     );

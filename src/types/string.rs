@@ -2,7 +2,7 @@ use crate::error_msg;
 use crate::get_printable_type;
 use crate::parser::{BasicOperator, Types};
 use crate::util::error;
-use smartstring::alias::String;
+// use smartstring::alias::String;
 
 // #[inline(always)]
 pub fn string_ops(x: &String, output: Types, current_operator: BasicOperator) -> Types {
@@ -45,11 +45,11 @@ pub fn to_title_case(text: &String) -> String {
     text.split_whitespace()
         .map(|word| {
             let (first, rest) = word.split_at(1);
-            first.to_uppercase().parse::<String>().unwrap() + &rest.to_lowercase()
+            first.to_uppercase().parse::<String>().unwrap() + rest.to_lowercase().as_str()
         })
         .collect::<Vec<String>>()
         .join(" ")
-        .parse().unwrap()
+        // .parse().unwrap()
 }
 
 #[macro_export]

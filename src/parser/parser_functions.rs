@@ -4,7 +4,7 @@ use fancy_regex::Regex;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
-use smartstring::alias::String;
+// use smartstring::alias::String;
 
 pub fn parse_functions(
     content: &str,

@@ -8,7 +8,7 @@ use crate::{
 use branches::likely;
 use gxhash::HashMap;
 use unroll::unroll_for_loops;
-use smartstring::alias::String;
+// use smartstring::alias::String;
 
 // #[unroll_for_loops]
 // #[inline(always)]
@@ -116,7 +116,7 @@ pub fn preprocess(
             error(
                 &format!(
                     "Unknown function {}",
-                    block.namespace.join(".") + "." + block.name.parse::<String>().unwrap()
+                    (block.namespace.join(".") + ".") + block.name.as_str()
                 ),
                 "",
             );

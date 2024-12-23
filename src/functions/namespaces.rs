@@ -3,7 +3,7 @@ use crate::parser::Types;
 use crate::{assert_args_number, get_printable_form};
 use std::fs::OpenOptions;
 use std::process::exit;
-use smartstring::alias::String;
+// use smartstring::alias::String;
 
 pub fn namespace_functions(x: &[String], y: &str, args: &[Types]) -> (Types, bool) {
     if x[0] == "compute" {
