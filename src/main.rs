@@ -511,7 +511,7 @@ macro_rules! check_first_to_register {
     };
 }
 
-fn execute(lines: Vec<Types>) {
+fn execute(lines: &mut Vec<Types>) {
     let mut register: Vec<(usize, Types)> = Vec::new();
 
     let mut depth: Vec<usize> = Vec::new();
@@ -537,6 +537,9 @@ fn execute(lines: Vec<Types>) {
         //     i += 1;
         //     continue;
         // }
+        if let Types::VariableIdentifier(id) = &lines[i] {
+            lines[i] = variables.iter().find(|(x, _)| x == id).unwrap().1.clone();
+        }
         match lines[i] {
             Types::STARTSTORE(num) => depth.push(num),
             Types::STOP => {
@@ -548,6 +551,12 @@ fn execute(lines: Vec<Types>) {
                 }
             }
             Types::VarStore(ref str, id) => variables.push((
+                str.to_string(),
+                register
+                    .swap_remove(register.iter().position(|(x, _)| x.eq(&id)).unwrap())
+                    .1,
+            )),
+            Types::VarReplace(ref str, id) => variables.push((
                 str.clone(),
                 register
                     .swap_remove(register.iter().position(|(x, _)| x.eq(&id)).unwrap())
@@ -561,14 +570,24 @@ fn execute(lines: Vec<Types>) {
                     .iter_mut()
                     .find(|(id, _)| id == depth.last().unwrap())
                 {
-                    match operator
-                        .iter()
-                        .find(|(x, _)| x == depth.last().unwrap())
-                        .unwrap()
-                        .1
-                    {
-                        BasicOperator::Add => {}
-                        _ => {}
+                    match elem.1 {
+                        Types::Integer(parent) => {
+                            match operator
+                                .iter()
+                                .find(|(x, _)| x == depth.last().unwrap())
+                                .unwrap()
+                                .1
+                            {
+                                BasicOperator::Add => {
+                                    *elem = (elem.0, Types::Integer(parent + int))
+                                }
+                                BasicOperator::Inferior => {
+                                    *elem = (elem.0, Types::Bool(parent < int))
+                                }
+                                _ => {}
+                            }
+                        }
+                        _ => todo!(),
                     }
                 }
             }
@@ -685,7 +704,7 @@ fn main() {
 
     // let mut vars: HashMap<SmolStr, Types> = HashMap::default();
     // process_lines(&main_function.2, &mut vec![], functions);
-    let code = simplify(main_function.2, false, 0).0;
+    let mut code = simplify(main_function.2, false, 0).0;
     println!(
         "{}",
         &code
@@ -694,7 +713,7 @@ fn main() {
             .collect::<Vec<String>>()
             .join("\n")
     );
-    execute(code);
+    execute(&mut code);
 
     log!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());
