@@ -501,23 +501,82 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: usize) -> (Vec<Types>, 
     (test, i + 1)
 }
 
+macro_rules! check_first_to_register {
+    ($elem: expr, $depth: expr, $i: expr, $register: expr) => {
+        if !$register.iter().any(|(x, _)| x == $depth.last().unwrap()) {
+            $register.push((*$depth.last().unwrap(), $elem));
+            $i += 1;
+            continue;
+        }
+    };
+}
+
 fn execute(lines: Vec<Types>) {
-    let register: Vec<(usize, Types)> = Vec::new();
-    let variables: Vec<(String, Types)> = Vec::new();
+    let mut register: Vec<(usize, Types)> = Vec::new();
+
+    let mut depth: Vec<usize> = Vec::new();
+
+    let mut operator: Vec<(usize, BasicOperator)> = Vec::new();
+
+    let mut variables: Vec<(String, Types)> = Vec::new();
 
     let mut i: usize = 0;
-    let mut depth: Vec<usize> = Vec::new();
     while i < lines.len() {
+        // if !matches!(
+        //     &lines[i],
+        //     Types::FunctionCall(_)
+        //         | Types::NamespaceFunctionCall(_)
+        //         | Types::Priority(_)
+        //         | Types::Array(_, _, _)
+        //         | Types::STARTSTORE(_)
+        //         | Types::STOP
+        //         | Types::Operation(_)
+        // ) && !register.iter().any(|(x, _)| x == depth.last().unwrap())
+        // {
+        //     register.push((*depth.last().unwrap(), lines[i].clone()));
+        //     i += 1;
+        //     continue;
+        // }
         match lines[i] {
             Types::STARTSTORE(num) => depth.push(num),
             Types::STOP => {
                 depth.pop();
             }
+            Types::Operation(op) => {
+                if depth.len() > 0 {
+                    operator.push((*depth.last().unwrap(), op))
+                }
+            }
+            Types::VarStore(ref str, id) => variables.push((
+                str.clone(),
+                register
+                    .swap_remove(register.iter().position(|(x, _)| x.eq(&id)).unwrap())
+                    .1,
+            )),
 
+            // PRIMITIVE TYPES
+            Types::Integer(int) => {
+                check_first_to_register!(Types::Integer(int), depth, i, register);
+                if let Some(elem) = register
+                    .iter_mut()
+                    .find(|(id, _)| id == depth.last().unwrap())
+                {
+                    match operator
+                        .iter()
+                        .find(|(x, _)| x == depth.last().unwrap())
+                        .unwrap()
+                        .1
+                    {
+                        BasicOperator::Add => {}
+                        _ => {}
+                    }
+                }
+            }
             _ => {}
         }
         i += 1;
-        println!("---\nDEPTH {depth:?}")
+
+        println!("---\nREGISTER {register:?}")
     }
 }
 
