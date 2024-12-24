@@ -70,7 +70,8 @@ pub struct FunctionPropertyCallBlock {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Types {
     STARTSTORE(usize),
-    STOP(usize),
+    STOP,
+    // STOP(usize),
     RECALL(usize),
     CLEAR(usize),
 
@@ -82,8 +83,8 @@ pub enum Types {
     // CONDITION REGISTER ID -- JUMP SIZE IF FALSE
     IF(usize, usize),
 
-    //
-    GOTO(i64),
+    // JUMP X INSTRUCTIONS (CAN BE NEGATIVE)
+    JUMP(i64),
 
     Null,
     Integer(i64),

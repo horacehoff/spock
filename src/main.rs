@@ -34,6 +34,7 @@ use branches::likely;
 use branches::unlikely;
 // use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
 // use smartstring::alias::String;
+use gxhash::HashMapExt;
 use snmalloc_rs::SnMalloc;
 use std::fs;
 use std::io::Write as _;
@@ -487,16 +488,37 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: usize) -> (Vec<Types>, 
                 test.extend(condition.0);
                 test.push(Types::IF(condition.1, added + 1));
                 test.extend(in_code.0);
-                test.push(Types::GOTO(-(sum as i64)))
+                test.push(Types::JUMP(-(sum as i64)))
             }
             _ => test.push(x),
         }
     }
     if store {
         test.insert(0, Types::STARTSTORE(i + 1));
-        test.push(Types::STOP(i + 1))
+        test.push(Types::STOP)
+        // test.push(Types::STOP(i + 1))
     }
     (test, i + 1)
+}
+
+fn execute(lines: Vec<Types>) {
+    let register: Vec<(usize, Types)> = Vec::new();
+    let variables: Vec<(String, Types)> = Vec::new();
+
+    let mut i: usize = 0;
+    let mut depth: Vec<usize> = Vec::new();
+    while i < lines.len() {
+        match lines[i] {
+            Types::STARTSTORE(num) => depth.push(num),
+            Types::STOP => {
+                depth.pop();
+            }
+
+            _ => {}
+        }
+        i += 1;
+        println!("---\nDEPTH {depth:?}")
+    }
 }
 
 fn main() {
@@ -604,15 +626,16 @@ fn main() {
 
     // let mut vars: HashMap<SmolStr, Types> = HashMap::default();
     // process_lines(&main_function.2, &mut vec![], functions);
+    let code = simplify(main_function.2, false, 0).0;
     println!(
         "{}",
-        simplify(main_function.2, false, 0)
-            .0
+        &code
             .iter()
             .map(|x| format!("{:?}", x))
             .collect::<Vec<String>>()
             .join("\n")
     );
+    execute(code);
 
     log!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());
