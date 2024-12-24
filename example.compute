@@ -3,23 +3,15 @@ return x<=20;
 }
 
 func main() {
-let count = 21;
-// let test = count+1000000;
-// print(test(20));
-if count < 100 {
-count = 47;
+let count = 10;
+let test = 20;
+while count < test {
+//     print(count);
+    count = count+1;
+    print("COUNT IS");
+    print(count);
 }
-print(count);
-print("two!");
-print("three!");
-
-// while count < test {
-// //     print(count);
-//     count = count+1;
-// }
-if count > 20 {
-print("hi!");
-}
+print("awesome!!!");
 // let limit = 1000000;
 // let result = 1;
 // while count < limit {
