@@ -3,13 +3,13 @@ return x<=20;
 }
 
 func main() {
-let count = 17;
+let count = 21;
 // let test = count+1000000;
 // print(test(20));
-if count < 10 {
-print("yeeeee!!!!!");
+if count < 100 {
+count = 47;
 }
-print("one!");
+print(count);
 print("two!");
 print("three!");
 
@@ -17,9 +17,9 @@ print("three!");
 // //     print(count);
 //     count = count+1;
 // }
-// if count > 20 {
-// print("hi!");
-// }
+if count > 20 {
+print("hi!");
+}
 // let limit = 1000000;
 // let result = 1;
 // while count < limit {

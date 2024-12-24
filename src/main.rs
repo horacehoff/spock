@@ -556,12 +556,18 @@ fn execute(lines: &mut Vec<Types>) {
                     .swap_remove(register.iter().position(|(x, _)| x.eq(&id)).unwrap())
                     .1,
             )),
-            // Types::VarReplace(ref str, id) => variables.push((
-            //     str.clone(),
-            //     register
-            //         .swap_remove(register.iter().position(|(x, _)| x.eq(&id)).unwrap())
-            //         .1,
-            // )),
+            Types::VarReplace(ref str, id) => {
+                if let Some(elem) = variables.iter_mut().find(|(id, _)| id == str) {
+                    *elem = (
+                        elem.0.to_string(),
+                        register
+                            .swap_remove(register.iter().position(|(x, _)| *x == id).unwrap())
+                            .1,
+                    )
+                } else {
+                    error(&format!("Unknown variable '{str}'"), "");
+                }
+            }
             Types::IF(condition_id, jump_size) => {
                 let condition = register
                     .remove(
@@ -621,6 +627,9 @@ fn execute(lines: &mut Vec<Types>) {
                                 BasicOperator::Inferior => {
                                     *elem = (elem.0, Types::Bool(parent < int))
                                 }
+                                BasicOperator::Superior => {
+                                    *elem = (elem.0, Types::Bool(parent > int))
+                                }
                                 _ => {}
                             }
                         }
@@ -635,7 +644,7 @@ fn execute(lines: &mut Vec<Types>) {
         }
         i += 1;
 
-        println!("---\nREGISTER {register:?}\nVARIABLES {variables:?}")
+        // println!("---\nREGISTER {register:?}\nVARIABLES {variables:?}")
     }
 }
 
@@ -745,14 +754,14 @@ fn main() {
     // let mut vars: HashMap<SmolStr, Types> = HashMap::default();
     // process_lines(&main_function.2, &mut vec![], functions);
     let mut code = simplify(main_function.2, false, 0).0;
-    println!(
-        "{}",
-        &code
-            .iter()
-            .map(|x| format!("{:?}", x))
-            .collect::<Vec<String>>()
-            .join("\n")
-    );
+    // println!(
+    //     "{}",
+    //     &code
+    //         .iter()
+    //         .map(|x| format!("{:?}", x))
+    //         .collect::<Vec<String>>()
+    //         .join("\n")
+    // );
     execute(&mut code);
 
     log!("EXECUTED IN: {:.2?}", now.elapsed());
