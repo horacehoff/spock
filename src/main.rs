@@ -25,14 +25,13 @@ use crate::builtin::builtin_functions;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-use crate::parser::{parse_code, BasicOperator, FunctionPropertyCallBlock, Instructions, Types};
+use crate::parser::{parse_code, BasicOperator, FunctionPropertyCallBlock, Types};
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::{string_ops, to_title_case};
 use crate::util::{error, get_printable_form};
 use branches::likely;
 use branches::unlikely;
-use gxhash::HashMap;
 // use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
 // use smartstring::alias::String;
 use snmalloc_rs::SnMalloc;
@@ -53,10 +52,15 @@ fn process_stack(
     functions: &[(String, &[String], &[Types])],
 ) -> Types {
     let mut output: Types = match stack_in.first().unwrap_or(&Types::Integer(0)) {
-        Types::VariableIdentifier(ref var) => variables.iter().find(|(name, _)| name == var).unwrap_or_else(|| {
-            error(&format!("Unknown variable '{var}'"), "");
-            std::process::exit(1)
-        }).1.clone(),
+        Types::VariableIdentifier(ref var) => variables
+            .iter()
+            .find(|(name, _)| name == var)
+            .unwrap_or_else(|| {
+                error(&format!("Unknown variable '{var}'"), "");
+                std::process::exit(1)
+            })
+            .1
+            .clone(),
         Types::Wrap(ref x) => process_stack(x, variables, functions),
         other => {
             if !matches!(
@@ -79,10 +83,16 @@ fn process_stack(
             //     error(&format!("Unknown variable '{var}'"), "");
             //     std::process::exit(1)
             // }),
-            Types::VariableIdentifier(ref var) => &variables.iter().find(|(name, _)| name == var).unwrap_or_else(|| {
-                error(&format!("Unknown variable '{var}'"), "");
-                std::process::exit(1)
-            }).1,
+            Types::VariableIdentifier(ref var) => {
+                &variables
+                    .iter()
+                    .find(|(name, _)| name == var)
+                    .unwrap_or_else(|| {
+                        error(&format!("Unknown variable '{var}'"), "");
+                        std::process::exit(1)
+                    })
+                    .1
+            }
             Types::Wrap(ref x) => &process_stack(x, variables, functions),
             other => {
                 if !matches!(
@@ -122,7 +132,9 @@ fn process_stack(
                     }
 
                     // OBJECTS
-                    Types::File(ref filepath) => file_props!(filepath.to_string(), args, block.name, output),
+                    Types::File(ref filepath) => {
+                        file_props!(filepath.to_string(), args, block.name, output)
+                    }
                     _ => error(
                         &format!(
                             "Unknown function '{}' for object {}",
@@ -187,8 +199,8 @@ fn process_lines(
                 if !block.is_declared {
                     variables.push((
                         block.name.parse().unwrap(),
-                        process_stack(&block.value, variables, functions))
-                    );
+                        process_stack(&block.value, variables, functions),
+                    ));
                 } else {
                     let calculated = process_stack(&block.value, variables, functions);
                     // if let Some(x) = variables.get_mut((&block.name, _)) {
@@ -305,7 +317,12 @@ fn process_lines(
 
                         let out: Types = process_lines(&block.code, variables, functions);
                         if out != Types::Null {
-                            variables.swap_remove(variables.iter().position(|(name, _)| *name == block.id).unwrap());
+                            variables.swap_remove(
+                                variables
+                                    .iter()
+                                    .position(|(name, _)| *name == block.id)
+                                    .unwrap(),
+                            );
                             // variables.remove(&block.id);
                             if out == Types::Break {
                                 break;
@@ -314,7 +331,12 @@ fn process_lines(
                         }
                     }
                     // variables.remove(&block.id);
-                    variables.swap_remove(variables.iter().position(|(name, _)| *name == block.id).unwrap());
+                    variables.swap_remove(
+                        variables
+                            .iter()
+                            .position(|(name, _)| *name == block.id)
+                            .unwrap(),
+                    );
                 } else if let Types::String(ref target_string) = loop_array {
                     variables.push((block.id.parse().unwrap(), Types::Null));
                     for elem in target_string.chars() {
@@ -328,7 +350,12 @@ fn process_lines(
                         let out: Types = process_lines(&block.code, variables, functions);
                         if out != Types::Null {
                             // variables.remove(&block.id);
-                            variables.swap_remove(variables.iter().position(|(name, _)| *name == block.id).unwrap());
+                            variables.swap_remove(
+                                variables
+                                    .iter()
+                                    .position(|(name, _)| *name == block.id)
+                                    .unwrap(),
+                            );
                             if out == Types::Break {
                                 break;
                             }
@@ -336,8 +363,12 @@ fn process_lines(
                         }
                     }
                     // variables.remove(&block.id);
-                    variables.swap_remove(variables.iter().position(|(name, _)| *name == block.id).unwrap());
-
+                    variables.swap_remove(
+                        variables
+                            .iter()
+                            .position(|(name, _)| *name == block.id)
+                            .unwrap(),
+                    );
                 }
             }
             Types::While(ref block) => {
@@ -372,7 +403,6 @@ fn process_lines(
     Types::Null
 }
 
-
 // pub fn store_instr(inp: Vec<Instructions>) -> Vec<Instructions> {
 //     let mut new = vec![];
 //     for x in inp {
@@ -380,29 +410,27 @@ fn process_lines(
 //     }
 // }
 
-
 fn simplify(lines: Vec<Types>, store: bool, current_num: usize) -> (Vec<Types>, usize) {
     let mut test: Vec<Types> = vec![];
-    let mut i: usize = current_num+1;
-    let mut line_id:usize = 0;
+    let mut i: usize = current_num + 1;
+    // let mut instr_id: usize = 0;
     for x in lines {
-        line_id += 1;
+        // instr_id += 1;
         match x {
             Types::VariableDeclaration(block) => {
                 let x = block.name;
                 let y = block.value;
                 if block.is_declared {
                     let result = simplify(Vec::from(y), true, i);
-                    i = result.1+1;
+                    i = result.1 + 1;
                     test.extend(result.0);
-                    test.push(Types::VAR_REPLACE(x, result.1));
+                    test.push(Types::VarReplace(x, result.1));
                 } else {
                     let result = simplify(Vec::from(y), true, i);
-                    i = result.1+1;
+                    i = result.1 + 1;
                     test.extend(result.0);
-                    test.push(Types::VAR_STORE(x, result.1));
+                    test.push(Types::VarStore(x, result.1));
                 }
-
             }
             Types::FunctionCall(block) => {
                 let name = block.name;
@@ -411,52 +439,75 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: usize) -> (Vec<Types>, 
                 for x in y {
                     if let Types::Wrap(w) = x {
                         let result = simplify(Vec::from(w), true, i);
-                        i = result.1+1;
+                        i = result.1 + 1;
                         test.extend(result.0);
                         args.push(result.1);
                     } else {
                         let result = simplify(vec![x], true, i);
-                        i = result.1+1;
+                        i = result.1 + 1;
                         test.extend(result.0);
                         args.push(result.1);
                     }
                 }
-                test.push(Types::FUNC_CALL(name, args));
+                test.push(Types::FuncCall(name, args));
             }
             Types::FunctionReturn(ret) => {
                 let result = simplify(Vec::from(ret), true, i);
-                i = result.1+1;
+                i = result.1 + 1;
                 test.extend(result.0);
-                test.push(Types::FUNC_RETURN(result.1));
+                test.push(Types::FuncReturn(result.1));
             }
-            // Types::While(block) => {
-            //     let condition =
-            //     let result = simplify(condition, false, i);
-            //     i = result.1+1;
-            //     // test.extend(result.0);
-            //     let code = simplify(code, false, i);
-            //     i = code.1+1;
-            //     test.push(WHILE_BLOCK(result.0, code.0))
-            // }
+            Types::Condition(block) => {
+                let condition = simplify(Vec::from(block.condition), true, i);
+                i = condition.1 + 1;
+                let in_code = simplify(Vec::from(block.code), false, i);
+                i = in_code.1 + 1;
+                let added = in_code.0.len();
+                test.extend(condition.0);
+                test.push(Types::IF(condition.1, added));
+                test.extend(in_code.0);
 
+                // if block.else_blocks.len() > 0 {
+                //     for else_block in block.else_blocks {
+                //         let condition = simplify(Vec::from(else_block.0), true, i);
+                //         i = condition.1 + 1;
+                //         let in_code = simplify(Vec::from(else_block.1), false, i);
+                //         i = in_code.1 + 1;
+                //         let added = in_code.0.len();
+                //     }
+                // }
+            }
+            Types::While(block) => {
+                let condition = simplify(Vec::from(block.condition), true, i);
+                i = condition.1 + 1;
+                let in_code = simplify(Vec::from(block.code), false, i);
+                i = in_code.1 + 1;
+                let added = in_code.0.len();
+                let sum = condition.0.len() + 1 + added;
+                test.extend(condition.0);
+                test.push(Types::IF(condition.1, added + 1));
+                test.extend(in_code.0);
+                test.push(Types::GOTO(-(sum as i64)))
+            }
             _ => test.push(x),
         }
     }
     if store {
-        test.insert(0, Types::STARTSTORE(i+1));
-        test.push(Types::STOP(i+1))
+        test.insert(0, Types::STARTSTORE(i + 1));
+        test.push(Types::STOP(i + 1))
     }
-    (test, i+1)
+    (test, i + 1)
 }
-
-
 
 fn main() {
     dbg!(std::mem::size_of::<Types>());
     // dbg!(std::mem::size_of::<BasicOperator>());
     // dbg!(std::mem::size_of::<Types>());
     let totaltime = Instant::now();
-    let args: Vec<String> = std::env::args().skip(1).map(|x| x.parse::<String>().unwrap()).collect();
+    let args: Vec<String> = std::env::args()
+        .skip(1)
+        .map(|x| x.parse::<String>().unwrap())
+        .collect();
     //     if args.is_empty() {
     //         println!(
     //             "
@@ -553,7 +604,15 @@ fn main() {
 
     // let mut vars: HashMap<SmolStr, Types> = HashMap::default();
     // process_lines(&main_function.2, &mut vec![], functions);
-    println!("{}", simplify(main_function.2, false, 0).0.iter().map(|x| format!("{:?}", x) ).collect::<Vec<String>>().join("\n"));
+    println!(
+        "{}",
+        simplify(main_function.2, false, 0)
+            .0
+            .iter()
+            .map(|x| format!("{:?}", x))
+            .collect::<Vec<String>>()
+            .join("\n")
+    );
 
     log!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());

@@ -4,11 +4,17 @@ return x<=20;
 
 func main() {
 let count = 0;
-let test = count+1000000;
-print(test(20));
+// let test = count+1000000;
+// print(test(20));
+while count < 10 {
+count = count + 1;
+}
 // while count < test {
 // //     print(count);
 //     count = count+1;
+// }
+// if count > 20 {
+// print("hi!");
 // }
 // let limit = 1000000;
 // let result = 1;
@@ -16,8 +22,6 @@ print(test(20));
 //     result = result * 2;
 //     if result > 1000000 {
 //         result = result % 1000000;
-//
-//
 //     }
 //     count = count + 1;
 // }

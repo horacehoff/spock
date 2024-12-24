@@ -66,14 +66,6 @@ pub struct FunctionPropertyCallBlock {
     pub args: Box<[Types]>,
 }
 
-
-pub enum Instructions {
-    StartStore(usize),
-    EndStore(usize),
-    // Operation(usize, BasicOperator, Types),
-    VarStore(usize, String)
-}
-
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Types {
@@ -82,14 +74,16 @@ pub enum Types {
     RECALL(usize),
     CLEAR(usize),
 
-    VAR_STORE(String, usize),
-    VAR_REPLACE(String, usize),
-    FUNC_CALL(String, Vec<usize>),
-    FUNC_RETURN(usize),
+    VarStore(String, usize),
+    VarReplace(String, usize),
+    FuncCall(String, Vec<usize>),
+    FuncReturn(usize),
 
+    // CONDITION REGISTER ID -- JUMP SIZE IF FALSE
+    IF(usize, usize),
 
-
-
+    //
+    GOTO(i64),
 
     Null,
     Integer(i64),
@@ -239,7 +233,8 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
                     .unwrap()
                     .as_str()
                     .trim_start_matches('.')
-                    .parse().unwrap(),
+                    .parse()
+                    .unwrap(),
                 args: Box::from(wrap_to_flat(
                     priority_calc
                         .iter()
