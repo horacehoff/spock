@@ -556,12 +556,46 @@ fn execute(lines: &mut Vec<Types>) {
                     .swap_remove(register.iter().position(|(x, _)| x.eq(&id)).unwrap())
                     .1,
             )),
-            Types::VarReplace(ref str, id) => variables.push((
-                str.clone(),
-                register
-                    .swap_remove(register.iter().position(|(x, _)| x.eq(&id)).unwrap())
-                    .1,
-            )),
+            // Types::VarReplace(ref str, id) => variables.push((
+            //     str.clone(),
+            //     register
+            //         .swap_remove(register.iter().position(|(x, _)| x.eq(&id)).unwrap())
+            //         .1,
+            // )),
+            Types::IF(condition_id, jump_size) => {
+                let condition = register
+                    .remove(
+                        register
+                            .iter()
+                            .position(|(id, _)| *id == condition_id)
+                            .unwrap(),
+                    )
+                    .1;
+                if !matches!(condition, Types::Bool(_)) {
+                    error(
+                        &format!("'{}' is not a boolean", get_printable_form(&condition)),
+                        "",
+                    );
+                } else if condition == Types::Bool(false) {
+                    i += jump_size;
+                }
+            }
+
+            Types::FuncCall(ref name, ref args) => {
+                if name == "print" {
+                    println!(
+                        "{}",
+                        get_printable_form(
+                            &register
+                                .swap_remove(
+                                    register.iter().position(|(id, _)| *id == args[0]).unwrap()
+                                )
+                                .1
+                        )
+                    )
+                } else {
+                }
+            }
 
             // PRIMITIVE TYPES
             Types::Integer(int) => {
@@ -573,9 +607,12 @@ fn execute(lines: &mut Vec<Types>) {
                     match elem.1 {
                         Types::Integer(parent) => {
                             match operator
-                                .iter()
-                                .find(|(x, _)| x == depth.last().unwrap())
-                                .unwrap()
+                                .swap_remove(
+                                    operator
+                                        .iter()
+                                        .position(|(x, _)| x == depth.last().unwrap())
+                                        .unwrap(),
+                                )
                                 .1
                             {
                                 BasicOperator::Add => {
@@ -591,11 +628,14 @@ fn execute(lines: &mut Vec<Types>) {
                     }
                 }
             }
+            Types::String(ref str) => {
+                check_first_to_register!(Types::String(str.to_string()), depth, i, register)
+            }
             _ => {}
         }
         i += 1;
 
-        println!("---\nREGISTER {register:?}")
+        println!("---\nREGISTER {register:?}\nVARIABLES {variables:?}")
     }
 }
 

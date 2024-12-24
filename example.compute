@@ -6,9 +6,13 @@ func main() {
 let count = 17;
 // let test = count+1000000;
 // print(test(20));
-while count+1 < 10 {
-count = count + 1;
+if count < 10 {
+print("yeeeee!!!!!");
 }
+print("one!");
+print("two!");
+print("three!");
+
 // while count < test {
 // //     print(count);
 //     count = count+1;
