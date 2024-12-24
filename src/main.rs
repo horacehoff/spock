@@ -25,7 +25,7 @@ use crate::builtin::builtin_functions;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-use crate::parser::{parse_code, BasicOperator, FunctionPropertyCallBlock, Types};
+use crate::parser::{parse_code, BasicOperator, FunctionPropertyCallBlock, Instructions, Types};
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::{string_ops, to_title_case};
@@ -372,6 +372,85 @@ fn process_lines(
     Types::Null
 }
 
+
+// pub fn store_instr(inp: Vec<Instructions>) -> Vec<Instructions> {
+//     let mut new = vec![];
+//     for x in inp {
+//         if matches!(x, )
+//     }
+// }
+
+
+fn simplify(lines: Vec<Types>, store: bool, current_num: usize) -> (Vec<Types>, usize) {
+    let mut test: Vec<Types> = vec![];
+    let mut i: usize = current_num+1;
+    let mut line_id:usize = 0;
+    for x in lines {
+        line_id += 1;
+        match x {
+            Types::VariableDeclaration(block) => {
+                let x = block.name;
+                let y = block.value;
+                if block.is_declared {
+                    let result = simplify(Vec::from(y), true, i);
+                    i = result.1+1;
+                    test.extend(result.0);
+                    test.push(Types::VAR_REPLACE(x, result.1));
+                } else {
+                    let result = simplify(Vec::from(y), true, i);
+                    i = result.1+1;
+                    test.extend(result.0);
+                    test.push(Types::VAR_STORE(x, result.1));
+                }
+
+            }
+            Types::FunctionCall(block) => {
+                let name = block.name;
+                let y = block.args;
+                let mut args: Vec<usize> = vec![];
+                for x in y {
+                    if let Types::Wrap(w) = x {
+                        let result = simplify(Vec::from(w), true, i);
+                        i = result.1+1;
+                        test.extend(result.0);
+                        args.push(result.1);
+                    } else {
+                        let result = simplify(vec![x], true, i);
+                        i = result.1+1;
+                        test.extend(result.0);
+                        args.push(result.1);
+                    }
+                }
+                test.push(Types::FUNC_CALL(name, args));
+            }
+            Types::FunctionReturn(ret) => {
+                let result = simplify(Vec::from(ret), true, i);
+                i = result.1+1;
+                test.extend(result.0);
+                test.push(Types::FUNC_RETURN(result.1));
+            }
+            // Types::While(block) => {
+            //     let condition =
+            //     let result = simplify(condition, false, i);
+            //     i = result.1+1;
+            //     // test.extend(result.0);
+            //     let code = simplify(code, false, i);
+            //     i = code.1+1;
+            //     test.push(WHILE_BLOCK(result.0, code.0))
+            // }
+
+            _ => test.push(x),
+        }
+    }
+    if store {
+        test.insert(0, Types::STARTSTORE(i+1));
+        test.push(Types::STOP(i+1))
+    }
+    (test, i+1)
+}
+
+
+
 fn main() {
     dbg!(std::mem::size_of::<Types>());
     // dbg!(std::mem::size_of::<BasicOperator>());
@@ -473,7 +552,8 @@ fn main() {
     let now = Instant::now();
 
     // let mut vars: HashMap<SmolStr, Types> = HashMap::default();
-    process_lines(&main_function.2, &mut vec![], functions);
+    // process_lines(&main_function.2, &mut vec![], functions);
+    println!("{}", simplify(main_function.2, false, 0).0.iter().map(|x| format!("{:?}", x) ).collect::<Vec<String>>().join("\n"));
 
     log!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());

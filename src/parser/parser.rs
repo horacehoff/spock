@@ -66,9 +66,31 @@ pub struct FunctionPropertyCallBlock {
     pub args: Box<[Types]>,
 }
 
+
+pub enum Instructions {
+    StartStore(usize),
+    EndStore(usize),
+    // Operation(usize, BasicOperator, Types),
+    VarStore(usize, String)
+}
+
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Types {
+    STARTSTORE(usize),
+    STOP(usize),
+    RECALL(usize),
+    CLEAR(usize),
+
+    VAR_STORE(String, usize),
+    VAR_REPLACE(String, usize),
+    FUNC_CALL(String, Vec<usize>),
+    FUNC_RETURN(usize),
+
+
+
+
+
     Null,
     Integer(i64),
     Float(f64),
