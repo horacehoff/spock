@@ -441,12 +441,18 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                     let result = simplify(Vec::from(y), true, i);
                     i = result.1 + 1;
                     test.extend(result.0);
-                    test.push(Instr::VarReplace(Intern::<String>::from_ref(&x), result.1));
+                    test.push(Instr::VarReplace(
+                        Intern::<String>::from_ref(&x),
+                        Intern::from(result.1),
+                    ));
                 } else {
                     let result = simplify(Vec::from(y), true, i);
                     i = result.1 + 1;
                     test.extend(result.0);
-                    test.push(Instr::VarStore(Intern::<String>::from_ref(&x), result.1));
+                    test.push(Instr::VarStore(
+                        Intern::<String>::from_ref(&x),
+                        Intern::from(result.1),
+                    ));
                 }
             }
             Types::FunctionCall(block) => {
@@ -466,13 +472,16 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                         args.push(result.1);
                     }
                 }
-                test.push(Instr::FuncCall(Intern::<String>::from_ref(&name), args));
+                test.push(Instr::FuncCall(
+                    Intern::<String>::from_ref(&name),
+                    Intern::from(args),
+                ));
             }
             Types::FunctionReturn(ret) => {
                 let result = simplify(Vec::from(ret), true, i);
                 i = result.1 + 1;
                 test.extend(result.0);
-                test.push(Instr::FuncReturn(result.1));
+                test.push(Instr::FuncReturn(Intern::from(result.1)));
             }
             Types::Condition(block) => {
                 let condition = simplify(Vec::from(block.condition), true, i);
@@ -481,7 +490,10 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                 i = in_code.1 + 1;
                 let added = in_code.0.len();
                 test.extend(condition.0);
-                test.push(Instr::IF(condition.1, added as u32));
+                test.push(Instr::IF(
+                    Intern::from(condition.1),
+                    Intern::from(added as u32),
+                ));
                 test.extend(in_code.0);
 
                 // if block.else_blocks.len() > 0 {
@@ -502,15 +514,18 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                 let added = in_code.0.len();
                 let sum = condition.0.len() + 1 + added;
                 test.extend(condition.0);
-                test.push(Instr::IF(condition.1, (added + 1) as u32));
+                test.push(Instr::IF(
+                    Intern::from(condition.1),
+                    Intern::from((added + 1) as u32),
+                ));
                 test.extend(in_code.0);
-                test.push(Instr::JUMP(-(sum as i32)))
+                test.push(Instr::JUMP(Intern::from(-(sum as i32))))
             }
             _ => test.push(types_to_instr(x)),
         }
     }
     if store {
-        test.insert(0, Instr::STARTSTORE(i + 1));
+        test.insert(0, Instr::STARTSTORE(Intern::from(i + 1)));
         test.push(Instr::STOP)
         // test.push(Types::STOP(i + 1))
     }
@@ -519,8 +534,11 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
 
 macro_rules! check_first_to_register {
     ($elem: expr, $depth: expr, $i: expr, $register: expr) => {
-        if !$register.iter().any(|(x, _)| x == $depth.last().unwrap()) {
-            $register.push((*$depth.last().unwrap(), $elem));
+        if !$register
+            .iter()
+            .any(|(x, _)| *x == **$depth.last().unwrap())
+        {
+            $register.push((**$depth.last().unwrap(), $elem));
             $i += 1;
             continue;
         }
@@ -564,7 +582,7 @@ fn execute(lines: Vec<Instr>) {
             }
             Instr::Operation(ref op) => {
                 if !depth.is_empty() {
-                    operator.push((*depth.last().unwrap(), *op))
+                    operator.push((**depth.last().unwrap(), *op))
                 }
             }
             Instr::VarStore(ref str, ref id) => {
@@ -576,11 +594,11 @@ fn execute(lines: Vec<Instr>) {
                     "REPLACING {str}, register is {:?}",
                     register
                         .clone()
-                        .swap_remove(register.iter().position(|(x, _)| x == id).unwrap())
+                        .swap_remove(register.iter().position(|(x, _)| x == id.as_ref()).unwrap())
                         .1
                 );
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == **str) {
-                    let index = register.iter().position(|(x, _)| x == id).unwrap();
+                    let index = register.iter().position(|(x, _)| x == id.as_ref()).unwrap();
                     *elem = (elem.0.to_string(), register.swap_remove(index).1)
                 } else {
                     error(&format!("Unknown variable '{str}'"), "");
@@ -590,19 +608,19 @@ fn execute(lines: Vec<Instr>) {
             Instr::IF(ref condition_id, ref jump_size) => {
                 let index = register
                     .iter()
-                    .position(|(id, _)| id == condition_id)
+                    .position(|(id, _)| id == condition_id.as_ref())
                     .unwrap();
                 let (_, condition) = register.swap_remove(index);
                 if !matches!(condition, Instr::Bool(_)) {
                     error(&format!("'{:?}' is not a boolean", &condition), "");
                 } else if condition == Instr::Bool(false) {
-                    i += *jump_size as usize;
+                    i += **jump_size as usize;
                 }
             }
 
             Instr::JUMP(ref jump_size) => {
-                if jump_size > &0 {
-                    i += *jump_size as usize;
+                if **jump_size > 0 {
+                    i += **jump_size as usize;
                 } else {
                     log!("i is {i}");
                     log!("jumpsize is {jump_size}");
@@ -635,7 +653,7 @@ fn execute(lines: Vec<Instr>) {
                 check_first_to_register!(Instr::Integer(*int), depth, i, register);
                 if let Some(elem) = register
                     .iter_mut()
-                    .find(|(id, _)| id == depth.last().unwrap())
+                    .find(|(id, _)| id == depth.last().unwrap().as_ref())
                 {
                     match elem.1 {
                         Instr::Integer(parent) => {
@@ -643,7 +661,7 @@ fn execute(lines: Vec<Instr>) {
                                 .swap_remove(
                                     operator
                                         .iter()
-                                        .position(|(x, _)| x == depth.last().unwrap())
+                                        .position(|(x, _)| x == depth.last().unwrap().as_ref())
                                         .unwrap(),
                                 )
                                 .1
