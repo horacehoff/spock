@@ -669,7 +669,7 @@ fn execute(lines: &mut Vec<Types>) {
             _ => {}
         }
         i += 1;
-        // println!("---\nREGISTER {register:?}\nVARIABLES {variables:?}")
+        log!("---\nREGISTER {register:?}\nVARIABLES {variables:?}")
     }
 }
 
