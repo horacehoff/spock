@@ -68,6 +68,35 @@ pub struct FunctionPropertyCallBlock {
 
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Instr {
+    STARTSTORE(usize),
+    STOP,
+    // STOP(usize),
+    RECALL(usize),
+    CLEAR(usize),
+
+    VarStore(String, usize),
+    VarReplace(String, usize),
+    FuncCall(String, Vec<usize>),
+    FuncReturn(usize),
+
+    // CONDITION REGISTER ID -- JUMP SIZE IF FALSE
+    IF(usize, usize),
+
+    // JUMP X INSTRUCTIONS (CAN BE NEGATIVE)
+    JUMP(isize),
+
+    Integer(i64),
+    Float(f64),
+    String(String),
+    Bool(bool),
+    Operation(BasicOperator),
+
+    VariableIdentifier(String),
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Types {
     STARTSTORE(usize),
     STOP,
@@ -84,9 +113,8 @@ pub enum Types {
     IF(usize, usize),
 
     // JUMP X INSTRUCTIONS (CAN BE NEGATIVE)
-    JUMP(i64),
+    JUMP(isize),
 
-    Null,
     Integer(i64),
     Float(f64),
     String(String),
@@ -106,6 +134,7 @@ pub enum Types {
     Operation(BasicOperator),
     // NAME - VALUE - IS_REDECLARE
     VariableDeclaration(Box<VariableDeclarationBlock>),
+    Null,
     Condition(Box<ConditionBlock>),
     // Condition
     While(Box<WhileBlock>),

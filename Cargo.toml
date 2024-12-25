@@ -33,7 +33,7 @@ panic = 'abort'
 debug = false
 rpath = false
 strip = true
-debug-assertions = true
+debug-assertions = false
 
 [profile.release.package."*"]
 opt-level = 3
@@ -48,8 +48,8 @@ strip = false
 codegen-units = 1
 opt-level = 3
 debug = 2
-debug-assertions = true
-panic="abort"
+debug-assertions = false
+panic = "abort"
 rpath = true
 
 [profile.debugrelease.package."*"]
