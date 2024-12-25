@@ -421,9 +421,9 @@ fn types_to_instr(x: Types) -> Instr {
     }
 }
 
-fn simplify(lines: Vec<Types>, store: bool, current_num: usize) -> (Vec<Instr>, usize) {
+fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u32) {
     let mut test: Vec<Instr> = vec![];
-    let mut i: usize = current_num + 1;
+    let mut i: u32 = current_num + 1;
     // let mut instr_id: usize = 0;
     for x in lines {
         // instr_id += 1;
@@ -446,7 +446,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: usize) -> (Vec<Instr>, 
             Types::FunctionCall(block) => {
                 let name = block.name;
                 let y = block.args;
-                let mut args: Vec<usize> = vec![];
+                let mut args: Vec<u32> = vec![];
                 for x in y {
                     if let Types::Wrap(w) = x {
                         let result = simplify(Vec::from(w), true, i);
@@ -475,7 +475,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: usize) -> (Vec<Instr>, 
                 i = in_code.1 + 1;
                 let added = in_code.0.len();
                 test.extend(condition.0);
-                test.push(Instr::IF(condition.1, added));
+                test.push(Instr::IF(condition.1, added as u32));
                 test.extend(in_code.0);
 
                 // if block.else_blocks.len() > 0 {
@@ -496,9 +496,9 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: usize) -> (Vec<Instr>, 
                 let added = in_code.0.len();
                 let sum = condition.0.len() + 1 + added;
                 test.extend(condition.0);
-                test.push(Instr::IF(condition.1, added + 1));
+                test.push(Instr::IF(condition.1, (added + 1) as u32));
                 test.extend(in_code.0);
-                test.push(Instr::JUMP(-(sum as isize)))
+                test.push(Instr::JUMP(-(sum as i32)))
             }
             _ => test.push(types_to_instr(x)),
         }
@@ -522,39 +522,38 @@ macro_rules! check_first_to_register {
 }
 
 fn execute(lines: &mut Vec<Instr>) {
-    let mut register: Vec<(usize, Instr)> = Vec::new();
+    let mut register: Vec<(u32, Instr)> = Vec::new();
 
-    let mut depth: Vec<usize> = Vec::new();
+    let mut depth: Vec<u32> = Vec::new();
 
-    let mut operator: Vec<(usize, BasicOperator)> = Vec::new();
+    let mut operator: Vec<(u32, BasicOperator)> = Vec::new();
 
-    let mut variables: Vec<(String, Instr)> = Vec::new();
+    let mut variables: Vec<(&String, Instr)> = Vec::new();
 
     let mut i: usize = 0;
+    let mut variablesclone: Vec<(&String, Instr)> = Vec::new();
     while i < lines.len() {
         log!("----------------\n{:?}", lines[i]);
+        // BROKEN
         match {
             if let Instr::VariableIdentifier(id) = &lines[i] {
-                log!(
-                    "VAR ID FOR {id} is {:?}",
-                    variables.iter().find(|(x, _)| x == id).unwrap().1.clone()
-                );
-                variables.iter().find(|(x, _)| x == id).unwrap().1.clone()
+                variablesclone = variables.clone();
+                &variablesclone.iter().find(|(x, _)| *x == id).unwrap().1
             } else {
-                lines[i].clone()
+                &lines[i]
             }
         } {
-            Instr::STARTSTORE(num) => depth.push(num),
+            Instr::STARTSTORE(num) => depth.push(*num),
             Instr::STOP => {
                 depth.pop();
             }
             Instr::Operation(op) => {
                 if depth.len() > 0 {
-                    operator.push((*depth.last().unwrap(), op))
+                    operator.push((*depth.last().unwrap(), *op))
                 }
             }
             Instr::VarStore(ref str, id) => variables.push((
-                str.to_string(),
+                str,
                 register
                     .swap_remove(register.iter().position(|(x, _)| x.eq(&id)).unwrap())
                     .1,
@@ -564,14 +563,14 @@ fn execute(lines: &mut Vec<Instr>) {
                     "REPLACING {str}, register is {:?}",
                     register
                         .clone()
-                        .swap_remove(register.iter().position(|(x, _)| *x == id).unwrap())
+                        .swap_remove(register.iter().position(|(x, _)| x == id).unwrap())
                         .1
                 );
-                if let Some(elem) = variables.iter_mut().find(|(id, _)| id == str) {
+                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) {
                     *elem = (
-                        elem.0.to_string(),
+                        elem.0,
                         register
-                            .swap_remove(register.iter().position(|(x, _)| *x == id).unwrap())
+                            .swap_remove(register.iter().position(|(x, _)| x == id).unwrap())
                             .1,
                     )
                 } else {
@@ -584,20 +583,20 @@ fn execute(lines: &mut Vec<Instr>) {
                     .remove(
                         register
                             .iter()
-                            .position(|(id, _)| *id == condition_id)
+                            .position(|(id, _)| id == condition_id)
                             .unwrap(),
                     )
                     .1;
                 if !matches!(condition, Instr::Bool(_)) {
                     error(&format!("'{:?}' is not a boolean", &condition), "");
                 } else if condition == Instr::Bool(false) {
-                    i += jump_size;
+                    i += *jump_size as usize;
                 }
             }
 
             Instr::JUMP(jump_size) => {
-                if jump_size > 0 {
-                    i += jump_size as usize;
+                if jump_size > &0 {
+                    i += *jump_size as usize;
                 } else {
                     log!("i is {i}");
                     log!("jumpsize is {jump_size}");
@@ -624,7 +623,7 @@ fn execute(lines: &mut Vec<Instr>) {
 
             // PRIMITIVE TYPES
             Instr::Integer(int) => {
-                check_first_to_register!(Instr::Integer(int), depth, i, register);
+                check_first_to_register!(Instr::Integer(*int), depth, i, register);
                 if let Some(elem) = register
                     .iter_mut()
                     .find(|(id, _)| id == depth.last().unwrap())
@@ -644,13 +643,16 @@ fn execute(lines: &mut Vec<Instr>) {
                                     *elem = (elem.0, Instr::Integer(parent + int))
                                 }
                                 BasicOperator::Inferior => {
-                                    *elem = (elem.0, Instr::Bool(parent < int))
+                                    *elem = (elem.0, Instr::Bool(parent < *int))
                                 }
                                 BasicOperator::Superior => {
-                                    *elem = (elem.0, Instr::Bool(parent > int))
+                                    *elem = (elem.0, Instr::Bool(parent > *int))
                                 }
                                 BasicOperator::Modulo => {
                                     *elem = (elem.0, Instr::Integer(parent % int))
+                                }
+                                BasicOperator::Multiply => {
+                                    *elem = (elem.0, Instr::Integer(parent * int))
                                 }
                                 _ => {}
                             }
@@ -663,7 +665,7 @@ fn execute(lines: &mut Vec<Instr>) {
                 check_first_to_register!(Instr::String(str.to_string()), depth, i, register)
             }
             Instr::Bool(bool) => {
-                check_first_to_register!(Instr::Bool(bool), depth, i, register);
+                check_first_to_register!(Instr::Bool(*bool), depth, i, register);
             }
             _ => {}
         }

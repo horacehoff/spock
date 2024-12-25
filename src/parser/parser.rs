@@ -67,24 +67,24 @@ pub struct FunctionPropertyCallBlock {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Instr {
-    STARTSTORE(usize),
+    STARTSTORE(u32),
     STOP,
     // STOP(usize),
-    RECALL(usize),
-    CLEAR(usize),
+    RECALL(u32),
+    CLEAR(u32),
 
-    VarStore(String, usize),
-    VarReplace(String, usize),
-    FuncCall(String, Vec<usize>),
-    FuncReturn(usize),
+    VarStore(String, u32),
+    VarReplace(String, u32),
+    FuncCall(String, Vec<u32>),
+    FuncReturn(u32),
 
     // CONDITION REGISTER ID -- JUMP SIZE IF FALSE
-    IF(usize, usize),
+    IF(u32, u32),
 
     // JUMP X INSTRUCTIONS (CAN BE NEGATIVE)
-    JUMP(isize),
+    JUMP(i32),
 
     Integer(i64),
     Float(f64),
@@ -93,27 +93,28 @@ pub enum Instr {
     Operation(BasicOperator),
 
     VariableIdentifier(String),
+    Null,
 }
 
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Types {
-    STARTSTORE(usize),
+    STARTSTORE(u32),
     STOP,
     // STOP(usize),
-    RECALL(usize),
-    CLEAR(usize),
+    RECALL(u32),
+    CLEAR(u32),
 
-    VarStore(String, usize),
-    VarReplace(String, usize),
-    FuncCall(String, Vec<usize>),
-    FuncReturn(usize),
+    VarStore(String, u32),
+    VarReplace(String, u32),
+    FuncCall(String, Vec<u32>),
+    FuncReturn(u32),
 
     // CONDITION REGISTER ID -- JUMP SIZE IF FALSE
-    IF(usize, usize),
+    IF(u32, u32),
 
     // JUMP X INSTRUCTIONS (CAN BE NEGATIVE)
-    JUMP(isize),
+    JUMP(i32),
 
     Integer(i64),
     Float(f64),
