@@ -534,7 +534,6 @@ fn execute(lines: &mut Vec<Instr>) {
     let mut temp;
     while i < lines.len() {
         log!("----------------\n{:?}", lines[i]);
-        // BROKEN
         match {
             if let Instr::VariableIdentifier(id) = &lines[i] {
                 temp = variables.iter().find(|(x, _)| *x == *id).unwrap().1.clone();
