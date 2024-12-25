@@ -41,14 +41,14 @@ macro_rules! error_msg {
 macro_rules! log {
     ($($rest:tt)*) => {
         #[cfg(debug_assertions)]
-        println!("\x1b[33m[LOG] {}\x1b[0m", format!($($rest)*));
+        println!("\x1b[33m[LOG] {}\x1b[0m", format!($($rest)*))
     }
 }
 
 #[macro_export]
 macro_rules! log_release {
     ($($rest:tt)*) => {
-        println!("\x1b[33m[LOG] {}\x1b[0m", format!($($rest)*));
+        println!("\x1b[33m[LOG] {}\x1b[0m", format!($($rest)*))
     }
 }
 
@@ -214,7 +214,8 @@ pub fn get_printable_form(x: &Types) -> String {
                     .unwrap()
                     .as_str()
                 + "]")
-                .parse().unwrap()
+                .parse()
+                .unwrap()
         }
         Types::Null => "Null".parse().unwrap(),
         _ => {

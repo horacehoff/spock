@@ -528,17 +528,17 @@ fn execute(lines: &mut Vec<Instr>) {
 
     let mut operator: Vec<(u32, BasicOperator)> = Vec::new();
 
-    let mut variables: Vec<(&String, Instr)> = Vec::new();
+    let mut variables: Vec<(String, Instr)> = Vec::new();
 
     let mut i: usize = 0;
-    let mut variablesclone: Vec<(&String, Instr)> = Vec::new();
+    let mut temp;
     while i < lines.len() {
         log!("----------------\n{:?}", lines[i]);
         // BROKEN
         match {
             if let Instr::VariableIdentifier(id) = &lines[i] {
-                variablesclone = variables.clone();
-                &variablesclone.iter().find(|(x, _)| *x == id).unwrap().1
+                temp = variables.iter().find(|(x, _)| *x == *id).unwrap().1.clone();
+                &temp
             } else {
                 &lines[i]
             }
@@ -553,7 +553,7 @@ fn execute(lines: &mut Vec<Instr>) {
                 }
             }
             Instr::VarStore(ref str, id) => variables.push((
-                str,
+                str.to_string(),
                 register
                     .swap_remove(register.iter().position(|(x, _)| x.eq(&id)).unwrap())
                     .1,
@@ -566,9 +566,9 @@ fn execute(lines: &mut Vec<Instr>) {
                         .swap_remove(register.iter().position(|(x, _)| x == id).unwrap())
                         .1
                 );
-                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) {
+                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == *str) {
                     *elem = (
-                        elem.0,
+                        elem.0.to_string(),
                         register
                             .swap_remove(register.iter().position(|(x, _)| x == id).unwrap())
                             .1,

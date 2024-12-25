@@ -43,7 +43,7 @@ incremental = false
 
 [profile.debugrelease]
 inherits = "release"
-lto = false
+lto = true
 strip = false
 codegen-units = 1
 opt-level = 3
