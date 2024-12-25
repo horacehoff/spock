@@ -37,6 +37,7 @@ use branches::unlikely;
 // use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
 // use smartstring::alias::String;
 use gxhash::HashMapExt;
+use interned_string::Intern;
 use snmalloc_rs::SnMalloc;
 use std::fs;
 use std::io::Write as _;
@@ -417,13 +418,13 @@ fn types_to_instr(x: Types) -> Instr {
     match x {
         Types::Integer(int) => return Instr::Integer(int),
         Types::Bool(bool) => return Instr::Bool(bool),
-        Types::VariableIdentifier(id) => return Instr::VariableIdentifier(id),
+        Types::VariableIdentifier(id) => return Instr::VariableIdentifier(id.intern()),
         Types::Operation(op) => return Instr::Operation(op),
         _ => todo!("{:?}", x),
     }
 }
 
-#[inline(never)]
+// #[inline(never)]
 fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u32) {
     let mut test: Vec<Instr> = vec![];
     let mut i: u32 = current_num + 1;
@@ -438,12 +439,12 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                     let result = simplify(Vec::from(y), true, i);
                     i = result.1 + 1;
                     test.extend(result.0);
-                    test.push(Instr::VarReplace(x, result.1));
+                    test.push(Instr::VarReplace(x.intern(), result.1));
                 } else {
                     let result = simplify(Vec::from(y), true, i);
                     i = result.1 + 1;
                     test.extend(result.0);
-                    test.push(Instr::VarStore(x, result.1));
+                    test.push(Instr::VarStore(x.intern(), result.1));
                 }
             }
             Types::FunctionCall(block) => {
@@ -463,7 +464,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                         args.push(result.1);
                     }
                 }
-                test.push(Instr::FuncCall(name, args));
+                test.push(Instr::FuncCall(name.intern(), args));
             }
             Types::FunctionReturn(ret) => {
                 let result = simplify(Vec::from(ret), true, i);
@@ -524,7 +525,7 @@ macro_rules! check_first_to_register {
     };
 }
 
-#[inline(never)]
+// #[inline(never)]
 fn execute(lines: Vec<Instr>) {
     let mut blink = Blink::new();
 

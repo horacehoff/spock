@@ -1,6 +1,7 @@
 use crate::log;
 use crate::parser::Rule::func_call;
 use crate::util::error;
+use interned_string::IString;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
@@ -75,9 +76,9 @@ pub enum Instr {
     RECALL(u32),
     CLEAR(u32),
 
-    VarStore(String, u32),
-    VarReplace(String, u32),
-    FuncCall(String, Vec<u32>),
+    VarStore(IString, u32),
+    VarReplace(IString, u32),
+    FuncCall(IString, Vec<u32>),
     FuncReturn(u32),
 
     // CONDITION REGISTER ID -- JUMP SIZE IF FALSE
@@ -88,11 +89,11 @@ pub enum Instr {
 
     Integer(i64),
     Float(f64),
-    String(String),
+    String(IString),
     Bool(bool),
     Operation(BasicOperator),
 
-    VariableIdentifier(String),
+    VariableIdentifier(IString),
     Null,
 }
 
