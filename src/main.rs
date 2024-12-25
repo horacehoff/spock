@@ -638,7 +638,7 @@ fn execute(lines: Vec<Instr>) {
                         register.swap_remove(index).1
                     })
                     .collect();
-                if **name == "print" {
+                if name.as_str() == "print" {
                     println!(
                         "{:?}",
                         // get_printable_form(
