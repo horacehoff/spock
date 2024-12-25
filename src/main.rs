@@ -1,6 +1,6 @@
 #![allow(clippy::too_many_lines)]
 
-use blink_alloc::{Blink, BlinkAlloc};
+use blink_alloc::Blink;
 #[path = "types/array.rs"]
 mod array;
 #[path = "functions/builtin.rs"]
@@ -37,7 +37,7 @@ use branches::unlikely;
 // use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
 // use smartstring::alias::String;
 use gxhash::HashMapExt;
-use interned_string::Intern;
+use internment::Intern;
 use snmalloc_rs::SnMalloc;
 use std::fs;
 use std::io::Write as _;
@@ -418,7 +418,9 @@ fn types_to_instr(x: Types) -> Instr {
     match x {
         Types::Integer(int) => return Instr::Integer(int),
         Types::Bool(bool) => return Instr::Bool(bool),
-        Types::VariableIdentifier(id) => return Instr::VariableIdentifier(id.intern()),
+        Types::VariableIdentifier(id) => {
+            return Instr::VariableIdentifier(Intern::<String>::from_ref(&id))
+        }
         Types::Operation(op) => return Instr::Operation(op),
         _ => todo!("{:?}", x),
     }
@@ -439,12 +441,12 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                     let result = simplify(Vec::from(y), true, i);
                     i = result.1 + 1;
                     test.extend(result.0);
-                    test.push(Instr::VarReplace(x.intern(), result.1));
+                    test.push(Instr::VarReplace(Intern::<String>::from_ref(&x), result.1));
                 } else {
                     let result = simplify(Vec::from(y), true, i);
                     i = result.1 + 1;
                     test.extend(result.0);
-                    test.push(Instr::VarStore(x.intern(), result.1));
+                    test.push(Instr::VarStore(Intern::<String>::from_ref(&x), result.1));
                 }
             }
             Types::FunctionCall(block) => {
@@ -464,7 +466,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                         args.push(result.1);
                     }
                 }
-                test.push(Instr::FuncCall(name.intern(), args));
+                test.push(Instr::FuncCall(Intern::<String>::from_ref(&name), args));
             }
             Types::FunctionReturn(ret) => {
                 let result = simplify(Vec::from(ret), true, i);
@@ -545,7 +547,12 @@ fn execute(lines: Vec<Instr>) {
         log!("----------------\n{:?}", lines[i]);
         match {
             if let Instr::VariableIdentifier(id) = &lines[i] {
-                temp = variables.iter().find(|(x, _)| x == id).unwrap().1.clone();
+                temp = variables
+                    .iter()
+                    .find(|(x, _)| x.as_str() == **id)
+                    .unwrap()
+                    .1
+                    .clone();
                 &temp
             } else {
                 &lines[i]
@@ -572,7 +579,7 @@ fn execute(lines: Vec<Instr>) {
                         .swap_remove(register.iter().position(|(x, _)| x == id).unwrap())
                         .1
                 );
-                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == *str) {
+                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == **str) {
                     let index = register.iter().position(|(x, _)| x == id).unwrap();
                     *elem = (elem.0.to_string(), register.swap_remove(index).1)
                 } else {
@@ -613,7 +620,7 @@ fn execute(lines: Vec<Instr>) {
                         register.swap_remove(index).1
                     })
                     .collect();
-                if name == "print" {
+                if **name == "print" {
                     println!(
                         "{:?}",
                         // get_printable_form(
@@ -664,7 +671,12 @@ fn execute(lines: Vec<Instr>) {
                 }
             }
             Instr::String(ref str) => {
-                check_first_to_register!(Instr::String(str.to_string()), depth, i, register)
+                check_first_to_register!(
+                    Instr::String(Intern::from(str.to_string())),
+                    depth,
+                    i,
+                    register
+                )
             }
             Instr::Bool(ref bool) => {
                 check_first_to_register!(Instr::Bool(*bool), depth, i, register);
