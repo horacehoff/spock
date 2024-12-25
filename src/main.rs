@@ -522,7 +522,7 @@ fn execute(lines: &mut Vec<Types>) {
 
     let mut i: usize = 0;
     while i < lines.len() {
-        println!("{:?}", lines[i]);
+        log!("{:?}", lines[i]);
         // if !matches!(
         //     &lines[i],
         //     Types::FunctionCall(_)
@@ -539,7 +539,7 @@ fn execute(lines: &mut Vec<Types>) {
         //     continue;
         // }
         if let Types::VariableIdentifier(id) = &lines[i] {
-            println!(
+            log!(
                 "VAR ID FOR {id} is {:?}",
                 variables.iter().find(|(x, _)| x == id).unwrap().1.clone()
             );
@@ -562,6 +562,13 @@ fn execute(lines: &mut Vec<Types>) {
                     .1,
             )),
             Types::VarReplace(ref str, id) => {
+                log!(
+                    "REPLACING {str}, register is {:?}",
+                    register
+                        .clone()
+                        .swap_remove(register.iter().position(|(x, _)| *x == id).unwrap())
+                        .1
+                );
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| id == str) {
                     *elem = (
                         elem.0.to_string(),
@@ -572,7 +579,7 @@ fn execute(lines: &mut Vec<Types>) {
                 } else {
                     error(&format!("Unknown variable '{str}'"), "");
                 }
-                println!("NEW VARS {variables:?}");
+                log!("NEW VARS {variables:?}");
             }
             Types::IF(condition_id, jump_size) => {
                 let condition = register
@@ -598,10 +605,10 @@ fn execute(lines: &mut Vec<Types>) {
                 if jump_size > 0 {
                     i += jump_size as usize;
                 } else {
-                    println!("i is {i}");
-                    println!("jumpsize is {jump_size}");
+                    log!("i is {i}");
+                    log!("jumpsize is {jump_size}");
                     i -= jump_size.abs() as usize;
-                    println!("JUMPED AND I IS {i}");
+                    log!("JUMPED AND I IS {i}");
                     continue;
                 }
             }
