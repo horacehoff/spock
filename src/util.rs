@@ -250,7 +250,7 @@ pub fn split_vec<T: PartialEq>(input: Vec<T>, separator: T) -> Vec<Vec<T>> {
     result
 }
 
-pub fn split_vec_box<T: PartialEq + Clone>(input: &Box<[T]>, separator: T) -> Vec<Vec<T>> {
+pub fn split_vec_box<T: PartialEq + Clone>(input: &[T], separator: T) -> Vec<Vec<T>> {
     let mut result = Vec::with_capacity(input.len() / 2); // Pre-allocate space for the result
     let mut current = Vec::new();
 

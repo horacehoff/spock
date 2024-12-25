@@ -8,7 +8,7 @@ use crate::util::error;
 pub fn string_ops(x: &String, output: Types, current_operator: BasicOperator) -> Types {
     if let Types::String(value) = output {
         match current_operator {
-            BasicOperator::Add => return Types::String(format!("{value}{x}").into()),
+            BasicOperator::Add => return Types::String(format!("{value}{x}")),
             BasicOperator::Equal | BasicOperator::NotEqual => return Types::Bool(value.eq(x)),
             _ => {
                 error(
@@ -41,7 +41,7 @@ pub fn string_ops(x: &String, output: Types, current_operator: BasicOperator) ->
     Types::Null
 }
 
-pub fn to_title_case(text: &String) -> String {
+pub fn to_title_case(text: &str) -> String {
     text.split_whitespace()
         .map(|word| {
             let (first, rest) = word.split_at(1);
@@ -49,7 +49,7 @@ pub fn to_title_case(text: &String) -> String {
         })
         .collect::<Vec<String>>()
         .join(" ")
-        // .parse().unwrap()
+    // .parse().unwrap()
 }
 
 #[macro_export]

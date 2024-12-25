@@ -179,14 +179,12 @@ pub fn wrap_to_flat(inp: Vec<Types>) -> Vec<Types> {
             new_vec.push(Types::Separator);
         }
     }
-    if new_vec.len() > 0 {
+    if !new_vec.is_empty() {
         if new_vec.first().unwrap().eq(&Types::Separator) {
             new_vec.remove(0);
         }
-        if new_vec.len() > 0 {
-            if new_vec.last().unwrap().eq(&Types::Separator) {
-                new_vec.pop();
-            }
+        if !new_vec.is_empty() && new_vec.last().unwrap().eq(&Types::Separator) {
+            new_vec.pop();
         }
     }
     new_vec

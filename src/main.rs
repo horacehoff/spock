@@ -1,4 +1,6 @@
 #![allow(clippy::too_many_lines)]
+
+use blink_alloc::{Blink, BlinkAlloc};
 #[path = "types/array.rs"]
 mod array;
 #[path = "functions/builtin.rs"]
@@ -134,7 +136,7 @@ fn process_stack(
 
                     // OBJECTS
                     Types::File(ref filepath) => {
-                        file_props!(filepath.to_string(), args, block.name, output)
+                        file_props!(filepath, args, block.name, output)
                     }
                     _ => error(
                         &format!(
@@ -421,6 +423,7 @@ fn types_to_instr(x: Types) -> Instr {
     }
 }
 
+#[inline(never)]
 fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u32) {
     let mut test: Vec<Instr> = vec![];
     let mut i: u32 = current_num + 1;
@@ -521,10 +524,14 @@ macro_rules! check_first_to_register {
     };
 }
 
-fn execute(lines: &mut Vec<Instr>) {
+#[inline(never)]
+fn execute(lines: Vec<Instr>) {
+    let mut blink = Blink::new();
+
     let mut register: Vec<(u32, Instr)> = Vec::new();
 
-    let mut depth: Vec<u32> = Vec::new();
+    // let mut depth: Vec<u32> = Vec::new_in(blink);
+    let depth = blink.put(vec![]);
 
     let mut operator: Vec<(u32, BasicOperator)> = Vec::new();
 
@@ -547,14 +554,14 @@ fn execute(lines: &mut Vec<Instr>) {
                 depth.pop();
             }
             Instr::Operation(op) => {
-                if depth.len() > 0 {
+                if !depth.is_empty() {
                     operator.push((*depth.last().unwrap(), *op))
                 }
             }
             Instr::VarStore(ref str, id) => variables.push((
                 str.to_string(),
                 register
-                    .swap_remove(register.iter().position(|(x, _)| x.eq(&id)).unwrap())
+                    .swap_remove(register.iter().position(|(x, _)| x.eq(id)).unwrap())
                     .1,
             )),
             Instr::VarReplace(ref str, id) => {
@@ -671,6 +678,7 @@ fn execute(lines: &mut Vec<Instr>) {
         i += 1;
         log!("---\nREGISTER {register:?}\nVARIABLES {variables:?}")
     }
+    blink.reset();
 }
 
 fn main() {
@@ -787,7 +795,7 @@ fn main() {
             .collect::<Vec<String>>()
             .join("\n")
     );
-    execute(&mut code);
+    execute(code);
 
     log!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());

@@ -29,7 +29,7 @@ pub fn namespace_functions(x: &[String], y: &str, args: &[Types]) -> (Types, boo
                     .write(true)
                     .create(true)
                     .truncate(false)
-                    .open(filename.to_string())
+                    .open(filename)
                     .unwrap_or_else(|_| {
                         error("Failed to check/create file", "");
                         std::process::exit(1)
