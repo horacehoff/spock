@@ -99,23 +99,6 @@ pub enum Instr {
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Types {
-    STARTSTORE(u32),
-    STOP,
-    // STOP(usize),
-    RECALL(u32),
-    CLEAR(u32),
-
-    VarStore(String, u32),
-    VarReplace(String, u32),
-    FuncCall(String, Vec<u32>),
-    FuncReturn(u32),
-
-    // CONDITION REGISTER ID -- JUMP SIZE IF FALSE
-    IF(u32, u32),
-
-    // JUMP X INSTRUCTIONS (CAN BE NEGATIVE)
-    JUMP(i32),
-
     Integer(i64),
     Float(f64),
     String(String),
