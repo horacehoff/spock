@@ -546,10 +546,10 @@ fn execute(lines: Vec<Instr>) {
     while i < len {
         log!("----------------\n{:?}", lines[i]);
         match {
-            if let Instr::VariableIdentifier(id) = &lines[i] {
+            if let Instr::VariableIdentifier(ref id) = &lines[i] {
                 temp = variables
                     .iter()
-                    .find(|(x, _)| x.as_str() == **id)
+                    .find(|(x, _)| x == id.as_ref())
                     .unwrap()
                     .1
                     .clone();

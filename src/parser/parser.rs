@@ -1,14 +1,11 @@
 use crate::log;
 use crate::parser::Rule::func_call;
 use crate::util::error;
-// use interned_string::IString;
 use internment::Intern;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
-// use smartstring::alias::String;
-// use thunderdome::{Arena, Index};
 
 #[derive(Parser)]
 #[grammar = "parser/parser_grammar.pest"]
