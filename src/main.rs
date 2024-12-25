@@ -543,7 +543,7 @@ fn execute(lines: Vec<Instr>) {
         log!("----------------\n{:?}", lines[i]);
         match {
             if let Instr::VariableIdentifier(id) = &lines[i] {
-                temp = variables.iter().find(|(x, _)| *x == *id).unwrap().1.clone();
+                temp = variables.iter().find(|(x, _)| x == id).unwrap().1.clone();
                 &temp
             } else {
                 &lines[i]
@@ -558,12 +558,10 @@ fn execute(lines: Vec<Instr>) {
                     operator.push((*depth.last().unwrap(), *op))
                 }
             }
-            Instr::VarStore(ref str, id) => variables.push((
-                str.to_string(),
-                register
-                    .swap_remove(register.iter().position(|(x, _)| x.eq(id)).unwrap())
-                    .1,
-            )),
+            Instr::VarStore(ref str, id) => {
+                let index = register.iter().position(|(x, _)| x.eq(id)).unwrap();
+                variables.push((str.to_string(), register.swap_remove(index).1))
+            }
             Instr::VarReplace(ref str, id) => {
                 log!(
                     "REPLACING {str}, register is {:?}",
@@ -573,26 +571,19 @@ fn execute(lines: Vec<Instr>) {
                         .1
                 );
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == *str) {
-                    *elem = (
-                        elem.0.to_string(),
-                        register
-                            .swap_remove(register.iter().position(|(x, _)| x == id).unwrap())
-                            .1,
-                    )
+                    let index = register.iter().position(|(x, _)| x == id).unwrap();
+                    *elem = (elem.0.to_string(), register.swap_remove(index).1)
                 } else {
                     error(&format!("Unknown variable '{str}'"), "");
                 }
                 log!("NEW VARS {variables:?}");
             }
             Instr::IF(condition_id, jump_size) => {
-                let condition = register
-                    .remove(
-                        register
-                            .iter()
-                            .position(|(id, _)| id == condition_id)
-                            .unwrap(),
-                    )
-                    .1;
+                let index = register
+                    .iter()
+                    .position(|(id, _)| id == condition_id)
+                    .unwrap();
+                let (_, condition) = register.swap_remove(index);
                 if !matches!(condition, Instr::Bool(_)) {
                     error(&format!("'{:?}' is not a boolean", &condition), "");
                 } else if condition == Instr::Bool(false) {
@@ -613,15 +604,18 @@ fn execute(lines: Vec<Instr>) {
             }
 
             Instr::FuncCall(ref name, ref args) => {
+                let func_args: Vec<Instr> = args
+                    .iter()
+                    .map(|&arg| {
+                        let index = register.iter().position(|(id, _)| *id == arg).unwrap();
+                        register.swap_remove(index).1
+                    })
+                    .collect();
                 if name == "print" {
                     println!(
                         "{:?}",
                         // get_printable_form(
-                        &register
-                            .swap_remove(
-                                register.iter().position(|(id, _)| *id == args[0]).unwrap()
-                            )
-                            .1 // )
+                        func_args[0]
                     )
                 } else {
                 }
@@ -649,10 +643,10 @@ fn execute(lines: Vec<Instr>) {
                                     *elem = (elem.0, Instr::Integer(parent + int))
                                 }
                                 BasicOperator::Inferior => {
-                                    *elem = (elem.0, Instr::Bool(parent < *int))
+                                    *elem = (elem.0, Instr::Bool(&parent < int))
                                 }
                                 BasicOperator::Superior => {
-                                    *elem = (elem.0, Instr::Bool(parent > *int))
+                                    *elem = (elem.0, Instr::Bool(&parent > int))
                                 }
                                 BasicOperator::Modulo => {
                                     *elem = (elem.0, Instr::Integer(parent % int))
