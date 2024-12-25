@@ -533,28 +533,6 @@ fn execute(lines: &mut Vec<Instr>) {
     let mut i: usize = 0;
     while i < lines.len() {
         log!("----------------\n{:?}", lines[i]);
-        // if !matches!(
-        //     &lines[i],
-        //     Types::FunctionCall(_)
-        //         | Types::NamespaceFunctionCall(_)
-        //         | Types::Priority(_)
-        //         | Types::Array(_, _, _)
-        //         | Types::STARTSTORE(_)
-        //         | Types::STOP
-        //         | Types::Operation(_)
-        // ) && !register.iter().any(|(x, _)| x == depth.last().unwrap())
-        // {
-        //     register.push((*depth.last().unwrap(), lines[i].clone()));
-        //     i += 1;
-        //     continue;
-        // }
-        // if let Types::VariableIdentifier(id) = &lines[i] {
-        //     log!(
-        //         "VAR ID FOR {id} is {:?}",
-        //         variables.iter().find(|(x, _)| x == id).unwrap().1.clone()
-        //     );
-        //     lines[i] = variables.iter().find(|(x, _)| x == id).unwrap().1.clone();
-        // }
         match {
             if let Instr::VariableIdentifier(id) = &lines[i] {
                 log!(
