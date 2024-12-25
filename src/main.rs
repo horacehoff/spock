@@ -539,7 +539,8 @@ fn execute(lines: Vec<Instr>) {
 
     let mut i: usize = 0;
     let mut temp;
-    while i < lines.len() {
+    let len = lines.len();
+    while i < len {
         log!("----------------\n{:?}", lines[i]);
         match {
             if let Instr::VariableIdentifier(id) = &lines[i] {
@@ -549,20 +550,20 @@ fn execute(lines: Vec<Instr>) {
                 &lines[i]
             }
         } {
-            Instr::STARTSTORE(num) => depth.push(*num),
+            Instr::STARTSTORE(ref num) => depth.push(*num),
             Instr::STOP => {
                 depth.pop();
             }
-            Instr::Operation(op) => {
+            Instr::Operation(ref op) => {
                 if !depth.is_empty() {
                     operator.push((*depth.last().unwrap(), *op))
                 }
             }
-            Instr::VarStore(ref str, id) => {
+            Instr::VarStore(ref str, ref id) => {
                 let index = register.iter().position(|(x, _)| x.eq(id)).unwrap();
                 variables.push((str.to_string(), register.swap_remove(index).1))
             }
-            Instr::VarReplace(ref str, id) => {
+            Instr::VarReplace(ref str, ref id) => {
                 log!(
                     "REPLACING {str}, register is {:?}",
                     register
@@ -578,7 +579,7 @@ fn execute(lines: Vec<Instr>) {
                 }
                 log!("NEW VARS {variables:?}");
             }
-            Instr::IF(condition_id, jump_size) => {
+            Instr::IF(ref condition_id, ref jump_size) => {
                 let index = register
                     .iter()
                     .position(|(id, _)| id == condition_id)
@@ -591,7 +592,7 @@ fn execute(lines: Vec<Instr>) {
                 }
             }
 
-            Instr::JUMP(jump_size) => {
+            Instr::JUMP(ref jump_size) => {
                 if jump_size > &0 {
                     i += *jump_size as usize;
                 } else {
@@ -622,7 +623,7 @@ fn execute(lines: Vec<Instr>) {
             }
 
             // PRIMITIVE TYPES
-            Instr::Integer(int) => {
+            Instr::Integer(ref int) => {
                 check_first_to_register!(Instr::Integer(*int), depth, i, register);
                 if let Some(elem) = register
                     .iter_mut()
@@ -664,7 +665,7 @@ fn execute(lines: Vec<Instr>) {
             Instr::String(ref str) => {
                 check_first_to_register!(Instr::String(str.to_string()), depth, i, register)
             }
-            Instr::Bool(bool) => {
+            Instr::Bool(ref bool) => {
                 check_first_to_register!(Instr::Bool(*bool), depth, i, register);
             }
             _ => {}
