@@ -68,7 +68,7 @@ pub struct FunctionPropertyCallBlock {
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Instr {
-    STARTSTORE(Intern<u32>),
+    STORE(Intern<u32>),
     STOP,
     // STOP(usize),
     RECALL(Intern<u32>),

@@ -426,7 +426,7 @@ fn types_to_instr(x: Types) -> Instr {
     }
 }
 
-// #[inline(never)]
+#[inline(never)]
 fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u32) {
     let mut test: Vec<Instr> = vec![];
     let mut i: u32 = current_num + 1;
@@ -525,7 +525,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
         }
     }
     if store {
-        test.insert(0, Instr::STARTSTORE(Intern::from(i + 1)));
+        test.insert(0, Instr::STORE(Intern::from(i + 1)));
         test.push(Instr::STOP)
         // test.push(Types::STOP(i + 1))
     }
@@ -545,7 +545,7 @@ macro_rules! check_first_to_register {
     };
 }
 
-// #[inline(never)]
+#[inline(never)]
 fn execute(lines: Vec<Instr>) {
     let mut blink = Blink::new();
 
@@ -562,7 +562,7 @@ fn execute(lines: Vec<Instr>) {
     let mut temp;
     let len = lines.len();
     while i < len {
-        log!("----------------\n{:?}", lines[i]);
+        // log!("----------------\n{:?}", lines[i]);
         match {
             if let Instr::VariableIdentifier(ref id) = &lines[i] {
                 temp = variables
@@ -576,7 +576,7 @@ fn execute(lines: Vec<Instr>) {
                 &lines[i]
             }
         } {
-            Instr::STARTSTORE(ref num) => depth.push(*num),
+            Instr::STORE(ref num) => depth.push(*num),
             Instr::STOP => {
                 depth.pop();
             }
@@ -590,20 +590,20 @@ fn execute(lines: Vec<Instr>) {
                 variables.push((str.to_string(), register.swap_remove(index).1))
             }
             Instr::VarReplace(ref str, ref id) => {
-                log!(
-                    "REPLACING {str}, register is {:?}",
-                    register
-                        .clone()
-                        .swap_remove(register.iter().position(|(x, _)| x == id.as_ref()).unwrap())
-                        .1
-                );
+                // log!(
+                //     "REPLACING {str}, register is {:?}",
+                //     register
+                //         .clone()
+                //         .swap_remove(register.iter().position(|(x, _)| x == id.as_ref()).unwrap())
+                //         .1
+                // );
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == **str) {
                     let index = register.iter().position(|(x, _)| x == id.as_ref()).unwrap();
                     *elem = (elem.0.to_string(), register.swap_remove(index).1)
                 } else {
                     error(&format!("Unknown variable '{str}'"), "");
                 }
-                log!("NEW VARS {variables:?}");
+                // log!("NEW VARS {variables:?}");
             }
             Instr::IF(ref condition_id, ref jump_size) => {
                 let index = register
@@ -622,10 +622,10 @@ fn execute(lines: Vec<Instr>) {
                 if **jump_size > 0 {
                     i += **jump_size as usize;
                 } else {
-                    log!("i is {i}");
-                    log!("jumpsize is {jump_size}");
+                    // log!("i is {i}");
+                    // log!("jumpsize is {jump_size}");
                     i -= jump_size.abs() as usize;
-                    log!("JUMPED AND I IS {i}");
+                    // log!("JUMPED AND I IS {i}");
                     continue;
                 }
             }
@@ -638,7 +638,8 @@ fn execute(lines: Vec<Instr>) {
                         register.swap_remove(index).1
                     })
                     .collect();
-                if name.as_str() == "print" {
+                let func_name = name.as_str();
+                if func_name == "print" {
                     println!(
                         "{:?}",
                         // get_printable_form(
@@ -702,7 +703,7 @@ fn execute(lines: Vec<Instr>) {
             _ => {}
         }
         i += 1;
-        log!("---\nREGISTER {register:?}\nVARIABLES {variables:?}")
+        // log!("---\nREGISTER {register:?}\nVARIABLES {variables:?}")
     }
     blink.reset();
 }
@@ -807,6 +808,7 @@ fn main() {
             .collect::<Vec<String>>()
             .join("\n")
     );
+    log!("------");
 
     let now = Instant::now();
 
@@ -821,6 +823,7 @@ fn main() {
             .collect::<Vec<String>>()
             .join("\n")
     );
+    log!("------");
     execute(code);
 
     log!("EXECUTED IN: {:.2?}", now.elapsed());
