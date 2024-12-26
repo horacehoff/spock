@@ -764,31 +764,43 @@ fn execute(lines: Vec<Instr>) {
                                 .position(|(x, _)| x == depth.last().unwrap().as_ref())
                                 .unwrap();
                             match operator.swap_remove(index).1 {
-                                BasicOperator::Add => elem.1 = Instr::Integer(parent + float),
-                                BasicOperator::Sub => elem.1 = Instr::Integer(parent - float),
+                                BasicOperator::Add => elem.1 = Instr::Float(parent as f64 + float),
+                                BasicOperator::Sub => elem.1 = Instr::Float(parent as f64 - float),
                                 BasicOperator::Divide => {
                                     assert_ne!(
                                         float,
-                                        &0,
+                                        &0.0,
                                         "{}",
                                         error_msg!(format!("Division by zero ({float} / 0)"))
                                     );
                                     elem.1 = math_to_type!(parent as f64 / *float as f64);
                                 }
-                                BasicOperator::Multiply => elem.1 = Instr::Integer(parent * float),
+                                BasicOperator::Multiply => {
+                                    elem.1 = Instr::Float(parent as f64 * float)
+                                }
                                 BasicOperator::Power => {
-                                    elem.1 = Instr::Integer(parent.pow(*float as u32))
+                                    elem.1 = Instr::Float(parent.pow(*float as u32) as f64)
                                 }
-                                BasicOperator::Modulo => elem.1 = Instr::Integer(parent % float),
-                                BasicOperator::Equal => elem.1 = Instr::Bool(&parent == float),
-                                BasicOperator::NotEqual => elem.1 = Instr::Bool(&parent != float),
-                                BasicOperator::Inferior => elem.1 = Instr::Bool(&parent < float),
+                                BasicOperator::Modulo => {
+                                    elem.1 = Instr::Float(parent as f64 % float)
+                                }
+                                BasicOperator::Equal => {
+                                    elem.1 = Instr::Bool(parent as f64 == *float)
+                                }
+                                BasicOperator::NotEqual => {
+                                    elem.1 = Instr::Bool(parent as f64 != *float)
+                                }
+                                BasicOperator::Inferior => {
+                                    elem.1 = Instr::Bool((parent as f64) < (*float))
+                                }
                                 BasicOperator::InferiorEqual => {
-                                    elem.1 = Instr::Bool(&parent <= float)
+                                    elem.1 = Instr::Bool(parent as f64 <= *float)
                                 }
-                                BasicOperator::Superior => elem.1 = Instr::Bool(&parent > float),
+                                BasicOperator::Superior => {
+                                    elem.1 = Instr::Bool(parent as f64 > *float)
+                                }
                                 BasicOperator::SuperiorEqual => {
-                                    elem.1 = Instr::Bool(&parent >= float)
+                                    elem.1 = Instr::Bool(parent as f64 >= *float)
                                 }
 
                                 // AND
@@ -802,43 +814,29 @@ fn execute(lines: Vec<Instr>) {
                                 .position(|(x, _)| x == depth.last().unwrap().as_ref())
                                 .unwrap();
                             match operator.swap_remove(index).1 {
-                                BasicOperator::Add => elem.1 = Instr::Float(parent + *float as f64),
-                                BasicOperator::Sub => elem.1 = Instr::Float(parent - *float as f64),
+                                BasicOperator::Add => elem.1 = Instr::Float(parent + *float),
+                                BasicOperator::Sub => elem.1 = Instr::Float(parent - *float),
                                 BasicOperator::Divide => {
                                     assert_ne!(
                                         float,
-                                        &0,
+                                        &0.0,
                                         "{}",
                                         error_msg!(format!("Division by zero ({float} / 0)"))
                                     );
-                                    elem.1 = Instr::Float(parent / *float as f64)
+                                    elem.1 = Instr::Float(parent / *float)
                                 }
-                                BasicOperator::Multiply => {
-                                    elem.1 = Instr::Float(parent * *float as f64)
-                                }
-                                BasicOperator::Power => {
-                                    elem.1 = Instr::Float(parent.powf(*float as f64))
-                                }
-                                BasicOperator::Modulo => {
-                                    elem.1 = Instr::Float(parent % *float as f64)
-                                }
-                                BasicOperator::Equal => {
-                                    elem.1 = Instr::Bool(parent == *float as f64)
-                                }
-                                BasicOperator::NotEqual => {
-                                    elem.1 = Instr::Bool(parent != *float as f64)
-                                }
-                                BasicOperator::Inferior => {
-                                    elem.1 = Instr::Bool(parent < *float as f64)
-                                }
+                                BasicOperator::Multiply => elem.1 = Instr::Float(parent * *float),
+                                BasicOperator::Power => elem.1 = Instr::Float(parent.powf(*float)),
+                                BasicOperator::Modulo => elem.1 = Instr::Float(parent % *float),
+                                BasicOperator::Equal => elem.1 = Instr::Bool(parent == *float),
+                                BasicOperator::NotEqual => elem.1 = Instr::Bool(parent != *float),
+                                BasicOperator::Inferior => elem.1 = Instr::Bool(parent < *float),
                                 BasicOperator::InferiorEqual => {
-                                    elem.1 = Instr::Bool(parent <= *float as f64)
+                                    elem.1 = Instr::Bool(parent <= *float)
                                 }
-                                BasicOperator::Superior => {
-                                    elem.1 = Instr::Bool(parent > *float as f64)
-                                }
+                                BasicOperator::Superior => elem.1 = Instr::Bool(parent > *float),
                                 BasicOperator::SuperiorEqual => {
-                                    elem.1 = Instr::Bool(parent >= *float as f64)
+                                    elem.1 = Instr::Bool(parent >= *float)
                                 }
 
                                 // AND
