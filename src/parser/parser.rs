@@ -70,10 +70,8 @@ pub struct FunctionPropertyCallBlock {
 pub enum Instr {
     STORE(Intern<u32>),
     STOP,
-    // STOP(usize),
-    RECALL(Intern<u32>),
-    CLEAR(Intern<u32>),
-
+    // LOAD(Intern<u32>),
+    // CLEAR(Intern<u32>),
     VarStore(Intern<String>, Intern<u32>),
     VarReplace(Intern<String>, Intern<u32>),
     FuncCall(Intern<String>, Intern<Vec<u32>>),
