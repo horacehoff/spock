@@ -619,7 +619,7 @@ fn execute(lines: Vec<Instr>) {
             }
 
             Instr::JUMP(ref jump_size) => {
-                if **jump_size > 0 {
+                if !jump_size.is_negative() {
                     i += **jump_size as usize;
                 } else {
                     // log!("i is {i}");
@@ -674,9 +674,23 @@ fn execute(lines: Vec<Instr>) {
                                     elem.1 = Instr::Integer(parent / int)
                                 }
                                 BasicOperator::Multiply => elem.1 = Instr::Integer(parent * int),
-                                BasicOperator::Inferior => elem.1 = Instr::Bool(&parent < int),
-                                BasicOperator::Superior => elem.1 = Instr::Bool(&parent > int),
+                                BasicOperator::Power => {
+                                    elem.1 = Instr::Integer(parent.pow(*int as u32))
+                                }
                                 BasicOperator::Modulo => elem.1 = Instr::Integer(parent % int),
+                                BasicOperator::Equal => elem.1 = Instr::Bool(&parent == int),
+                                BasicOperator::NotEqual => elem.1 = Instr::Bool(&parent != int),
+                                BasicOperator::Inferior => elem.1 = Instr::Bool(&parent < int),
+                                BasicOperator::InferiorEqual => {
+                                    elem.1 = Instr::Bool(&parent <= int)
+                                }
+                                BasicOperator::Superior => elem.1 = Instr::Bool(&parent > int),
+                                BasicOperator::SuperiorEqual => {
+                                    elem.1 = Instr::Bool(&parent >= int)
+                                }
+
+                                // AND
+                                // OR
                                 _ => {}
                             }
                         }
