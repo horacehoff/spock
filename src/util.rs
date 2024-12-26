@@ -1,4 +1,4 @@
-use crate::parser::Types;
+use crate::parser::{Instr, Types};
 // use smartstring::alias::String;
 // use smartstring::alias::
 
@@ -223,6 +223,19 @@ pub fn get_printable_form(x: &Types) -> String {
                 &format!("Cannot display {} type", get_printable_type!(x)),
                 "",
             );
+            "".parse().unwrap()
+        }
+    }
+}
+
+pub fn print_form(x: &Instr) -> String {
+    match x {
+        Instr::String(ref str) => str.parse().unwrap(),
+        Instr::Float(ref float) => float.to_string().parse().unwrap(),
+        Instr::Integer(ref int) => int.to_string().parse().unwrap(),
+        Instr::Bool(ref boolean) => boolean.to_string().parse().unwrap(),
+        _ => {
+            error(&format!("Cannot display {x:?}"), "");
             "".parse().unwrap()
         }
     }

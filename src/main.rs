@@ -31,7 +31,7 @@ use crate::parser::{parse_code, BasicOperator, FunctionPropertyCallBlock, Instr,
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::{string_ops, to_title_case};
-use crate::util::{error, get_printable_form};
+use crate::util::{error, get_printable_form, print_form};
 use branches::likely;
 use branches::unlikely;
 // use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
@@ -611,10 +611,10 @@ fn execute(lines: Vec<Instr>) {
                     .position(|(id, _)| id == condition_id.as_ref())
                     .unwrap();
                 let (_, condition) = register.swap_remove(index);
-                if !matches!(condition, Instr::Bool(_)) {
-                    error(&format!("'{:?}' is not a boolean", &condition), "");
-                } else if condition == Instr::Bool(false) {
+                if condition == Instr::Bool(false) {
                     i += **jump_size as usize;
+                } else if condition != Instr::Bool(true) {
+                    error(&format!("'{:?}' is not a boolean", &condition), "");
                 }
             }
 
@@ -641,9 +641,8 @@ fn execute(lines: Vec<Instr>) {
                 let func_name = name.as_str();
                 if func_name == "print" {
                     println!(
-                        "{:?}",
-                        // get_printable_form(
-                        func_args[0]
+                        "{}",
+                        print_form(&func_args[0]) // get_printable_form(
                     )
                 } else {
                 }
@@ -658,35 +657,36 @@ fn execute(lines: Vec<Instr>) {
                 {
                     match elem.1 {
                         Instr::Integer(parent) => {
-                            match operator
-                                .swap_remove(
-                                    operator
-                                        .iter()
-                                        .position(|(x, _)| x == depth.last().unwrap().as_ref())
-                                        .unwrap(),
-                                )
-                                .1
-                            {
-                                BasicOperator::Add => {
-                                    *elem = (elem.0, Instr::Integer(parent + int))
+                            let index = operator
+                                .iter()
+                                .position(|(x, _)| x == depth.last().unwrap().as_ref())
+                                .unwrap();
+                            match operator.swap_remove(index).1 {
+                                BasicOperator::Add => elem.1 = Instr::Integer(parent + int),
+                                BasicOperator::Sub => elem.1 = Instr::Integer(parent - int),
+                                BasicOperator::Divide => {
+                                    assert_ne!(
+                                        int,
+                                        &0,
+                                        "{}",
+                                        error_msg!(format!("Division by zero ({int} / 0)"))
+                                    );
+                                    elem.1 = Instr::Integer(parent / int)
                                 }
-                                BasicOperator::Inferior => {
-                                    *elem = (elem.0, Instr::Bool(&parent < int))
-                                }
-                                BasicOperator::Superior => {
-                                    *elem = (elem.0, Instr::Bool(&parent > int))
-                                }
-                                BasicOperator::Modulo => {
-                                    *elem = (elem.0, Instr::Integer(parent % int))
-                                }
-                                BasicOperator::Multiply => {
-                                    *elem = (elem.0, Instr::Integer(parent * int))
-                                }
+                                BasicOperator::Multiply => elem.1 = Instr::Integer(parent * int),
+                                BasicOperator::Inferior => elem.1 = Instr::Bool(&parent < int),
+                                BasicOperator::Superior => elem.1 = Instr::Bool(&parent > int),
+                                BasicOperator::Modulo => elem.1 = Instr::Integer(parent % int),
                                 _ => {}
                             }
                         }
                         _ => todo!(),
                     }
+                } else {
+                    error(
+                        "[COMPUTE] UNABLE TO RETRIEVE FROM REGISTER",
+                        "This is probably a Compute bug",
+                    );
                 }
             }
             Instr::String(ref str) => {
