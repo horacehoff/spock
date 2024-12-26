@@ -6,8 +6,6 @@ use crate::{
     process_stack,
 };
 use branches::likely;
-use gxhash::HashMap;
-use unroll::unroll_for_loops;
 // use smartstring::alias::String;
 
 // #[unroll_for_loops]
@@ -186,7 +184,9 @@ pub fn preprocess(
                                                     );
                                                     std::process::exit(1)
                                                 })
-                                                .to_string().parse().unwrap(),
+                                                .to_string()
+                                                .parse()
+                                                .unwrap(),
                                         );
                                     } else {
                                         error(
@@ -243,7 +243,9 @@ pub fn preprocess(
                                                     );
                                                     std::process::exit(1)
                                                 })
-                                                .to_string().parse().unwrap(),
+                                                .to_string()
+                                                .parse()
+                                                .unwrap(),
                                         );
                                     } else {
                                         error(
@@ -293,7 +295,9 @@ pub fn preprocess(
                                                 );
                                                 std::process::exit(1)
                                             })
-                                            .to_string().parse().unwrap(),
+                                            .to_string()
+                                            .parse()
+                                            .unwrap(),
                                     );
                                 } else if let Types::Array(ref sub_arr, _, false) = output.clone() {
                                     output = sub_arr[intg as usize].clone();
@@ -306,7 +310,9 @@ pub fn preprocess(
                                                 error(&format!("Cannot index '{sub_str}'"), "");
                                                 std::process::exit(1)
                                             })
-                                            .to_string().parse().unwrap(),
+                                            .to_string()
+                                            .parse()
+                                            .unwrap(),
                                     );
                                 } else {
                                     error(

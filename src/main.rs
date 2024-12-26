@@ -36,7 +36,7 @@ use branches::likely;
 use branches::unlikely;
 // use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
 // use smartstring::alias::String;
-use gxhash::HashMapExt;
+// use gxhash::HashMapExt;
 use internment::Intern;
 use snmalloc_rs::SnMalloc;
 use std::fs;
@@ -551,7 +551,7 @@ fn execute(lines: Vec<Instr>) {
 
     let mut register: Vec<(u32, Instr)> = Vec::new();
 
-    // let mut depth: Vec<u32> = Vec::new_in(blink);
+    // let mut depth: Vec<u32> = Vec::new();
     let depth = blink.put(vec![]);
 
     let mut operator: Vec<(u32, BasicOperator)> = Vec::new();
