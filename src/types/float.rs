@@ -6,24 +6,24 @@ use crate::{error_msg, get_printable_type, math_to_type};
 pub fn float_ops(x: f64, output: Types, current_operator: BasicOperator) -> Types {
     if let Types::Float(value) = output {
         match current_operator {
-            BasicOperator::Add => {
-                math_to_type!(value + x)
-            }
-            BasicOperator::Sub => {
-                math_to_type!(value - x)
-            }
-            BasicOperator::Divide => {
-                math_to_type!(value / x)
-            }
-            BasicOperator::Multiply => {
-                math_to_type!(value * x)
-            }
-            BasicOperator::Power => {
-                math_to_type!(value.powf(x))
-            }
-            BasicOperator::Modulo => {
-                math_to_type!(value % x)
-            }
+            // BasicOperator::Add => {
+            //     math_to_type!(value + x)
+            // }
+            // BasicOperator::Sub => {
+            //     math_to_type!(value - x)
+            // }
+            // BasicOperator::Divide => {
+            //     math_to_type!(value / x)
+            // }
+            // BasicOperator::Multiply => {
+            //     math_to_type!(value * x)
+            // }
+            // BasicOperator::Power => {
+            //     math_to_type!(value.powf(x))
+            // }
+            // BasicOperator::Modulo => {
+            //     math_to_type!(value % x)
+            // }
             BasicOperator::Equal => Types::Bool(value == x),
             BasicOperator::NotEqual => Types::Bool(value != x),
             BasicOperator::Inferior => Types::Bool(value < x),
@@ -44,15 +44,15 @@ pub fn float_ops(x: f64, output: Types, current_operator: BasicOperator) -> Type
         match current_operator {
             BasicOperator::Add => Types::Float(value as f64 + x),
             BasicOperator::Sub => Types::Float(value as f64 - x),
-            BasicOperator::Divide => {
-                math_to_type!(value as f64 / x)
-            }
-            BasicOperator::Multiply => {
-                math_to_type!(value as f64 * x)
-            }
-            BasicOperator::Power => {
-                math_to_type!((value as f64).powf(x))
-            }
+            // BasicOperator::Divide => {
+            //     math_to_type!(value as f64 / x)
+            // }
+            // BasicOperator::Multiply => {
+            //     math_to_type!(value as f64 * x)
+            // }
+            // BasicOperator::Power => {
+            //     math_to_type!((value as f64).powf(x))
+            // }
             _ => {
                 error(
                     &format!(

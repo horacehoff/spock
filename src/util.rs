@@ -129,9 +129,9 @@ macro_rules! get_printable_type {
 macro_rules! math_to_type {
     ($x:expr) => {
         if $x == $x.trunc() {
-            Types::Integer($x as i64)
+            Instr::Integer($x as i64)
         } else {
-            Types::Float($x)
+            Instr::Float($x)
         }
     };
 }

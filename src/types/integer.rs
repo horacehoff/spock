@@ -9,9 +9,9 @@ pub fn integer_ops(x: i64, output: Types, current_operator: BasicOperator) -> Ty
         match current_operator {
             BasicOperator::Add => Types::Integer(value + x),
             BasicOperator::Sub => Types::Integer(value - x),
-            BasicOperator::Divide => {
-                math_to_type!(value as f64 / x as f64)
-            }
+            // BasicOperator::Divide => {
+            //     math_to_type!(value as f64 / x as f64)
+            // }
             BasicOperator::Multiply => Types::Integer(value * x),
             BasicOperator::Power => Types::Integer(value.pow(x as u32)),
             BasicOperator::Modulo => Types::Integer(value % x),
