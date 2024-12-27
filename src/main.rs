@@ -442,16 +442,16 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                     i = result.1 + 1;
                     test.extend(result.0);
                     test.push(Instr::VarReplace(
-                        Intern::<String>::from_ref(&x),
                         Intern::from(result.1),
+                        Intern::<String>::from_ref(&x),
                     ));
                 } else {
                     let result = simplify(Vec::from(y), true, i);
                     i = result.1 + 1;
                     test.extend(result.0);
                     test.push(Instr::VarStore(
-                        Intern::<String>::from_ref(&x),
                         Intern::from(result.1),
+                        Intern::<String>::from_ref(&x),
                     ));
                 }
             }
@@ -473,8 +473,8 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                     }
                 }
                 test.push(Instr::FuncCall(
-                    Intern::<String>::from_ref(&name),
                     Intern::from(args),
+                    Intern::<String>::from_ref(&name),
                 ));
             }
             Types::FunctionReturn(ret) => {
@@ -565,12 +565,7 @@ fn execute(lines: Vec<Instr>) {
         // log!("----------------\n{:?}", lines[i]);
         match {
             if let Instr::VariableIdentifier(ref id) = &lines[i] {
-                temp = variables
-                    .iter()
-                    .find(|(x, _)| x == id.as_ref())
-                    .unwrap()
-                    .1
-                    .clone();
+                temp = variables.iter().find(|(x, _)| x == id.as_ref()).unwrap().1;
                 &temp
             } else {
                 &lines[i]
@@ -585,11 +580,11 @@ fn execute(lines: Vec<Instr>) {
                     operator.push((**depth.last().unwrap(), *op))
                 }
             }
-            Instr::VarStore(ref str, ref id) => {
+            Instr::VarStore(ref id, ref str) => {
                 let index = register.iter().position(|(x, _)| x.eq(id)).unwrap();
                 variables.push((str.to_string(), register.swap_remove(index).1))
             }
-            Instr::VarReplace(ref str, ref id) => {
+            Instr::VarReplace(ref id, ref str) => {
                 // log!(
                 //     "REPLACING {str}, register is {:?}",
                 //     register
@@ -622,15 +617,12 @@ fn execute(lines: Vec<Instr>) {
                 if !jump_size.is_negative() {
                     i += **jump_size as usize;
                 } else {
-                    // log!("i is {i}");
-                    // log!("jumpsize is {jump_size}");
                     i -= jump_size.abs() as usize;
-                    // log!("JUMPED AND I IS {i}");
-                    continue;
                 }
+                continue;
             }
 
-            Instr::FuncCall(ref name, ref args) => {
+            Instr::FuncCall(ref args, ref name) => {
                 let func_args: Vec<Instr> = args
                     .iter()
                     .map(|&arg| {
