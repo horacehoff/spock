@@ -41,8 +41,10 @@ use compact_str::{CompactString, ToCompactString};
 use internment::Intern;
 use snmalloc_rs::SnMalloc;
 use std::fs;
+use std::fs::remove_dir_all;
 use std::io::Write as _;
 use std::ops::Deref;
+use std::path::Path;
 use std::time::Instant;
 use unroll::unroll_for_loops;
 
@@ -874,53 +876,53 @@ fn main() {
         .skip(1)
         .map(|x| x.parse::<String>().unwrap())
         .collect();
-    //     if args.is_empty() {
-    //         println!(
-    //             "
-    //   ______   ______   .___  ___. .______    __    __  .___________. _______
-    //  /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
-    // |  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
-    // |  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
-    // |  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
-    //  \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
-    // \x1b[3mLive long and prosper!\x1b[0m\n- Spock
-    //
-    // To run a file, run: `compute <file>`
-    // To get help, run `compute -h`
-    //         "
-    //         );
-    //         return;
-    //     } else if args == vec!["-h"] {
-    //         println!(
-    //             "
-    //   ______   ______   .___  ___. .______    __    __  .___________. _______
-    //  /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
-    // |  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
-    // |  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
-    // |  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
-    //  \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
-    // \x1b[3mHelp me, Obi-Wan Kenobi. You’re my only hope.\x1b[0m\n- Princess Leia
-    //
-    // compute [filename] [-c]
-    //
-    // positional arguments:
-    //   filename
-    //
-    // options:
-    //   -c, --clear-cache    Delete the cache folder
-    //         "
-    //         );
-    //         return;
-    //     } else if args.len() >= 2
-    //         && (&args[1] == "-c" || &args[1] == "--clear-cache")
-    //         && Path::new(".compute").exists()
-    //     {
-    //         remove_dir_all(Path::new(".compute")).unwrap_or_else(|_| {
-    //             error("Failed to delete the cache folder (.compute)", "");
-    //             std::process::exit(1)
-    //         });
-    //     }
-    //     let arg = args.first().unwrap();
+    if args.is_empty() {
+        println!(
+            "
+      ______   ______   .___  ___. .______    __    __  .___________. _______
+     /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
+    |  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
+    |  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
+    |  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
+     \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
+    \x1b[3mLive long and prosper!\x1b[0m\n- Spock
+    
+    To run a file, run: `compute <file>`
+    To get help, run `compute -h`
+            "
+        );
+        return;
+    } else if args == vec!["-h"] {
+        println!(
+            "
+      ______   ______   .___  ___. .______    __    __  .___________. _______
+     /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
+    |  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
+    |  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
+    |  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
+     \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
+    \x1b[3mHelp me, Obi-Wan Kenobi. You’re my only hope.\x1b[0m\n- Princess Leia
+    
+    compute [filename] [-c]
+    
+    positional arguments:
+      filename
+    
+    options:
+      -c, --clear-cache    Delete the cache folder
+            "
+        );
+        return;
+    } else if args.len() >= 2
+        && (&args[1] == "-c" || &args[1] == "--clear-cache")
+        && Path::new(".compute").exists()
+    {
+        remove_dir_all(Path::new(".compute")).unwrap_or_else(|_| {
+            error("Failed to delete the cache folder (.compute)", "");
+            std::process::exit(1)
+        });
+    }
+    let arg = args.first().unwrap();
 
     let content = fs::read_to_string("example.compute").unwrap_or_else(|_| {
         error(&format!("Unable to read file '{args:?}'"), "");
@@ -978,10 +980,6 @@ fn main() {
     log!("------");
 
     let now = Instant::now();
-
-    // let mut vars: HashMap<SmolStr, Types> = HashMap::default();
-    // process_lines(&main_function.2, &mut vec![], functions);
-    // let mut code = simplify(main_function.2, false, 0).0;
     log!(
         "{}",
         &main_function
@@ -994,6 +992,6 @@ fn main() {
     log!("------");
     execute(main_function.2);
 
-    log!("EXECUTED IN: {:.2?}", now.elapsed());
-    log_release!("TOTAL: {:.2?}", totaltime.elapsed());
+    log_release!("EXECUTED IN: {:.2?}", now.elapsed());
+    log!("TOTAL: {:.2?}", totaltime.elapsed());
 }
