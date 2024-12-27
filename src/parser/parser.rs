@@ -67,17 +67,18 @@ pub struct FunctionPropertyCallBlock {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Instr {
-    STORE(Intern<u32>),
-    FuncReturn(Intern<u32>),
+    STORE(u32),
+    FuncReturn(u32),
     // JUMP X INSTRUCTIONS (CAN BE NEGATIVE)
-    JUMP(Intern<i32>),
+    JUMP(u32),
+    JUMP_BACK(u32),
     // CONDITION REGISTER ID -- JUMP SIZE IF FALSE
-    IF(Intern<u32>, Intern<u32>),
-    VarStore(Intern<u32>, Intern<CompactString>),
-    VarReplace(Intern<u32>, Intern<CompactString>),
-    FuncCall(Intern<Vec<u32>>, Intern<String>),
+    IF(u32, u32),
+    // BOOL -> REPLACE IF TRUE NOT IF FALSE
+    VarStore(u32, Intern<CompactString>, bool),
+    FuncCall(Vec<u32>, Intern<String>),
     VariableIdentifier(Intern<String>),
     String(Intern<String>),
     Integer(i64),
