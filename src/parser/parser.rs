@@ -1,6 +1,7 @@
 use crate::log;
 use crate::parser::Rule::func_call;
 use crate::util::error;
+use compact_str::CompactString;
 use internment::Intern;
 use pest::iterators::Pair;
 use pest::Parser;
@@ -66,7 +67,7 @@ pub struct FunctionPropertyCallBlock {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum Instr {
     STORE(Intern<u32>),
     FuncReturn(Intern<u32>),
@@ -74,8 +75,8 @@ pub enum Instr {
     JUMP(Intern<i32>),
     // CONDITION REGISTER ID -- JUMP SIZE IF FALSE
     IF(Intern<u32>, Intern<u32>),
-    VarStore(Intern<u32>, Intern<String>),
-    VarReplace(Intern<u32>, Intern<String>),
+    VarStore(Intern<u32>, Intern<CompactString>),
+    VarReplace(Intern<u32>, Intern<CompactString>),
     FuncCall(Intern<Vec<u32>>, Intern<String>),
     VariableIdentifier(Intern<String>),
     String(Intern<String>),

@@ -37,6 +37,7 @@ use branches::unlikely;
 // use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
 // use smartstring::alias::String;
 // use gxhash::HashMapExt;
+use compact_str::{CompactString, ToCompactString};
 use internment::Intern;
 use snmalloc_rs::SnMalloc;
 use std::fs;
@@ -426,7 +427,7 @@ fn types_to_instr(x: Types) -> Instr {
     }
 }
 
-#[inline(never)]
+// #[inline(never)]
 fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u32) {
     let mut test: Vec<Instr> = vec![];
     let mut i: u32 = current_num + 1;
@@ -435,7 +436,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
         // instr_id += 1;
         match x {
             Types::VariableDeclaration(block) => {
-                let x = block.name;
+                let x = block.name.to_compact_string();
                 let y = block.value;
                 if block.is_declared {
                     let result = simplify(Vec::from(y), true, i);
@@ -443,7 +444,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                     test.extend(result.0);
                     test.push(Instr::VarReplace(
                         Intern::from(result.1),
-                        Intern::<String>::from_ref(&x),
+                        Intern::<CompactString>::from(x),
                     ));
                 } else {
                     let result = simplify(Vec::from(y), true, i);
@@ -451,7 +452,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                     test.extend(result.0);
                     test.push(Instr::VarStore(
                         Intern::from(result.1),
-                        Intern::<String>::from_ref(&x),
+                        Intern::<CompactString>::from(x),
                     ));
                 }
             }
@@ -545,7 +546,7 @@ macro_rules! check_first_to_register {
     };
 }
 
-#[inline(never)]
+// #[inline(never)]
 fn execute(lines: Vec<Instr>) {
     let mut blink = Blink::new();
 
@@ -929,7 +930,7 @@ fn main() {
     let now = Instant::now();
 
     let temp_funcs = parse_functions(content.trim(), true);
-    let mut main_function: (String, &[String], Vec<Types>) = Default::default();
+    let mut main_function: (String, &[String], Vec<Instr>) = Default::default();
 
     let partial_convert: Vec<(String, &[String], Vec<Types>)> = temp_funcs
         .iter()
@@ -939,7 +940,11 @@ fn main() {
                 .flat_map(|line| line.iter().map(|x| (*x).clone()))
                 .collect();
             if name == "main" {
-                main_function = (name.to_string().parse().unwrap(), args, stack);
+                main_function = (
+                    name.to_string().parse().unwrap(),
+                    args,
+                    simplify(stack, false, 0).0,
+                );
                 return (name.clone(), args.as_slice(), vec![]);
             }
             return (name.clone(), args.as_slice(), stack);
@@ -947,12 +952,18 @@ fn main() {
         .filter(|(name, _, _)| *name != "main")
         .collect();
 
-    let converted: Vec<(String, &[String], &[Types])> = partial_convert
+    let converted: Vec<(String, &[String], Vec<Instr>)> = partial_convert
         .iter()
-        .map(|(name, args, lines)| (name.parse().unwrap(), *args, lines.as_slice()))
+        .map(|(name, args, lines)| {
+            (
+                name.parse().unwrap(),
+                *args,
+                simplify(lines.clone(), false, 0).0,
+            )
+        })
         .collect();
 
-    let functions: &[(String, &[String], &[Types])] = converted.as_slice();
+    let functions: &[(String, &[String], Vec<Instr>)] = converted.as_slice();
 
     log!("PARSED IN: {:.2?}", now.elapsed());
     log!(
@@ -970,17 +981,18 @@ fn main() {
 
     // let mut vars: HashMap<SmolStr, Types> = HashMap::default();
     // process_lines(&main_function.2, &mut vec![], functions);
-    let mut code = simplify(main_function.2, false, 0).0;
+    // let mut code = simplify(main_function.2, false, 0).0;
     log!(
         "{}",
-        &code
+        &main_function
+            .2
             .iter()
             .map(|x| format!("{:?}", x))
             .collect::<Vec<String>>()
             .join("\n")
     );
     log!("------");
-    execute(code);
+    execute(main_function.2);
 
     log!("EXECUTED IN: {:.2?}", now.elapsed());
     log_release!("TOTAL: {:.2?}", totaltime.elapsed());
