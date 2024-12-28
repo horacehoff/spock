@@ -512,7 +512,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                 test.extend(condition.0);
                 test.push(Instr::IF(condition.1, (added + 1) as u32));
                 test.extend(in_code.0);
-                test.push(Instr::JUMP_BACK(sum as u32))
+                test.push(Instr::JUMP(sum as u32, true))
             }
             _ => test.push(types_to_instr(x)),
         }
@@ -609,17 +609,11 @@ fn execute(lines: Vec<Instr>) {
                     error(&format!("'{:?}' is not a boolean", &condition), "");
                 }
             }
-
-            Instr::JUMP_BACK(ref jump_size) => {
-                i -= *jump_size as usize;
-                continue;
-            }
-            Instr::JUMP(ref jump_size) => {
-                // if !jump_size.is_negative() {
-                //     i += *jump_size as usize;
-                // } else {
-                //     i -= jump_size.abs() as usize;
-                // }
+            Instr::JUMP(ref jump_size, ref neg) => {
+                if *neg {
+                    i -= *jump_size as usize;
+                    continue;
+                }
                 i += *jump_size as usize;
                 continue;
             }

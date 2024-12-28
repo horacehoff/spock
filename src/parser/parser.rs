@@ -71,9 +71,8 @@ pub struct FunctionPropertyCallBlock {
 pub enum Instr {
     STORE(u32),
     FuncReturn(u32),
-    // JUMP X INSTRUCTIONS (CAN BE NEGATIVE)
-    JUMP(u32),
-    JUMP_BACK(u32),
+    // JUMP X INSTRUCTIONS  -- IS_NEGATIVE
+    JUMP(u32, bool),
     // CONDITION REGISTER ID -- JUMP SIZE IF FALSE
     IF(u32, u32),
     // BOOL -> REPLACE IF TRUE NOT IF FALSE
