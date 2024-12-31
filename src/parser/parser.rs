@@ -76,18 +76,18 @@ pub enum Instr {
     Integer(i64),
     Float(f64),
 
-    STORE(u32),
-    STORE_ARG(u32),
-    FuncReturn(u32),
+    STORE(u16),
+    STORE_ARG(u16),
+    FuncReturn(u16),
     // JUMP X INSTRUCTIONS  -- IS_NEGATIVE
-    JUMP(u32, bool),
+    JUMP(u16, bool),
     // CONDITION REGISTER ID -- JUMP SIZE IF FALSE
-    IF(u32, u32),
+    IF(u16, u16),
     // BOOL -> REPLACE IF TRUE NOT IF FALSE
     FuncCall(Intern<String>),
     VariableIdentifier(Intern<String>),
     String(Intern<String>),
-    VarStore(u32, Intern<String>, bool),
+    VarStore(Intern<String>, u16, bool),
 }
 
 #[repr(u8)]

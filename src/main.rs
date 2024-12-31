@@ -430,9 +430,9 @@ fn types_to_instr(x: Types) -> Instr {
 }
 
 // #[inline(never)]
-fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u32) {
+fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u16) {
     let mut test: Vec<Instr> = vec![];
-    let mut i: u32 = current_num + 1;
+    let mut i: u16 = current_num + 1;
     // let mut instr_id: usize = 0;
     for x in lines {
         // instr_id += 1;
@@ -444,9 +444,9 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                 i = result.1 + 1;
                 test.extend(result.0);
                 if block.is_declared {
-                    test.push(Instr::VarStore(result.1, Intern::<String>::from(x), true));
+                    test.push(Instr::VarStore(Intern::<String>::from(x), result.1, true));
                 } else {
-                    test.push(Instr::VarStore(result.1, Intern::<String>::from(x), false));
+                    test.push(Instr::VarStore(Intern::<String>::from(x), result.1, false));
                 }
             }
             Types::FunctionCall(block) => {
@@ -483,7 +483,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                 i = in_code.1 + 1;
                 let added = in_code.0.len();
                 test.extend(condition.0);
-                test.push(Instr::IF(condition.1, added as u32));
+                test.push(Instr::IF(condition.1, added as u16));
                 test.extend(in_code.0);
 
                 // if block.else_blocks.len() > 0 {
@@ -504,9 +504,9 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
                 let added = in_code.0.len();
                 let sum = condition.0.len() + 1 + added;
                 test.extend(condition.0);
-                test.push(Instr::IF(condition.1, (added + 1) as u32));
+                test.push(Instr::IF(condition.1, (added + 1) as u16));
                 test.extend(in_code.0);
-                test.push(Instr::JUMP(sum as u32, true))
+                test.push(Instr::JUMP(sum as u16, true))
             }
             _ => test.push(types_to_instr(x)),
         }
@@ -533,13 +533,13 @@ macro_rules! check_first_to_register {
 fn execute(lines: Vec<Instr>) {
     let mut blink = Blink::new();
 
-    let mut register: Vec<(u32, Instr)> = Vec::new();
-    let mut args: Vec<(u32, Instr)> = Vec::new();
+    let mut register: Vec<(u16, Instr)> = Vec::new();
+    let mut args: Vec<(u16, Instr)> = Vec::new();
 
     // let mut depth: Vec<u32> = Vec::new();
     let depth = blink.put(vec![]);
 
-    let mut operator: Vec<(u32, BasicOperator)> = Vec::new();
+    let mut operator: Vec<(u16, BasicOperator)> = Vec::new();
 
     let mut variables: Vec<(String, Instr)> = Vec::new();
 
@@ -571,12 +571,12 @@ fn execute(lines: Vec<Instr>) {
                 }
             }
             // DECLARATION
-            Instr::VarStore(ref id, ref str, false) => {
+            Instr::VarStore(ref str, ref id, false) => {
                 let index = register.iter().position(|(x, _)| x.eq(id)).unwrap();
                 variables.push((str.to_string(), register.swap_remove(index).1))
             }
             // IS ALREADY STORED
-            Instr::VarStore(ref id, ref str, true) => {
+            Instr::VarStore(ref str, ref id, true) => {
                 // log!(
                 //     "REPLACING {str}, register is {:?}",
                 //     register
