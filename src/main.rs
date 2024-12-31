@@ -460,21 +460,23 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
             Types::FunctionCall(block) => {
                 let name = block.name;
                 let y = block.args;
-                let mut args: Vec<u32> = vec![];
+                // let mut args: Vec<u32> = vec![];
                 for x in y {
                     if let Types::Wrap(w) = x {
                         let result = simplify(Vec::from(w), true, i);
-                        i = result.1 + 1;
                         test.extend(result.0);
-                        args.push(result.1);
+                        test.push(Instr::STORE_ARG(result.1));
+                        i = result.1 + 1;
+                        // args.push(result.1);
                     } else {
                         let result = simplify(vec![x], true, i);
-                        i = result.1 + 1;
                         test.extend(result.0);
-                        args.push(result.1);
+                        test.push(Instr::STORE_ARG(result.1));
+                        i = result.1 + 1;
+                        // args.push(result.1);
                     }
                 }
-                test.push(Instr::FuncCall(args, Intern::<String>::from_ref(&name)));
+                test.push(Instr::FuncCall(Intern::<String>::from_ref(&name)));
             }
             Types::FunctionReturn(ret) => {
                 let result = simplify(Vec::from(ret), true, i);
@@ -540,6 +542,7 @@ fn execute(lines: Vec<Instr>) {
     let mut blink = Blink::new();
 
     let mut register: Vec<(u32, Instr)> = Vec::new();
+    let mut args: Vec<(u32, Instr)> = Vec::new();
 
     // let mut depth: Vec<u32> = Vec::new();
     let depth = blink.put(vec![]);
@@ -617,15 +620,13 @@ fn execute(lines: Vec<Instr>) {
                 i += *jump_size as usize;
                 continue;
             }
-
-            Instr::FuncCall(ref args, ref name) => {
-                let func_args: Vec<Instr> = args
-                    .iter()
-                    .map(|&arg| {
-                        let index = register.iter().position(|(id, _)| *id == arg).unwrap();
-                        register.swap_remove(index).1
-                    })
-                    .collect();
+            Instr::STORE_ARG(ref id) => {
+                let index = register.iter().position(|(i, _)| i == id).unwrap();
+                args.push(register.remove(index))
+            }
+            Instr::FuncCall(ref name) => {
+                let func_args: Vec<Instr> =
+                    (0..args.len()).map(|i| args.swap_remove(i).1).collect();
                 let func_name = name.as_str();
                 if func_name == "print" {
                     println!(
