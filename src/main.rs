@@ -438,23 +438,15 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u32) -> (Vec<Instr>, u3
         // instr_id += 1;
         match x {
             Types::VariableDeclaration(block) => {
-                let x = block.name.to_compact_string();
+                let x = block.name;
                 let y = block.value;
                 let result = simplify(Vec::from(y), true, i);
                 i = result.1 + 1;
                 test.extend(result.0);
                 if block.is_declared {
-                    test.push(Instr::VarStore(
-                        result.1,
-                        Intern::<CompactString>::from(x),
-                        true,
-                    ));
+                    test.push(Instr::VarStore(result.1, Intern::<String>::from(x), true));
                 } else {
-                    test.push(Instr::VarStore(
-                        result.1,
-                        Intern::<CompactString>::from(x),
-                        false,
-                    ));
+                    test.push(Instr::VarStore(result.1, Intern::<String>::from(x), false));
                 }
             }
             Types::FunctionCall(block) => {
