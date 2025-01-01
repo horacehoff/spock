@@ -565,6 +565,8 @@ fn execute(lines: Vec<Instr>) {
                     })
                     .1;
                 &temp
+            // } else if depth > 0 && matches!(&lines[line], Instr::FuncCall(_)) {
+            //
             } else {
                 &lines[line]
             }
@@ -608,14 +610,17 @@ fn execute(lines: Vec<Instr>) {
             }
             Instr::STORE_ARG => args.push(register.pop().unwrap()),
             Instr::FuncCall(ref name) => {
-                let func_args: Vec<Instr> = (0..args.len()).map(|i| args.swap_remove(i)).collect();
-                let func_name = name.as_str();
-                if func_name == "print" {
-                    println!(
-                        "{}",
-                        print_form(&func_args[0]) // get_printable_form(
-                    )
-                } else {
+                if depth == 0 {
+                    let func_args: Vec<Instr> =
+                        (0..args.len()).map(|i| args.swap_remove(i)).collect();
+                    let func_name = name.as_str();
+                    if func_name == "print" {
+                        println!(
+                            "{}",
+                            print_form(&func_args[0]) // get_printable_form(
+                        )
+                    } else {
+                    }
                 }
             }
 
