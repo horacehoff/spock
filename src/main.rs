@@ -445,9 +445,11 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
                 i = result.1 + 1;
                 test.extend(result.0);
                 if block.is_declared {
-                    test.push(Instr::VarStore(true, result.1, Intern::<String>::from(x)));
+                    test.push(Instr::VarStore(true, Intern::<String>::from(x)));
+                    // test.push(Instr::VarStore(true, result.1, Intern::<String>::from(x)));
                 } else {
-                    test.push(Instr::VarStore(false, result.1, Intern::<String>::from(x)));
+                    test.push(Instr::VarStore(false, Intern::<String>::from(x)));
+                    // test.push(Instr::VarStore(false, result.1, Intern::<String>::from(x)));
                 }
             }
             Types::FunctionCall(block) => {
@@ -458,13 +460,15 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
                     if let Types::Wrap(w) = x {
                         let result = simplify(Vec::from(w), true, i);
                         test.extend(result.0);
-                        test.push(Instr::STORE_ARG(result.1));
+                        test.push(Instr::STORE_ARG);
+                        // test.push(Instr::STORE_ARG(result.1));
                         i = result.1 + 1;
                         // args.push(result.1);
                     } else {
                         let result = simplify(vec![x], true, i);
                         test.extend(result.0);
-                        test.push(Instr::STORE_ARG(result.1));
+                        test.push(Instr::STORE_ARG);
+                        // test.push(Instr::STORE_ARG(result.1));
                         i = result.1 + 1;
                         // args.push(result.1);
                     }
@@ -484,7 +488,8 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
                 i = in_code.1 + 1;
                 let added = in_code.0.len();
                 test.extend(condition.0);
-                test.push(Instr::IF(condition.1, added as u16));
+                test.push(Instr::IF(added as u16));
+                // test.push(Instr::IF(condition.1, added as u16)); -> SAFE
                 test.extend(in_code.0);
 
                 // if block.else_blocks.len() > 0 {
@@ -505,7 +510,8 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
                 let added = in_code.0.len();
                 let sum = condition.0.len() + 1 + added;
                 test.extend(condition.0);
-                test.push(Instr::IF(condition.1, (added + 1) as u16));
+                test.push(Instr::IF((added + 1) as u16));
+                // test.push(Instr::IF(condition.1, (added + 1) as u16)); -> SAFE
                 test.extend(in_code.0);
                 test.push(Instr::JUMP(sum as u16, true))
             }
@@ -548,7 +554,6 @@ fn execute(lines: Vec<Instr>) {
     let mut temp;
     let len = lines.len();
     while i < len {
-        // log!("----------------\n{:?}", lines[i]);
         match {
             if let Instr::VariableIdentifier(ref id) = &lines[i] {
                 temp = variables
@@ -573,24 +578,17 @@ fn execute(lines: Vec<Instr>) {
                 }
             }
             // DECLARATION
-            Instr::VarStore(false, ref id, ref str) => {
-                // let index = register.iter().position(|(x, _)| x.eq(id)).unwrap();
-                // println!("INDEX IS {index}");
+            Instr::VarStore(false, ref str) => {
+                // Instr::VarStore(false, ref id, ref str) => { -> SAFE
+                // let index = register.iter().position(|(x, _)| x.eq(id)).unwrap(); -> SAFE
                 let index = 0;
                 variables.push((str.to_string(), register.swap_remove(index).1))
             }
             // IS ALREADY STORED
-            Instr::VarStore(true, ref id, ref str) => {
-                // log!(
-                //     "REPLACING {str}, register is {:?}",
-                //     register
-                //         .clone()
-                //         .swap_remove(register.iter().position(|(x, _)| x == id.as_ref()).unwrap())
-                //         .1
-                // );
+            Instr::VarStore(true, ref str) => {
+                // Instr::VarStore(true, ref id, ref str) => { -> SAFE
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == **str) {
-                    // let index = register.iter().position(|(x, _)| x == id).unwrap();
-                    // println!("INDEX IS {index}");
+                    // let index = register.iter().position(|(x, _)| x == id).unwrap(); -> SAFE
                     let index = 0;
                     *elem = (elem.0.to_string(), register.swap_remove(index).1)
                 } else {
@@ -598,12 +596,12 @@ fn execute(lines: Vec<Instr>) {
                 }
                 // log!("NEW VARS {variables:?}");
             }
-            Instr::IF(ref condition_id, ref jump_size) => {
-                // let index = register
-                //     .iter()
-                //     .position(|(id, _)| id == condition_id)
-                //     .unwrap();
-                // println!("INDEX IS {index}");
+            Instr::IF(ref jump_size) => {
+                // Instr::IF(ref condition_id, ref jump_size) => { -> SAFE
+                // let index = register -> SAFE
+                //     .iter() -> SAFE
+                //     .position(|(id, _)| id == condition_id) -> SAFE
+                //     .unwrap(); -> SAFE
                 let index = 0;
                 let (_, condition) = register.swap_remove(index);
                 if condition == Instr::Bool(false) {
@@ -620,9 +618,9 @@ fn execute(lines: Vec<Instr>) {
                 i += *jump_size as usize;
                 continue;
             }
-            Instr::STORE_ARG(ref id) => {
-                // let index = register.iter().position(|(i, _)| i == id).unwrap();
-                // println!("INDEX IS {index}");
+            Instr::STORE_ARG => {
+                // Instr::STORE_ARG(ref id) => { -> SAFE
+                // let index = register.iter().position(|(i, _)| i == id).unwrap(); -> SAFE
                 let index = 0;
                 args.push(register.remove(index))
             }
@@ -643,9 +641,8 @@ fn execute(lines: Vec<Instr>) {
             Instr::Integer(ref int) => {
                 check_first_to_register!(Instr::Integer(*int), depth, i, register);
                 if let Some(elem) = register
-                    // .iter_mut()
-                    // .find(|(id, _)| id == depth.last().unwrap())
-                    // .find(|(id, _)| id == depth.last().unwrap())
+                    // .iter_mut() -> SAFE
+                    // .find(|(id, _)| id == depth.last().unwrap()) -> SAFE
                     .get_mut(0)
                 {
                     match elem.1 {
@@ -766,7 +763,7 @@ fn execute(lines: Vec<Instr>) {
                                         "{}",
                                         error_msg!(format!("Division by zero ({float} / 0)"))
                                     );
-                                    elem.1 = math_to_type!(parent as f64 / *float as f64);
+                                    elem.1 = math_to_type!(parent as f64 / *float);
                                 }
                                 BasicOperator::Multiply => {
                                     elem.1 = Instr::Float(parent as f64 * float)
