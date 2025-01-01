@@ -66,15 +66,13 @@ pub struct FunctionPropertyCallBlock {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Instr {
     STOP,
     Null,
     Operation(BasicOperator),
+    // BOOL -> REPLACE IF TRUE NOT IF FALSE
     Bool(bool),
-    Integer(i64),
-    Float(f64),
-
     STORE(u16),
     STORE_ARG(u16),
     FuncReturn(u16),
@@ -82,7 +80,8 @@ pub enum Instr {
     JUMP(u16, bool),
     // CONDITION REGISTER ID -- JUMP SIZE IF FALSE
     IF(u16, u16),
-    // BOOL -> REPLACE IF TRUE NOT IF FALSE
+    Integer(i64),
+    Float(f64),
     FuncCall(Intern<String>),
     VariableIdentifier(Intern<String>),
     String(Intern<String>),

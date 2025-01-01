@@ -550,12 +550,7 @@ fn execute(lines: Vec<Instr>) {
         // log!("----------------\n{:?}", lines[i]);
         match {
             if let Instr::VariableIdentifier(ref id) = &lines[i] {
-                temp = variables
-                    .iter()
-                    .find(|(x, _)| x == id.as_ref())
-                    .unwrap()
-                    .1
-                    .clone();
+                temp = variables.iter().find(|(x, _)| x == id.as_ref()).unwrap().1;
                 &temp
             } else {
                 &lines[i]
