@@ -425,11 +425,12 @@ fn types_to_instr(x: Types) -> Instr {
             return Instr::VariableIdentifier(Intern::<String>::from_ref(&id))
         }
         Types::Operation(op) => return Instr::Operation(op),
+        Types::String(str) => return Instr::String(Intern::from(str)),
         _ => todo!("{:?}", x),
     }
 }
 
-// #[inline(never)]
+#[inline(never)]
 fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u16) {
     let mut test: Vec<Instr> = vec![];
     let mut i: u16 = current_num + 1;
@@ -529,7 +530,7 @@ macro_rules! check_first_to_register {
     };
 }
 
-// #[inline(never)]
+#[inline(never)]
 fn execute(lines: Vec<Instr>) {
     let mut blink = Blink::new();
 
@@ -567,7 +568,9 @@ fn execute(lines: Vec<Instr>) {
             }
             // DECLARATION
             Instr::VarStore(false, ref id, ref str) => {
-                let index = register.iter().position(|(x, _)| x.eq(id)).unwrap();
+                // let index = register.iter().position(|(x, _)| x.eq(id)).unwrap();
+                // println!("INDEX IS {index}");
+                let index = 0;
                 variables.push((str.to_string(), register.swap_remove(index).1))
             }
             // IS ALREADY STORED
@@ -580,7 +583,9 @@ fn execute(lines: Vec<Instr>) {
                 //         .1
                 // );
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == **str) {
-                    let index = register.iter().position(|(x, _)| x == id).unwrap();
+                    // let index = register.iter().position(|(x, _)| x == id).unwrap();
+                    // println!("INDEX IS {index}");
+                    let index = 0;
                     *elem = (elem.0.to_string(), register.swap_remove(index).1)
                 } else {
                     error(&format!("Unknown variable '{str}'"), "");
@@ -588,10 +593,12 @@ fn execute(lines: Vec<Instr>) {
                 // log!("NEW VARS {variables:?}");
             }
             Instr::IF(ref condition_id, ref jump_size) => {
-                let index = register
-                    .iter()
-                    .position(|(id, _)| id == condition_id)
-                    .unwrap();
+                // let index = register
+                //     .iter()
+                //     .position(|(id, _)| id == condition_id)
+                //     .unwrap();
+                // println!("INDEX IS {index}");
+                let index = 0;
                 let (_, condition) = register.swap_remove(index);
                 if condition == Instr::Bool(false) {
                     i += *jump_size as usize;
@@ -608,7 +615,9 @@ fn execute(lines: Vec<Instr>) {
                 continue;
             }
             Instr::STORE_ARG(ref id) => {
-                let index = register.iter().position(|(i, _)| i == id).unwrap();
+                // let index = register.iter().position(|(i, _)| i == id).unwrap();
+                // println!("INDEX IS {index}");
+                let index = 0;
                 args.push(register.remove(index))
             }
             Instr::FuncCall(ref name) => {
