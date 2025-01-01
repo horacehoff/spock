@@ -1,7 +1,6 @@
 use crate::log;
 use crate::parser::Rule::func_call;
 use crate::util::error;
-use compact_str::CompactString;
 use internment::Intern;
 use pest::iterators::Pair;
 use pest::Parser;
@@ -87,7 +86,7 @@ pub enum Instr {
     FuncCall(Intern<String>),
     VariableIdentifier(Intern<String>),
     String(Intern<String>),
-    VarStore(Intern<String>, u16, bool),
+    VarStore(bool, u16, Intern<String>),
 }
 
 #[repr(u8)]

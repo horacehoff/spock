@@ -37,7 +37,7 @@ use branches::unlikely;
 // use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
 // use smartstring::alias::String;
 // use gxhash::HashMapExt;
-use compact_str::{CompactString, ToCompactString};
+use compact_str::ToCompactString;
 use internment::Intern;
 use snmalloc_rs::SnMalloc;
 use std::fs;
@@ -444,9 +444,9 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
                 i = result.1 + 1;
                 test.extend(result.0);
                 if block.is_declared {
-                    test.push(Instr::VarStore(Intern::<String>::from(x), result.1, true));
+                    test.push(Instr::VarStore(true, result.1, Intern::<String>::from(x)));
                 } else {
-                    test.push(Instr::VarStore(Intern::<String>::from(x), result.1, false));
+                    test.push(Instr::VarStore(false, result.1, Intern::<String>::from(x)));
                 }
             }
             Types::FunctionCall(block) => {
@@ -571,12 +571,12 @@ fn execute(lines: Vec<Instr>) {
                 }
             }
             // DECLARATION
-            Instr::VarStore(ref str, ref id, false) => {
+            Instr::VarStore(false, ref id, ref str) => {
                 let index = register.iter().position(|(x, _)| x.eq(id)).unwrap();
                 variables.push((str.to_string(), register.swap_remove(index).1))
             }
             // IS ALREADY STORED
-            Instr::VarStore(ref str, ref id, true) => {
+            Instr::VarStore(true, ref id, ref str) => {
                 // log!(
                 //     "REPLACING {str}, register is {:?}",
                 //     register
