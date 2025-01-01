@@ -581,16 +581,18 @@ fn execute(lines: Vec<Instr>) {
             Instr::VarStore(false, ref str) => {
                 // Instr::VarStore(false, ref id, ref str) => { -> SAFE
                 // let index = register.iter().position(|(x, _)| x.eq(id)).unwrap(); -> SAFE
-                let index = 0;
-                variables.push((str.to_string(), register.swap_remove(index).1))
+                // let index = register.len() - 1;
+                // variables.push((str.to_string(), register.swap_remove(index).1))
+                variables.push((str.to_string(), register.pop().unwrap().1))
             }
             // IS ALREADY STORED
             Instr::VarStore(true, ref str) => {
                 // Instr::VarStore(true, ref id, ref str) => { -> SAFE
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == **str) {
                     // let index = register.iter().position(|(x, _)| x == id).unwrap(); -> SAFE
-                    let index = 0;
-                    *elem = (elem.0.to_string(), register.swap_remove(index).1)
+                    let index = register.len() - 1;
+                    *elem = (elem.0.to_string(), register.pop().unwrap().1)
+                    // *elem = (elem.0.to_string(), register.swap_remove(index).1)
                 } else {
                     error(&format!("Unknown variable '{str}'"), "");
                 }
@@ -602,8 +604,9 @@ fn execute(lines: Vec<Instr>) {
                 //     .iter() -> SAFE
                 //     .position(|(id, _)| id == condition_id) -> SAFE
                 //     .unwrap(); -> SAFE
-                let index = 0;
-                let (_, condition) = register.swap_remove(index);
+                // let index = register.len() - 1;
+                let (_, condition) = register.pop().unwrap();
+                // let (_, condition) = register.swap_remove(index);
                 if condition == Instr::Bool(false) {
                     i += *jump_size as usize;
                 } else if condition != Instr::Bool(true) {
@@ -621,8 +624,9 @@ fn execute(lines: Vec<Instr>) {
             Instr::STORE_ARG => {
                 // Instr::STORE_ARG(ref id) => { -> SAFE
                 // let index = register.iter().position(|(i, _)| i == id).unwrap(); -> SAFE
-                let index = 0;
-                args.push(register.remove(index))
+                // let index = register.len() - 1;
+                // args.push(register.remove(index))
+                args.push(register.pop().unwrap())
             }
             Instr::FuncCall(ref name) => {
                 let func_args: Vec<Instr> =
@@ -640,18 +644,20 @@ fn execute(lines: Vec<Instr>) {
             // PRIMITIVE TYPES
             Instr::Integer(ref int) => {
                 check_first_to_register!(Instr::Integer(*int), depth, i, register);
+                let index = register.len() - 1;
                 if let Some(elem) = register
                     // .iter_mut() -> SAFE
                     // .find(|(id, _)| id == depth.last().unwrap()) -> SAFE
-                    .get_mut(0)
+                    .get_mut(index)
                 {
                     match elem.1 {
                         Instr::Integer(parent) => {
-                            let index = operator
-                                .iter()
-                                .position(|(x, _)| x == depth.last().unwrap())
-                                .unwrap();
-                            match operator.swap_remove(index).1 {
+                            // let index = operator
+                            //     .iter()
+                            //     .position(|(x, _)| x == depth.last().unwrap())
+                            //     .unwrap();
+                            match operator.pop().unwrap().1 {
+                                // match operator.swap_remove(operator.len() - 1).1 {
                                 BasicOperator::Add => elem.1 = Instr::Integer(parent + int),
                                 BasicOperator::Sub => elem.1 = Instr::Integer(parent - int),
                                 BasicOperator::Divide => {
@@ -685,11 +691,12 @@ fn execute(lines: Vec<Instr>) {
                             }
                         }
                         Instr::Float(parent) => {
-                            let index = operator
-                                .iter()
-                                .position(|(x, _)| x == depth.last().unwrap())
-                                .unwrap();
-                            match operator.swap_remove(index).1 {
+                            // let index = operator
+                            //     .iter()
+                            //     .position(|(x, _)| x == depth.last().unwrap())
+                            //     .unwrap();
+                            match operator.pop().unwrap().1 {
+                                // match operator.swap_remove(operator.len() - 1).1 {
                                 BasicOperator::Add => elem.1 = Instr::Float(parent + *int as f64),
                                 BasicOperator::Sub => elem.1 = Instr::Float(parent - *int as f64),
                                 BasicOperator::Divide => {
@@ -743,17 +750,19 @@ fn execute(lines: Vec<Instr>) {
             }
             Instr::Float(ref float) => {
                 check_first_to_register!(Instr::Float(*float), depth, i, register);
+                let index = register.len() - 1;
                 if let Some(elem) = register
-                    .iter_mut()
-                    .find(|(id, _)| id == depth.last().unwrap())
+                    // .iter_mut()
+                    // .find(|(id, _)| id == depth.last().unwrap())
+                    .get_mut(index)
                 {
                     match elem.1 {
                         Instr::Integer(parent) => {
-                            let index = operator
-                                .iter()
-                                .position(|(x, _)| x == depth.last().unwrap())
-                                .unwrap();
-                            match operator.swap_remove(index).1 {
+                            // let index = operator
+                            //     .iter()
+                            //     .position(|(x, _)| x == depth.last().unwrap())
+                            //     .unwrap();
+                            match operator.swap_remove(operator.len() - 1).1 {
                                 BasicOperator::Add => elem.1 = Instr::Float(parent as f64 + float),
                                 BasicOperator::Sub => elem.1 = Instr::Float(parent as f64 - float),
                                 BasicOperator::Divide => {
@@ -799,11 +808,11 @@ fn execute(lines: Vec<Instr>) {
                             }
                         }
                         Instr::Float(parent) => {
-                            let index = operator
-                                .iter()
-                                .position(|(x, _)| x == depth.last().unwrap())
-                                .unwrap();
-                            match operator.swap_remove(index).1 {
+                            // let index = operator
+                            //     .iter()
+                            //     .position(|(x, _)| x == depth.last().unwrap())
+                            //     .unwrap();
+                            match operator.swap_remove(operator.len() - 1).1 {
                                 BasicOperator::Add => elem.1 = Instr::Float(parent + *float),
                                 BasicOperator::Sub => elem.1 = Instr::Float(parent - *float),
                                 BasicOperator::Divide => {
