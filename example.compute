@@ -14,7 +14,6 @@ func main() {
 //     print(count);
 // }
 // print("awesome!!!");
-// let ok = test(20);
 // print(ok);
 let count = 0;
 let limit = 1000000;

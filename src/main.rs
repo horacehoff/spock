@@ -1,6 +1,5 @@
 #![allow(clippy::too_many_lines)]
 
-use blink_alloc::Blink;
 #[path = "types/array.rs"]
 mod array;
 #[path = "functions/builtin.rs"]
@@ -519,7 +518,8 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
         }
     }
     if store {
-        test.insert(0, Instr::STORE(i + 1));
+        test.insert(0, Instr::STORE);
+        // test.insert(0, Instr::STORE(i + 1));
         test.push(Instr::STOP)
         // test.push(Types::STOP(i + 1))
     }
@@ -528,8 +528,9 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
 
 macro_rules! check_first_to_register {
     ($elem: expr, $depth: expr, $i: expr, $register: expr) => {
-        if !$register.iter().any(|(x, _)| *x == *$depth.last().unwrap()) {
-            $register.push((*$depth.last().unwrap(), $elem));
+        if $register.len() < $depth {
+            // if !$register.iter().any(|(x, _)| *x == *$depth.last().unwrap()) {
+            $register.push($elem);
             $i += 1;
             continue;
         }
@@ -538,15 +539,17 @@ macro_rules! check_first_to_register {
 
 #[inline(never)]
 fn execute(lines: Vec<Instr>) {
-    let mut blink = Blink::new();
+    // let mut blink = Blink::new();
 
-    let mut register: Vec<(u16, Instr)> = Vec::new();
-    let mut args: Vec<(u16, Instr)> = Vec::new();
+    let mut register: Vec<Instr> = Vec::new();
+    // let mut register: Vec<(u16, Instr)> = Vec::new();
+    let mut args: Vec<Instr> = Vec::new();
 
-    // let mut depth: Vec<u32> = Vec::new();
-    let depth = blink.put(vec![]);
+    let mut depth: u16 = 0;
+    // let mut depth: Vec<u16> = Vec::new();
+    // let depth = blink.put(vec![]);
 
-    let mut operator: Vec<(u16, BasicOperator)> = Vec::new();
+    let mut operator: Vec<BasicOperator> = Vec::new();
 
     let mut variables: Vec<(String, Instr)> = Vec::new();
 
@@ -568,13 +571,17 @@ fn execute(lines: Vec<Instr>) {
                 &lines[i]
             }
         } {
-            Instr::STORE(ref num) => depth.push(*num),
+            Instr::STORE => depth += 1,
+            // Instr::STORE(ref num) => depth += 1,
+            // Instr::STORE(ref num) => depth.push(*num),
             Instr::STOP => {
-                depth.pop();
+                depth -= 1;
+                // depth.pop();
             }
             Instr::Operation(ref op) => {
-                if !depth.is_empty() {
-                    operator.push((*depth.last().unwrap(), *op))
+                if depth > 0 {
+                    // if !depth.is_empty() {
+                    operator.push(*op)
                 }
             }
             // DECLARATION
@@ -583,15 +590,15 @@ fn execute(lines: Vec<Instr>) {
                 // let index = register.iter().position(|(x, _)| x.eq(id)).unwrap(); -> SAFE
                 // let index = register.len() - 1;
                 // variables.push((str.to_string(), register.swap_remove(index).1))
-                variables.push((str.to_string(), register.pop().unwrap().1))
+                variables.push((str.to_string(), register.pop().unwrap()))
             }
             // IS ALREADY STORED
             Instr::VarStore(true, ref str) => {
                 // Instr::VarStore(true, ref id, ref str) => { -> SAFE
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == **str) {
                     // let index = register.iter().position(|(x, _)| x == id).unwrap(); -> SAFE
-                    let index = register.len() - 1;
-                    *elem = (elem.0.to_string(), register.pop().unwrap().1)
+                    // let index = register.len() - 1;
+                    *elem = (elem.0.to_string(), register.pop().unwrap())
                     // *elem = (elem.0.to_string(), register.swap_remove(index).1)
                 } else {
                     error(&format!("Unknown variable '{str}'"), "");
@@ -605,7 +612,7 @@ fn execute(lines: Vec<Instr>) {
                 //     .position(|(id, _)| id == condition_id) -> SAFE
                 //     .unwrap(); -> SAFE
                 // let index = register.len() - 1;
-                let (_, condition) = register.pop().unwrap();
+                let condition = register.pop().unwrap();
                 // let (_, condition) = register.swap_remove(index);
                 if condition == Instr::Bool(false) {
                     i += *jump_size as usize;
@@ -629,8 +636,7 @@ fn execute(lines: Vec<Instr>) {
                 args.push(register.pop().unwrap())
             }
             Instr::FuncCall(ref name) => {
-                let func_args: Vec<Instr> =
-                    (0..args.len()).map(|i| args.swap_remove(i).1).collect();
+                let func_args: Vec<Instr> = (0..args.len()).map(|i| args.swap_remove(i)).collect();
                 let func_name = name.as_str();
                 if func_name == "print" {
                     println!(
@@ -643,23 +649,23 @@ fn execute(lines: Vec<Instr>) {
 
             // PRIMITIVE TYPES
             Instr::Integer(ref int) => {
-                check_first_to_register!(Instr::Integer(*int), depth, i, register);
+                check_first_to_register!(Instr::Integer(*int), depth as usize, i, register);
                 let index = register.len() - 1;
                 if let Some(elem) = register
                     // .iter_mut() -> SAFE
                     // .find(|(id, _)| id == depth.last().unwrap()) -> SAFE
                     .get_mut(index)
                 {
-                    match elem.1 {
+                    match elem {
                         Instr::Integer(parent) => {
                             // let index = operator
                             //     .iter()
                             //     .position(|(x, _)| x == depth.last().unwrap())
                             //     .unwrap();
-                            match operator.pop().unwrap().1 {
+                            match operator.pop().unwrap() {
                                 // match operator.swap_remove(operator.len() - 1).1 {
-                                BasicOperator::Add => elem.1 = Instr::Integer(parent + int),
-                                BasicOperator::Sub => elem.1 = Instr::Integer(parent - int),
+                                BasicOperator::Add => *elem = Instr::Integer(*parent + int),
+                                BasicOperator::Sub => *elem = Instr::Integer(*parent - int),
                                 BasicOperator::Divide => {
                                     assert_ne!(
                                         int,
@@ -667,22 +673,22 @@ fn execute(lines: Vec<Instr>) {
                                         "{}",
                                         error_msg!(format!("Division by zero ({int} / 0)"))
                                     );
-                                    elem.1 = math_to_type!(parent as f64 / *int as f64);
+                                    *elem = math_to_type!(*parent as f64 / *int as f64);
                                 }
-                                BasicOperator::Multiply => elem.1 = Instr::Integer(parent * int),
+                                BasicOperator::Multiply => *elem = Instr::Integer(*parent * int),
                                 BasicOperator::Power => {
-                                    elem.1 = Instr::Integer(parent.pow(*int as u32))
+                                    *elem = Instr::Integer(parent.pow(*int as u32))
                                 }
-                                BasicOperator::Modulo => elem.1 = Instr::Integer(parent % int),
-                                BasicOperator::Equal => elem.1 = Instr::Bool(&parent == int),
-                                BasicOperator::NotEqual => elem.1 = Instr::Bool(&parent != int),
-                                BasicOperator::Inferior => elem.1 = Instr::Bool(&parent < int),
+                                BasicOperator::Modulo => *elem = Instr::Integer(*parent % int),
+                                BasicOperator::Equal => *elem = Instr::Bool(parent == int),
+                                BasicOperator::NotEqual => *elem = Instr::Bool(parent != int),
+                                BasicOperator::Inferior => *elem = Instr::Bool(*parent < *int),
                                 BasicOperator::InferiorEqual => {
-                                    elem.1 = Instr::Bool(&parent <= int)
+                                    *elem = Instr::Bool(*parent <= *int)
                                 }
-                                BasicOperator::Superior => elem.1 = Instr::Bool(&parent > int),
+                                BasicOperator::Superior => *elem = Instr::Bool(*parent > *int),
                                 BasicOperator::SuperiorEqual => {
-                                    elem.1 = Instr::Bool(&parent >= int)
+                                    *elem = Instr::Bool(*parent >= *int)
                                 }
 
                                 // AND
@@ -690,55 +696,55 @@ fn execute(lines: Vec<Instr>) {
                                 _ => {}
                             }
                         }
-                        Instr::Float(parent) => {
-                            // let index = operator
-                            //     .iter()
-                            //     .position(|(x, _)| x == depth.last().unwrap())
-                            //     .unwrap();
-                            match operator.pop().unwrap().1 {
-                                // match operator.swap_remove(operator.len() - 1).1 {
-                                BasicOperator::Add => elem.1 = Instr::Float(parent + *int as f64),
-                                BasicOperator::Sub => elem.1 = Instr::Float(parent - *int as f64),
-                                BasicOperator::Divide => {
-                                    assert_ne!(
-                                        int,
-                                        &0,
-                                        "{}",
-                                        error_msg!(format!("Division by zero ({int} / 0)"))
-                                    );
-                                    elem.1 = Instr::Float(parent / *int as f64)
-                                }
-                                BasicOperator::Multiply => {
-                                    elem.1 = Instr::Float(parent * *int as f64)
-                                }
-                                BasicOperator::Power => {
-                                    elem.1 = Instr::Float(parent.powf(*int as f64))
-                                }
-                                BasicOperator::Modulo => {
-                                    elem.1 = Instr::Float(parent % *int as f64)
-                                }
-                                BasicOperator::Equal => elem.1 = Instr::Bool(parent == *int as f64),
-                                BasicOperator::NotEqual => {
-                                    elem.1 = Instr::Bool(parent != *int as f64)
-                                }
-                                BasicOperator::Inferior => {
-                                    elem.1 = Instr::Bool(parent < *int as f64)
-                                }
-                                BasicOperator::InferiorEqual => {
-                                    elem.1 = Instr::Bool(parent <= *int as f64)
-                                }
-                                BasicOperator::Superior => {
-                                    elem.1 = Instr::Bool(parent > *int as f64)
-                                }
-                                BasicOperator::SuperiorEqual => {
-                                    elem.1 = Instr::Bool(parent >= *int as f64)
-                                }
-
-                                // AND
-                                // OR
-                                _ => {}
-                            }
-                        }
+                        // Instr::Float(parent) => {
+                        //     // let index = operator
+                        //     //     .iter()
+                        //     //     .position(|(x, _)| x == depth.last().unwrap())
+                        //     //     .unwrap();
+                        //     match operator.pop().unwrap().1 {
+                        //         // match operator.swap_remove(operator.len() - 1).1 {
+                        //         BasicOperator::Add => elem.1 = Instr::Float(parent + *int as f64),
+                        //         BasicOperator::Sub => elem.1 = Instr::Float(parent - *int as f64),
+                        //         BasicOperator::Divide => {
+                        //             assert_ne!(
+                        //                 int,
+                        //                 &0,
+                        //                 "{}",
+                        //                 error_msg!(format!("Division by zero ({int} / 0)"))
+                        //             );
+                        //             elem.1 = Instr::Float(parent / *int as f64)
+                        //         }
+                        //         BasicOperator::Multiply => {
+                        //             elem.1 = Instr::Float(parent * *int as f64)
+                        //         }
+                        //         BasicOperator::Power => {
+                        //             elem.1 = Instr::Float(parent.powf(*int as f64))
+                        //         }
+                        //         BasicOperator::Modulo => {
+                        //             elem.1 = Instr::Float(parent % *int as f64)
+                        //         }
+                        //         BasicOperator::Equal => elem.1 = Instr::Bool(parent == *int as f64),
+                        //         BasicOperator::NotEqual => {
+                        //             elem.1 = Instr::Bool(parent != *int as f64)
+                        //         }
+                        //         BasicOperator::Inferior => {
+                        //             elem.1 = Instr::Bool(parent < *int as f64)
+                        //         }
+                        //         BasicOperator::InferiorEqual => {
+                        //             elem.1 = Instr::Bool(parent <= *int as f64)
+                        //         }
+                        //         BasicOperator::Superior => {
+                        //             elem.1 = Instr::Bool(parent > *int as f64)
+                        //         }
+                        //         BasicOperator::SuperiorEqual => {
+                        //             elem.1 = Instr::Bool(parent >= *int as f64)
+                        //         }
+                        //
+                        //         // AND
+                        //         // OR
+                        //         _ => {}
+                        //     }
+                        // }
                         _ => todo!(),
                     }
                 } else {
@@ -748,127 +754,126 @@ fn execute(lines: Vec<Instr>) {
                     );
                 }
             }
-            Instr::Float(ref float) => {
-                check_first_to_register!(Instr::Float(*float), depth, i, register);
-                let index = register.len() - 1;
-                if let Some(elem) = register
-                    // .iter_mut()
-                    // .find(|(id, _)| id == depth.last().unwrap())
-                    .get_mut(index)
-                {
-                    match elem.1 {
-                        Instr::Integer(parent) => {
-                            // let index = operator
-                            //     .iter()
-                            //     .position(|(x, _)| x == depth.last().unwrap())
-                            //     .unwrap();
-                            match operator.swap_remove(operator.len() - 1).1 {
-                                BasicOperator::Add => elem.1 = Instr::Float(parent as f64 + float),
-                                BasicOperator::Sub => elem.1 = Instr::Float(parent as f64 - float),
-                                BasicOperator::Divide => {
-                                    assert_ne!(
-                                        float,
-                                        &0.0,
-                                        "{}",
-                                        error_msg!(format!("Division by zero ({float} / 0)"))
-                                    );
-                                    elem.1 = math_to_type!(parent as f64 / *float);
-                                }
-                                BasicOperator::Multiply => {
-                                    elem.1 = Instr::Float(parent as f64 * float)
-                                }
-                                BasicOperator::Power => {
-                                    elem.1 = Instr::Float(parent.pow(*float as u32) as f64)
-                                }
-                                BasicOperator::Modulo => {
-                                    elem.1 = Instr::Float(parent as f64 % float)
-                                }
-                                BasicOperator::Equal => {
-                                    elem.1 = Instr::Bool(parent as f64 == *float)
-                                }
-                                BasicOperator::NotEqual => {
-                                    elem.1 = Instr::Bool(parent as f64 != *float)
-                                }
-                                BasicOperator::Inferior => {
-                                    elem.1 = Instr::Bool((parent as f64) < (*float))
-                                }
-                                BasicOperator::InferiorEqual => {
-                                    elem.1 = Instr::Bool(parent as f64 <= *float)
-                                }
-                                BasicOperator::Superior => {
-                                    elem.1 = Instr::Bool(parent as f64 > *float)
-                                }
-                                BasicOperator::SuperiorEqual => {
-                                    elem.1 = Instr::Bool(parent as f64 >= *float)
-                                }
-
-                                // AND
-                                // OR
-                                _ => {}
-                            }
-                        }
-                        Instr::Float(parent) => {
-                            // let index = operator
-                            //     .iter()
-                            //     .position(|(x, _)| x == depth.last().unwrap())
-                            //     .unwrap();
-                            match operator.swap_remove(operator.len() - 1).1 {
-                                BasicOperator::Add => elem.1 = Instr::Float(parent + *float),
-                                BasicOperator::Sub => elem.1 = Instr::Float(parent - *float),
-                                BasicOperator::Divide => {
-                                    assert_ne!(
-                                        float,
-                                        &0.0,
-                                        "{}",
-                                        error_msg!(format!("Division by zero ({float} / 0)"))
-                                    );
-                                    elem.1 = Instr::Float(parent / *float)
-                                }
-                                BasicOperator::Multiply => elem.1 = Instr::Float(parent * *float),
-                                BasicOperator::Power => elem.1 = Instr::Float(parent.powf(*float)),
-                                BasicOperator::Modulo => elem.1 = Instr::Float(parent % *float),
-                                BasicOperator::Equal => elem.1 = Instr::Bool(parent == *float),
-                                BasicOperator::NotEqual => elem.1 = Instr::Bool(parent != *float),
-                                BasicOperator::Inferior => elem.1 = Instr::Bool(parent < *float),
-                                BasicOperator::InferiorEqual => {
-                                    elem.1 = Instr::Bool(parent <= *float)
-                                }
-                                BasicOperator::Superior => elem.1 = Instr::Bool(parent > *float),
-                                BasicOperator::SuperiorEqual => {
-                                    elem.1 = Instr::Bool(parent >= *float)
-                                }
-
-                                // AND
-                                // OR
-                                _ => {}
-                            }
-                        }
-                        _ => todo!(),
-                    }
-                } else {
-                    error(
-                        "[COMPUTE] UNABLE TO RETRIEVE FROM REGISTER",
-                        "This is probably a Compute bug",
-                    );
-                }
-            }
+            // Instr::Float(ref float) => {
+            //     check_first_to_register!(Instr::Float(*float), depth, i, register);
+            //     let index = register.len() - 1;
+            //     if let Some(elem) = register
+            //         // .iter_mut()
+            //         // .find(|(id, _)| id == depth.last().unwrap())
+            //         .get_mut(index)
+            //     {
+            //         match elem.1 {
+            //             Instr::Integer(parent) => {
+            //                 // let index = operator
+            //                 //     .iter()
+            //                 //     .position(|(x, _)| x == depth.last().unwrap())
+            //                 //     .unwrap();
+            //                 match operator.swap_remove(operator.len() - 1).1 {
+            //                     BasicOperator::Add => elem.1 = Instr::Float(parent as f64 + float),
+            //                     BasicOperator::Sub => elem.1 = Instr::Float(parent as f64 - float),
+            //                     BasicOperator::Divide => {
+            //                         assert_ne!(
+            //                             float,
+            //                             &0.0,
+            //                             "{}",
+            //                             error_msg!(format!("Division by zero ({float} / 0)"))
+            //                         );
+            //                         elem.1 = math_to_type!(parent as f64 / *float);
+            //                     }
+            //                     BasicOperator::Multiply => {
+            //                         elem.1 = Instr::Float(parent as f64 * float)
+            //                     }
+            //                     BasicOperator::Power => {
+            //                         elem.1 = Instr::Float(parent.pow(*float as u32) as f64)
+            //                     }
+            //                     BasicOperator::Modulo => {
+            //                         elem.1 = Instr::Float(parent as f64 % float)
+            //                     }
+            //                     BasicOperator::Equal => {
+            //                         elem.1 = Instr::Bool(parent as f64 == *float)
+            //                     }
+            //                     BasicOperator::NotEqual => {
+            //                         elem.1 = Instr::Bool(parent as f64 != *float)
+            //                     }
+            //                     BasicOperator::Inferior => {
+            //                         elem.1 = Instr::Bool((parent as f64) < (*float))
+            //                     }
+            //                     BasicOperator::InferiorEqual => {
+            //                         elem.1 = Instr::Bool(parent as f64 <= *float)
+            //                     }
+            //                     BasicOperator::Superior => {
+            //                         elem.1 = Instr::Bool(parent as f64 > *float)
+            //                     }
+            //                     BasicOperator::SuperiorEqual => {
+            //                         elem.1 = Instr::Bool(parent as f64 >= *float)
+            //                     }
+            //
+            //                     // AND
+            //                     // OR
+            //                     _ => {}
+            //                 }
+            //             }
+            //             Instr::Float(parent) => {
+            //                 // let index = operator
+            //                 //     .iter()
+            //                 //     .position(|(x, _)| x == depth.last().unwrap())
+            //                 //     .unwrap();
+            //                 match operator.swap_remove(operator.len() - 1).1 {
+            //                     BasicOperator::Add => elem.1 = Instr::Float(parent + *float),
+            //                     BasicOperator::Sub => elem.1 = Instr::Float(parent - *float),
+            //                     BasicOperator::Divide => {
+            //                         assert_ne!(
+            //                             float,
+            //                             &0.0,
+            //                             "{}",
+            //                             error_msg!(format!("Division by zero ({float} / 0)"))
+            //                         );
+            //                         elem.1 = Instr::Float(parent / *float)
+            //                     }
+            //                     BasicOperator::Multiply => elem.1 = Instr::Float(parent * *float),
+            //                     BasicOperator::Power => elem.1 = Instr::Float(parent.powf(*float)),
+            //                     BasicOperator::Modulo => elem.1 = Instr::Float(parent % *float),
+            //                     BasicOperator::Equal => elem.1 = Instr::Bool(parent == *float),
+            //                     BasicOperator::NotEqual => elem.1 = Instr::Bool(parent != *float),
+            //                     BasicOperator::Inferior => elem.1 = Instr::Bool(parent < *float),
+            //                     BasicOperator::InferiorEqual => {
+            //                         elem.1 = Instr::Bool(parent <= *float)
+            //                     }
+            //                     BasicOperator::Superior => elem.1 = Instr::Bool(parent > *float),
+            //                     BasicOperator::SuperiorEqual => {
+            //                         elem.1 = Instr::Bool(parent >= *float)
+            //                     }
+            //
+            //                     // AND
+            //                     // OR
+            //                     _ => {}
+            //                 }
+            //             }
+            //             _ => todo!(),
+            //         }
+            //     } else {
+            //         error(
+            //             "[COMPUTE] UNABLE TO RETRIEVE FROM REGISTER",
+            //             "This is probably a Compute bug",
+            //         );
+            //     }
+            // }
             Instr::String(ref str) => {
                 check_first_to_register!(
                     Instr::String(Intern::from(str.to_string())),
-                    depth,
+                    depth as usize,
                     i,
                     register
                 )
             }
             Instr::Bool(ref bool) => {
-                check_first_to_register!(Instr::Bool(*bool), depth, i, register);
+                check_first_to_register!(Instr::Bool(*bool), depth as usize, i, register);
             }
             _ => {}
         }
         i += 1;
         // log!("---\nREGISTER {register:?}\nVARIABLES {variables:?}")
     }
-    blink.reset();
 }
 
 fn main() {

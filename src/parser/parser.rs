@@ -73,7 +73,8 @@ pub enum Instr {
     Operation(BasicOperator),
     // BOOL -> REPLACE IF TRUE NOT IF FALSE
     Bool(bool),
-    STORE(u16),
+    STORE,
+    // STORE(u16),
     STORE_ARG,
     // STORE_ARG(u16),
     FuncReturn(u16),
