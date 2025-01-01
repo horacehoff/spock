@@ -82,10 +82,10 @@ pub enum Instr {
     IF(u16, u16),
     Integer(i64),
     Float(f64),
+    VarStore(bool, u16, Intern<String>),
     FuncCall(Intern<String>),
     VariableIdentifier(Intern<String>),
     String(Intern<String>),
-    VarStore(bool, u16, Intern<String>),
 }
 
 #[repr(u8)]
