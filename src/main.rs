@@ -528,8 +528,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
 
 macro_rules! check_first_to_register {
     ($elem: expr, $depth: expr, $i: expr, $register: expr) => {
-        if $register.len() < $depth {
-            // if !$register.iter().any(|(x, _)| *x == *$depth.last().unwrap()) {
+        if $register.len() < $depth as usize {
             $register.push($elem);
             $i += 1;
             continue;
@@ -539,26 +538,25 @@ macro_rules! check_first_to_register {
 
 #[inline(never)]
 fn execute(lines: Vec<Instr>) {
-    // let mut blink = Blink::new();
-
+    // keeps track of items
     let mut register: Vec<Instr> = Vec::new();
-    // let mut register: Vec<(u16, Instr)> = Vec::new();
+    // keeps track of function args
     let mut args: Vec<Instr> = Vec::new();
-
-    let mut depth: u16 = 0;
-    // let mut depth: Vec<u16> = Vec::new();
-    // let depth = blink.put(vec![]);
-
+    // keeps track of current "storing" depth (e.g STORE,...,STORE,... will have depth=2 after the second "STORE")
+    // unclear if really needed
+    let mut depth: u8 = 0;
+    // keeps track of operators according to depth
+    // unclear if a vec is needed
     let mut operator: Vec<BasicOperator> = Vec::new();
-
+    // keeps track of variables
     let mut variables: Vec<(String, Instr)> = Vec::new();
-
-    let mut i: usize = 0;
+    let mut line: usize = 0;
+    // used to fix lifetime error
     let mut temp;
-    let len = lines.len();
-    while i < len {
+    let total_len = lines.len();
+    while line < total_len {
         match {
-            if let Instr::VariableIdentifier(ref id) = &lines[i] {
+            if let Instr::VariableIdentifier(ref id) = &lines[line] {
                 temp = variables
                     .iter()
                     .find(|(x, _)| x == id.as_ref())
@@ -568,73 +566,47 @@ fn execute(lines: Vec<Instr>) {
                     .1;
                 &temp
             } else {
-                &lines[i]
+                &lines[line]
             }
         } {
             Instr::STORE => depth += 1,
-            // Instr::STORE(ref num) => depth += 1,
-            // Instr::STORE(ref num) => depth.push(*num),
             Instr::STOP => {
                 depth -= 1;
-                // depth.pop();
             }
             Instr::Operation(ref op) => {
                 if depth > 0 {
-                    // if !depth.is_empty() {
                     operator.push(*op)
                 }
             }
             // DECLARATION
             Instr::VarStore(false, ref str) => {
-                // Instr::VarStore(false, ref id, ref str) => { -> SAFE
-                // let index = register.iter().position(|(x, _)| x.eq(id)).unwrap(); -> SAFE
-                // let index = register.len() - 1;
-                // variables.push((str.to_string(), register.swap_remove(index).1))
                 variables.push((str.to_string(), register.pop().unwrap()))
             }
             // IS ALREADY STORED
             Instr::VarStore(true, ref str) => {
-                // Instr::VarStore(true, ref id, ref str) => { -> SAFE
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == **str) {
-                    // let index = register.iter().position(|(x, _)| x == id).unwrap(); -> SAFE
-                    // let index = register.len() - 1;
                     *elem = (elem.0.to_string(), register.pop().unwrap())
-                    // *elem = (elem.0.to_string(), register.swap_remove(index).1)
                 } else {
                     error(&format!("Unknown variable '{str}'"), "");
                 }
-                // log!("NEW VARS {variables:?}");
             }
             Instr::IF(ref jump_size) => {
-                // Instr::IF(ref condition_id, ref jump_size) => { -> SAFE
-                // let index = register -> SAFE
-                //     .iter() -> SAFE
-                //     .position(|(id, _)| id == condition_id) -> SAFE
-                //     .unwrap(); -> SAFE
-                // let index = register.len() - 1;
                 let condition = register.pop().unwrap();
-                // let (_, condition) = register.swap_remove(index);
                 if condition == Instr::Bool(false) {
-                    i += *jump_size as usize;
+                    line += *jump_size as usize;
                 } else if condition != Instr::Bool(true) {
                     error(&format!("'{:?}' is not a boolean", &condition), "");
                 }
             }
             Instr::JUMP(ref jump_size, ref neg) => {
                 if *neg {
-                    i -= *jump_size as usize;
+                    line -= *jump_size as usize;
                     continue;
                 }
-                i += *jump_size as usize;
+                line += *jump_size as usize;
                 continue;
             }
-            Instr::STORE_ARG => {
-                // Instr::STORE_ARG(ref id) => { -> SAFE
-                // let index = register.iter().position(|(i, _)| i == id).unwrap(); -> SAFE
-                // let index = register.len() - 1;
-                // args.push(register.remove(index))
-                args.push(register.pop().unwrap())
-            }
+            Instr::STORE_ARG => args.push(register.pop().unwrap()),
             Instr::FuncCall(ref name) => {
                 let func_args: Vec<Instr> = (0..args.len()).map(|i| args.swap_remove(i)).collect();
                 let func_name = name.as_str();
@@ -649,21 +621,12 @@ fn execute(lines: Vec<Instr>) {
 
             // PRIMITIVE TYPES
             Instr::Integer(ref int) => {
-                check_first_to_register!(Instr::Integer(*int), depth as usize, i, register);
+                check_first_to_register!(Instr::Integer(*int), depth, line, register);
                 let index = register.len() - 1;
-                if let Some(elem) = register
-                    // .iter_mut() -> SAFE
-                    // .find(|(id, _)| id == depth.last().unwrap()) -> SAFE
-                    .get_mut(index)
-                {
+                if let Some(elem) = register.get_mut(index) {
                     match elem {
                         Instr::Integer(parent) => {
-                            // let index = operator
-                            //     .iter()
-                            //     .position(|(x, _)| x == depth.last().unwrap())
-                            //     .unwrap();
                             match operator.pop().unwrap() {
-                                // match operator.swap_remove(operator.len() - 1).1 {
                                 BasicOperator::Add => *elem = Instr::Integer(*parent + int),
                                 BasicOperator::Sub => *elem = Instr::Integer(*parent - int),
                                 BasicOperator::Divide => {
@@ -861,17 +824,17 @@ fn execute(lines: Vec<Instr>) {
             Instr::String(ref str) => {
                 check_first_to_register!(
                     Instr::String(Intern::from(str.to_string())),
-                    depth as usize,
-                    i,
+                    depth,
+                    line,
                     register
                 )
             }
             Instr::Bool(ref bool) => {
-                check_first_to_register!(Instr::Bool(*bool), depth as usize, i, register);
+                check_first_to_register!(Instr::Bool(*bool), depth, line, register);
             }
             _ => {}
         }
-        i += 1;
+        line += 1;
         // log!("---\nREGISTER {register:?}\nVARIABLES {variables:?}")
     }
 }
