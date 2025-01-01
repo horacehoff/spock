@@ -551,7 +551,13 @@ fn execute(lines: Vec<Instr>) {
         // log!("----------------\n{:?}", lines[i]);
         match {
             if let Instr::VariableIdentifier(ref id) = &lines[i] {
-                temp = variables.iter().find(|(x, _)| x == id.as_ref()).unwrap().1;
+                temp = variables
+                    .iter()
+                    .find(|(x, _)| x == id.as_ref())
+                    .unwrap_or_else(|| {
+                        panic!("{}", error_msg!(format!("Variable '{id}' does not exist")))
+                    })
+                    .1;
                 &temp
             } else {
                 &lines[i]
@@ -637,8 +643,10 @@ fn execute(lines: Vec<Instr>) {
             Instr::Integer(ref int) => {
                 check_first_to_register!(Instr::Integer(*int), depth, i, register);
                 if let Some(elem) = register
-                    .iter_mut()
-                    .find(|(id, _)| id == depth.last().unwrap())
+                    // .iter_mut()
+                    // .find(|(id, _)| id == depth.last().unwrap())
+                    // .find(|(id, _)| id == depth.last().unwrap())
+                    .get_mut(0)
                 {
                     match elem.1 {
                         Instr::Integer(parent) => {
