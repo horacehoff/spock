@@ -513,7 +513,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
     (test, i + 1)
 }
 
-macro_rules! check_first_to_register {
+macro_rules! check_register_adress {
     ($elem: expr, $depth: expr, $i: expr, $register: expr) => {
         if $register.len() < $depth as usize {
             $register.push($elem);
@@ -541,6 +541,14 @@ fn pre_match(
                 return input;
             }
             let func_args: Vec<Instr> = (0..args.len()).map(|i| args.swap_remove(i)).collect();
+            match name.as_str() {
+                "str" => {
+                    assert_args_number!("str", func_args.len(), 1);
+                }
+                _ => {
+                    todo!("User-defined function that should return something called!")
+                }
+            }
             Instr::Integer(1)
         }
         _ => input,
@@ -574,9 +582,7 @@ fn execute(lines: Vec<Instr>) {
                     operator.push(*op)
                 }
             }
-            // DECLARATION
-            Instr::VarStore(false, ref str) => variables.push((*str, register.pop().unwrap())),
-            // IS ALREADY STORED
+            // VARIABLE IS ALREADY STORED
             Instr::VarStore(true, ref str) => {
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == *str) {
                     *elem = (elem.0, register.pop().unwrap())
@@ -584,6 +590,8 @@ fn execute(lines: Vec<Instr>) {
                     error(&format!("Unknown variable '{str}'"), "");
                 }
             }
+            // VARIABLE DECLARATION
+            Instr::VarStore(false, ref str) => variables.push((*str, register.pop().unwrap())),
             Instr::IF(ref jump_size) => {
                 let condition = register.pop().unwrap();
                 if condition == Instr::Bool(false) {
@@ -616,7 +624,7 @@ fn execute(lines: Vec<Instr>) {
 
             // PRIMITIVE TYPES
             Instr::Integer(ref int) => {
-                check_first_to_register!(Instr::Integer(*int), depth, line, register);
+                check_register_adress!(Instr::Integer(*int), depth, line, register);
                 let index = register.len() - 1;
                 if let Some(elem) = register.get_mut(index) {
                     match elem {
@@ -710,7 +718,7 @@ fn execute(lines: Vec<Instr>) {
                 }
             }
             Instr::Float(ref float) => {
-                check_first_to_register!(Instr::Float(*float), depth, line, register);
+                check_register_adress!(Instr::Float(*float), depth, line, register);
                 let index = register.len() - 1;
                 if let Some(elem) = register.get_mut(index) {
                     match elem {
@@ -802,7 +810,7 @@ fn execute(lines: Vec<Instr>) {
                 }
             }
             Instr::String(ref str) => {
-                check_first_to_register!(
+                check_register_adress!(
                     Instr::String(Intern::from(str.to_string())),
                     depth,
                     line,
@@ -810,7 +818,7 @@ fn execute(lines: Vec<Instr>) {
                 )
             }
             Instr::Bool(ref bool) => {
-                check_first_to_register!(Instr::Bool(*bool), depth, line, register);
+                check_register_adress!(Instr::Bool(*bool), depth, line, register);
             }
             _ => {}
         }
