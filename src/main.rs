@@ -526,11 +526,10 @@ macro_rules! check_first_to_register {
 #[inline(always)]
 fn pre_match(input: Instr, variables: &mut Vec<(Intern<String>, Instr)>) -> Instr {
     if let Instr::VariableIdentifier(ref id) = &input {
-        variables
+        *variables
             .iter()
-            .find(|(x, _)| x == id)
+            .find_map(|(x, instr)| if x == id { Some(instr) } else { None })
             .unwrap_or_else(|| panic!("{}", error_msg!(format!("Variable '{id}' does not exist"))))
-            .1
     } else {
         input
     }
