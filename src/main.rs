@@ -523,11 +523,12 @@ macro_rules! check_first_to_register {
     };
 }
 
-fn pre_match(input: Instr, variables: &mut Vec<(String, Instr)>) -> Instr {
+#[inline(always)]
+fn pre_match(input: Instr, variables: &mut Vec<(Intern<String>, Instr)>) -> Instr {
     if let Instr::VariableIdentifier(ref id) = &input {
         variables
             .iter()
-            .find(|(x, _)| x == id.as_ref())
+            .find(|(x, _)| x == id)
             .unwrap_or_else(|| panic!("{}", error_msg!(format!("Variable '{id}' does not exist"))))
             .1
     } else {
@@ -548,10 +549,8 @@ fn execute(lines: Vec<Instr>) {
     // unclear if a vec is needed
     let mut operator: Vec<BasicOperator> = Vec::new();
     // keeps track of variables
-    let mut variables: Vec<(String, Instr)> = Vec::new();
+    let mut variables: Vec<(Intern<String>, Instr)> = Vec::new();
     let mut line: usize = 0;
-    // used to fix lifetime error
-    // let mut temp;
     let total_len = lines.len();
     while line < total_len {
         match pre_match(lines[line], &mut variables) {
@@ -565,13 +564,11 @@ fn execute(lines: Vec<Instr>) {
                 }
             }
             // DECLARATION
-            Instr::VarStore(false, ref str) => {
-                variables.push((str.to_string(), register.pop().unwrap()))
-            }
+            Instr::VarStore(false, ref str) => variables.push((*str, register.pop().unwrap())),
             // IS ALREADY STORED
             Instr::VarStore(true, ref str) => {
-                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == **str) {
-                    *elem = (elem.0.to_string(), register.pop().unwrap())
+                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == *str) {
+                    *elem = (elem.0, register.pop().unwrap())
                 } else {
                     error(&format!("Unknown variable '{str}'"), "");
                 }
