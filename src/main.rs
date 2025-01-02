@@ -606,7 +606,12 @@ fn execute(lines: Vec<Instr>) {
                 }
             }
             // VARIABLE DECLARATION
-            Instr::VarStore(false, ref str) => variables.push((*str, register.pop().unwrap())),
+            Instr::VarStore(false, ref str) => {
+                if let Some(idx) = variables.iter().position(|(name, _)| name == str) {
+                    variables.get_mut(idx).unwrap().1 = register.pop().unwrap();
+                }
+                variables.push((*str, register.pop().unwrap()))
+            }
             Instr::If(ref jump_size) => {
                 let condition = register.pop().unwrap();
                 if condition == Instr::Bool(false) {
@@ -629,10 +634,7 @@ fn execute(lines: Vec<Instr>) {
                 let func_args: Vec<Instr> = (0..args.len()).map(|i| args.swap_remove(i)).collect();
                 let func_name = name.as_str();
                 if func_name == "print" {
-                    println!(
-                        "{}",
-                        print_form(&func_args[0]) // get_printable_form(
-                    )
+                    println!("{}", print_form(&func_args[0]))
                 } else {
                 }
             }
@@ -671,40 +673,29 @@ fn execute(lines: Vec<Instr>) {
                                 _ => {}
                             }
                         }
-                        Instr::Float(parent) => {
-                            // let index = operator
-                            //     .iter()
-                            //     .position(|(x, _)| x == depth.last().unwrap())
-                            //     .unwrap();
-                            match operator.pop().unwrap() {
-                                // match operator.swap_remove(operator.len() - 1).1 {
-                                Operator::Add => *elem = Instr::Float(*parent + *int as f64),
-                                Operator::Sub => *elem = Instr::Float(*parent - *int as f64),
-                                Operator::Divide => {
-                                    assert_ne!(
-                                        int,
-                                        &0,
-                                        "{}",
-                                        error_msg!(format!("Division by zero ({int} / 0)"))
-                                    );
-                                    *elem = Instr::Float(*parent / *int as f64)
-                                }
-                                Operator::Multiply => *elem = Instr::Float(*parent * *int as f64),
-                                Operator::Power => *elem = Instr::Float(parent.powf(*int as f64)),
-                                Operator::Modulo => *elem = Instr::Float(*parent % *int as f64),
-                                Operator::Equal => *elem = Instr::Bool(*parent == *int as f64),
-                                Operator::NotEqual => *elem = Instr::Bool(*parent != *int as f64),
-                                Operator::Inferior => *elem = Instr::Bool(*parent < *int as f64),
-                                Operator::InferiorEqual => {
-                                    *elem = Instr::Bool(*parent <= *int as f64)
-                                }
-                                Operator::Superior => *elem = Instr::Bool(*parent > *int as f64),
-                                Operator::SuperiorEqual => {
-                                    *elem = Instr::Bool(*parent >= *int as f64)
-                                }
-                                _ => {}
+                        Instr::Float(parent) => match operator.pop().unwrap() {
+                            Operator::Add => *elem = Instr::Float(*parent + *int as f64),
+                            Operator::Sub => *elem = Instr::Float(*parent - *int as f64),
+                            Operator::Divide => {
+                                assert_ne!(
+                                    int,
+                                    &0,
+                                    "{}",
+                                    error_msg!(format!("Division by zero ({int} / 0)"))
+                                );
+                                *elem = Instr::Float(*parent / *int as f64)
                             }
-                        }
+                            Operator::Multiply => *elem = Instr::Float(*parent * *int as f64),
+                            Operator::Power => *elem = Instr::Float(parent.powf(*int as f64)),
+                            Operator::Modulo => *elem = Instr::Float(*parent % *int as f64),
+                            Operator::Equal => *elem = Instr::Bool(*parent == *int as f64),
+                            Operator::NotEqual => *elem = Instr::Bool(*parent != *int as f64),
+                            Operator::Inferior => *elem = Instr::Bool(*parent < *int as f64),
+                            Operator::InferiorEqual => *elem = Instr::Bool(*parent <= *int as f64),
+                            Operator::Superior => *elem = Instr::Bool(*parent > *int as f64),
+                            Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= *int as f64),
+                            _ => {}
+                        },
                         Instr::String(parent) => match operator.pop().unwrap() {
                             Operator::Multiply => {
                                 *elem = Instr::String(Intern::from(
