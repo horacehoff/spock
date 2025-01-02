@@ -26,7 +26,7 @@ use crate::builtin::builtin_functions;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-use crate::parser::{parse_code, BasicOperator, FunctionPropertyCallBlock, Instr, Types};
+use crate::parser::{parse_code, FunctionPropertyCallBlock, Instr, Operator, Types};
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::{string_ops, to_title_case};
@@ -42,7 +42,7 @@ use snmalloc_rs::SnMalloc;
 use std::fs;
 use std::fs::remove_dir_all;
 use std::io::Write as _;
-use std::ops::Deref;
+use std::ops::{Add, Deref};
 use std::path::Path;
 use std::time::Instant;
 use unroll::unroll_for_loops;
@@ -82,7 +82,7 @@ fn process_stack(
             }
         }
     };
-    let mut current_operator: BasicOperator = BasicOperator::Null;
+    let mut current_operator: Operator = Operator::Null;
     for p_element in stack_in.iter().skip(1) {
         let element: &Types = match p_element {
             // Types::VariableIdentifier(ref var) => variables.get(var).unwrap_or_else(|| {
@@ -176,8 +176,8 @@ fn process_stack(
             Types::Null => {
                 if output == Types::Null {
                     match current_operator {
-                        BasicOperator::Equal => output = Types::Bool(true),
-                        BasicOperator::NotEqual => output = Types::Bool(false),
+                        Operator::Equal => output = Types::Bool(true),
+                        Operator::NotEqual => output = Types::Bool(false),
                         _ => error(
                             &format!(
                                 "Cannot perform operation '{current_operator:?}' between Null and Null"
@@ -544,6 +544,21 @@ fn pre_match(
             match name.as_str() {
                 "str" => {
                     assert_args_number!("str", func_args.len(), 1);
+                    match func_args[0] {
+                        Instr::Bool(bool) => {
+                            if bool {
+                                return Instr::String(Intern::from("true".to_string()));
+                            } else {
+                                return Instr::String(Intern::from("false".to_string()));
+                            }
+                        }
+                        Instr::Integer(int) => return Instr::String(Intern::from(int.to_string())),
+                        Instr::Float(float) => {
+                            return Instr::String(Intern::from(float.to_string()))
+                        }
+                        Instr::String(_) => return func_args[0],
+                        _ => todo!(),
+                    }
                 }
                 _ => {
                     todo!("User-defined function that should return something called!")
@@ -566,7 +581,7 @@ fn execute(lines: Vec<Instr>) {
     let mut depth: u8 = 0;
     // keeps track of operators according to depth
     // unclear if a vec is needed
-    let mut operator: Vec<BasicOperator> = Vec::new();
+    let mut operator: Vec<Operator> = Vec::new();
     // keeps track of variables
     let mut variables: Vec<(Intern<String>, Instr)> = Vec::new();
     let mut line: usize = 0;
@@ -630,9 +645,9 @@ fn execute(lines: Vec<Instr>) {
                     match elem {
                         Instr::Integer(parent) => {
                             match operator.pop().unwrap() {
-                                BasicOperator::Add => *elem = Instr::Integer(*parent + int),
-                                BasicOperator::Sub => *elem = Instr::Integer(*parent - int),
-                                BasicOperator::Divide => {
+                                Operator::Add => *elem = Instr::Integer(*parent + int),
+                                Operator::Sub => *elem = Instr::Integer(*parent - int),
+                                Operator::Divide => {
                                     assert_ne!(
                                         int,
                                         &0,
@@ -641,21 +656,15 @@ fn execute(lines: Vec<Instr>) {
                                     );
                                     *elem = math_to_type!(*parent as f64 / *int as f64);
                                 }
-                                BasicOperator::Multiply => *elem = Instr::Integer(*parent * int),
-                                BasicOperator::Power => {
-                                    *elem = Instr::Integer(parent.pow(*int as u32))
-                                }
-                                BasicOperator::Modulo => *elem = Instr::Integer(*parent % int),
-                                BasicOperator::Equal => *elem = Instr::Bool(parent == int),
-                                BasicOperator::NotEqual => *elem = Instr::Bool(parent != int),
-                                BasicOperator::Inferior => *elem = Instr::Bool(*parent < *int),
-                                BasicOperator::InferiorEqual => {
-                                    *elem = Instr::Bool(*parent <= *int)
-                                }
-                                BasicOperator::Superior => *elem = Instr::Bool(*parent > *int),
-                                BasicOperator::SuperiorEqual => {
-                                    *elem = Instr::Bool(*parent >= *int)
-                                }
+                                Operator::Multiply => *elem = Instr::Integer(*parent * int),
+                                Operator::Power => *elem = Instr::Integer(parent.pow(*int as u32)),
+                                Operator::Modulo => *elem = Instr::Integer(*parent % int),
+                                Operator::Equal => *elem = Instr::Bool(parent == int),
+                                Operator::NotEqual => *elem = Instr::Bool(parent != int),
+                                Operator::Inferior => *elem = Instr::Bool(*parent < *int),
+                                Operator::InferiorEqual => *elem = Instr::Bool(*parent <= *int),
+                                Operator::Superior => *elem = Instr::Bool(*parent > *int),
+                                Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= *int),
 
                                 // AND
                                 // OR
@@ -669,9 +678,9 @@ fn execute(lines: Vec<Instr>) {
                             //     .unwrap();
                             match operator.pop().unwrap() {
                                 // match operator.swap_remove(operator.len() - 1).1 {
-                                BasicOperator::Add => *elem = Instr::Float(*parent + *int as f64),
-                                BasicOperator::Sub => *elem = Instr::Float(*parent - *int as f64),
-                                BasicOperator::Divide => {
+                                Operator::Add => *elem = Instr::Float(*parent + *int as f64),
+                                Operator::Sub => *elem = Instr::Float(*parent - *int as f64),
+                                Operator::Divide => {
                                     assert_ne!(
                                         int,
                                         &0,
@@ -680,34 +689,30 @@ fn execute(lines: Vec<Instr>) {
                                     );
                                     *elem = Instr::Float(*parent / *int as f64)
                                 }
-                                BasicOperator::Multiply => {
-                                    *elem = Instr::Float(*parent * *int as f64)
-                                }
-                                BasicOperator::Power => {
-                                    *elem = Instr::Float(parent.powf(*int as f64))
-                                }
-                                BasicOperator::Modulo => {
-                                    *elem = Instr::Float(*parent % *int as f64)
-                                }
-                                BasicOperator::Equal => *elem = Instr::Bool(*parent == *int as f64),
-                                BasicOperator::NotEqual => {
-                                    *elem = Instr::Bool(*parent != *int as f64)
-                                }
-                                BasicOperator::Inferior => {
-                                    *elem = Instr::Bool(*parent < *int as f64)
-                                }
-                                BasicOperator::InferiorEqual => {
+                                Operator::Multiply => *elem = Instr::Float(*parent * *int as f64),
+                                Operator::Power => *elem = Instr::Float(parent.powf(*int as f64)),
+                                Operator::Modulo => *elem = Instr::Float(*parent % *int as f64),
+                                Operator::Equal => *elem = Instr::Bool(*parent == *int as f64),
+                                Operator::NotEqual => *elem = Instr::Bool(*parent != *int as f64),
+                                Operator::Inferior => *elem = Instr::Bool(*parent < *int as f64),
+                                Operator::InferiorEqual => {
                                     *elem = Instr::Bool(*parent <= *int as f64)
                                 }
-                                BasicOperator::Superior => {
-                                    *elem = Instr::Bool(*parent > *int as f64)
-                                }
-                                BasicOperator::SuperiorEqual => {
+                                Operator::Superior => *elem = Instr::Bool(*parent > *int as f64),
+                                Operator::SuperiorEqual => {
                                     *elem = Instr::Bool(*parent >= *int as f64)
                                 }
                                 _ => {}
                             }
                         }
+                        Instr::String(parent) => match operator.pop().unwrap() {
+                            Operator::Multiply => {
+                                *elem = Instr::String(Intern::from(
+                                    parent.as_ref().repeat(*int as usize),
+                                ))
+                            }
+                            _ => {}
+                        },
                         _ => error(&format!("Cannot add Integer to {}", get_type(*elem)), ""),
                     }
                 } else {
@@ -724,9 +729,9 @@ fn execute(lines: Vec<Instr>) {
                     match elem {
                         Instr::Integer(parent) => {
                             match operator.pop().unwrap() {
-                                BasicOperator::Add => *elem = Instr::Float(*parent as f64 + float),
-                                BasicOperator::Sub => *elem = Instr::Float(*parent as f64 - float),
-                                BasicOperator::Divide => {
+                                Operator::Add => *elem = Instr::Float(*parent as f64 + float),
+                                Operator::Sub => *elem = Instr::Float(*parent as f64 - float),
+                                Operator::Divide => {
                                     assert_ne!(
                                         float,
                                         &0.0,
@@ -735,31 +740,21 @@ fn execute(lines: Vec<Instr>) {
                                     );
                                     *elem = math_to_type!(*parent as f64 / *float);
                                 }
-                                BasicOperator::Multiply => {
-                                    *elem = Instr::Float(*parent as f64 * float)
-                                }
-                                BasicOperator::Power => {
+                                Operator::Multiply => *elem = Instr::Float(*parent as f64 * float),
+                                Operator::Power => {
                                     *elem = Instr::Float(parent.pow(*float as u32) as f64)
                                 }
-                                BasicOperator::Modulo => {
-                                    *elem = Instr::Float(*parent as f64 % float)
-                                }
-                                BasicOperator::Equal => {
-                                    *elem = Instr::Bool(*parent as f64 == *float)
-                                }
-                                BasicOperator::NotEqual => {
-                                    *elem = Instr::Bool(*parent as f64 != *float)
-                                }
-                                BasicOperator::Inferior => {
+                                Operator::Modulo => *elem = Instr::Float(*parent as f64 % float),
+                                Operator::Equal => *elem = Instr::Bool(*parent as f64 == *float),
+                                Operator::NotEqual => *elem = Instr::Bool(*parent as f64 != *float),
+                                Operator::Inferior => {
                                     *elem = Instr::Bool((*parent as f64) < (*float))
                                 }
-                                BasicOperator::InferiorEqual => {
+                                Operator::InferiorEqual => {
                                     *elem = Instr::Bool(*parent as f64 <= *float)
                                 }
-                                BasicOperator::Superior => {
-                                    *elem = Instr::Bool(*parent as f64 > *float)
-                                }
-                                BasicOperator::SuperiorEqual => {
+                                Operator::Superior => *elem = Instr::Bool(*parent as f64 > *float),
+                                Operator::SuperiorEqual => {
                                     *elem = Instr::Bool(*parent as f64 >= *float)
                                 }
 
@@ -770,9 +765,9 @@ fn execute(lines: Vec<Instr>) {
                         }
                         Instr::Float(parent) => {
                             match operator.pop().unwrap() {
-                                BasicOperator::Add => *elem = Instr::Float(*parent + *float),
-                                BasicOperator::Sub => *elem = Instr::Float(*parent - *float),
-                                BasicOperator::Divide => {
+                                Operator::Add => *elem = Instr::Float(*parent + *float),
+                                Operator::Sub => *elem = Instr::Float(*parent - *float),
+                                Operator::Divide => {
                                     assert_ne!(
                                         float,
                                         &0.0,
@@ -781,19 +776,15 @@ fn execute(lines: Vec<Instr>) {
                                     );
                                     *elem = Instr::Float(*parent / *float)
                                 }
-                                BasicOperator::Multiply => *elem = Instr::Float(*parent * *float),
-                                BasicOperator::Power => *elem = Instr::Float(parent.powf(*float)),
-                                BasicOperator::Modulo => *elem = Instr::Float(*parent % *float),
-                                BasicOperator::Equal => *elem = Instr::Bool(*parent == *float),
-                                BasicOperator::NotEqual => *elem = Instr::Bool(*parent != *float),
-                                BasicOperator::Inferior => *elem = Instr::Bool(*parent < *float),
-                                BasicOperator::InferiorEqual => {
-                                    *elem = Instr::Bool(*parent <= *float)
-                                }
-                                BasicOperator::Superior => *elem = Instr::Bool(*parent > *float),
-                                BasicOperator::SuperiorEqual => {
-                                    *elem = Instr::Bool(*parent >= *float)
-                                }
+                                Operator::Multiply => *elem = Instr::Float(*parent * *float),
+                                Operator::Power => *elem = Instr::Float(parent.powf(*float)),
+                                Operator::Modulo => *elem = Instr::Float(*parent % *float),
+                                Operator::Equal => *elem = Instr::Bool(*parent == *float),
+                                Operator::NotEqual => *elem = Instr::Bool(*parent != *float),
+                                Operator::Inferior => *elem = Instr::Bool(*parent < *float),
+                                Operator::InferiorEqual => *elem = Instr::Bool(*parent <= *float),
+                                Operator::Superior => *elem = Instr::Bool(*parent > *float),
+                                Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= *float),
 
                                 // AND
                                 // OR
@@ -815,7 +806,43 @@ fn execute(lines: Vec<Instr>) {
                     depth,
                     line,
                     register
-                )
+                );
+                let index = register.len() - 1;
+                if let Some(elem) = register.get_mut(index) {
+                    match elem {
+                        Instr::String(parent) => match operator.pop().unwrap() {
+                            Operator::Add => {
+                                *elem =
+                                    Instr::String(Intern::from(parent.to_string() + str.as_ref()))
+                            }
+                            other => error(
+                                &format!(
+                                    "Cannot perform operation {other:?} between String and String"
+                                ),
+                                "",
+                            ),
+                        },
+                        Instr::Integer(parent) => match operator.pop().unwrap() {
+                            Operator::Multiply => {
+                                *elem = Instr::String(Intern::from(
+                                    str.as_ref().repeat(*parent as usize),
+                                ))
+                            }
+                            other => error(
+                                &format!(
+                                    "Cannot perform operation {other:?} between String and String"
+                                ),
+                                "",
+                            ),
+                        },
+                        _ => error(&format!("Cannot add String to {}", get_type(*elem)), ""),
+                    }
+                } else {
+                    error(
+                        "[COMPUTE] UNABLE TO RETRIEVE FROM REGISTER",
+                        "This is probably a Compute bug",
+                    );
+                }
             }
             Instr::Bool(ref bool) => {
                 check_register_adress!(Instr::Bool(*bool), depth, line, register);

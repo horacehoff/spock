@@ -1,11 +1,11 @@
 use crate::error_msg;
 use crate::get_printable_type;
-use crate::parser::{BasicOperator, Types};
+use crate::parser::{Operator, Types};
 use crate::util::error;
 
-pub fn array_ops(x: &[Types], output: Types, current_operator: BasicOperator) -> Types {
+pub fn array_ops(x: &[Types], output: Types, current_operator: Operator) -> Types {
     if let Types::Integer(value) = output {
-        if current_operator == BasicOperator::Multiply {
+        if current_operator == Operator::Multiply {
             let mut new_vec: Vec<Types> = Vec::with_capacity(value as usize * x.len());
             for _ in 0..value {
                 new_vec.append(&mut x.to_owned());

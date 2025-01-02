@@ -72,7 +72,7 @@ pub enum Instr {
     Null,
     STORE,
     STORE_ARG,
-    Operation(BasicOperator),
+    Operation(Operator),
     // BOOL -> REPLACE IF TRUE NOT IF FALSE
     Bool(bool),
     FuncReturn(u16),
@@ -107,7 +107,7 @@ pub enum Types {
     NamespaceFunctionCall(Box<NamespaceFunctionCallBlock>),
     FunctionReturn(Box<[Types]>),
     Priority(Box<[Types]>),
-    Operation(BasicOperator),
+    Operation(Operator),
     // NAME - VALUE - IS_REDECLARE
     VariableDeclaration(Box<VariableDeclarationBlock>),
     Null,
@@ -125,7 +125,7 @@ pub enum Types {
 
 #[repr(u8)]
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Copy)]
-pub enum BasicOperator {
+pub enum Operator {
     Null,
     Add,
     Sub,
@@ -351,20 +351,20 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<Types> {
             output.push(Types::Priority(Box::from(priority_calc)));
         }
         Rule::ops => match pair.as_str() {
-            "+" => output.push(Types::Operation(BasicOperator::Add)),
-            "-" => output.push(Types::Operation(BasicOperator::Sub)),
-            "/" => output.push(Types::Operation(BasicOperator::Divide)),
-            "*" => output.push(Types::Operation(BasicOperator::Multiply)),
-            "==" => output.push(Types::Operation(BasicOperator::Equal)),
-            "!=" => output.push(Types::Operation(BasicOperator::NotEqual)),
-            "^" => output.push(Types::Operation(BasicOperator::Power)),
-            "&&" => output.push(Types::Operation(BasicOperator::And)),
-            "%" => output.push(Types::Operation(BasicOperator::Modulo)),
-            "<" => output.push(Types::Operation(BasicOperator::Inferior)),
-            "<=" => output.push(Types::Operation(BasicOperator::InferiorEqual)),
-            "||" => output.push(Types::Operation(BasicOperator::Or)),
-            ">" => output.push(Types::Operation(BasicOperator::Superior)),
-            ">=" => output.push(Types::Operation(BasicOperator::SuperiorEqual)),
+            "+" => output.push(Types::Operation(Operator::Add)),
+            "-" => output.push(Types::Operation(Operator::Sub)),
+            "/" => output.push(Types::Operation(Operator::Divide)),
+            "*" => output.push(Types::Operation(Operator::Multiply)),
+            "==" => output.push(Types::Operation(Operator::Equal)),
+            "!=" => output.push(Types::Operation(Operator::NotEqual)),
+            "^" => output.push(Types::Operation(Operator::Power)),
+            "&&" => output.push(Types::Operation(Operator::And)),
+            "%" => output.push(Types::Operation(Operator::Modulo)),
+            "<" => output.push(Types::Operation(Operator::Inferior)),
+            "<=" => output.push(Types::Operation(Operator::InferiorEqual)),
+            "||" => output.push(Types::Operation(Operator::Or)),
+            ">" => output.push(Types::Operation(Operator::Superior)),
+            ">=" => output.push(Types::Operation(Operator::SuperiorEqual)),
             _ => todo!(),
         },
         Rule::variableDeclaration => {

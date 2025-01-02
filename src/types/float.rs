@@ -1,9 +1,9 @@
-use crate::parser::{BasicOperator, Types};
+use crate::parser::{Operator, Types};
 use crate::util::error;
-use crate::{error_msg, get_printable_type, math_to_type};
+use crate::{error_msg, get_printable_type};
 
 // #[inline(always)]
-pub fn float_ops(x: f64, output: Types, current_operator: BasicOperator) -> Types {
+pub fn float_ops(x: f64, output: Types, current_operator: Operator) -> Types {
     if let Types::Float(value) = output {
         match current_operator {
             // BasicOperator::Add => {
@@ -24,12 +24,12 @@ pub fn float_ops(x: f64, output: Types, current_operator: BasicOperator) -> Type
             // BasicOperator::Modulo => {
             //     math_to_type!(value % x)
             // }
-            BasicOperator::Equal => Types::Bool(value == x),
-            BasicOperator::NotEqual => Types::Bool(value != x),
-            BasicOperator::Inferior => Types::Bool(value < x),
-            BasicOperator::InferiorEqual => Types::Bool(value <= x),
-            BasicOperator::Superior => Types::Bool(value > x),
-            BasicOperator::SuperiorEqual => Types::Bool(value >= x),
+            Operator::Equal => Types::Bool(value == x),
+            Operator::NotEqual => Types::Bool(value != x),
+            Operator::Inferior => Types::Bool(value < x),
+            Operator::InferiorEqual => Types::Bool(value <= x),
+            Operator::Superior => Types::Bool(value > x),
+            Operator::SuperiorEqual => Types::Bool(value >= x),
             _ => {
                 error(
                     &format!(
@@ -42,8 +42,8 @@ pub fn float_ops(x: f64, output: Types, current_operator: BasicOperator) -> Type
         }
     } else if let Types::Integer(value) = output {
         match current_operator {
-            BasicOperator::Add => Types::Float(value as f64 + x),
-            BasicOperator::Sub => Types::Float(value as f64 - x),
+            Operator::Add => Types::Float(value as f64 + x),
+            Operator::Sub => Types::Float(value as f64 - x),
             // BasicOperator::Divide => {
             //     math_to_type!(value as f64 / x)
             // }
@@ -64,7 +64,7 @@ pub fn float_ops(x: f64, output: Types, current_operator: BasicOperator) -> Type
             }
         }
     } else if let Types::Operation(y) = output {
-        if let BasicOperator::Sub = y {
+        if let Operator::Sub = y {
             Types::Float(-x)
         } else {
             error(

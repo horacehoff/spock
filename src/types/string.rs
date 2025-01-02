@@ -1,15 +1,15 @@
 use crate::error_msg;
 use crate::get_printable_type;
-use crate::parser::{BasicOperator, Types};
+use crate::parser::{Operator, Types};
 use crate::util::error;
 // use smartstring::alias::String;
 
 // #[inline(always)]
-pub fn string_ops(x: &String, output: Types, current_operator: BasicOperator) -> Types {
+pub fn string_ops(x: &String, output: Types, current_operator: Operator) -> Types {
     if let Types::String(value) = output {
         match current_operator {
-            BasicOperator::Add => return Types::String(format!("{value}{x}")),
-            BasicOperator::Equal | BasicOperator::NotEqual => return Types::Bool(value.eq(x)),
+            Operator::Add => return Types::String(format!("{value}{x}")),
+            Operator::Equal | Operator::NotEqual => return Types::Bool(value.eq(x)),
             _ => {
                 error(
                     &format!(
@@ -21,7 +21,7 @@ pub fn string_ops(x: &String, output: Types, current_operator: BasicOperator) ->
         }
         return Types::Null;
     } else if let Types::Integer(value) = output {
-        if current_operator == BasicOperator::Multiply {
+        if current_operator == Operator::Multiply {
             return Types::String(x.repeat(value as usize).parse().unwrap());
         }
         error(
