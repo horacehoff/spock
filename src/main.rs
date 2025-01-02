@@ -30,9 +30,10 @@ use crate::parser::{parse_code, FunctionPropertyCallBlock, Instr, Operator, Type
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::{string_ops, to_title_case};
-use crate::util::{error, get_printable_form, get_type, print_form, split_vec};
+use crate::util::{error, get_printable_form, get_type, op_to_symbol, print_form, split_vec};
 use branches::likely;
 use branches::unlikely;
+use colored::Colorize;
 // use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
 // use smartstring::alias::String;
 // use gxhash::HashMapExt;
@@ -584,7 +585,9 @@ fn pre_match(
                             .collect();
                         log!("ARGS IS {args:?}");
                         log!("FUNCTION ARGS IS {func_args:?}");
-                        return execute(&func.2, functions, args);
+                        let return_obj = execute(&func.2, functions, args);
+                        println!("RETURNING {return_obj:?}");
+                        return return_obj;
                     }
 
                     todo!("User-defined function that should return something called!")
@@ -711,7 +714,15 @@ fn execute(
 
                                 // AND
                                 // OR
-                                _ => {}
+                                other => error(
+                                    &format!(
+                                        "Operation not supported:\n{} {} {}",
+                                        "Integer".blue(),
+                                        op_to_symbol(other).red(),
+                                        "Integer".blue()
+                                    ),
+                                    "",
+                                ),
                             }
                         }
                         Instr::Float(parent) => match operator.pop().unwrap() {
@@ -735,7 +746,15 @@ fn execute(
                             Operator::InferiorEqual => *elem = Instr::Bool(*parent <= *int as f64),
                             Operator::Superior => *elem = Instr::Bool(*parent > *int as f64),
                             Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= *int as f64),
-                            _ => {}
+                            other => error(
+                                &format!(
+                                    "Operation not supported:\n{} {} {}",
+                                    "Float".blue(),
+                                    op_to_symbol(other).red(),
+                                    "Integer".blue()
+                                ),
+                                "",
+                            ),
                         },
                         Instr::String(parent) => match operator.pop().unwrap() {
                             Operator::Multiply => {
@@ -743,7 +762,15 @@ fn execute(
                                     parent.as_ref().repeat(*int as usize),
                                 ))
                             }
-                            _ => {}
+                            other => error(
+                                &format!(
+                                    "Operation not supported:\n{} {} {}",
+                                    "String".blue(),
+                                    op_to_symbol(other).red(),
+                                    "Integer".blue()
+                                ),
+                                "",
+                            ),
                         },
                         _ => error(&format!("Cannot add Integer to {}", get_type(*elem)), ""),
                     }
@@ -792,7 +819,15 @@ fn execute(
 
                                 // AND
                                 // OR
-                                _ => {}
+                                other => error(
+                                    &format!(
+                                        "Operation not supported:\n{} {} {}",
+                                        "Integer".blue(),
+                                        op_to_symbol(other).red(),
+                                        "Float".blue()
+                                    ),
+                                    "",
+                                ),
                             }
                         }
                         Instr::Float(parent) => {
@@ -820,7 +855,15 @@ fn execute(
 
                                 // AND
                                 // OR
-                                _ => {}
+                                other => error(
+                                    &format!(
+                                        "Operation not supported:\n{} {} {}",
+                                        "Float".blue(),
+                                        op_to_symbol(other).red(),
+                                        "Float".blue()
+                                    ),
+                                    "",
+                                ),
                             }
                         }
                         _ => error(&format!("Cannot add Float to {}", get_type(*elem)), ""),
@@ -841,6 +884,7 @@ fn execute(
                 );
                 let index = register.len() - 1;
                 if let Some(elem) = register.get_mut(index) {
+                    println!("STRING ADDING TO {elem:?}");
                     match elem {
                         Instr::String(parent) => match operator.pop().unwrap() {
                             Operator::Add => {
@@ -849,7 +893,10 @@ fn execute(
                             }
                             other => error(
                                 &format!(
-                                    "Cannot perform operation {other:?} between String and String"
+                                    "Operation not supported:\n{} {} {}",
+                                    "String".blue(),
+                                    op_to_symbol(other).red(),
+                                    "String".blue()
                                 ),
                                 "",
                             ),
@@ -862,7 +909,10 @@ fn execute(
                             }
                             other => error(
                                 &format!(
-                                    "Cannot perform operation {other:?} between String and String"
+                                    "Operation not supported:\n{} {} {}",
+                                    "Integer".blue(),
+                                    op_to_symbol(other).red(),
+                                    "String".blue()
                                 ),
                                 "",
                             ),

@@ -1,4 +1,4 @@
-use crate::parser::{Instr, Types};
+use crate::parser::{Instr, Operator, Types};
 // use smartstring::alias::String;
 // use smartstring::alias::
 
@@ -257,6 +257,26 @@ pub fn print_form(x: &Instr) -> String {
             error(&format!("Cannot display {x:?}"), "");
             "".parse().unwrap()
         }
+    }
+}
+
+pub fn op_to_symbol(op: Operator) -> String {
+    match op {
+        Operator::Null => "Null".parse().unwrap(),
+        Operator::Add => "+".parse().unwrap(),
+        Operator::Sub => "-".parse().unwrap(),
+        Operator::Divide => "/".parse().unwrap(),
+        Operator::Multiply => "*".parse().unwrap(),
+        Operator::Power => "^".parse().unwrap(),
+        Operator::Modulo => "%".parse().unwrap(),
+        Operator::Equal => "==".parse().unwrap(),
+        Operator::NotEqual => "!=".parse().unwrap(),
+        Operator::And => "&&".parse().unwrap(),
+        Operator::Inferior => "<".parse().unwrap(),
+        Operator::InferiorEqual => "<=".parse().unwrap(),
+        Operator::Or => "||".parse().unwrap(),
+        Operator::Superior => ">".parse().unwrap(),
+        Operator::SuperiorEqual => ">=".parse().unwrap(),
     }
 }
 
