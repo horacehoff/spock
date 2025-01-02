@@ -30,7 +30,7 @@ use crate::parser::{parse_code, BasicOperator, FunctionPropertyCallBlock, Instr,
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::{string_ops, to_title_case};
-use crate::util::{error, get_printable_form, print_form, split_vec};
+use crate::util::{error, get_printable_form, get_type, print_form, split_vec};
 use branches::likely;
 use branches::unlikely;
 // use smol_str::{SmolStr, StrExt as _, ToSmolStr as _};
@@ -523,6 +523,18 @@ macro_rules! check_first_to_register {
     };
 }
 
+fn pre_match(input: Instr, variables: &mut Vec<(String, Instr)>) -> Instr {
+    if let Instr::VariableIdentifier(ref id) = &input {
+        variables
+            .iter()
+            .find(|(x, _)| x == id.as_ref())
+            .unwrap_or_else(|| panic!("{}", error_msg!(format!("Variable '{id}' does not exist"))))
+            .1
+    } else {
+        input
+    }
+}
+
 #[inline(never)]
 fn execute(lines: Vec<Instr>) {
     // keeps track of items
@@ -539,25 +551,10 @@ fn execute(lines: Vec<Instr>) {
     let mut variables: Vec<(String, Instr)> = Vec::new();
     let mut line: usize = 0;
     // used to fix lifetime error
-    let mut temp;
+    // let mut temp;
     let total_len = lines.len();
     while line < total_len {
-        match {
-            if let Instr::VariableIdentifier(ref id) = &lines[line] {
-                temp = variables
-                    .iter()
-                    .find(|(x, _)| x == id.as_ref())
-                    .unwrap_or_else(|| {
-                        panic!("{}", error_msg!(format!("Variable '{id}' does not exist")))
-                    })
-                    .1;
-                &temp
-            // } else if depth > 0 && matches!(&lines[line], Instr::FuncCall(_)) {
-            //
-            } else {
-                &lines[line]
-            }
-        } {
+        match pre_match(lines[line], &mut variables) {
             Instr::STORE => depth += 1,
             Instr::STOP => {
                 depth -= 1;
@@ -697,7 +694,7 @@ fn execute(lines: Vec<Instr>) {
                                 _ => {}
                             }
                         }
-                        _ => todo!(),
+                        _ => error(&format!("Cannot add Integer to {}", get_type(*elem)), ""),
                     }
                 } else {
                     error(
@@ -789,7 +786,7 @@ fn execute(lines: Vec<Instr>) {
                                 _ => {}
                             }
                         }
-                        _ => todo!(),
+                        _ => error(&format!("Cannot add Float to {}", get_type(*elem)), ""),
                     }
                 } else {
                     error(

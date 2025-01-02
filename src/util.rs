@@ -103,6 +103,25 @@ macro_rules! get_value {
     };
 }
 
+pub fn get_type<'a>(unknown: Instr) -> &'a str {
+    match unknown {
+        Instr::String(_) => "String",
+        Instr::Integer(_) => "Integer",
+        Instr::Bool(_) => "Boolean",
+        Instr::Float(_) => "Float",
+        _ => {
+            error(
+                &format!(
+                    "{}",
+                    error_msg!(format!("Cannot get type of {:?}", unknown))
+                ),
+                "",
+            );
+            ""
+        }
+    }
+}
+
 #[macro_export]
 macro_rules! get_printable_type {
     ($x:expr) => {
@@ -116,7 +135,7 @@ macro_rules! get_printable_type {
             _ => {
                 println!("{:?}", $x);
                 error(
-                    &format!("{}", error_msg!(format!("Cannot get value of {:?}", $x))),
+                    &format!("{}", error_msg!(format!("Cannot get type of {:?}", $x))),
                     "",
                 );
                 ""
