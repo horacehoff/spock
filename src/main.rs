@@ -530,6 +530,7 @@ fn pre_match(input: Instr, variables: &mut Vec<(Intern<String>, Instr)>, depth: 
             .iter()
             .find_map(|(x, instr)| if x == id { Some(instr) } else { None })
             .unwrap_or_else(|| panic!("{}", error_msg!(format!("Variable '{id}' does not exist")))),
+        // Function call that should return something (because depth > 0)
         Instr::FuncCall(ref name) => {
             if depth == 0 {
                 return input;
@@ -594,18 +595,16 @@ fn execute(lines: Vec<Instr>) {
                 continue;
             }
             Instr::STORE_ARG => args.push(register.pop().unwrap()),
+            // Function call that shouldn't return anything
             Instr::FuncCall(ref name) => {
-                if depth == 0 {
-                    let func_args: Vec<Instr> =
-                        (0..args.len()).map(|i| args.swap_remove(i)).collect();
-                    let func_name = name.as_str();
-                    if func_name == "print" {
-                        println!(
-                            "{}",
-                            print_form(&func_args[0]) // get_printable_form(
-                        )
-                    } else {
-                    }
+                let func_args: Vec<Instr> = (0..args.len()).map(|i| args.swap_remove(i)).collect();
+                let func_name = name.as_str();
+                if func_name == "print" {
+                    println!(
+                        "{}",
+                        print_form(&func_args[0]) // get_printable_form(
+                    )
+                } else {
                 }
             }
 
