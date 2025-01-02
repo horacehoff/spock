@@ -524,7 +524,12 @@ macro_rules! check_first_to_register {
 }
 
 #[inline(always)]
-fn pre_match(input: Instr, variables: &mut Vec<(Intern<String>, Instr)>, depth: u8) -> Instr {
+fn pre_match(
+    input: Instr,
+    variables: &mut Vec<(Intern<String>, Instr)>,
+    depth: u8,
+    args: &mut Vec<Instr>,
+) -> Instr {
     match input {
         Instr::VariableIdentifier(ref id) => *variables
             .iter()
@@ -535,6 +540,7 @@ fn pre_match(input: Instr, variables: &mut Vec<(Intern<String>, Instr)>, depth: 
             if depth == 0 {
                 return input;
             }
+            let func_args: Vec<Instr> = (0..args.len()).map(|i| args.swap_remove(i)).collect();
             Instr::Integer(1)
         }
         _ => input,
@@ -558,7 +564,7 @@ fn execute(lines: Vec<Instr>) {
     let mut line: usize = 0;
     let total_len = lines.len();
     while line < total_len {
-        match pre_match(lines[line], &mut variables, depth) {
+        match pre_match(lines[line], &mut variables, depth, &mut args) {
             Instr::STORE => depth += 1,
             Instr::STOP => {
                 depth -= 1;
