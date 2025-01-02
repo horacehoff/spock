@@ -41,7 +41,7 @@ use internment::Intern;
 use snmalloc_rs::SnMalloc;
 use std::fs;
 use std::fs::{remove_dir_all, File};
-use std::io::Write as _;
+use std::io::{BufReader, Read, Write as _};
 use std::ops::{Add, Deref};
 use std::path::Path;
 use std::time::Instant;
@@ -915,77 +915,54 @@ fn main() {
         error(&format!("Unable to read file '{args:?}'"), "");
         std::process::exit(1)
     });
-
     let now = Instant::now();
 
-    let temp_funcs = parse_functions(content.trim(), true);
-    log!("FUNCS: {temp_funcs:?}");
-    // let mut main_function: (String, &[String], Vec<Instr>) = Default::default();
+    let hash = blake3::hash(content.as_bytes()).to_string();
 
-    let partial_convert: Vec<(String, &[String], Vec<Types>)> = temp_funcs
-        .iter()
-        .map(|(name, args, lines)| {
-            let stack: Vec<Types> = lines
-                .iter()
-                .flat_map(|line| line.iter().map(|x| (*x).clone()))
-                .collect();
-            // if name == "main" {
-            //     main_function = (
-            //         name.to_string().parse().unwrap(),
-            //         args,
-            //         simplify(stack, false, 0).0,
-            //     );
-            //     return (name.clone(), args.as_slice(), vec![]);
-            // }
-            return (name.clone(), args.as_slice(), stack);
-        })
-        .collect();
+    let mut functions: Vec<(String, Vec<String>, Vec<Instr>)>;
 
-    let converted: Vec<(String, &[String], Vec<Instr>)> = partial_convert
-        .iter()
-        .map(|(name, args, lines)| {
-            (
-                name.parse().unwrap(),
-                *args,
-                simplify(lines.clone(), false, 0).0,
-            )
-        })
-        .collect();
+    if !Path::new(&format!(".compute/{}", hash)).exists() {
+        // BEGIN PARSE
+        let temp_funcs = parse_functions(content.trim(), true);
+        log!("FUNCS: {temp_funcs:?}");
+        functions = temp_funcs
+            .iter()
+            .map(|(name, args, lines)| {
+                let first_stack: Vec<Types> = lines
+                    .iter()
+                    .flat_map(|line| line.iter().map(|x| (*x).clone()))
+                    .collect();
+                let final_stack = simplify(first_stack, false, 0).0;
+                return (name.clone(), args.clone(), final_stack);
+            })
+            .collect();
 
-    let functions: &[(String, &[String], Vec<Instr>)] = converted.as_slice();
-    let data = bincode::serialize(&functions).unwrap();
-    let hash = blake3::hash(data.as_slice()).to_string();
-    fs::create_dir_all(".compute/").unwrap();
-    File::create(format!(".compute/{}", hash))
-        .unwrap()
-        .write_all(&data)
-        .unwrap();
+        let data = bincode::serialize(&functions).unwrap();
+        fs::create_dir_all(".compute/").unwrap();
+        File::create(format!(".compute/{}", hash))
+            .unwrap()
+            .write_all(&data)
+            .unwrap();
+        // END PARSE
+    } else {
+        let file = File::open(&format!(".compute/{}", hash)).unwrap();
+        let mut reader = BufReader::with_capacity(128 * 1024, file);
+        let mut buffer = Vec::new();
+        reader.read_to_end(&mut buffer).unwrap();
+
+        functions = bincode::deserialize(&buffer).expect(error_msg!(
+            "Failed to read from cache",
+            "Delete the .compute folder"
+        ));
+    }
+
+    let main_function =
+        functions.swap_remove(functions.iter().position(|(x, _, _)| x == "main").unwrap());
 
     log!("PARSED IN: {:.2?}", now.elapsed());
     log!("FUNCS: {:?}", functions);
-    // log!(
-    //     "MAIN\n{}",
-    //     main_function
-    //         .2
-    //         .iter()
-    //         .map(|x| format!("{x:?}").parse().unwrap())
-    //         .collect::<Vec<String>>()
-    //         .join("\n")
-    // );
-    log!("------");
-
     let now = Instant::now();
-    // log!(
-    //     "{}",
-    //     &main_function
-    //         .2
-    //         .iter()
-    //         .map(|x| format!("{:?}", x))
-    //         .collect::<Vec<String>>()
-    //         .join("\n")
-    // );
-    // log!("------");
-    // execute(main_function.2);
+    execute(main_function.2);
 
     log_release!("EXECUTED IN: {:.2?}", now.elapsed());
     log!("TOTAL: {:.2?}", totaltime.elapsed());
