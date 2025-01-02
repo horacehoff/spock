@@ -71,7 +71,7 @@ pub fn parse_functions(
         imported_functions.append(&mut parse_functions(&file_content, false));
     }
 
-    let hash = blake3::hash(content.as_bytes()).to_string();
+    // let hash = blake3::hash(content.as_bytes()).to_string();
     // if Path::new(&format!(".compute/{}", hash)).exists() {
     //     let file = File::open(&format!(".compute/{}", hash)).unwrap();
     //     let mut reader = BufReader::with_capacity(128 * 1024, file);
@@ -88,7 +88,11 @@ pub fn parse_functions(
     // }
 
     let comment_regex = Regex::new(r"(?m)(?<=\}|;|\{|.)\s*//.*$").unwrap();
-    let mut content: String = comment_regex.replace_all(content, "").to_string().parse().unwrap();
+    let mut content: String = comment_regex
+        .replace_all(content, "")
+        .to_string()
+        .parse()
+        .unwrap();
     // let mut content: String = comment_regex.replace_all(content, "").to_string().lines().map(|ln| ln.trim()).collect();
     let mut i: i8 = 1;
     for content_lines in content.lines() {
@@ -122,7 +126,9 @@ pub fn parse_functions(
             .replace(
                 re_match.get(1).unwrap().as_str().trim(),
                 re_match.get(2).unwrap().as_str().trim(),
-            ).parse().unwrap();
+            )
+            .parse()
+            .unwrap();
     }
 
     // Parse functions
@@ -149,12 +155,12 @@ pub fn parse_functions(
     // println!("CURRENT FUNCS{:?}", functions);
 
     // Cache functions
-    let data = bincode::serialize(&functions).unwrap();
-    fs::create_dir_all(".compute/").unwrap();
-    File::create(format!(".compute/{}", hash))
-        .unwrap()
-        .write_all(&data)
-        .unwrap();
+    // let data = bincode::serialize(&functions).unwrap();
+    // fs::create_dir_all(".compute/").unwrap();
+    // File::create(format!(".compute/{}", hash))
+    //     .unwrap()
+    //     .write_all(&data)
+    //     .unwrap();
 
     if !functions.iter().any(|function| function.0 == "main") && check_main {
         error("No main function", "Add 'func main() {}' to your file");

@@ -66,7 +66,7 @@ pub struct FunctionPropertyCallBlock {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum Instr {
     STOP,
     Null,

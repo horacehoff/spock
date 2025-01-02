@@ -40,7 +40,7 @@ use compact_str::ToCompactString;
 use internment::Intern;
 use snmalloc_rs::SnMalloc;
 use std::fs;
-use std::fs::remove_dir_all;
+use std::fs::{remove_dir_all, File};
 use std::io::Write as _;
 use std::ops::{Add, Deref};
 use std::path::Path;
@@ -920,7 +920,7 @@ fn main() {
 
     let temp_funcs = parse_functions(content.trim(), true);
     log!("FUNCS: {temp_funcs:?}");
-    let mut main_function: (String, &[String], Vec<Instr>) = Default::default();
+    // let mut main_function: (String, &[String], Vec<Instr>) = Default::default();
 
     let partial_convert: Vec<(String, &[String], Vec<Types>)> = temp_funcs
         .iter()
@@ -929,17 +929,16 @@ fn main() {
                 .iter()
                 .flat_map(|line| line.iter().map(|x| (*x).clone()))
                 .collect();
-            if name == "main" {
-                main_function = (
-                    name.to_string().parse().unwrap(),
-                    args,
-                    simplify(stack, false, 0).0,
-                );
-                return (name.clone(), args.as_slice(), vec![]);
-            }
+            // if name == "main" {
+            //     main_function = (
+            //         name.to_string().parse().unwrap(),
+            //         args,
+            //         simplify(stack, false, 0).0,
+            //     );
+            //     return (name.clone(), args.as_slice(), vec![]);
+            // }
             return (name.clone(), args.as_slice(), stack);
         })
-        .filter(|(name, _, _)| *name != "main")
         .collect();
 
     let converted: Vec<(String, &[String], Vec<Instr>)> = partial_convert
@@ -954,31 +953,39 @@ fn main() {
         .collect();
 
     let functions: &[(String, &[String], Vec<Instr>)] = converted.as_slice();
+    let data = bincode::serialize(&functions).unwrap();
+    let hash = blake3::hash(data.as_slice()).to_string();
+    fs::create_dir_all(".compute/").unwrap();
+    File::create(format!(".compute/{}", hash))
+        .unwrap()
+        .write_all(&data)
+        .unwrap();
 
     log!("PARSED IN: {:.2?}", now.elapsed());
-    log!(
-        "MAIN\n{}",
-        main_function
-            .2
-            .iter()
-            .map(|x| format!("{x:?}").parse().unwrap())
-            .collect::<Vec<String>>()
-            .join("\n")
-    );
+    log!("FUNCS: {:?}", functions);
+    // log!(
+    //     "MAIN\n{}",
+    //     main_function
+    //         .2
+    //         .iter()
+    //         .map(|x| format!("{x:?}").parse().unwrap())
+    //         .collect::<Vec<String>>()
+    //         .join("\n")
+    // );
     log!("------");
 
     let now = Instant::now();
-    log!(
-        "{}",
-        &main_function
-            .2
-            .iter()
-            .map(|x| format!("{:?}", x))
-            .collect::<Vec<String>>()
-            .join("\n")
-    );
-    log!("------");
-    execute(main_function.2);
+    // log!(
+    //     "{}",
+    //     &main_function
+    //         .2
+    //         .iter()
+    //         .map(|x| format!("{:?}", x))
+    //         .collect::<Vec<String>>()
+    //         .join("\n")
+    // );
+    // log!("------");
+    // execute(main_function.2);
 
     log_release!("EXECUTED IN: {:.2?}", now.elapsed());
     log!("TOTAL: {:.2?}", totaltime.elapsed());
