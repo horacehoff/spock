@@ -457,7 +457,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
                 for x in split_vec(Vec::from(y), Types::Separator) {
                     let result = simplify(x, true, i);
                     test.extend(result.0);
-                    test.push(Instr::STORE_ARG);
+                    test.push(Instr::StoreArg);
                 }
                 test.push(Instr::FuncCall(Intern::<String>::from_ref(&name)));
             }
@@ -474,7 +474,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
                 i = in_code.1 + 1;
                 let added = in_code.0.len();
                 test.extend(condition.0);
-                test.push(Instr::IF(added as u16));
+                test.push(Instr::If(added as u16));
                 // test.push(Instr::IF(condition.1, added as u16)); -> SAFE
                 test.extend(in_code.0);
 
@@ -496,18 +496,18 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
                 let added = in_code.0.len();
                 let sum = condition.0.len() + 1 + added;
                 test.extend(condition.0);
-                test.push(Instr::IF((added + 1) as u16));
+                test.push(Instr::If((added + 1) as u16));
                 // test.push(Instr::IF(condition.1, (added + 1) as u16)); -> SAFE
                 test.extend(in_code.0);
-                test.push(Instr::JUMP(sum as u16, true))
+                test.push(Instr::Jump(sum as u16, true))
             }
             _ => test.push(types_to_instr(x)),
         }
     }
     if store {
-        test.insert(0, Instr::STORE);
+        test.insert(0, Instr::Store);
         // test.insert(0, Instr::STORE(i + 1));
-        test.push(Instr::STOP)
+        test.push(Instr::StopStore)
         // test.push(Types::STOP(i + 1))
     }
     (test, i + 1)
@@ -588,8 +588,8 @@ fn execute(lines: Vec<Instr>) {
     let total_len = lines.len();
     while line < total_len {
         match pre_match(lines[line], &mut variables, depth, &mut args) {
-            Instr::STORE => depth += 1,
-            Instr::STOP => {
+            Instr::Store => depth += 1,
+            Instr::StopStore => {
                 depth -= 1;
             }
             Instr::Operation(ref op) => {
@@ -607,7 +607,7 @@ fn execute(lines: Vec<Instr>) {
             }
             // VARIABLE DECLARATION
             Instr::VarStore(false, ref str) => variables.push((*str, register.pop().unwrap())),
-            Instr::IF(ref jump_size) => {
+            Instr::If(ref jump_size) => {
                 let condition = register.pop().unwrap();
                 if condition == Instr::Bool(false) {
                     line += *jump_size as usize;
@@ -615,7 +615,7 @@ fn execute(lines: Vec<Instr>) {
                     error(&format!("'{:?}' is not a boolean", &condition), "");
                 }
             }
-            Instr::JUMP(ref jump_size, ref neg) => {
+            Instr::Jump(ref jump_size, ref neg) => {
                 if *neg {
                     line -= *jump_size as usize;
                     continue;
@@ -623,7 +623,7 @@ fn execute(lines: Vec<Instr>) {
                 line += *jump_size as usize;
                 continue;
             }
-            Instr::STORE_ARG => args.push(register.pop().unwrap()),
+            Instr::StoreArg => args.push(register.pop().unwrap()),
             // Function call that shouldn't return anything
             Instr::FuncCall(ref name) => {
                 let func_args: Vec<Instr> = (0..args.len()).map(|i| args.swap_remove(i)).collect();
