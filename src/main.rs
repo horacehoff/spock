@@ -465,7 +465,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
                 let result = simplify(Vec::from(ret), true, i);
                 i = result.1 + 1;
                 test.extend(result.0);
-                test.push(Instr::FuncReturn(result.1));
+                test.push(Instr::FuncReturn);
             }
             Types::Condition(block) => {
                 let condition = simplify(Vec::from(block.condition), true, i);
@@ -528,7 +528,8 @@ fn pre_match(
     input: Instr,
     variables: &mut Vec<(Intern<String>, Instr)>,
     depth: u8,
-    args: &mut Vec<Instr>,
+    func_args: &mut Vec<Instr>,
+    functions: &Vec<(Intern<String>, Vec<Intern<String>>, Vec<Instr>)>,
 ) -> Instr {
     match input {
         Instr::VariableIdentifier(ref id) => *variables
@@ -540,42 +541,70 @@ fn pre_match(
             if depth == 0 {
                 return input;
             }
-            let func_args: Vec<Instr> = (0..args.len()).map(|i| args.swap_remove(i)).collect();
             match name.as_str() {
                 "str" => {
                     assert_args_number!("str", func_args.len(), 1);
-                    match func_args[0] {
-                        Instr::Bool(bool) => {
-                            if bool {
-                                return Instr::String(Intern::from("true".to_string()));
-                            } else {
-                                return Instr::String(Intern::from("false".to_string()));
+                    match func_args.remove(0) {
+                        Instr::Bool(bool) => Instr::String(Intern::from(
+                            {
+                                if bool {
+                                    "true"
+                                } else {
+                                    "false"
+                                }
                             }
-                        }
-                        Instr::Integer(int) => return Instr::String(Intern::from(int.to_string())),
-                        Instr::Float(float) => {
-                            return Instr::String(Intern::from(float.to_string()))
-                        }
-                        Instr::String(_) => return func_args[0],
+                            .to_string(),
+                        )),
+                        Instr::Integer(int) => Instr::String(Intern::from(int.to_string())),
+                        Instr::Float(float) => Instr::String(Intern::from(float.to_string())),
+                        Instr::String(_) => func_args[0],
                         _ => todo!(),
                     }
                 }
                 _ => {
+                    if let Some(func) = functions.iter().find(|(func_name, _, _)| name == func_name)
+                    {
+                        let expected_args = &func.1;
+                        if expected_args.len() != func_args.len() {
+                            error(
+                                &format!(
+                                    "Function '{}' expected {} arguments, but received {}",
+                                    func.0,
+                                    expected_args.len(),
+                                    func_args.len()
+                                ),
+                                "",
+                            );
+                        }
+
+                        let args: Vec<(Intern<String>, Instr)> = expected_args
+                            .iter()
+                            .enumerate()
+                            .map(|(x, y)| (*y, func_args.remove(x)))
+                            .collect();
+                        log!("ARGS IS {args:?}");
+                        log!("FUNCTION ARGS IS {func_args:?}");
+                        return execute(&func.2, functions, args);
+                    }
+
                     todo!("User-defined function that should return something called!")
                 }
             }
-            Instr::Integer(1)
         }
         _ => input,
     }
 }
 
-#[inline(never)]
-fn execute(lines: Vec<Instr>) {
+// #[inline(never)]
+fn execute(
+    lines: &Vec<Instr>,
+    functions: &Vec<(Intern<String>, Vec<Intern<String>>, Vec<Instr>)>,
+    args: Vec<(Intern<String>, Instr)>,
+) -> Instr {
     // keeps track of items
     let mut register: Vec<Instr> = Vec::new();
     // keeps track of function args
-    let mut args: Vec<Instr> = Vec::new();
+    let mut args_register: Vec<Instr> = Vec::new();
     // keeps track of current "storing" depth (e.g STORE,...,STORE,... will have depth=2 after the second "STORE")
     // unclear if really needed
     let mut depth: u8 = 0;
@@ -583,11 +612,17 @@ fn execute(lines: Vec<Instr>) {
     // unclear if a vec is needed
     let mut operator: Vec<Operator> = Vec::new();
     // keeps track of variables
-    let mut variables: Vec<(Intern<String>, Instr)> = Vec::new();
+    let mut variables: Vec<(Intern<String>, Instr)> = args;
     let mut line: usize = 0;
     let total_len = lines.len();
     while line < total_len {
-        match pre_match(lines[line], &mut variables, depth, &mut args) {
+        match pre_match(
+            lines[line],
+            &mut variables,
+            depth,
+            &mut args_register,
+            &functions,
+        ) {
             Instr::Store => depth += 1,
             Instr::StopStore => {
                 depth -= 1;
@@ -628,17 +663,23 @@ fn execute(lines: Vec<Instr>) {
                 line += *jump_size as usize;
                 continue;
             }
-            Instr::StoreArg => args.push(register.pop().unwrap()),
+            Instr::StoreArg => args_register.push(register.pop().unwrap()),
             // Function call that shouldn't return anything
             Instr::FuncCall(ref name) => {
-                let func_args: Vec<Instr> = (0..args.len()).map(|i| args.swap_remove(i)).collect();
-                let func_name = name.as_str();
-                if func_name == "print" {
-                    println!("{}", print_form(&func_args[0]))
-                } else {
+                if depth == 0 {
+                    // println!("ARGS REG IS {args_register:?}");
+                    let func_name = name.as_str();
+                    if func_name == "print" {
+                        println!("{}", print_form(&args_register.remove(0)))
+                    } else {
+                    }
                 }
+                // log!("ITS ME!!");
+                // log!("HI");
             }
-
+            Instr::FuncReturn => {
+                return register.pop().unwrap();
+            }
             // PRIMITIVE TYPES
             Instr::Integer(ref int) => {
                 check_register_adress!(Instr::Integer(*int), depth, line, register);
@@ -843,6 +884,7 @@ fn execute(lines: Vec<Instr>) {
         line += 1;
         // log!("---\nREGISTER {register:?}\nVARIABLES {variables:?}")
     }
+    Instr::Null
 }
 
 fn main() {
@@ -910,7 +952,7 @@ fn main() {
 
     let hash = blake3::hash(content.as_bytes()).to_string();
 
-    let mut functions: Vec<(String, Vec<String>, Vec<Instr>)>;
+    let mut functions: Vec<(Intern<String>, Vec<Intern<String>>, Vec<Instr>)>;
 
     if !Path::new(&format!(".compute/{}", hash)).exists() {
         // BEGIN PARSE
@@ -924,7 +966,11 @@ fn main() {
                     .flat_map(|line| line.iter().map(|x| (*x).clone()))
                     .collect();
                 let final_stack = simplify(first_stack, false, 0).0;
-                return (name.clone(), args.clone(), final_stack);
+                return (
+                    Intern::from(name.clone()),
+                    args.iter().map(|x| Intern::from(x.to_string())).collect(),
+                    final_stack,
+                );
             })
             .collect();
 
@@ -947,13 +993,18 @@ fn main() {
         ));
     }
 
-    let main_function =
-        functions.swap_remove(functions.iter().position(|(x, _, _)| x == "main").unwrap());
+    let main_function = functions.swap_remove(
+        functions
+            .iter()
+            .position(|(x, _, _)| **x == "main")
+            .unwrap(),
+    );
 
     log!("PARSED IN: {:.2?}", now.elapsed());
     log!("FUNCS: {:?}", functions);
+    log!("MAIN: {:?}", main_function);
     let now = Instant::now();
-    execute(main_function.2);
+    execute(&main_function.2, &functions, vec![]);
 
     log_release!("EXECUTED IN: {:.2?}", now.elapsed());
     log!("TOTAL: {:.2?}", totaltime.elapsed());

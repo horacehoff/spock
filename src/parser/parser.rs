@@ -73,9 +73,8 @@ pub enum Instr {
     Store,
     StoreArg,
     Operation(Operator),
-    // BOOL -> REPLACE IF TRUE NOT IF FALSE
     Bool(bool),
-    FuncReturn(u16),
+    FuncReturn,
     // JUMP X INSTRUCTIONS -- IS_NEGATIVE
     Jump(u16, bool),
     // JUMP SIZE IF CONDITION IS FALSE
