@@ -78,7 +78,7 @@ pub enum Instr {
     FuncReturn(u16),
     // JUMP X INSTRUCTIONS  -- IS_NEGATIVE
     JUMP(u16, bool),
-    // CONDITION REGISTER ID -- JUMP SIZE IF FALSE
+    // JUMP SIZE IF FALSE
     IF(u16),
     Integer(i64),
     Float(f64),
