@@ -524,14 +524,19 @@ macro_rules! check_first_to_register {
 }
 
 #[inline(always)]
-fn pre_match(input: Instr, variables: &mut Vec<(Intern<String>, Instr)>) -> Instr {
-    if let Instr::VariableIdentifier(ref id) = &input {
-        *variables
+fn pre_match(input: Instr, variables: &mut Vec<(Intern<String>, Instr)>, depth: u8) -> Instr {
+    match input {
+        Instr::VariableIdentifier(ref id) => *variables
             .iter()
             .find_map(|(x, instr)| if x == id { Some(instr) } else { None })
-            .unwrap_or_else(|| panic!("{}", error_msg!(format!("Variable '{id}' does not exist"))))
-    } else {
-        input
+            .unwrap_or_else(|| panic!("{}", error_msg!(format!("Variable '{id}' does not exist")))),
+        Instr::FuncCall(ref name) => {
+            if depth == 0 {
+                return input;
+            }
+            Instr::Integer(1)
+        }
+        _ => input,
     }
 }
 
@@ -552,7 +557,7 @@ fn execute(lines: Vec<Instr>) {
     let mut line: usize = 0;
     let total_len = lines.len();
     while line < total_len {
-        match pre_match(lines[line], &mut variables) {
+        match pre_match(lines[line], &mut variables, depth) {
             Instr::STORE => depth += 1,
             Instr::STOP => {
                 depth -= 1;
