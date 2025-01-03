@@ -431,54 +431,43 @@ fn types_to_instr(x: Types) -> Instr {
 }
 
 #[inline(never)]
-fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u16) {
+fn simplify(lines: Vec<Types>, store: bool) -> Vec<Instr> {
     let mut test: Vec<Instr> = vec![];
-    let mut i: u16 = current_num + 1;
-    // let mut instr_id: usize = 0;
     for x in lines {
-        // instr_id += 1;
         match x {
             Types::VariableDeclaration(block) => {
                 let x = block.name;
                 let y = block.value;
-                let result = simplify(Vec::from(y), true, i);
-                i = result.1 + 1;
-                test.extend(result.0);
+                let result = simplify(Vec::from(y), true);
+                test.extend(result);
                 if block.is_declared {
                     test.push(Instr::VarUpdate(Intern::<String>::from(x)));
-                    // test.push(Instr::VarStore(true, result.1, Intern::<String>::from(x)));
                 } else {
                     test.push(Instr::VarStore(Intern::<String>::from(x)));
-                    // test.push(Instr::VarStore(false, result.1, Intern::<String>::from(x)));
                 }
             }
             Types::FunctionCall(block) => {
                 let name = block.name;
                 let y = block.args;
                 for x in split_vec(Vec::from(y), Types::Separator) {
-                    let result = simplify(x, true, i);
-                    test.extend(result.0);
+                    let result = simplify(x, true);
+                    test.extend(result);
                     test.push(Instr::StoreArg);
                 }
                 test.push(Instr::FuncCall(Intern::<String>::from_ref(&name)));
             }
             Types::FunctionReturn(ret) => {
-                let result = simplify(Vec::from(ret), true, i);
-                i = result.1 + 1;
-                test.extend(result.0);
+                let result = simplify(Vec::from(ret), true);
+                test.extend(result);
                 test.push(Instr::FuncReturn);
             }
             Types::Condition(block) => {
-                let condition = simplify(Vec::from(block.condition), true, i);
-                i = condition.1 + 1;
-                let in_code = simplify(Vec::from(block.code), false, i);
-                i = in_code.1 + 1;
-                let added = in_code.0.len();
-                test.extend(condition.0);
+                let condition = simplify(Vec::from(block.condition), true);
+                let in_code = simplify(Vec::from(block.code), false);
+                let added = in_code.len();
+                test.extend(condition);
                 test.push(Instr::If(added as u16));
-                // test.push(Instr::IF(condition.1, added as u16)); -> SAFE
-                test.extend(in_code.0);
-
+                test.extend(in_code);
                 // if block.else_blocks.len() > 0 {
                 //     for else_block in block.else_blocks {
                 //         let condition = simplify(Vec::from(else_block.0), true, i);
@@ -490,18 +479,16 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
                 // }
             }
             Types::While(block) => {
-                let condition = simplify(Vec::from(block.condition), true, i);
-                i = condition.1 + 1;
-                let in_code = simplify(Vec::from(block.code), false, i);
-                i = in_code.1 + 1;
-                let added = in_code.0.len();
-                let sum = condition.0.len() + 1 + added;
-                test.extend(condition.0);
+                let condition = simplify(Vec::from(block.condition), true);
+                let in_code = simplify(Vec::from(block.code), false);
+                let added = in_code.len();
+                let sum = condition.len() + 1 + added;
+                test.extend(condition);
                 test.push(Instr::If((added + 1) as u16));
-                // test.push(Instr::IF(condition.1, (added + 1) as u16)); -> SAFE
-                test.extend(in_code.0);
+                test.extend(in_code);
                 test.push(Instr::Jump(sum as u16, true))
             }
+            // Types::String()
             _ => test.push(types_to_instr(x)),
         }
     }
@@ -511,7 +498,7 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
         test.push(Instr::StopStore)
         // test.push(Types::STOP(i + 1))
     }
-    (test, i + 1)
+    test
 }
 
 macro_rules! check_register_adress {
@@ -1016,7 +1003,7 @@ fn main() {
                     .iter()
                     .flat_map(|line| line.iter().map(|x| (*x).clone()))
                     .collect();
-                let final_stack = simplify(first_stack, false, 0).0;
+                let final_stack = simplify(first_stack, false);
                 return (
                     Intern::from(name.clone()),
                     args.iter().map(|x| Intern::from(x.to_string())).collect(),
