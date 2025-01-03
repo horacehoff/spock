@@ -13,7 +13,6 @@ func main() {
 //
 //     print(count);
 // }
-// print("RES: "+str(20));
 // print("the result is: "+str(test(20)));
 let count = 0;
 let limit = 1000000;

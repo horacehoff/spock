@@ -588,9 +588,10 @@ fn pre_match(
                         let return_obj = execute(&func.2, functions, args);
                         // println!("RETURNING {return_obj:?}");
                         return return_obj;
+                    } else {
+                        error(&format!("Unknown function '{}'", &name.red()), "");
+                        panic!()
                     }
-
-                    todo!("User-defined function that should return something called!")
                 }
             }
         }
