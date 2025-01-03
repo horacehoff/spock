@@ -445,10 +445,10 @@ fn simplify(lines: Vec<Types>, store: bool, current_num: u16) -> (Vec<Instr>, u1
                 i = result.1 + 1;
                 test.extend(result.0);
                 if block.is_declared {
-                    test.push(Instr::VarStore(true, Intern::<String>::from(x)));
+                    test.push(Instr::VarUpdate(Intern::<String>::from(x)));
                     // test.push(Instr::VarStore(true, result.1, Intern::<String>::from(x)));
                 } else {
-                    test.push(Instr::VarStore(false, Intern::<String>::from(x)));
+                    test.push(Instr::VarStore(Intern::<String>::from(x)));
                     // test.push(Instr::VarStore(false, result.1, Intern::<String>::from(x)));
                 }
             }
@@ -637,7 +637,7 @@ fn execute(
                 }
             }
             // VARIABLE IS ALREADY STORED
-            Instr::VarStore(true, ref str) => {
+            Instr::VarUpdate(ref str) => {
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == *str) {
                     *elem = (elem.0, register.pop().unwrap())
                 } else {
@@ -645,7 +645,7 @@ fn execute(
                 }
             }
             // VARIABLE DECLARATION
-            Instr::VarStore(false, ref str) => {
+            Instr::VarStore(ref str) => {
                 if let Some(idx) = variables.iter().position(|(name, _)| name == str) {
                     variables.get_mut(idx).unwrap().1 = register.pop().unwrap();
                 }
