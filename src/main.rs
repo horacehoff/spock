@@ -586,7 +586,7 @@ fn pre_match(
                         log!("ARGS IS {args:?}");
                         log!("FUNCTION ARGS IS {func_args:?}");
                         let return_obj = execute(&func.2, functions, args);
-                        println!("RETURNING {return_obj:?}");
+                        // println!("RETURNING {return_obj:?}");
                         return return_obj;
                     }
 
