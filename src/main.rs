@@ -425,20 +425,20 @@ fn types_to_instr(x: Types) -> Instr {
             return Instr::VariableIdentifier(Intern::<String>::from_ref(&id))
         }
         Types::Operation(op) => return Instr::Operation(op),
-        Types::String(str) => return Instr::String(Intern::from(str)),
+        // Types::String(str) => return Instr::String(Intern::from(str)),
         _ => todo!("{:?}", x),
     }
 }
 
 #[inline(never)]
-fn simplify(lines: Vec<Types>, store: bool) -> Vec<Instr> {
+fn simplify(lines: Vec<Types>, store: bool, locals: &mut Vec<String>) -> Vec<Instr> {
     let mut test: Vec<Instr> = vec![];
     for x in lines {
         match x {
             Types::VariableDeclaration(block) => {
                 let x = block.name;
                 let y = block.value;
-                let result = simplify(Vec::from(y), true);
+                let result = simplify(Vec::from(y), true, locals);
                 test.extend(result);
                 if block.is_declared {
                     test.push(Instr::VarUpdate(Intern::<String>::from(x)));
@@ -450,20 +450,20 @@ fn simplify(lines: Vec<Types>, store: bool) -> Vec<Instr> {
                 let name = block.name;
                 let y = block.args;
                 for x in split_vec(Vec::from(y), Types::Separator) {
-                    let result = simplify(x, true);
+                    let result = simplify(x, true, locals);
                     test.extend(result);
                     test.push(Instr::StoreArg);
                 }
                 test.push(Instr::FuncCall(Intern::<String>::from_ref(&name)));
             }
             Types::FunctionReturn(ret) => {
-                let result = simplify(Vec::from(ret), true);
+                let result = simplify(Vec::from(ret), true, locals);
                 test.extend(result);
                 test.push(Instr::FuncReturn);
             }
             Types::Condition(block) => {
-                let condition = simplify(Vec::from(block.condition), true);
-                let in_code = simplify(Vec::from(block.code), false);
+                let condition = simplify(Vec::from(block.condition), true, locals);
+                let in_code = simplify(Vec::from(block.code), false, locals);
                 let added = in_code.len();
                 test.extend(condition);
                 test.push(Instr::If(added as u16));
@@ -479,8 +479,8 @@ fn simplify(lines: Vec<Types>, store: bool) -> Vec<Instr> {
                 // }
             }
             Types::While(block) => {
-                let condition = simplify(Vec::from(block.condition), true);
-                let in_code = simplify(Vec::from(block.code), false);
+                let condition = simplify(Vec::from(block.condition), true, locals);
+                let in_code = simplify(Vec::from(block.code), false, locals);
                 let added = in_code.len();
                 let sum = condition.len() + 1 + added;
                 test.extend(condition);
@@ -488,7 +488,11 @@ fn simplify(lines: Vec<Types>, store: bool) -> Vec<Instr> {
                 test.extend(in_code);
                 test.push(Instr::Jump(sum as u16, true))
             }
-            // Types::String()
+            Types::String(str) => {
+                locals.push(str);
+                // locals.push(((locals.len() + 1) as u16, str));
+                test.push(Instr::String);
+            }
             _ => test.push(types_to_instr(x)),
         }
     }
@@ -498,7 +502,7 @@ fn simplify(lines: Vec<Types>, store: bool) -> Vec<Instr> {
         test.push(Instr::StopStore)
         // test.push(Types::STOP(i + 1))
     }
-    test
+    (test)
 }
 
 macro_rules! check_register_adress {
@@ -517,7 +521,7 @@ fn pre_match(
     variables: &mut Vec<(Intern<String>, Instr)>,
     depth: u8,
     func_args: &mut Vec<Instr>,
-    functions: &Vec<(Intern<String>, Vec<Intern<String>>, Vec<Instr>)>,
+    functions: &&Vec<(Intern<String>, Vec<Intern<String>>, Vec<Instr>, Vec<String>)>,
 ) -> Instr {
     match input {
         Instr::VariableIdentifier(ref id) => *variables
@@ -530,27 +534,29 @@ fn pre_match(
                 return input;
             }
             match name.as_str() {
-                "str" => {
-                    assert_args_number!("str", func_args.len(), 1);
-                    match func_args.remove(0) {
-                        Instr::Bool(bool) => Instr::String(Intern::from(
-                            {
-                                if bool {
-                                    "true"
-                                } else {
-                                    "false"
-                                }
-                            }
-                            .to_string(),
-                        )),
-                        Instr::Integer(int) => Instr::String(Intern::from(int.to_string())),
-                        Instr::Float(float) => Instr::String(Intern::from(float.to_string())),
-                        Instr::String(_) => func_args[0],
-                        _ => todo!(),
-                    }
-                }
+                // "str" => {
+                //     assert_args_number!("str", func_args.len(), 1);
+                //     match func_args.remove(0) {
+                //         Instr::Bool(bool) => Instr::String(Intern::from(
+                //             {
+                //                 if bool {
+                //                     "true"
+                //                 } else {
+                //                     "false"
+                //                 }
+                //             }
+                //             .to_string(),
+                //         )),
+                //         Instr::Integer(int) => Instr::String(Intern::from(int.to_string())),
+                //         Instr::Float(float) => Instr::String(Intern::from(float.to_string())),
+                //         Instr::String(_) => func_args[0],
+                //         _ => todo!(),
+                //     }
+                // }
                 _ => {
-                    if let Some(func) = functions.iter().find(|(func_name, _, _)| name == func_name)
+                    if let Some(func) = functions
+                        .iter()
+                        .find(|(func_name, _, _, _)| name == func_name)
                     {
                         let expected_args = &func.1;
                         if expected_args.len() != func_args.len() {
@@ -572,9 +578,10 @@ fn pre_match(
                             .collect();
                         // log!("ARGS IS {args:?}");
                         // log!("FUNCTION ARGS IS {func_args:?}");
-                        let return_obj = execute(&func.2, functions, args);
+                        // let return_obj = execute(&func.2, functions, args);
                         // println!("RETURNING {return_obj:?}");
-                        return return_obj;
+                        // return return_obj;
+                        Instr::Null
                     } else {
                         error(&format!("Unknown function '{}'", name.red()), "");
                         panic!()
@@ -589,8 +596,9 @@ fn pre_match(
 // #[inline(never)]
 fn execute(
     lines: &Vec<Instr>,
-    functions: &Vec<(Intern<String>, Vec<Intern<String>>, Vec<Instr>)>,
+    functions: &Vec<(Intern<String>, Vec<Intern<String>>, Vec<Instr>, Vec<String>)>,
     args: Vec<(Intern<String>, Instr)>,
+    locals: &mut Vec<String>,
 ) -> Instr {
     // keeps track of items
     let mut register: Vec<Instr> = Vec::new();
@@ -661,7 +669,7 @@ fn execute(
                     // println!("ARGS REG IS {args_register:?}");
                     let func_name = name.as_str();
                     if func_name == "print" {
-                        println!("{}", print_form(&args_register.remove(0)))
+                        println!("{}", print_form(&args_register.remove(0), locals))
                     } else {
                     }
                 }
@@ -744,11 +752,11 @@ fn execute(
                                 "",
                             ),
                         },
-                        Instr::String(parent) => match operator.pop().unwrap() {
+                        Instr::String => match operator.pop().unwrap() {
                             Operator::Multiply => {
-                                *elem = Instr::String(Intern::from(
-                                    parent.as_ref().repeat(*int as usize),
-                                ))
+                                // let index = locals.iter().position(|(id, _)| id == parent).unwrap();
+                                let str = locals.get_mut(0).unwrap();
+                                *str = str.repeat(*int as usize);
                             }
                             other => error(
                                 &format!(
@@ -863,21 +871,25 @@ fn execute(
                     );
                 }
             }
-            Instr::String(ref str) => {
-                check_register_adress!(
-                    Instr::String(Intern::from(str.to_string())),
-                    depth,
-                    line,
-                    register
-                );
+            Instr::String => {
+                check_register_adress!(Instr::String, depth, line, register);
                 let index = register.len() - 1;
                 if let Some(elem) = register.get_mut(index) {
                     println!("STRING ADDING TO {elem:?}");
                     match elem {
-                        Instr::String(parent) => match operator.pop().unwrap() {
+                        Instr::String => match operator.pop().unwrap() {
                             Operator::Add => {
-                                *elem =
-                                    Instr::String(Intern::from(parent.to_string() + str.as_ref()))
+                                // let parent_index = locals.iter().position(|(id, _)| id == parent).unwrap();
+                                // println!("REMOVING INDEX {parent_index} FROM LOCALS AND LEN IS {}", locals.len());
+                                let parent_string = locals.remove(0);
+
+                                // let current_index = locals.iter().position(|(id, _)| id == str).unwrap();
+                                // println!("REMOVING INDEX {current_index} FROM LOCALS AND LEN IS {}", locals.len());
+                                let base_string = locals.remove(0);
+
+                                let ihatestrings = parent_string.to_string() + &base_string;
+                                locals.push(ihatestrings);
+                                *elem = Instr::String;
                             }
                             other => error(
                                 &format!(
@@ -891,9 +903,13 @@ fn execute(
                         },
                         Instr::Integer(parent) => match operator.pop().unwrap() {
                             Operator::Multiply => {
-                                *elem = Instr::String(Intern::from(
-                                    str.as_ref().repeat(*parent as usize),
-                                ))
+                                // let current_index = locals.iter().position(|(id, _)| id == str).unwrap();
+                                // println!("REMOVING INDEX {current_index} FROM LOCALS AND LEN IS {}", locals.len());
+                                let base_string = locals.remove(0);
+
+                                let fuckstrings = base_string.repeat(*parent as usize);
+                                locals.push(fuckstrings);
+                                *elem = Instr::String;
                             }
                             other => error(
                                 &format!(
@@ -990,7 +1006,7 @@ fn main() {
 
     let hash = blake3::hash(content.as_bytes()).to_string();
 
-    let mut functions: Vec<(Intern<String>, Vec<Intern<String>>, Vec<Instr>)>;
+    let mut functions: Vec<(Intern<String>, Vec<Intern<String>>, Vec<Instr>, Vec<String>)>;
 
     if !Path::new(&format!(".compute/{}", hash)).exists() {
         // BEGIN PARSE
@@ -1003,11 +1019,13 @@ fn main() {
                     .iter()
                     .flat_map(|line| line.iter().map(|x| (*x).clone()))
                     .collect();
-                let final_stack = simplify(first_stack, false);
+                let mut locals: Vec<String> = vec![];
+                let final_stack = simplify(first_stack, false, &mut locals);
                 return (
                     Intern::from(name.clone()),
                     args.iter().map(|x| Intern::from(x.to_string())).collect(),
                     final_stack,
+                    locals,
                 );
             })
             .collect();
@@ -1031,10 +1049,10 @@ fn main() {
         ));
     }
 
-    let main_function = functions.swap_remove(
+    let mut main_function = functions.swap_remove(
         functions
             .iter()
-            .position(|(x, _, _)| **x == "main")
+            .position(|(x, _, _, _)| **x == "main")
             .unwrap(),
     );
 
@@ -1042,7 +1060,7 @@ fn main() {
     log!("FUNCS: {:?}", functions);
     log!("MAIN: {:?}", main_function);
     let now = Instant::now();
-    execute(&main_function.2, &functions, vec![]);
+    execute(&main_function.2, &functions, vec![], &mut main_function.3);
 
     log_release!("EXECUTED IN: {:.2?}", now.elapsed());
     log!("TOTAL: {:.2?}", totaltime.elapsed());
