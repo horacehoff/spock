@@ -583,13 +583,13 @@ fn pre_match(
                             .enumerate()
                             .map(|(x, y)| (*y, func_args.remove(x)))
                             .collect();
-                        log!("ARGS IS {args:?}");
-                        log!("FUNCTION ARGS IS {func_args:?}");
+                        // log!("ARGS IS {args:?}");
+                        // log!("FUNCTION ARGS IS {func_args:?}");
                         let return_obj = execute(&func.2, functions, args);
                         // println!("RETURNING {return_obj:?}");
                         return return_obj;
                     } else {
-                        error(&format!("Unknown function '{}'", &name.red()), "");
+                        error(&format!("Unknown function '{}'", name.red()), "");
                         panic!()
                     }
                 }
@@ -641,7 +641,7 @@ fn execute(
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == *str) {
                     *elem = (elem.0, register.pop().unwrap())
                 } else {
-                    error(&format!("Unknown variable '{str}'"), "");
+                    error(&format!("Unknown variable '{}'", str.red()), "");
                 }
             }
             // VARIABLE DECLARATION
