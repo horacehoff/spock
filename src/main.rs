@@ -431,7 +431,7 @@ fn types_to_instr(x: Types) -> Instr {
 }
 
 #[inline(never)]
-fn simplify(lines: Vec<Types>, store: bool, locals: &mut Vec<String>) -> Vec<Instr> {
+fn simplify(lines: Vec<Types>, store: bool, locals: &mut Vec<(u16, String)>) -> Vec<Instr> {
     let mut test: Vec<Instr> = vec![];
     for x in lines {
         match x {
@@ -489,9 +489,10 @@ fn simplify(lines: Vec<Types>, store: bool, locals: &mut Vec<String>) -> Vec<Ins
                 test.push(Instr::Jump(sum as u16, true))
             }
             Types::String(str) => {
-                locals.push(str);
+                let len = get_biggest_locals_id(locals);
+                locals.push((len as u16, str));
                 // locals.push(((locals.len() + 1) as u16, str));
-                test.push(Instr::String);
+                test.push(Instr::String(len as u16));
             }
             _ => test.push(types_to_instr(x)),
         }
@@ -521,7 +522,12 @@ fn pre_match(
     variables: &mut Vec<(Intern<String>, Instr)>,
     depth: u8,
     func_args: &mut Vec<Instr>,
-    functions: &&Vec<(Intern<String>, Vec<Intern<String>>, Vec<Instr>, Vec<String>)>,
+    functions: &&Vec<(
+        Intern<String>,
+        Vec<Intern<String>>,
+        Vec<Instr>,
+        Vec<(u16, String)>,
+    )>,
 ) -> Instr {
     match input {
         Instr::VariableIdentifier(ref id) => *variables
@@ -593,12 +599,22 @@ fn pre_match(
     }
 }
 
+// VERY SLOW -> NEED TO REMOVE IN THE FUTURE
+fn get_biggest_locals_id(locals: &Vec<(u16, String)>) -> u16 {
+    *locals.iter().map(|(id, _)| id).max().unwrap() + 1
+}
+
 // #[inline(never)]
 fn execute(
     lines: &Vec<Instr>,
-    functions: &Vec<(Intern<String>, Vec<Intern<String>>, Vec<Instr>, Vec<String>)>,
+    functions: &Vec<(
+        Intern<String>,
+        Vec<Intern<String>>,
+        Vec<Instr>,
+        Vec<(u16, String)>,
+    )>,
     args: Vec<(Intern<String>, Instr)>,
-    locals: &mut Vec<String>,
+    locals: &mut Vec<(u16, String)>,
 ) -> Instr {
     // keeps track of items
     let mut register: Vec<Instr> = Vec::new();
@@ -752,11 +768,11 @@ fn execute(
                                 "",
                             ),
                         },
-                        Instr::String => match operator.pop().unwrap() {
+                        Instr::String(parent) => match operator.pop().unwrap() {
                             Operator::Multiply => {
-                                // let index = locals.iter().position(|(id, _)| id == parent).unwrap();
-                                let str = locals.get_mut(0).unwrap();
-                                *str = str.repeat(*int as usize);
+                                let index = locals.iter().position(|(id, _)| id == parent).unwrap();
+                                let str = locals.get_mut(index).unwrap();
+                                str.1 = str.1.repeat(*int as usize);
                             }
                             other => error(
                                 &format!(
@@ -871,25 +887,28 @@ fn execute(
                     );
                 }
             }
-            Instr::String => {
-                check_register_adress!(Instr::String, depth, line, register);
+            Instr::String(str) => {
+                check_register_adress!(Instr::String(str), depth, line, register);
                 let index = register.len() - 1;
                 if let Some(elem) = register.get_mut(index) {
                     println!("STRING ADDING TO {elem:?}");
                     match elem {
-                        Instr::String => match operator.pop().unwrap() {
+                        Instr::String(parent) => match operator.pop().unwrap() {
                             Operator::Add => {
-                                // let parent_index = locals.iter().position(|(id, _)| id == parent).unwrap();
+                                let parent_index =
+                                    locals.iter().position(|(id, _)| id == parent).unwrap();
                                 // println!("REMOVING INDEX {parent_index} FROM LOCALS AND LEN IS {}", locals.len());
-                                let parent_string = locals.remove(0);
+                                let parent_string = locals.remove(parent_index);
 
-                                // let current_index = locals.iter().position(|(id, _)| id == str).unwrap();
+                                let current_index =
+                                    locals.iter().position(|(id, _)| *id == str).unwrap();
                                 // println!("REMOVING INDEX {current_index} FROM LOCALS AND LEN IS {}", locals.len());
-                                let base_string = locals.remove(0);
+                                let base_string = locals.remove(current_index);
 
-                                let ihatestrings = parent_string.to_string() + &base_string;
-                                locals.push(ihatestrings);
-                                *elem = Instr::String;
+                                let ihatestrings = parent_string.1.to_string() + &base_string.1;
+                                let len = get_biggest_locals_id(locals);
+                                locals.push((len as u16, ihatestrings));
+                                *elem = Instr::String(len as u16);
                             }
                             other => error(
                                 &format!(
@@ -903,13 +922,15 @@ fn execute(
                         },
                         Instr::Integer(parent) => match operator.pop().unwrap() {
                             Operator::Multiply => {
-                                // let current_index = locals.iter().position(|(id, _)| id == str).unwrap();
+                                let current_index =
+                                    locals.iter().position(|(id, _)| *id == str).unwrap();
                                 // println!("REMOVING INDEX {current_index} FROM LOCALS AND LEN IS {}", locals.len());
-                                let base_string = locals.remove(0);
+                                let base_string = locals.remove(current_index);
 
-                                let fuckstrings = base_string.repeat(*parent as usize);
-                                locals.push(fuckstrings);
-                                *elem = Instr::String;
+                                let fuckstrings = base_string.1.repeat(*parent as usize);
+                                let len = get_biggest_locals_id(locals);
+                                locals.push((len as u16, fuckstrings));
+                                *elem = Instr::String(len as u16);
                             }
                             other => error(
                                 &format!(
@@ -1006,7 +1027,12 @@ fn main() {
 
     let hash = blake3::hash(content.as_bytes()).to_string();
 
-    let mut functions: Vec<(Intern<String>, Vec<Intern<String>>, Vec<Instr>, Vec<String>)>;
+    let mut functions: Vec<(
+        Intern<String>,
+        Vec<Intern<String>>,
+        Vec<Instr>,
+        Vec<(u16, String)>,
+    )>;
 
     if !Path::new(&format!(".compute/{}", hash)).exists() {
         // BEGIN PARSE
@@ -1019,7 +1045,7 @@ fn main() {
                     .iter()
                     .flat_map(|line| line.iter().map(|x| (*x).clone()))
                     .collect();
-                let mut locals: Vec<String> = vec![];
+                let mut locals: Vec<(u16, String)> = vec![];
                 let final_stack = simplify(first_stack, false, &mut locals);
                 return (
                     Intern::from(name.clone()),

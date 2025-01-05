@@ -85,7 +85,7 @@ pub enum Instr {
     VarUpdate(Intern<String>),
     FuncCall(Intern<String>),
     VariableIdentifier(Intern<String>),
-    String,
+    String(u16),
 }
 
 #[repr(u8)]

@@ -105,7 +105,7 @@ macro_rules! get_value {
 
 pub fn get_type<'a>(unknown: Instr) -> &'a str {
     match unknown {
-        Instr::String => "String",
+        Instr::String(_) => "String",
         Instr::Integer(_) => "Integer",
         Instr::Bool(_) => "Boolean",
         Instr::Float(_) => "Float",
@@ -247,10 +247,14 @@ pub fn get_printable_form(x: &Types) -> String {
     }
 }
 
-pub fn print_form(x: &Instr, locals: &mut Vec<String>) -> String {
+pub fn print_form(x: &Instr, locals: &mut Vec<(u16, String)>) -> String {
     println!("LOCALS ARE {locals:?}");
     match x {
-        Instr::String => locals.remove(0),
+        Instr::String(str) => {
+            locals
+                .remove(locals.iter().position(|(id, _)| id == str).unwrap())
+                .1
+        }
         Instr::Float(ref float) => float.to_string().parse().unwrap(),
         Instr::Integer(ref int) => int.to_string().parse().unwrap(),
         Instr::Bool(ref boolean) => boolean.to_string().parse().unwrap(),
