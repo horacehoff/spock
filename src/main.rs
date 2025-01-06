@@ -897,18 +897,14 @@ fn execute(
                             Operator::Add => {
                                 let parent_index =
                                     locals.iter().position(|(id, _)| id == parent).unwrap();
-                                // println!("REMOVING INDEX {parent_index} FROM LOCALS AND LEN IS {}", locals.len());
-                                let parent_string = locals.remove(parent_index);
 
                                 let current_index =
                                     locals.iter().position(|(id, _)| *id == str).unwrap();
-                                // println!("REMOVING INDEX {current_index} FROM LOCALS AND LEN IS {}", locals.len());
                                 let base_string = locals.remove(current_index);
 
-                                let ihatestrings = parent_string.1.to_string() + &base_string.1;
-                                let len = get_biggest_locals_id(locals);
-                                locals.push((len as u16, ihatestrings));
-                                *elem = Instr::String(len as u16);
+                                if let Some(parent_string) = locals.get_mut(parent_index) {
+                                    parent_string.1 = (parent_string.1.to_string() + &base_string.1)
+                                }
                             }
                             other => error(
                                 &format!(
