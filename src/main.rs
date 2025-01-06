@@ -920,13 +920,9 @@ fn execute(
                             Operator::Multiply => {
                                 let current_index =
                                     locals.iter().position(|(id, _)| *id == str).unwrap();
-                                // println!("REMOVING INDEX {current_index} FROM LOCALS AND LEN IS {}", locals.len());
-                                let base_string = locals.remove(current_index);
-
-                                let fuckstrings = base_string.1.repeat(*parent as usize);
-                                let len = get_biggest_locals_id(locals);
-                                locals.push((len as u16, fuckstrings));
-                                *elem = Instr::String(len as u16);
+                                if let Some(base_string) = locals.get_mut(current_index) {
+                                    base_string.1 = base_string.1.repeat(*parent as usize);
+                                }
                             }
                             other => error(
                                 &format!(
