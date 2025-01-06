@@ -601,7 +601,7 @@ fn pre_match(
 
 // VERY SLOW -> NEED TO REMOVE IN THE FUTURE
 fn get_biggest_locals_id(locals: &Vec<(u16, String)>) -> u16 {
-    *locals.iter().map(|(id, _)| id).max().unwrap() + 1
+    *locals.iter().map(|(id, _)| id).max().unwrap_or(&0) + 1
 }
 
 // #[inline(never)]
