@@ -617,9 +617,9 @@ fn execute(
     locals: &mut Vec<(u16, String)>,
 ) -> Instr {
     // keeps track of items
-    let mut register: Vec<Instr> = Vec::new();
+    let mut stack: Vec<Instr> = Vec::new();
     // keeps track of function args
-    let mut args_register: Vec<Instr> = Vec::new();
+    let mut args_list: Vec<Instr> = Vec::new();
     // keeps track of current "storing" depth (e.g STORE,...,STORE,... will have depth=2 after the second "STORE")
     // unclear if really needed
     let mut depth: u8 = 0;
@@ -635,7 +635,7 @@ fn execute(
             lines[line],
             &mut variables,
             depth,
-            &mut args_register,
+            &mut args_list,
             &functions,
         ) {
             Instr::Store => depth += 1,
@@ -650,7 +650,7 @@ fn execute(
             // VARIABLE IS ALREADY STORED
             Instr::VarUpdate(ref str) => {
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == *str) {
-                    *elem = (elem.0, register.pop().unwrap())
+                    *elem = (elem.0, stack.pop().unwrap())
                 } else {
                     error(&format!("Unknown variable '{}'", str.red()), "");
                 }
@@ -658,12 +658,12 @@ fn execute(
             // VARIABLE DECLARATION
             Instr::VarStore(ref str) => {
                 if let Some(idx) = variables.iter().position(|(name, _)| name == str) {
-                    variables.get_mut(idx).unwrap().1 = register.pop().unwrap();
+                    variables.get_mut(idx).unwrap().1 = stack.pop().unwrap();
                 }
-                variables.push((*str, register.pop().unwrap()))
+                variables.push((*str, stack.pop().unwrap()))
             }
             Instr::If(ref jump_size) => {
-                let condition = register.pop().unwrap();
+                let condition = stack.pop().unwrap();
                 if condition == Instr::Bool(false) {
                     line += *jump_size as usize;
                 } else if condition != Instr::Bool(true) {
@@ -678,14 +678,14 @@ fn execute(
                 line += *jump_size as usize;
                 continue;
             }
-            Instr::StoreArg => args_register.push(register.pop().unwrap()),
+            Instr::StoreArg => args_list.push(stack.pop().unwrap()),
             // Function call that shouldn't return anything
             Instr::FuncCall(ref name) => {
                 if depth == 0 {
                     // println!("ARGS REG IS {args_register:?}");
                     let func_name = name.as_str();
                     if func_name == "print" {
-                        println!("{}", print_form(&args_register.remove(0), locals))
+                        println!("{}", print_form(&args_list.remove(0), locals))
                     } else {
                     }
                 }
@@ -693,13 +693,13 @@ fn execute(
                 // log!("HI");
             }
             Instr::FuncReturn => {
-                return register.pop().unwrap();
+                return stack.pop().unwrap();
             }
             // PRIMITIVE TYPES
             Instr::Integer(ref int) => {
-                check_register_adress!(Instr::Integer(*int), depth, line, register);
-                let index = register.len() - 1;
-                if let Some(elem) = register.get_mut(index) {
+                check_register_adress!(Instr::Integer(*int), depth, line, stack);
+                let index = stack.len() - 1;
+                if let Some(elem) = stack.get_mut(index) {
                     match elem {
                         Instr::Integer(parent) => {
                             match operator.pop().unwrap() {
@@ -794,9 +794,9 @@ fn execute(
                 }
             }
             Instr::Float(ref float) => {
-                check_register_adress!(Instr::Float(*float), depth, line, register);
-                let index = register.len() - 1;
-                if let Some(elem) = register.get_mut(index) {
+                check_register_adress!(Instr::Float(*float), depth, line, stack);
+                let index = stack.len() - 1;
+                if let Some(elem) = stack.get_mut(index) {
                     match elem {
                         Instr::Integer(parent) => {
                             match operator.pop().unwrap() {
@@ -888,9 +888,9 @@ fn execute(
                 }
             }
             Instr::String(str) => {
-                check_register_adress!(Instr::String(str), depth, line, register);
-                let index = register.len() - 1;
-                if let Some(elem) = register.get_mut(index) {
+                check_register_adress!(Instr::String(str), depth, line, stack);
+                let index = stack.len() - 1;
+                if let Some(elem) = stack.get_mut(index) {
                     println!("STRING ADDING TO {elem:?}");
                     match elem {
                         Instr::String(parent) => match operator.pop().unwrap() {
@@ -944,7 +944,7 @@ fn execute(
                 }
             }
             Instr::Bool(ref bool) => {
-                check_register_adress!(Instr::Bool(*bool), depth, line, register);
+                check_register_adress!(Instr::Bool(*bool), depth, line, stack);
             }
             _ => {}
         }
