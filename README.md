@@ -3,7 +3,7 @@ A work-in-progress programming language written in Rust for the best performance
 
 Key facts:
 - ~5-6x faster than Python in most cases
-  - Efforts in progress to further optimize it
+  - Rewrite in progress
 - Does not support nested functions
 - Many bugs
 
