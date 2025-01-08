@@ -1,0 +1,3 @@
+let x     =     3                      +              3 + int("57");
+-----------     ----------------       ---------
+STATEMENT       Data::Integer(3)       Instr::Add
