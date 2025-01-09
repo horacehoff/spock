@@ -26,7 +26,9 @@ use crate::builtin::builtin_functions;
 use crate::float::float_ops;
 use crate::integer::integer_ops;
 use crate::namespaces::namespace_functions;
-use crate::parser::{parse_code, FunctionPropertyCallBlock, Instr, Operator, ParserInstr};
+use crate::parser::{
+    parse_code, FunctionPropertyCallBlock, Functions, FunctionsSlice, Instr, Operator, ParserInstr,
+};
 use crate::parser_functions::parse_functions;
 use crate::preprocess::preprocess;
 use crate::string::{string_ops, to_title_case};
@@ -525,12 +527,7 @@ fn pre_match(
     variables: &mut [(Intern<String>, Instr)],
     depth: u8,
     func_args: &mut Vec<Instr>,
-    functions: &[(
-        Intern<String>,
-        Vec<Intern<String>>,
-        Vec<Instr>,
-        Vec<(u16, String)>,
-    )],
+    functions: &FunctionsSlice,
 ) -> Instr {
     match input {
         Instr::VariableIdentifier(id) => *variables
@@ -610,12 +607,7 @@ fn get_biggest_locals_id(locals: &[(u16, String)]) -> u16 {
 // #[inline(never)]
 fn execute(
     lines: &[Instr],
-    functions: &[(
-        Intern<String>,
-        Vec<Intern<String>>,
-        Vec<Instr>,
-        Vec<(u16, String)>,
-    )],
+    functions: &FunctionsSlice,
     args: Vec<(Intern<String>, Instr)>,
     locals: &mut Vec<(u16, String)>,
 ) -> Instr {
@@ -956,9 +948,8 @@ fn execute(
 }
 
 fn main() {
-    dbg!(std::mem::size_of::<Instr>());
-    // dbg!(std::mem::size_of::<BasicOperator>());
-    // dbg!(std::mem::size_of::<Types>());
+    dbg!(size_of::<Instr>());
+    dbg!(size_of::<ParserInstr>());
     let totaltime = Instant::now();
     let args: Vec<String> = std::env::args()
         .skip(1)
@@ -1020,12 +1011,7 @@ fn main() {
 
     let hash = blake3::hash(content.as_bytes()).to_string();
 
-    let mut functions: Vec<(
-        Intern<String>,
-        Vec<Intern<String>>,
-        Vec<Instr>,
-        Vec<(u16, String)>,
-    )>;
+    let mut functions: Functions;
 
     if !Path::new(&format!(".compute/{}", hash)).exists() {
         // BEGIN PARSE

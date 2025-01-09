@@ -7,6 +7,41 @@ use pest::Parser;
 use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
 
+pub type Functions = Vec<(
+    Intern<String>,
+    Vec<Intern<String>>,
+    Vec<Instr>,
+    Vec<(u16, String)>,
+)>;
+pub type FunctionsSlice = [(
+    Intern<String>,
+    Vec<Intern<String>>,
+    Vec<Instr>,
+    Vec<(u16, String)>,
+)];
+
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
+pub enum Instr {
+    StopStore,
+    Null,
+    Store,
+    StoreArg,
+    Operation(Operator),
+    Bool(bool),
+    FuncReturn,
+    // JUMP X INSTRUCTIONS -- IS_NEGATIVE
+    Jump(u16, bool),
+    // JUMP SIZE IF CONDITION IS FALSE
+    If(u16),
+    Integer(i64),
+    Float(f64),
+    VarStore(Intern<String>),
+    VarUpdate(Intern<String>),
+    FuncCall(Intern<String>),
+    VariableIdentifier(Intern<String>),
+    String(u16),
+}
+
 #[derive(Parser)]
 #[grammar = "parser/parser_grammar.pest"]
 pub struct ComputeParser;
@@ -63,29 +98,6 @@ pub struct VariableDeclarationBlock {
 pub struct FunctionPropertyCallBlock {
     pub name: String,
     pub args: Box<[ParserInstr]>,
-}
-
-// #[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
-pub enum Instr {
-    StopStore,
-    Null,
-    Store,
-    StoreArg,
-    Operation(Operator),
-    Bool(bool),
-    FuncReturn,
-    // JUMP X INSTRUCTIONS -- IS_NEGATIVE
-    Jump(u16, bool),
-    // JUMP SIZE IF CONDITION IS FALSE
-    If(u16),
-    Integer(i64),
-    Float(f64),
-    VarStore(Intern<String>),
-    VarUpdate(Intern<String>),
-    FuncCall(Intern<String>),
-    VariableIdentifier(Intern<String>),
-    String(u16),
 }
 
 #[repr(u8)]
