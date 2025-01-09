@@ -1,4 +1,4 @@
-use crate::parser::{parse_code, Types};
+use crate::parser::{parse_code, ParserInstr};
 use crate::util::error;
 use fancy_regex::Regex;
 use std::fs;
@@ -9,10 +9,10 @@ use std::io::Write;
 pub fn parse_functions(
     content: &str,
     check_main: bool,
-) -> Vec<(String, Vec<String>, Vec<Vec<Types>>)> {
-    let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<Types>>)> = Vec::new();
+) -> Vec<(String, Vec<String>, Vec<Vec<ParserInstr>>)> {
+    let mut functions: Vec<(&str, Vec<&str>, Vec<Vec<ParserInstr>>)> = Vec::new();
 
-    let mut imported_functions: Vec<(String, Vec<String>, Vec<Vec<Types>>)> = Vec::new();
+    let mut imported_functions: Vec<(String, Vec<String>, Vec<Vec<ParserInstr>>)> = Vec::new();
     let matches: Vec<(usize, &str)> = content.match_indices("\nimport").collect();
     if content.starts_with("import") {
         let mut i = 7;
@@ -175,7 +175,7 @@ pub fn parse_functions(
                 c.clone(),
             )
         })
-        .collect::<Vec<(String, Vec<String>, Vec<Vec<Types>>)>>();
+        .collect::<Vec<(String, Vec<String>, Vec<Vec<ParserInstr>>)>>();
 
     return_functions.append(&mut imported_functions);
 

@@ -1,4 +1,4 @@
-use crate::parser::{Instr, Operator, Types};
+use crate::parser::{Instr, Operator, ParserInstr};
 // use smartstring::alias::String;
 // use smartstring::alias::
 
@@ -90,11 +90,11 @@ macro_rules! assert_args_number {
 macro_rules! get_value {
     ($x:expr) => {
         match $x {
-            Types::String(x) => x,
-            Types::Float(x) => x,
-            Types::Integer(x) => x,
-            Types::Bool(x) => x,
-            Types::Array(x) => x,
+            ParserInstr::String(x) => x,
+            ParserInstr::Float(x) => x,
+            ParserInstr::Integer(x) => x,
+            ParserInstr::Bool(x) => x,
+            ParserInstr::Array(x) => x,
             _ => error(
                 format!("{}", error_msg!(format!("Cannot get value of {:?}", $x))),
                 "",
@@ -126,12 +126,12 @@ pub fn get_type<'a>(unknown: Instr) -> &'a str {
 macro_rules! get_printable_type {
     ($x:expr) => {
         match $x {
-            Types::String(_) => "String",
-            Types::Float(_) => "Float",
-            Types::Integer(_) => "Integer",
-            Types::Bool(_) => "Boolean",
-            Types::Array(_, _, _) => "Array",
-            Types::Null => "Null",
+            ParserInstr::String(_) => "String",
+            ParserInstr::Float(_) => "Float",
+            ParserInstr::Integer(_) => "Integer",
+            ParserInstr::Bool(_) => "Boolean",
+            ParserInstr::Array(_, _, _) => "Array",
+            ParserInstr::Null => "Null",
             _ => {
                 println!("{:?}", $x);
                 error(
@@ -215,13 +215,13 @@ macro_rules! if_let {
     };
 }
 
-pub fn get_printable_form(x: &Types) -> String {
+pub fn get_printable_form(x: &ParserInstr) -> String {
     match x {
-        Types::String(ref str) => str.parse().unwrap(),
-        Types::Float(ref float) => float.to_string().parse().unwrap(),
-        Types::Integer(ref int) => int.to_string().parse().unwrap(),
-        Types::Bool(ref boolean) => boolean.to_string().parse().unwrap(),
-        Types::Array(ref x, _, _) => {
+        ParserInstr::String(ref str) => str.parse().unwrap(),
+        ParserInstr::Float(ref float) => float.to_string().parse().unwrap(),
+        ParserInstr::Integer(ref int) => int.to_string().parse().unwrap(),
+        ParserInstr::Bool(ref boolean) => boolean.to_string().parse().unwrap(),
+        ParserInstr::Array(ref x, _, _) => {
             let arr = x;
             ("[".to_owned()
                 + arr
@@ -236,7 +236,7 @@ pub fn get_printable_form(x: &Types) -> String {
                 .parse()
                 .unwrap()
         }
-        Types::Null => "Null".parse().unwrap(),
+        ParserInstr::Null => "Null".parse().unwrap(),
         _ => {
             error(
                 &format!("Cannot display {} type", get_printable_type!(x)),

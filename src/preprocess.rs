@@ -1,5 +1,5 @@
 use crate::namespaces::namespace_functions;
-use crate::parser::{parse_code, Types};
+use crate::parser::{parse_code, ParserInstr};
 use crate::util::{error, get_printable_form, split_vec_box};
 use crate::{
     assert_args_number, builtin_functions, error_msg, get_printable_type, log, process_lines,
@@ -11,14 +11,14 @@ use branches::likely;
 // #[unroll_for_loops]
 // #[inline(always)]
 pub fn preprocess(
-    element: &Types,
-    variables: &Vec<(String, Types)>,
-    functions: &[(String, &[String], &[Types])],
-) -> Types {
+    element: &ParserInstr,
+    variables: &Vec<(String, ParserInstr)>,
+    functions: &[(String, &[String], &[ParserInstr])],
+) -> ParserInstr {
     match element {
-        Types::FunctionCall(ref block) => {
+        ParserInstr::FunctionCall(ref block) => {
             // replace function call by its result (return value)
-            let args: Vec<Types> = split_vec_box(&block.args, Types::Separator)
+            let args: Vec<ParserInstr> = split_vec_box(&block.args, ParserInstr::Separator)
                 .iter()
                 .map(|x| process_stack(x, variables, functions))
                 .collect();
@@ -28,19 +28,19 @@ pub fn preprocess(
                 return matched.0;
             } else if block.name == "executeline" {
                 assert_args_number!("executeline", args.len(), 1);
-                if let Types::String(line) = &args[0] {
+                if let ParserInstr::String(line) = &args[0] {
                     return process_stack(&parse_code(line)[0], variables, functions);
                 }
                 error(&format!("Cannot execute {:?}", &args[0]), "");
             } else if block.name == "int" {
                 assert_args_number!("int", args.len(), 1);
-                if let Types::String(str) = &args[0] {
-                    return Types::Integer(str.parse::<i64>().unwrap_or_else(|_| {
+                if let ParserInstr::String(str) = &args[0] {
+                    return ParserInstr::Integer(str.parse::<i64>().unwrap_or_else(|_| {
                         error(&format!("Cannot convert String '{str}' to Integer",), "");
                         std::process::exit(1)
                     }));
-                } else if let Types::Float(float) = &args[0] {
-                    return Types::Integer(float.round() as i64);
+                } else if let ParserInstr::Float(float) = &args[0] {
+                    return ParserInstr::Integer(float.round() as i64);
                 }
                 error(
                     &format!(
@@ -51,18 +51,18 @@ pub fn preprocess(
                 );
             } else if block.name == "str" {
                 assert_args_number!("str", args.len(), 1);
-                if let Types::Integer(int) = &args[0] {
-                    return Types::String(int.to_string().parse().unwrap());
-                } else if let Types::Float(float) = &args[0] {
-                    return Types::String(float.to_string().parse().unwrap());
-                } else if let Types::Bool(boolean) = &args[0] {
-                    return Types::String(if *boolean {
+                if let ParserInstr::Integer(int) = &args[0] {
+                    return ParserInstr::String(int.to_string().parse().unwrap());
+                } else if let ParserInstr::Float(float) = &args[0] {
+                    return ParserInstr::String(float.to_string().parse().unwrap());
+                } else if let ParserInstr::Bool(boolean) = &args[0] {
+                    return ParserInstr::String(if *boolean {
                         "true".parse().unwrap()
                     } else {
                         "false".parse().unwrap()
                     });
-                } else if let Types::Array(_, _, false) = &args[0] {
-                    return Types::String(get_printable_form(&args[0]));
+                } else if let ParserInstr::Array(_, _, false) = &args[0] {
+                    return ParserInstr::String(get_printable_form(&args[0]));
                 }
                 error(
                     &format!("Cannot convert {} to String", get_printable_type!(&args[0])),
@@ -70,13 +70,13 @@ pub fn preprocess(
                 );
             } else if block.name == "float" {
                 assert_args_number!("float", args.len(), 1);
-                if let Types::String(str) = &args[0] {
-                    return Types::Float(str.parse::<f64>().unwrap_or_else(|_| {
+                if let ParserInstr::String(str) = &args[0] {
+                    return ParserInstr::Float(str.parse::<f64>().unwrap_or_else(|_| {
                         error(&format!("Cannot convert String '{str}' to Float",), "");
                         std::process::exit(1)
                     }));
-                } else if let Types::Integer(int) = &args[0] {
-                    return Types::Float(*int as f64);
+                } else if let ParserInstr::Integer(int) = &args[0] {
+                    return ParserInstr::Float(*int as f64);
                 }
                 error(
                     &format!("Cannot convert {} to Float", get_printable_type!(&args[0])),
@@ -84,7 +84,7 @@ pub fn preprocess(
                 );
             }
 
-            let target_function: &(String, &[String], &[Types]) = functions
+            let target_function: &(String, &[String], &[ParserInstr]) = functions
                 .iter()
                 .find(|func| func.0 == *block.name)
                 .unwrap_or_else(|| {
@@ -92,7 +92,7 @@ pub fn preprocess(
                     std::process::exit(1)
                 });
             assert_args_number!(block.name, args.len(), target_function.1.len());
-            let mut target_args: Vec<(String, Types)> = target_function
+            let mut target_args: Vec<(String, ParserInstr)> = target_function
                 .1
                 .iter()
                 .enumerate()
@@ -101,9 +101,9 @@ pub fn preprocess(
             return process_lines(target_function.2, &mut target_args, functions);
         }
         // Types::NamespaceFunctionCall(ref namespace, ref y, ref z) => {
-        Types::NamespaceFunctionCall(ref block) => {
+        ParserInstr::NamespaceFunctionCall(ref block) => {
             // execute "namespace functions"
-            let args: Vec<Types> = split_vec_box(&block.args, Types::Separator)
+            let args: Vec<ParserInstr> = split_vec_box(&block.args, ParserInstr::Separator)
                 .iter()
                 .map(|w| process_stack(w, variables, functions))
                 .collect();
@@ -120,13 +120,13 @@ pub fn preprocess(
             );
         }
 
-        Types::Priority(ref calc) => {
+        ParserInstr::Priority(ref calc) => {
             // execute content inside parentheses before all the other content in the second loop
             return process_stack(calc, variables, functions);
         }
-        Types::Array(ref y, true, false) => {
+        ParserInstr::Array(ref y, true, false) => {
             // compute final value of arrays
-            let mut new_array: Vec<Types> = Vec::new();
+            let mut new_array: Vec<ParserInstr> = Vec::new();
             for element in y {
                 new_array.push(process_stack(
                     std::slice::from_ref(element),
@@ -134,14 +134,15 @@ pub fn preprocess(
                     functions,
                 ));
             }
-            return Types::Array(new_array, false, false);
+            return ParserInstr::Array(new_array, false, false);
         }
-        Types::Array(ref y, false, true) => {
+        ParserInstr::Array(ref y, false, true) => {
             // matches multiple arrays following one another => implies array indexing
-            let arrays: &Vec<Types> = y;
-            let target_array: Types = process_stack(&[arrays[0].clone()], variables, functions);
+            let arrays: &Vec<ParserInstr> = y;
+            let target_array: ParserInstr =
+                process_stack(&[arrays[0].clone()], variables, functions);
             // 1 - matches if the contents of the array have yet to be fully evaluated
-            if let Types::Array(ref target_arr, true, false) = target_array {
+            if let ParserInstr::Array(ref target_arr, true, false) = target_array {
                 // compute the "final" value of the first/target array
                 let mut array = Vec::new();
                 for element in target_arr {
@@ -151,10 +152,10 @@ pub fn preprocess(
                         functions,
                     ));
                 }
-                let mut output = Types::Null;
+                let mut output = ParserInstr::Null;
                 // iterate over every array following the first one => they are indexes
                 for target_index in arrays.iter().skip(1) {
-                    if let Types::Array(ref target_index_arr, true, false) = target_index {
+                    if let ParserInstr::Array(ref target_index_arr, true, false) = target_index {
                         let mut index_array = Vec::new();
                         for element in target_index_arr {
                             index_array.push(process_stack(
@@ -165,15 +166,16 @@ pub fn preprocess(
                         }
 
                         if index_array.len() == 1 {
-                            if let Types::Integer(intg) = index_array[0] {
-                                if output == Types::Null {
+                            if let ParserInstr::Integer(intg) = index_array[0] {
+                                if output == ParserInstr::Null {
                                     output = array[intg as usize].clone();
                                 } else {
                                     log!("{:?}OUTPUT", output);
-                                    if let Types::Array(sub_arr, _, false) = output.clone() {
+                                    if let ParserInstr::Array(sub_arr, _, false) = output.clone() {
                                         output = sub_arr[intg as usize].clone();
-                                    } else if let Types::String(ref sub_str) = output.clone() {
-                                        output = Types::String(
+                                    } else if let ParserInstr::String(ref sub_str) = output.clone()
+                                    {
+                                        output = ParserInstr::String(
                                             sub_str
                                                 .chars()
                                                 .nth(intg as usize)
@@ -209,11 +211,11 @@ pub fn preprocess(
                     }
                 }
                 return output;
-            } else if let Types::Array(ref target_arr, false, false) = target_array {
+            } else if let ParserInstr::Array(ref target_arr, false, false) = target_array {
                 // 2 - matches if contents of target array have already been fully evaluated and the array only contains raw/basic values
-                let mut output = Types::Null;
+                let mut output = ParserInstr::Null;
                 for target_index in arrays.iter().skip(1) {
-                    if let Types::Array(ref target_index_arr, true, false) = target_index {
+                    if let ParserInstr::Array(ref target_index_arr, true, false) = target_index {
                         let mut index_array = Vec::new();
                         for element in target_index_arr {
                             index_array.push(process_stack(
@@ -224,15 +226,15 @@ pub fn preprocess(
                         }
 
                         if index_array.len() == 1 {
-                            if let Types::Integer(intg) = index_array[0] {
-                                if output == Types::Null {
+                            if let ParserInstr::Integer(intg) = index_array[0] {
+                                if output == ParserInstr::Null {
                                     output = target_arr[intg as usize].clone();
                                 } else {
                                     log!("{:?}OUTPUT", output);
-                                    if let Types::Array(ref sub_arr, _, false) = &output {
+                                    if let ParserInstr::Array(ref sub_arr, _, false) = &output {
                                         output = sub_arr[intg as usize].clone();
-                                    } else if let Types::String(ref sub_str) = &output {
-                                        output = Types::String(
+                                    } else if let ParserInstr::String(ref sub_str) = &output {
+                                        output = ParserInstr::String(
                                             sub_str
                                                 .chars()
                                                 .nth(intg as usize)
@@ -268,11 +270,11 @@ pub fn preprocess(
                     }
                 }
                 return output;
-            } else if let Types::String(ref str) = target_array {
+            } else if let ParserInstr::String(ref str) = target_array {
                 // 3 - matches if "array" is a string => returns a letter
-                let mut output = Types::Null;
+                let mut output = ParserInstr::Null;
                 for target_index in arrays.iter().skip(1) {
-                    if let Types::Array(ref target_index_arr, true, false) = target_index {
+                    if let ParserInstr::Array(ref target_index_arr, true, false) = target_index {
                         let mut index_array = Vec::new();
                         for element in target_index_arr {
                             index_array.push(process_stack(
@@ -283,9 +285,9 @@ pub fn preprocess(
                         }
 
                         if index_array.len() == 1 {
-                            if let Types::Integer(intg) = index_array[0] {
-                                if output == Types::Null {
-                                    output = Types::String(
+                            if let ParserInstr::Integer(intg) = index_array[0] {
+                                if output == ParserInstr::Null {
+                                    output = ParserInstr::String(
                                         str.chars()
                                             .nth(intg as usize)
                                             .unwrap_or_else(|| {
@@ -299,10 +301,12 @@ pub fn preprocess(
                                             .parse()
                                             .unwrap(),
                                     );
-                                } else if let Types::Array(ref sub_arr, _, false) = output.clone() {
+                                } else if let ParserInstr::Array(ref sub_arr, _, false) =
+                                    output.clone()
+                                {
                                     output = sub_arr[intg as usize].clone();
-                                } else if let Types::String(ref sub_str) = output.clone() {
-                                    output = Types::String(
+                                } else if let ParserInstr::String(ref sub_str) = output.clone() {
+                                    output = ParserInstr::String(
                                         sub_str
                                             .chars()
                                             .nth(intg as usize)
@@ -341,7 +345,7 @@ pub fn preprocess(
             );
         }
 
-        _ => return Types::Null,
+        _ => return ParserInstr::Null,
     }
-    Types::Null
+    ParserInstr::Null
 }

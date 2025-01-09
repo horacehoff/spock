@@ -1,15 +1,15 @@
 use crate::error_msg;
 use crate::get_printable_type;
-use crate::parser::{Operator, Types};
+use crate::parser::{Operator, ParserInstr};
 use crate::util::error;
 // use smartstring::alias::String;
 
 // #[inline(always)]
-pub fn string_ops(x: &String, output: Types, current_operator: Operator) -> Types {
-    if let Types::String(value) = output {
+pub fn string_ops(x: &String, output: ParserInstr, current_operator: Operator) -> ParserInstr {
+    if let ParserInstr::String(value) = output {
         match current_operator {
-            Operator::Add => return Types::String(format!("{value}{x}")),
-            Operator::Equal | Operator::NotEqual => return Types::Bool(value.eq(x)),
+            Operator::Add => return ParserInstr::String(format!("{value}{x}")),
+            Operator::Equal | Operator::NotEqual => return ParserInstr::Bool(value.eq(x)),
             _ => {
                 error(
                     &format!(
@@ -19,16 +19,16 @@ pub fn string_ops(x: &String, output: Types, current_operator: Operator) -> Type
                 );
             }
         }
-        return Types::Null;
-    } else if let Types::Integer(value) = output {
+        return ParserInstr::Null;
+    } else if let ParserInstr::Integer(value) = output {
         if current_operator == Operator::Multiply {
-            return Types::String(x.repeat(value as usize).parse().unwrap());
+            return ParserInstr::String(x.repeat(value as usize).parse().unwrap());
         }
         error(
             &format!("Cannot perform operation '{current_operator:?}' between Integer and String"),
             "",
         );
-        return Types::Null;
+        return ParserInstr::Null;
     }
     error(
         &format!(
@@ -38,7 +38,7 @@ pub fn string_ops(x: &String, output: Types, current_operator: Operator) -> Type
         ),
         "",
     );
-    Types::Null
+    ParserInstr::Null
 }
 
 pub fn to_title_case(text: &str) -> String {
@@ -59,15 +59,15 @@ macro_rules! string_props {
             // TRANSFORM
             "uppercase" => {
                 assert_args_number!("uppercase", $args.len(), 0);
-                $output = Types::String($str.to_uppercase().parse().unwrap());
+                $output = ParserInstr::String($str.to_uppercase().parse().unwrap());
             }
             "lowercase" => {
                 assert_args_number!("lowercase", $args.len(), 0);
-                $output = Types::String($str.to_lowercase().parse().unwrap());
+                $output = ParserInstr::String($str.to_lowercase().parse().unwrap());
             }
             "capitalize" => {
                 assert_args_number!("capitalize", $args.len(), 0);
-                $output = Types::String(to_title_case($str));
+                $output = ParserInstr::String(to_title_case($str));
             }
             "replace" => {
                 assert_args_number!("replace", $args.len(), 2);
@@ -90,7 +90,7 @@ macro_rules! string_props {
             "toInt" => {
                 assert_args_number!("toInt", $args.len(), 0);
                 if $str.parse::<i64>().is_ok() {
-                    $output = Types::Integer($str.parse::<i64>().unwrap())
+                    $output = ParserInstr::Integer($str.parse::<i64>().unwrap())
                 } else {
                     error(
                         &format!("String '{}' cannot be converted to an Integer", $str),
@@ -101,7 +101,7 @@ macro_rules! string_props {
             "toFloat" => {
                 assert_args_number!("toFloat", $args.len(), 0);
                 if $str.parse::<f64>().is_ok() {
-                    $output = Types::Float($str.parse::<f64>().unwrap())
+                    $output = ParserInstr::Float($str.parse::<f64>().unwrap())
                 } else {
                     error(
                         &format!("String '{}' cannot be converted to an Integer", $str),
@@ -112,9 +112,9 @@ macro_rules! string_props {
             "toBool" => {
                 assert_args_number!("toBool", $args.len(), 0);
                 if $str.to_lowercase() == "true" {
-                    $output = Types::Bool(true)
+                    $output = ParserInstr::Bool(true)
                 } else if $str.to_lowercase() == "false" {
-                    $output = Types::Bool(false)
+                    $output = ParserInstr::Bool(false)
                 } else {
                     error(
                         &format!("String '{}' cannot be converted to a Boolean", $str),
@@ -136,15 +136,15 @@ macro_rules! string_props {
             }
             "trim" => {
                 assert_args_number!("trim", $args.len(), 0);
-                $output = Types::String($str.trim().parse().unwrap());
+                $output = ParserInstr::String($str.trim().parse().unwrap());
             }
             "ltrim" => {
                 assert_args_number!("ltrim", $args.len(), 0);
-                $output = Types::String($str.trim_start().parse().unwrap());
+                $output = ParserInstr::String($str.trim_start().parse().unwrap());
             }
             "rtrim" => {
                 assert_args_number!("rtrim", $args.len(), 0);
-                $output = Types::String($str.trim_end().parse().unwrap());
+                $output = ParserInstr::String($str.trim_end().parse().unwrap());
             }
             _ => error(&format!("Unknown function '{}' for object String", $x), ""),
         }
