@@ -1,4 +1,5 @@
 use crate::parser::{Instr, Operator, ParserInstr};
+use internment::Intern;
 // use smartstring::alias::String;
 // use smartstring::alias::
 
@@ -241,14 +242,13 @@ pub fn get_printable_form(x: &ParserInstr) -> String {
     }
 }
 
-pub fn print_form(x: &Instr, locals: &mut Vec<(u16, String)>) -> String {
+pub fn print_form(x: &Instr, locals: &mut Vec<(u16, Intern<String>)>) -> String {
     println!("LOCALS ARE {locals:?}");
     match x {
-        Instr::String(str) => {
-            locals
-                .remove(locals.iter().position(|(id, _)| id == str).unwrap())
-                .1
-        }
+        Instr::String(str) => locals
+            .remove(locals.iter().position(|(id, _)| id == str).unwrap())
+            .1
+            .to_string(),
         Instr::Float(ref float) => float.to_string().parse().unwrap(),
         Instr::Integer(ref int) => int.to_string().parse().unwrap(),
         Instr::Bool(ref boolean) => boolean.to_string().parse().unwrap(),

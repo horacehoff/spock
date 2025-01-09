@@ -11,13 +11,13 @@ pub type Functions = Vec<(
     Intern<String>,
     Vec<Intern<String>>,
     Vec<Instr>,
-    Vec<(u16, String)>,
+    Vec<(u16, Intern<String>)>,
 )>;
 pub type FunctionsSlice = [(
     Intern<String>,
     Vec<Intern<String>>,
     Vec<Instr>,
-    Vec<(u16, String)>,
+    Vec<(u16, Intern<String>)>,
 )];
 
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
@@ -36,10 +36,11 @@ pub enum Instr {
     If(u16),
     Integer(i32),
     Float(f32),
+    // u16 represents str below this comment
     VarStore(u16),
     VarUpdate(u16),
     FuncCall(u16),
-    VariableIdentifier(Intern<String>),
+    VariableIdentifier(u16),
     String(u16),
 }
 
