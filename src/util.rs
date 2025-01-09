@@ -243,7 +243,7 @@ pub fn get_printable_form(x: &ParserInstr) -> String {
 }
 
 pub fn print_form(x: &Instr, locals: &mut Vec<(u16, Intern<String>)>) -> String {
-    println!("LOCALS ARE {locals:?}");
+    // println!("LOCALS ARE {locals:?}");
     match x {
         Instr::String(str) => locals
             .remove(locals.iter().position(|(id, _)| id == str).unwrap())

@@ -678,6 +678,7 @@ fn execute(
             Instr::VarStore(str) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
                 let index = locals.iter().position(|(id, _)| *id == str).unwrap();
+                println!("REMOVING INDEX {index}");
                 if let Some(elem) = variables
                     .iter_mut()
                     .find(|(id, _)| **id == *locals.get(index).unwrap().1)
@@ -712,6 +713,7 @@ fn execute(
                 if depth == 0 {
                     // println!("ARGS REG IS {args_register:?}");
                     let index = locals.iter().position(|(id, _)| *id == name).unwrap();
+                    println!("REMOVING INDEX {index}");
                     let func_name = locals.swap_remove(index).1;
                     if *func_name == "print" {
                         println!("{}", print_form(&args_list.remove(0), locals))
