@@ -20,7 +20,7 @@ unroll = "0.1.5"
 snmalloc-rs = { version = "0.3.7", features = ["native-cpu", "lto", "usecxx17"] }
 internment = { version = "0.8.6", features = ["serde", "arc"] }
 #compact_str = { version = "0.8.0", features = ["serde"] }
-colored = "2.2.0"
+colored = "3.0.0"
 
 
 [profile.dev]

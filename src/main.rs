@@ -525,20 +525,20 @@ fn pre_match(
     variables: &mut Vec<(Intern<String>, Instr)>,
     depth: u8,
     func_args: &mut Vec<Instr>,
-    functions: &Vec<(
+    functions: &[(
         Intern<String>,
         Vec<Intern<String>>,
         Vec<Instr>,
         Vec<(u16, String)>,
-    )>,
+    )],
 ) -> Instr {
     match input {
-        Instr::VariableIdentifier(ref id) => *variables
+        Instr::VariableIdentifier(id) => *variables
             .iter()
-            .find_map(|(x, instr)| if x == id { Some(instr) } else { None })
+            .find_map(|(x, instr)| if *x == id { Some(instr) } else { None })
             .unwrap_or_else(|| panic!("{}", error_msg!(format!("Variable '{id}' does not exist")))),
         // Function call that should return something (because depth > 0)
-        Instr::FuncCall(ref name) => {
+        Instr::FuncCall(name) => {
             if depth == 0 {
                 return input;
             }
@@ -565,7 +565,7 @@ fn pre_match(
                 _ => {
                     if let Some(func) = functions
                         .iter()
-                        .find(|(func_name, _, _, _)| name == func_name)
+                        .find(|(func_name, _, _, _)| name == *func_name)
                     {
                         let expected_args = &func.1;
                         if expected_args.len() != func_args.len() {
@@ -610,12 +610,12 @@ fn get_biggest_locals_id(locals: &Vec<(u16, String)>) -> u16 {
 // #[inline(never)]
 fn execute(
     lines: &Vec<Instr>,
-    functions: &Vec<(
+    functions: &[(
         Intern<String>,
         Vec<Intern<String>>,
         Vec<Instr>,
         Vec<(u16, String)>,
-    )>,
+    )],
     args: Vec<(Intern<String>, Instr)>,
     locals: &mut Vec<(u16, String)>,
 ) -> Instr {
@@ -645,45 +645,45 @@ fn execute(
             Instr::StopStore => {
                 depth -= 1;
             }
-            Instr::Operation(ref op) => {
+            Instr::Operation(op) => {
                 if depth > 0 {
-                    operator.push(*op)
+                    operator.push(op)
                 }
             }
             // VARIABLE IS ALREADY STORED
-            Instr::VarUpdate(ref str) => {
-                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == *str) {
+            Instr::VarUpdate(str) => {
+                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) {
                     *elem = (elem.0, stack.pop().unwrap())
                 } else {
                     error(&format!("Unknown variable '{}'", str.red()), "");
                 }
             }
             // VARIABLE DECLARATION
-            Instr::VarStore(ref str) => {
-                if let Some(idx) = variables.iter().position(|(name, _)| name == str) {
+            Instr::VarStore(str) => {
+                if let Some(idx) = variables.iter().position(|(name, _)| *name == str) {
                     variables.get_mut(idx).unwrap().1 = stack.pop().unwrap();
                 }
-                variables.push((*str, stack.pop().unwrap()))
+                variables.push((str, stack.pop().unwrap()))
             }
-            Instr::If(ref jump_size) => {
+            Instr::If(jump_size) => {
                 let condition = stack.pop().unwrap();
                 if condition == Instr::Bool(false) {
-                    line += *jump_size as usize;
+                    line += jump_size as usize;
                 } else if condition != Instr::Bool(true) {
                     error(&format!("'{:?}' is not a boolean", &condition), "");
                 }
             }
-            Instr::Jump(ref jump_size, ref neg) => {
-                if *neg {
-                    line -= *jump_size as usize;
+            Instr::Jump(jump_size, neg) => {
+                if neg {
+                    line -= jump_size as usize;
                     continue;
                 }
-                line += *jump_size as usize;
+                line += jump_size as usize;
                 continue;
             }
             Instr::StoreArg => args_list.push(stack.pop().unwrap()),
             // Function call that shouldn't return anything
-            Instr::FuncCall(ref name) => {
+            Instr::FuncCall(name) => {
                 if depth == 0 {
                     // println!("ARGS REG IS {args_register:?}");
                     let func_name = name.as_str();
@@ -699,8 +699,8 @@ fn execute(
                 return stack.pop().unwrap();
             }
             // PRIMITIVE TYPES
-            Instr::Integer(ref int) => {
-                check_register_adress!(Instr::Integer(*int), depth, line, stack);
+            Instr::Integer(int) => {
+                check_register_adress!(Instr::Integer(int), depth, line, stack);
                 let index = stack.len() - 1;
                 if let Some(elem) = stack.get_mut(index) {
                     match elem {
@@ -711,21 +711,21 @@ fn execute(
                                 Operator::Divide => {
                                     assert_ne!(
                                         int,
-                                        &0,
+                                        0,
                                         "{}",
                                         error_msg!(format!("Division by zero ({int} / 0)"))
                                     );
-                                    *elem = math_to_type!(*parent as f64 / *int as f64);
+                                    *elem = math_to_type!(*parent as f64 / int as f64);
                                 }
                                 Operator::Multiply => *elem = Instr::Integer(*parent * int),
-                                Operator::Power => *elem = Instr::Integer(parent.pow(*int as u32)),
+                                Operator::Power => *elem = Instr::Integer(parent.pow(int as u32)),
                                 Operator::Modulo => *elem = Instr::Integer(*parent % int),
-                                Operator::Equal => *elem = Instr::Bool(parent == int),
-                                Operator::NotEqual => *elem = Instr::Bool(parent != int),
-                                Operator::Inferior => *elem = Instr::Bool(*parent < *int),
-                                Operator::InferiorEqual => *elem = Instr::Bool(*parent <= *int),
-                                Operator::Superior => *elem = Instr::Bool(*parent > *int),
-                                Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= *int),
+                                Operator::Equal => *elem = Instr::Bool(*parent == int),
+                                Operator::NotEqual => *elem = Instr::Bool(*parent != int),
+                                Operator::Inferior => *elem = Instr::Bool(*parent < int),
+                                Operator::InferiorEqual => *elem = Instr::Bool(*parent <= int),
+                                Operator::Superior => *elem = Instr::Bool(*parent > int),
+                                Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= int),
 
                                 // AND
                                 // OR
@@ -741,26 +741,26 @@ fn execute(
                             }
                         }
                         Instr::Float(parent) => match operator.pop().unwrap() {
-                            Operator::Add => *elem = Instr::Float(*parent + *int as f64),
-                            Operator::Sub => *elem = Instr::Float(*parent - *int as f64),
+                            Operator::Add => *elem = Instr::Float(*parent + int as f64),
+                            Operator::Sub => *elem = Instr::Float(*parent - int as f64),
                             Operator::Divide => {
                                 assert_ne!(
                                     int,
-                                    &0,
+                                    0,
                                     "{}",
                                     error_msg!(format!("Division by zero ({int} / 0)"))
                                 );
-                                *elem = Instr::Float(*parent / *int as f64)
+                                *elem = Instr::Float(*parent / int as f64)
                             }
-                            Operator::Multiply => *elem = Instr::Float(*parent * *int as f64),
-                            Operator::Power => *elem = Instr::Float(parent.powf(*int as f64)),
-                            Operator::Modulo => *elem = Instr::Float(*parent % *int as f64),
-                            Operator::Equal => *elem = Instr::Bool(*parent == *int as f64),
-                            Operator::NotEqual => *elem = Instr::Bool(*parent != *int as f64),
-                            Operator::Inferior => *elem = Instr::Bool(*parent < *int as f64),
-                            Operator::InferiorEqual => *elem = Instr::Bool(*parent <= *int as f64),
-                            Operator::Superior => *elem = Instr::Bool(*parent > *int as f64),
-                            Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= *int as f64),
+                            Operator::Multiply => *elem = Instr::Float(*parent * int as f64),
+                            Operator::Power => *elem = Instr::Float(parent.powf(int as f64)),
+                            Operator::Modulo => *elem = Instr::Float(*parent % int as f64),
+                            Operator::Equal => *elem = Instr::Bool(*parent == int as f64),
+                            Operator::NotEqual => *elem = Instr::Bool(*parent != int as f64),
+                            Operator::Inferior => *elem = Instr::Bool(*parent < int as f64),
+                            Operator::InferiorEqual => *elem = Instr::Bool(*parent <= int as f64),
+                            Operator::Superior => *elem = Instr::Bool(*parent > int as f64),
+                            Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= int as f64),
                             other => error(
                                 &format!(
                                     "Operation not supported:\n{} {} {}",
@@ -775,7 +775,7 @@ fn execute(
                             Operator::Multiply => {
                                 let index = locals.iter().position(|(id, _)| id == parent).unwrap();
                                 let str = locals.get_mut(index).unwrap();
-                                str.1 = str.1.repeat(*int as usize);
+                                str.1 = str.1.repeat(int as usize);
                             }
                             other => error(
                                 &format!(
@@ -796,8 +796,8 @@ fn execute(
                     );
                 }
             }
-            Instr::Float(ref float) => {
-                check_register_adress!(Instr::Float(*float), depth, line, stack);
+            Instr::Float(float) => {
+                check_register_adress!(Instr::Float(float), depth, line, stack);
                 let index = stack.len() - 1;
                 if let Some(elem) = stack.get_mut(index) {
                     match elem {
@@ -808,28 +808,28 @@ fn execute(
                                 Operator::Divide => {
                                     assert_ne!(
                                         float,
-                                        &0.0,
+                                        0.0,
                                         "{}",
                                         error_msg!(format!("Division by zero ({float} / 0)"))
                                     );
-                                    *elem = math_to_type!(*parent as f64 / *float);
+                                    *elem = math_to_type!(*parent as f64 / float);
                                 }
                                 Operator::Multiply => *elem = Instr::Float(*parent as f64 * float),
                                 Operator::Power => {
-                                    *elem = Instr::Float(parent.pow(*float as u32) as f64)
+                                    *elem = Instr::Float(parent.pow(float as u32) as f64)
                                 }
                                 Operator::Modulo => *elem = Instr::Float(*parent as f64 % float),
-                                Operator::Equal => *elem = Instr::Bool(*parent as f64 == *float),
-                                Operator::NotEqual => *elem = Instr::Bool(*parent as f64 != *float),
+                                Operator::Equal => *elem = Instr::Bool(*parent as f64 == float),
+                                Operator::NotEqual => *elem = Instr::Bool(*parent as f64 != float),
                                 Operator::Inferior => {
-                                    *elem = Instr::Bool((*parent as f64) < (*float))
+                                    *elem = Instr::Bool((*parent as f64) < (float))
                                 }
                                 Operator::InferiorEqual => {
-                                    *elem = Instr::Bool(*parent as f64 <= *float)
+                                    *elem = Instr::Bool(*parent as f64 <= float)
                                 }
-                                Operator::Superior => *elem = Instr::Bool(*parent as f64 > *float),
+                                Operator::Superior => *elem = Instr::Bool(*parent as f64 > float),
                                 Operator::SuperiorEqual => {
-                                    *elem = Instr::Bool(*parent as f64 >= *float)
+                                    *elem = Instr::Bool(*parent as f64 >= float)
                                 }
 
                                 // AND
@@ -847,26 +847,26 @@ fn execute(
                         }
                         Instr::Float(parent) => {
                             match operator.pop().unwrap() {
-                                Operator::Add => *elem = Instr::Float(*parent + *float),
-                                Operator::Sub => *elem = Instr::Float(*parent - *float),
+                                Operator::Add => *elem = Instr::Float(*parent + float),
+                                Operator::Sub => *elem = Instr::Float(*parent - float),
                                 Operator::Divide => {
                                     assert_ne!(
                                         float,
-                                        &0.0,
+                                        0.0,
                                         "{}",
                                         error_msg!(format!("Division by zero ({float} / 0)"))
                                     );
-                                    *elem = Instr::Float(*parent / *float)
+                                    *elem = Instr::Float(*parent / float)
                                 }
-                                Operator::Multiply => *elem = Instr::Float(*parent * *float),
-                                Operator::Power => *elem = Instr::Float(parent.powf(*float)),
-                                Operator::Modulo => *elem = Instr::Float(*parent % *float),
-                                Operator::Equal => *elem = Instr::Bool(*parent == *float),
-                                Operator::NotEqual => *elem = Instr::Bool(*parent != *float),
-                                Operator::Inferior => *elem = Instr::Bool(*parent < *float),
-                                Operator::InferiorEqual => *elem = Instr::Bool(*parent <= *float),
-                                Operator::Superior => *elem = Instr::Bool(*parent > *float),
-                                Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= *float),
+                                Operator::Multiply => *elem = Instr::Float(*parent * float),
+                                Operator::Power => *elem = Instr::Float(parent.powf(float)),
+                                Operator::Modulo => *elem = Instr::Float(*parent % float),
+                                Operator::Equal => *elem = Instr::Bool(*parent == float),
+                                Operator::NotEqual => *elem = Instr::Bool(*parent != float),
+                                Operator::Inferior => *elem = Instr::Bool(*parent < float),
+                                Operator::InferiorEqual => *elem = Instr::Bool(*parent <= float),
+                                Operator::Superior => *elem = Instr::Bool(*parent > float),
+                                Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= float),
 
                                 // AND
                                 // OR
@@ -946,8 +946,8 @@ fn execute(
                     );
                 }
             }
-            Instr::Bool(ref bool) => {
-                check_register_adress!(Instr::Bool(*bool), depth, line, stack);
+            Instr::Bool(bool) => {
+                check_register_adress!(Instr::Bool(bool), depth, line, stack);
             }
             _ => {}
         }

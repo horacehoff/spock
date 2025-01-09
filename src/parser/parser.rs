@@ -65,7 +65,7 @@ pub struct FunctionPropertyCallBlock {
     pub args: Box<[ParserInstr]>,
 }
 
-#[repr(u8)]
+// #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum Instr {
     StopStore,
@@ -171,6 +171,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
 
     // println!("{:?}", pair);
 
+    // let inner = pair.clone().into_inner();
     match pair.as_rule() {
         Rule::integer => output.push(ParserInstr::Integer(pair.as_str().parse::<i64>().unwrap())),
         Rule::float => output.push(ParserInstr::Float(pair.as_str().parse::<f64>().unwrap())),
@@ -438,7 +439,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
 
     if recursive {
         // Recursively process the children
-        for inner_pair in pair.into_inner() {
+        for inner_pair in pair.clone().into_inner() {
             output.append(&mut parse_expression(inner_pair)); // Increase indent for child nodes
         }
     }
