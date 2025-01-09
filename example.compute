@@ -4,6 +4,7 @@ return x;
 
 func main() {
 let count = 0;
+print(count);
 let limit = 1000000;
 let result = 1;
 while count < limit {

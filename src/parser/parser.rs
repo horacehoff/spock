@@ -21,6 +21,7 @@ pub type FunctionsSlice = [(
 )];
 
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
+// #[repr(u)]
 pub enum Instr {
     StopStore,
     Null,
@@ -33,11 +34,11 @@ pub enum Instr {
     Jump(u16, bool),
     // JUMP SIZE IF CONDITION IS FALSE
     If(u16),
-    Integer(i64),
-    Float(f64),
-    VarStore(Intern<String>),
-    VarUpdate(Intern<String>),
-    FuncCall(Intern<String>),
+    Integer(i32),
+    Float(f32),
+    VarStore(u16),
+    VarUpdate(u16),
+    FuncCall(u16),
     VariableIdentifier(Intern<String>),
     String(u16),
 }
@@ -103,8 +104,8 @@ pub struct FunctionPropertyCallBlock {
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ParserInstr {
-    Integer(i64),
-    Float(f64),
+    Integer(i32),
+    Float(f32),
     String(String),
     Bool(bool),
     // ARRAY - IS_PARSED - IS_SUITE
@@ -185,8 +186,8 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
 
     // let inner = pair.clone().into_inner();
     match pair.as_rule() {
-        Rule::integer => output.push(ParserInstr::Integer(pair.as_str().parse::<i64>().unwrap())),
-        Rule::float => output.push(ParserInstr::Float(pair.as_str().parse::<f64>().unwrap())),
+        Rule::integer => output.push(ParserInstr::Integer(pair.as_str().parse::<i32>().unwrap())),
+        Rule::float => output.push(ParserInstr::Float(pair.as_str().parse::<f32>().unwrap())),
         Rule::string => output.push(ParserInstr::String(
             pair.as_str()
                 .trim_end_matches('\"')

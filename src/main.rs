@@ -433,9 +433,15 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<(u16, String)
                 let result = simplify(Vec::from(y), true, locals);
                 test.extend(result);
                 if block.is_declared {
-                    test.push(Instr::VarUpdate(Intern::<String>::from(x)));
+                    let len = get_biggest_locals_id(locals);
+                    locals.push((len, x));
+                    test.push(Instr::VarUpdate(len));
+                    // test.push(Instr::VarUpdate(Intern::<String>::from(x)));
                 } else {
-                    test.push(Instr::VarStore(Intern::<String>::from(x)));
+                    let len = get_biggest_locals_id(locals);
+                    locals.push((len, x));
+                    test.push(Instr::VarStore(len));
+                    // test.push(Instr::VarStore(Intern::<String>::from(x)));
                 }
             }
             ParserInstr::FunctionCall(block) => {
@@ -446,7 +452,10 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<(u16, String)
                     test.extend(result);
                     test.push(Instr::StoreArg);
                 }
-                test.push(Instr::FuncCall(Intern::<String>::from_ref(&name)));
+                let len = get_biggest_locals_id(locals);
+                locals.push((len, name));
+                test.push(Instr::FuncCall(len));
+                // test.push(Instr::FuncCall(Intern::<String>::from_ref(&name)));
             }
             ParserInstr::FunctionReturn(ret) => {
                 let result = simplify(Vec::from(ret), true, locals);
@@ -498,7 +507,7 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<(u16, String)
 
 macro_rules! check_register_adress {
     ($elem: expr, $depth: expr, $i: expr, $register: expr) => {
-        if $register.len() < $depth as usize {
+        if ($register.len() as u16) < $depth {
             $register.push($elem);
             $i += 1;
             continue;
@@ -513,6 +522,7 @@ fn pre_match(
     depth: u16,
     func_args: &mut Vec<Instr>,
     functions: &FunctionsSlice,
+    locals: &mut Vec<(u16, String)>,
 ) -> Instr {
     match input {
         Instr::VariableIdentifier(id) => *variables
@@ -524,7 +534,8 @@ fn pre_match(
             if depth == 0 {
                 return input;
             }
-            match name.as_str() {
+            let index = locals.iter().position(|(id, _)| *id == name).unwrap();
+            match locals.get(index).unwrap().1.as_str() {
                 // "str" => {
                 //     assert_args_number!("str", func_args.len(), 1);
                 //     match func_args.remove(0) {
@@ -545,38 +556,38 @@ fn pre_match(
                 //     }
                 // }
                 _ => {
-                    if let Some(func) = functions
-                        .iter()
-                        .find(|(func_name, _, _, _)| name == *func_name)
-                    {
-                        let expected_args = &func.1;
-                        if expected_args.len() != func_args.len() {
-                            error(
-                                &format!(
-                                    "Function '{}' expected {} arguments, but received {}",
-                                    func.0,
-                                    expected_args.len(),
-                                    func_args.len()
-                                ),
-                                "",
-                            );
-                        }
-
-                        let args: Vec<(Intern<String>, Instr)> = expected_args
-                            .iter()
-                            .enumerate()
-                            .map(|(x, y)| (*y, func_args.remove(x)))
-                            .collect();
-                        // log!("ARGS IS {args:?}");
-                        // log!("FUNCTION ARGS IS {func_args:?}");
-                        // let return_obj = execute(&func.2, functions, args);
-                        // println!("RETURNING {return_obj:?}");
-                        // return return_obj;
-                        Instr::Null
-                    } else {
-                        error(&format!("Unknown function '{}'", name.red()), "");
-                        panic!()
-                    }
+                    // if let Some(func) = functions
+                    //     .iter()
+                    //     .find(|(func_name, _, _, _)| name == *func_name)
+                    // {
+                    //     let expected_args = &func.1;
+                    //     if expected_args.len() != func_args.len() {
+                    //         error(
+                    //             &format!(
+                    //                 "Function '{}' expected {} arguments, but received {}",
+                    //                 func.0,
+                    //                 expected_args.len(),
+                    //                 func_args.len()
+                    //             ),
+                    //             "",
+                    //         );
+                    //     }
+                    //
+                    //     let args: Vec<(Intern<String>, Instr)> = expected_args
+                    //         .iter()
+                    //         .enumerate()
+                    //         .map(|(x, y)| (*y, func_args.remove(x)))
+                    //         .collect();
+                    // log!("ARGS IS {args:?}");
+                    // log!("FUNCTION ARGS IS {func_args:?}");
+                    // let return_obj = execute(&func.2, functions, args);
+                    // println!("RETURNING {return_obj:?}");
+                    // return return_obj;
+                    Instr::Null
+                    // } else {
+                    //     error(&format!("Unknown function '{}'", name.red()), "");
+                    //     panic!()
+                    // }
                 }
             }
         }
@@ -589,7 +600,6 @@ fn get_biggest_locals_id(locals: &[(u16, String)]) -> u16 {
     *locals.iter().map(|(id, _)| id).max().unwrap_or(&0) + 1
 }
 
-// #[inline(never)]
 fn execute(
     lines: &[Instr],
     functions: &FunctionsSlice,
@@ -597,7 +607,7 @@ fn execute(
     locals: &mut Vec<(u16, String)>,
 ) -> Instr {
     // keeps track of items
-    let mut stack: Vec<Instr> = Vec::new();
+    let mut stack: Vec<Instr> = Vec::with_capacity(4);
     // keeps track of function args
     let mut args_list: Vec<Instr> = Vec::new();
     // keeps track of current "storing" depth (e.g STORE,...,STORE,... will have depth=2 after the second "STORE")
@@ -605,7 +615,7 @@ fn execute(
     let mut depth: u16 = 0;
     // keeps track of operators according to depth
     // unclear if a vec is needed
-    let mut operator: Vec<Operator> = Vec::new();
+    let mut operator: Vec<Operator> = Vec::with_capacity(4);
     // keeps track of variables
     let mut variables: Vec<(Intern<String>, Instr)> = args;
     let mut line: usize = 0;
@@ -617,6 +627,7 @@ fn execute(
             depth,
             &mut args_list,
             functions,
+            locals,
         ) {
             Instr::Store => depth += 1,
             Instr::StopStore => depth -= 1,
@@ -627,20 +638,37 @@ fn execute(
             }
             // VARIABLE IS ALREADY STORED
             Instr::VarUpdate(str) => {
-                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) {
+                assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
+                let index = locals.iter().position(|(id, _)| *id == str).unwrap();
+                if let Some(elem) = variables
+                    .iter_mut()
+                    .find(|(id, _)| **id == *locals.get(index).unwrap().1)
+                {
                     *elem = (elem.0, stack.pop().unwrap())
                 } else {
-                    error(&format!("Unknown variable '{}'", str.red()), "");
+                    error(
+                        &format!("Unknown variable '{}'", locals.get(index).unwrap().1.red()),
+                        "",
+                    );
                 }
             }
             // VARIABLE DECLARATION
             Instr::VarStore(str) => {
-                if let Some(idx) = variables.iter().position(|(name, _)| *name == str) {
-                    variables.get_mut(idx).unwrap().1 = stack.pop().unwrap();
+                assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
+                let index = locals.iter().position(|(id, _)| *id == str).unwrap();
+                if let Some(elem) = variables
+                    .iter_mut()
+                    .find(|(id, _)| **id == *locals.get(index).unwrap().1)
+                {
+                    *elem = (elem.0, stack.pop().unwrap())
                 }
-                variables.push((str, stack.pop().unwrap()))
+                variables.push((
+                    Intern::from(locals.swap_remove(index).1),
+                    stack.pop().unwrap(),
+                ))
             }
             Instr::If(jump_size) => {
+                assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
                 let condition = stack.pop().unwrap();
                 if condition == Instr::Bool(false) {
                     line += jump_size as usize;
@@ -661,7 +689,8 @@ fn execute(
             Instr::FuncCall(name) => {
                 if depth == 0 {
                     // println!("ARGS REG IS {args_register:?}");
-                    let func_name = name.as_str();
+                    let index = locals.iter().position(|(id, _)| *id == name).unwrap();
+                    let func_name = locals.swap_remove(index).1;
                     if func_name == "print" {
                         println!("{}", print_form(&args_list.remove(0), locals))
                     } else {
@@ -669,6 +698,7 @@ fn execute(
                 }
             }
             Instr::FuncReturn => {
+                assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
                 return stack.pop().unwrap();
             }
             // PRIMITIVE TYPES
@@ -688,7 +718,7 @@ fn execute(
                                         "{}",
                                         error_msg!(format!("Division by zero ({int} / 0)"))
                                     );
-                                    *elem = math_to_type!(*parent as f64 / int as f64);
+                                    *elem = math_to_type!(*parent as f32 / int as f32);
                                 }
                                 Operator::Multiply => *elem = Instr::Integer(*parent * int),
                                 Operator::Power => *elem = Instr::Integer(parent.pow(int as u32)),
@@ -714,8 +744,8 @@ fn execute(
                             }
                         }
                         Instr::Float(parent) => match operator.pop().unwrap() {
-                            Operator::Add => *elem = Instr::Float(*parent + int as f64),
-                            Operator::Sub => *elem = Instr::Float(*parent - int as f64),
+                            Operator::Add => *elem = Instr::Float(*parent + int as f32),
+                            Operator::Sub => *elem = Instr::Float(*parent - int as f32),
                             Operator::Divide => {
                                 assert_ne!(
                                     int,
@@ -723,17 +753,17 @@ fn execute(
                                     "{}",
                                     error_msg!(format!("Division by zero ({int} / 0)"))
                                 );
-                                *elem = Instr::Float(*parent / int as f64)
+                                *elem = Instr::Float(*parent / int as f32)
                             }
-                            Operator::Multiply => *elem = Instr::Float(*parent * int as f64),
-                            Operator::Power => *elem = Instr::Float(parent.powf(int as f64)),
-                            Operator::Modulo => *elem = Instr::Float(*parent % int as f64),
-                            Operator::Equal => *elem = Instr::Bool(*parent == int as f64),
-                            Operator::NotEqual => *elem = Instr::Bool(*parent != int as f64),
-                            Operator::Inferior => *elem = Instr::Bool(*parent < int as f64),
-                            Operator::InferiorEqual => *elem = Instr::Bool(*parent <= int as f64),
-                            Operator::Superior => *elem = Instr::Bool(*parent > int as f64),
-                            Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= int as f64),
+                            Operator::Multiply => *elem = Instr::Float(*parent * int as f32),
+                            Operator::Power => *elem = Instr::Float(parent.powf(int as f32)),
+                            Operator::Modulo => *elem = Instr::Float(*parent % int as f32),
+                            Operator::Equal => *elem = Instr::Bool(*parent == int as f32),
+                            Operator::NotEqual => *elem = Instr::Bool(*parent != int as f32),
+                            Operator::Inferior => *elem = Instr::Bool(*parent < int as f32),
+                            Operator::InferiorEqual => *elem = Instr::Bool(*parent <= int as f32),
+                            Operator::Superior => *elem = Instr::Bool(*parent > int as f32),
+                            Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= int as f32),
                             other => error(
                                 &format!(
                                     "Operation not supported:\n{} {} {}",
@@ -776,8 +806,8 @@ fn execute(
                     match elem {
                         Instr::Integer(parent) => {
                             match operator.pop().unwrap() {
-                                Operator::Add => *elem = Instr::Float(*parent as f64 + float),
-                                Operator::Sub => *elem = Instr::Float(*parent as f64 - float),
+                                Operator::Add => *elem = Instr::Float(*parent as f32 + float),
+                                Operator::Sub => *elem = Instr::Float(*parent as f32 - float),
                                 Operator::Divide => {
                                     assert_ne!(
                                         float,
@@ -785,24 +815,24 @@ fn execute(
                                         "{}",
                                         error_msg!(format!("Division by zero ({float} / 0)"))
                                     );
-                                    *elem = math_to_type!(*parent as f64 / float);
+                                    *elem = math_to_type!(*parent as f32 / float);
                                 }
-                                Operator::Multiply => *elem = Instr::Float(*parent as f64 * float),
+                                Operator::Multiply => *elem = Instr::Float(*parent as f32 * float),
                                 Operator::Power => {
-                                    *elem = Instr::Float(parent.pow(float as u32) as f64)
+                                    *elem = Instr::Float(parent.pow(float as u32) as f32)
                                 }
-                                Operator::Modulo => *elem = Instr::Float(*parent as f64 % float),
-                                Operator::Equal => *elem = Instr::Bool(*parent as f64 == float),
-                                Operator::NotEqual => *elem = Instr::Bool(*parent as f64 != float),
+                                Operator::Modulo => *elem = Instr::Float(*parent as f32 % float),
+                                Operator::Equal => *elem = Instr::Bool(*parent as f32 == float),
+                                Operator::NotEqual => *elem = Instr::Bool(*parent as f32 != float),
                                 Operator::Inferior => {
-                                    *elem = Instr::Bool((*parent as f64) < (float))
+                                    *elem = Instr::Bool((*parent as f32) < (float))
                                 }
                                 Operator::InferiorEqual => {
-                                    *elem = Instr::Bool(*parent as f64 <= float)
+                                    *elem = Instr::Bool(*parent as f32 <= float)
                                 }
-                                Operator::Superior => *elem = Instr::Bool(*parent as f64 > float),
+                                Operator::Superior => *elem = Instr::Bool(*parent as f32 > float),
                                 Operator::SuperiorEqual => {
-                                    *elem = Instr::Bool(*parent as f64 >= float)
+                                    *elem = Instr::Bool(*parent as f32 >= float)
                                 }
 
                                 // AND
