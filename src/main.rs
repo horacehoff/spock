@@ -540,7 +540,7 @@ fn pre_match(
             *variables
                 .iter()
                 .find_map(|(x, instr)| {
-                    if *x == locals.get(index).unwrap().1 {
+                    if *x == locals[index].1 {
                         Some(instr)
                     } else {
                         None
@@ -557,7 +557,7 @@ fn pre_match(
                 return input;
             }
             let index = locals.iter().position(|(id, _)| *id == name).unwrap();
-            match locals.get(index).unwrap().1.as_str() {
+            match locals[index].1.as_str() {
                 // "str" => {
                 //     assert_args_number!("str", func_args.len(), 1);
                 //     match func_args.remove(0) {
@@ -664,14 +664,11 @@ fn execute(
                 let index = locals.iter().position(|(id, _)| *id == str).unwrap();
                 if let Some(elem) = variables
                     .iter_mut()
-                    .find(|(id, _)| **id == *locals.get(index).unwrap().1)
+                    .find(|(id, _)| **id == *locals[index].1)
                 {
                     *elem = (elem.0, stack.pop().unwrap())
                 } else {
-                    error(
-                        &format!("Unknown variable '{}'", locals.get(index).unwrap().1.red()),
-                        "",
-                    );
+                    error(&format!("Unknown variable '{}'", locals[index].1.red()), "");
                 }
             }
             // VARIABLE DECLARATION
@@ -681,7 +678,7 @@ fn execute(
                 println!("REMOVING INDEX {index}");
                 if let Some(elem) = variables
                     .iter_mut()
-                    .find(|(id, _)| **id == *locals.get(index).unwrap().1)
+                    .find(|(id, _)| **id == *locals[index].1)
                 {
                     *elem = (elem.0, stack.pop().unwrap())
                 }
