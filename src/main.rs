@@ -493,9 +493,9 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<(u16, String)
             }
             ParserInstr::String(str) => {
                 let len = get_biggest_locals_id(locals);
-                locals.push((len as u16, str));
+                locals.push((len, str));
                 // locals.push(((locals.len() + 1) as u16, str));
-                test.push(Instr::String(len as u16));
+                test.push(Instr::String(len));
             }
             _ => test.push(types_to_instr(x)),
         }
@@ -506,7 +506,7 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<(u16, String)
         test.push(Instr::StopStore)
         // test.push(Types::STOP(i + 1))
     }
-    (test)
+    test
 }
 
 macro_rules! check_register_adress {
@@ -522,7 +522,7 @@ macro_rules! check_register_adress {
 #[inline(always)]
 fn pre_match(
     input: Instr,
-    variables: &mut Vec<(Intern<String>, Instr)>,
+    variables: &mut [(Intern<String>, Instr)],
     depth: u8,
     func_args: &mut Vec<Instr>,
     functions: &[(
@@ -603,13 +603,13 @@ fn pre_match(
 }
 
 // VERY SLOW -> NEED TO REMOVE IN THE FUTURE
-fn get_biggest_locals_id(locals: &Vec<(u16, String)>) -> u16 {
+fn get_biggest_locals_id(locals: &[(u16, String)]) -> u16 {
     *locals.iter().map(|(id, _)| id).max().unwrap_or(&0) + 1
 }
 
 // #[inline(never)]
 fn execute(
-    lines: &Vec<Instr>,
+    lines: &[Instr],
     functions: &[(
         Intern<String>,
         Vec<Intern<String>>,
@@ -639,12 +639,10 @@ fn execute(
             &mut variables,
             depth,
             &mut args_list,
-            &functions,
+            functions,
         ) {
             Instr::Store => depth += 1,
-            Instr::StopStore => {
-                depth -= 1;
-            }
+            Instr::StopStore => depth -= 1,
             Instr::Operation(op) => {
                 if depth > 0 {
                     operator.push(op)
@@ -906,7 +904,7 @@ fn execute(
                                 let base_string = locals.remove(current_index);
 
                                 if let Some(parent_string) = locals.get_mut(parent_index) {
-                                    parent_string.1 = (parent_string.1.to_string() + &base_string.1)
+                                    parent_string.1 = parent_string.1.to_string() + &base_string.1
                                 }
                             }
                             other => error(
@@ -1042,12 +1040,12 @@ fn main() {
                     .collect();
                 let mut locals: Vec<(u16, String)> = vec![];
                 let final_stack = simplify(first_stack, false, &mut locals);
-                return (
+                (
                     Intern::from(name.clone()),
                     args.iter().map(|x| Intern::from(x.to_string())).collect(),
                     final_stack,
                     locals,
-                );
+                )
             })
             .collect();
 
@@ -1059,15 +1057,17 @@ fn main() {
             .unwrap();
         // END PARSE
     } else {
-        let file = File::open(&format!(".compute/{}", hash)).unwrap();
+        let file = File::open(format!(".compute/{}", hash)).unwrap();
         let mut reader = BufReader::with_capacity(128 * 1024, file);
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer).unwrap();
 
-        functions = bincode::deserialize(&buffer).expect(error_msg!(
-            "Failed to read from cache",
-            "Delete the .compute folder"
-        ));
+        functions = bincode::deserialize(&buffer).unwrap_or_else(|_| {
+            panic!(
+                "{}",
+                error_msg!("Failed to read from cache", "Delete the .compute folder")
+            )
+        });
     }
 
     let mut main_function = functions.swap_remove(

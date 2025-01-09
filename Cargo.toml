@@ -18,7 +18,7 @@ unroll = "0.1.5"
 ##rayon = "1.10.0"
 ##gxhash = { version = "3.4.1" }
 snmalloc-rs = { version = "0.3.7", features = ["native-cpu", "lto", "usecxx17"] }
-internment = { version = "0.8.6", features = ["serde", "arc"] }
+internment = { version = "0.8.6", features = ["serde"] }
 #compact_str = { version = "0.8.0", features = ["serde"] }
 colored = "3.0.0"
 

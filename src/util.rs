@@ -110,13 +110,7 @@ pub fn get_type<'a>(unknown: Instr) -> &'a str {
         Instr::Bool(_) => "Boolean",
         Instr::Float(_) => "Float",
         _ => {
-            error(
-                &format!(
-                    "{}",
-                    error_msg!(format!("Cannot get type of {:?}", unknown))
-                ),
-                "",
-            );
+            error(error_msg!(format!("Cannot get type of {:?}", unknown)), "");
             ""
         }
     }
