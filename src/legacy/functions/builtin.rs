@@ -2,7 +2,6 @@ use crate::parser::ParserInstr;
 use crate::{assert_args_number, error, error_msg, get_printable_form, get_printable_type, if_let};
 use branches::{likely, unlikely};
 use const_currying::const_currying;
-use std::io::{stdin, stdout, BufRead, BufReader, Write};
 
 #[const_currying]
 pub fn builtin_functions(

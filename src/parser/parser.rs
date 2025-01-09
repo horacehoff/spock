@@ -43,7 +43,7 @@ pub enum Instr {
 }
 
 #[derive(Parser)]
-#[grammar = "parser/parser_grammar.pest"]
+#[grammar = "parser/compute_grammar.pest"]
 pub struct ComputeParser;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -132,7 +132,7 @@ pub enum ParserInstr {
     Break,
 
     // Objects
-    File(String),
+    File(Intern<String>),
 }
 
 #[repr(u8)]

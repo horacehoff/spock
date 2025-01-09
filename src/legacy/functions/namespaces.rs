@@ -1,6 +1,7 @@
 use crate::error;
 use crate::parser::ParserInstr;
 use crate::{assert_args_number, get_printable_form};
+use internment::Intern;
 use std::fs::OpenOptions;
 use std::process::exit;
 // use smartstring::alias::String;
@@ -34,10 +35,7 @@ pub fn namespace_functions(x: &[String], y: &str, args: &[ParserInstr]) -> (Pars
                         error("Failed to check/create file", "");
                         std::process::exit(1)
                     });
-                (
-                    ParserInstr::File(filename.to_string().parse().unwrap()),
-                    true,
-                )
+                (ParserInstr::File(Intern::from(filename.to_string())), true)
             } else {
                 error(
                     &format!("Invalid file name: {:?}", get_printable_form(&args[0])),
