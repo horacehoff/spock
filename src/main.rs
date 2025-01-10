@@ -537,13 +537,10 @@ fn pre_match(
 ) -> Instr {
     match input {
         Instr::VariableIdentifier(id) => {
-            // let index = locals.iter().position(|(x, _)| id == *x).unwrap();
-            // println!("REMOVING VAR AT INDX {index}, len is {}", locals.len());
             let elem = locals.iter().find(|(x, _)| id == *x).unwrap().1;
             *variables
                 .iter()
                 .find_map(|(x, instr)| if *x == elem { Some(instr) } else { None })
-                // .find_map(|(x, instr)| if *x == id { Some(instr) } else { None })
                 .unwrap_or_else(|| {
                     panic!("{}", error_msg!(format!("Variable '{id}' does not exist")))
                 })
