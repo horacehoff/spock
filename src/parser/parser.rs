@@ -21,27 +21,29 @@ pub type FunctionsSlice = [(
 )];
 
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
-// #[repr(u)]
+#[repr(u8)]
 pub enum Instr {
     StopStore,
     Null,
     Store,
     StoreArg,
     Operation(Operator),
-    Bool(bool),
     FuncReturn,
     // JUMP X INSTRUCTIONS -- IS_NEGATIVE
-    Jump(u16, bool),
+    Jump(bool, u16),
     // JUMP SIZE IF CONDITION IS FALSE
     If(u16),
-    Integer(i32),
-    Float(f32),
+
     // u16 represents str below this comment
     VarStore(u16),
     VarUpdate(u16),
     FuncCall(u16),
     VariableIdentifier(u16),
+
+    Bool(bool),
     String(u16),
+    Integer(i32),
+    Float(f32),
 }
 
 #[derive(Parser)]

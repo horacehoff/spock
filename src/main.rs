@@ -492,7 +492,7 @@ fn simplify(
                 output.extend(condition);
                 output.push(Instr::If((added + 1) as u16));
                 output.extend(in_code);
-                output.push(Instr::Jump(sum as u16, true))
+                output.push(Instr::Jump(true, sum as u16))
             }
             ParserInstr::String(str) => {
                 let len = get_biggest_locals_id(locals);
@@ -697,7 +697,7 @@ fn execute(
                     error(&format!("'{:?}' is not a boolean", &condition), "");
                 }
             }
-            Instr::Jump(jump_size, neg) => {
+            Instr::Jump(neg, jump_size) => {
                 if neg {
                     line -= jump_size as usize;
                     continue;
@@ -919,7 +919,6 @@ fn execute(
                 check_register_adress!(Instr::String(str), depth, line, stack);
                 let index = stack.len() - 1;
                 if let Some(elem) = stack.get_mut(index) {
-                    log!("STRING ADDING TO {elem:?}");
                     match elem {
                         Instr::String(parent) => match operator.pop().unwrap() {
                             Operator::Add => {
@@ -985,7 +984,7 @@ fn execute(
 }
 
 fn main() {
-    // dbg!(size_of::<Instr>());
+    dbg!(size_of::<Instr>());
     // dbg!(size_of::<ParserInstr>());
     let totaltime = Instant::now();
     let args: Vec<String> = std::env::args()
