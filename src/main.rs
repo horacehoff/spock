@@ -537,6 +537,8 @@ fn pre_match(
 ) -> Instr {
     match input {
         Instr::VariableIdentifier(id) => {
+            // let index = locals.iter().position(|(x, _)| id == *x).unwrap();
+            // println!("REMOVING VAR AT INDX {index}, len is {}", locals.len());
             let elem = locals.iter().find(|(x, _)| id == *x).unwrap().1;
             *variables
                 .iter()
@@ -663,7 +665,7 @@ fn execute(
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
                 let elem = locals.iter().find(|(id, _)| *id == str).unwrap().1;
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == elem) {
-                    *elem = (elem.0, stack.pop().unwrap())
+                    elem.1 = stack.pop().unwrap()
                 } else {
                     error(&format!("Unknown variable '{}'", elem.red()), "");
                 }
@@ -672,12 +674,10 @@ fn execute(
             Instr::VarStore(str) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
                 let index = locals.iter().position(|(id, _)| *id == str).unwrap();
+                let elem = locals[index].1;
                 log!("REMOVING INDEX {index}");
-                if let Some(elem) = variables
-                    .iter_mut()
-                    .find(|(id, _)| **id == *locals[index].1)
-                {
-                    *elem = (elem.0, stack.pop().unwrap())
+                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == elem) {
+                    elem.1 = stack.pop().unwrap()
                 }
                 variables.push((
                     Intern::from(locals.swap_remove(index).1),
@@ -924,7 +924,7 @@ fn execute(
 
                                 let current_index =
                                     locals.iter().position(|(id, _)| *id == str).unwrap();
-                                let base_string = locals.remove(current_index);
+                                let base_string = locals.swap_remove(current_index);
 
                                 if let Some(parent_string) = locals.get_mut(parent_index) {
                                     parent_string.1 =
@@ -1057,7 +1057,12 @@ fn main() {
                     .iter()
                     .flat_map(|line| line.iter().map(|x| (*x).clone()))
                     .collect();
-                let mut locals: Vec<(u16, Intern<String>)> = vec![];
+                let mut locals: Vec<(u16, Intern<String>)> = Vec::with_capacity(
+                    first_stack
+                        .iter()
+                        .filter(|obj| matches!(obj, ParserInstr::String(_)))
+                        .count(),
+                );
                 let final_stack = simplify(first_stack, false, &mut locals);
                 (
                     Intern::from(name.clone()),
