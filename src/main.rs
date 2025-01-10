@@ -40,6 +40,7 @@ use std::io::{BufReader, Read, Write as _};
 use std::ops::{Add, Deref};
 use std::path::Path;
 use std::time::Instant;
+// use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator};
 
 #[global_allocator]
 static ALLOC: SnMalloc = SnMalloc;
@@ -428,7 +429,7 @@ fn simplify(
     store: bool,
     locals: &mut Vec<(u16, Intern<String>)>,
 ) -> Vec<Instr> {
-    let mut output: Vec<Instr> = Vec::with_capacity(lines.len() * 2);
+    let mut output: Vec<Instr> = Vec::with_capacity(lines.len());
     for x in lines {
         match x {
             ParserInstr::VariableDeclaration(block) => {
@@ -536,17 +537,10 @@ fn pre_match(
 ) -> Instr {
     match input {
         Instr::VariableIdentifier(id) => {
-            let index = locals.iter().position(|(x, _)| id == *x).unwrap();
-            log!("REMOVING VAR INDX {index} AND LEN IS {}", locals.len());
+            let elem = locals.iter().find(|(x, _)| id == *x).unwrap().1;
             *variables
                 .iter()
-                .find_map(|(x, instr)| {
-                    if x == &locals[index].1 {
-                        Some(instr)
-                    } else {
-                        None
-                    }
-                })
+                .find_map(|(x, instr)| if *x == elem { Some(instr) } else { None })
                 // .find_map(|(x, instr)| if *x == id { Some(instr) } else { None })
                 .unwrap_or_else(|| {
                     panic!("{}", error_msg!(format!("Variable '{id}' does not exist")))
@@ -557,8 +551,13 @@ fn pre_match(
             if depth == 0 {
                 return input;
             }
-            let index = locals.iter().position(|(id, _)| *id == name).unwrap();
-            match locals[index].1.as_str() {
+            let name = locals
+                .iter()
+                .find(|(id, _)| *id == name)
+                .unwrap()
+                .1
+                .as_str();
+            match name {
                 // "str" => {
                 //     assert_args_number!("str", func_args.len(), 1);
                 //     match func_args.remove(0) {
@@ -662,14 +661,11 @@ fn execute(
             // VARIABLE IS ALREADY STORED
             Instr::VarUpdate(str) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
-                let index = locals.iter().position(|(id, _)| *id == str).unwrap();
-                if let Some(elem) = variables
-                    .iter_mut()
-                    .find(|(id, _)| **id == *locals[index].1)
-                {
+                let elem = locals.iter().find(|(id, _)| *id == str).unwrap().1;
+                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == elem) {
                     *elem = (elem.0, stack.pop().unwrap())
                 } else {
-                    error(&format!("Unknown variable '{}'", locals[index].1.red()), "");
+                    error(&format!("Unknown variable '{}'", elem.red()), "");
                 }
             }
             // VARIABLE DECLARATION
