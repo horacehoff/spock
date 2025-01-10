@@ -428,23 +428,23 @@ fn simplify(
     store: bool,
     locals: &mut Vec<(u16, Intern<String>)>,
 ) -> Vec<Instr> {
-    let mut test: Vec<Instr> = vec![];
+    let mut output: Vec<Instr> = Vec::with_capacity(lines.len() * 2);
     for x in lines {
         match x {
             ParserInstr::VariableDeclaration(block) => {
                 let x = block.name;
                 let y = block.value;
                 let result = simplify(Vec::from(y), true, locals);
-                test.extend(result);
+                output.extend(result);
                 if block.is_declared {
                     let len = get_biggest_locals_id(locals);
                     locals.push((len, Intern::from(x)));
-                    test.push(Instr::VarUpdate(len));
+                    output.push(Instr::VarUpdate(len));
                     // test.push(Instr::VarUpdate(Intern::<String>::from(x)));
                 } else {
                     let len = get_biggest_locals_id(locals);
                     locals.push((len, Intern::from(x)));
-                    test.push(Instr::VarStore(len));
+                    output.push(Instr::VarStore(len));
                     // test.push(Instr::VarStore(Intern::<String>::from(x)));
                 }
             }
@@ -453,26 +453,26 @@ fn simplify(
                 let y = block.args;
                 for x in split_vec(Vec::from(y), ParserInstr::Separator) {
                     let result = simplify(x, true, locals);
-                    test.extend(result);
-                    test.push(Instr::StoreArg);
+                    output.extend(result);
+                    output.push(Instr::StoreArg);
                 }
                 let len = get_biggest_locals_id(locals);
                 locals.push((len, Intern::from(name)));
-                test.push(Instr::FuncCall(len));
+                output.push(Instr::FuncCall(len));
                 // test.push(Instr::FuncCall(Intern::<String>::from_ref(&name)));
             }
             ParserInstr::FunctionReturn(ret) => {
                 let result = simplify(Vec::from(ret), true, locals);
-                test.extend(result);
-                test.push(Instr::FuncReturn);
+                output.extend(result);
+                output.push(Instr::FuncReturn);
             }
             ParserInstr::Condition(block) => {
                 let condition = simplify(Vec::from(block.condition), true, locals);
                 let in_code = simplify(Vec::from(block.code), false, locals);
                 let added = in_code.len();
-                test.extend(condition);
-                test.push(Instr::If(added as u16));
-                test.extend(in_code);
+                output.extend(condition);
+                output.push(Instr::If(added as u16));
+                output.extend(in_code);
                 // if block.else_blocks.len() > 0 {
                 //     for else_block in block.else_blocks {
                 //         let condition = simplify(Vec::from(else_block.0), true, i);
@@ -488,31 +488,31 @@ fn simplify(
                 let in_code = simplify(Vec::from(block.code), false, locals);
                 let added = in_code.len();
                 let sum = condition.len() + 1 + added;
-                test.extend(condition);
-                test.push(Instr::If((added + 1) as u16));
-                test.extend(in_code);
-                test.push(Instr::Jump(sum as u16, true))
+                output.extend(condition);
+                output.push(Instr::If((added + 1) as u16));
+                output.extend(in_code);
+                output.push(Instr::Jump(sum as u16, true))
             }
             ParserInstr::String(str) => {
                 let len = get_biggest_locals_id(locals);
                 locals.push((len, Intern::from(str)));
                 // locals.push(((locals.len() + 1) as u16, str));
-                test.push(Instr::String(len));
+                output.push(Instr::String(len));
             }
             ParserInstr::VariableIdentifier(str) => {
                 let len = get_biggest_locals_id(locals);
                 locals.push((len, Intern::from(str)));
                 // locals.push(((locals.len() + 1) as u16, str));
-                test.push(Instr::VariableIdentifier(len));
+                output.push(Instr::VariableIdentifier(len));
             }
-            _ => test.push(types_to_instr(x)),
+            _ => output.push(types_to_instr(x)),
         }
     }
     if store {
-        test.insert(0, Instr::Store);
-        test.push(Instr::StopStore)
+        output.insert(0, Instr::Store);
+        output.push(Instr::StopStore)
     }
-    test
+    output
 }
 
 macro_rules! check_register_adress {
@@ -537,10 +537,11 @@ fn pre_match(
     match input {
         Instr::VariableIdentifier(id) => {
             let index = locals.iter().position(|(x, _)| id == *x).unwrap();
+            log!("REMOVING VAR INDX {index} AND LEN IS {}", locals.len());
             *variables
                 .iter()
                 .find_map(|(x, instr)| {
-                    if *x == locals[index].1 {
+                    if x == &locals[index].1 {
                         Some(instr)
                     } else {
                         None
@@ -675,7 +676,7 @@ fn execute(
             Instr::VarStore(str) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
                 let index = locals.iter().position(|(id, _)| *id == str).unwrap();
-                println!("REMOVING INDEX {index}");
+                log!("REMOVING INDEX {index}");
                 if let Some(elem) = variables
                     .iter_mut()
                     .find(|(id, _)| **id == *locals[index].1)
@@ -710,7 +711,7 @@ fn execute(
                 if depth == 0 {
                     // println!("ARGS REG IS {args_register:?}");
                     let index = locals.iter().position(|(id, _)| *id == name).unwrap();
-                    println!("REMOVING INDEX {index}");
+                    log!("REMOVING INDEX {index}");
                     let func_name = locals.swap_remove(index).1;
                     if *func_name == "print" {
                         println!("{}", print_form(&args_list.remove(0), locals))
@@ -918,7 +919,7 @@ fn execute(
                 check_register_adress!(Instr::String(str), depth, line, stack);
                 let index = stack.len() - 1;
                 if let Some(elem) = stack.get_mut(index) {
-                    println!("STRING ADDING TO {elem:?}");
+                    log!("STRING ADDING TO {elem:?}");
                     match elem {
                         Instr::String(parent) => match operator.pop().unwrap() {
                             Operator::Add => {
@@ -984,8 +985,8 @@ fn execute(
 }
 
 fn main() {
-    dbg!(size_of::<Instr>());
-    dbg!(size_of::<ParserInstr>());
+    // dbg!(size_of::<Instr>());
+    // dbg!(size_of::<ParserInstr>());
     let totaltime = Instant::now();
     let args: Vec<String> = std::env::args()
         .skip(1)
