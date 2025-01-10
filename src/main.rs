@@ -631,7 +631,12 @@ fn execute(
     locals: &mut Vec<(u16, Intern<String>)>,
 ) -> Instr {
     // keeps track of items
-    let mut stack: Vec<Instr> = Vec::with_capacity(4);
+    let mut stack: Vec<Instr> = Vec::with_capacity(
+        lines
+            .iter()
+            .filter(|elem| matches!(elem, Instr::Store))
+            .count(),
+    );
     // keeps track of function args
     let mut args_list: Vec<Instr> = Vec::new();
     // keeps track of current "storing" depth (e.g STORE,...,STORE,... will have depth=2 after the second "STORE")
@@ -639,7 +644,12 @@ fn execute(
     let mut depth: u16 = 0;
     // keeps track of operators according to depth
     // unclear if a vec is needed
-    let mut operator: Vec<Operator> = Vec::with_capacity(4);
+    let mut operator: Vec<Operator> = Vec::with_capacity(
+        lines
+            .iter()
+            .filter(|elem| matches!(elem, Instr::Operation(_)))
+            .count(),
+    );
     // keeps track of variables
     let mut variables: Vec<(Intern<String>, Instr)> = args;
     let mut line: usize = 0;
