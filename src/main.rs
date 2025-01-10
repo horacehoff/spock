@@ -663,26 +663,23 @@ fn execute(
             // VARIABLE IS ALREADY STORED
             Instr::VarUpdate(str) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
-                let elem = locals.iter().find(|(id, _)| *id == str).unwrap().1;
-                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == elem) {
+                let local = locals.iter().find(|(id, _)| *id == str).unwrap().1;
+                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == local) {
                     elem.1 = stack.pop().unwrap()
                 } else {
-                    error(&format!("Unknown variable '{}'", elem.red()), "");
+                    error(&format!("Unknown variable '{}'", local.red()), "");
                 }
             }
             // VARIABLE DECLARATION
             Instr::VarStore(str) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
-                let index = locals.iter().position(|(id, _)| *id == str).unwrap();
-                let elem = locals[index].1;
-                log!("REMOVING INDEX {index}");
-                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == elem) {
+                let local = locals.iter().find(|(id, _)| *id == str).unwrap().1;
+                // let elem = locals[index].1;
+                // log!("REMOVING INDEX {index}");
+                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == local) {
                     elem.1 = stack.pop().unwrap()
                 }
-                variables.push((
-                    Intern::from(locals.swap_remove(index).1),
-                    stack.pop().unwrap(),
-                ))
+                variables.push((local, stack.pop().unwrap()))
             }
             Instr::If(jump_size) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
