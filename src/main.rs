@@ -448,20 +448,40 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String
                 let mut added_else_length = 0;
                 let mut added_else_blocks: Vec<Instr> =
                     Vec::with_capacity(block.else_blocks.len() * 5);
-                for else_block in block.else_blocks {
+                for else_block in block.else_blocks.clone() {
                     let else_condition = else_block.0;
                     let else_condition_length = else_condition.len();
 
-                    let block = ParserInstr::Condition(Box::from(ConditionBlock {
-                        condition: else_condition,
-                        code: else_block.1,
-                        else_blocks: Box::new([]),
-                    }));
-                    let result = simplify(vec![block], false, locals);
+                    // let block = ParserInstr::Condition(Box::from(ConditionBlock {
+                    //     condition: else_condition,
+                    //     code: else_block.1,
+                    //     else_blocks: Box::new([]),
+                    // }));
+                    // let result = simplify(vec![block], false, locals);
 
                     if else_condition_length == 0 {
+                        let block = ParserInstr::Condition(Box::from(ConditionBlock {
+                            condition: else_condition,
+                            code: else_block.1,
+                            else_blocks: Box::new([]),
+                        }));
+                        let result = simplify(vec![block], false, locals);
+
                         added_else_length += result.len();
                         added_else_blocks.extend(result);
+                    } else {
+                        let mut else_blocks = block.else_blocks.into_vec();
+                        else_blocks.remove(0);
+                        let block = ParserInstr::Condition(Box::from(ConditionBlock {
+                            condition: else_condition,
+                            code: else_block.1,
+                            else_blocks: Box::from(else_blocks),
+                        }));
+                        println!("BLOCK IM PUSHING IS {block:?}");
+                        let result = simplify(vec![block], false, locals);
+                        added_else_length += result.len();
+                        added_else_blocks.extend(result);
+                        break;
                     }
                 }
 
