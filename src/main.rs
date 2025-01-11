@@ -534,10 +534,8 @@ fn pre_match(
                 "str" => {
                     assert_args_number!("str", func_args.len(), 1);
                     let element = func_args.remove(0);
-                    // let elem = locals.iter().find(|(id, _)| id == func).unwrap();
                     match element {
                         Instr::Bool(bool) => {
-                            // let id = get_biggest_locals_id(locals);
                             locals.push(Intern::from(
                                 {
                                     if bool {
@@ -551,12 +549,10 @@ fn pre_match(
                             return Instr::String((locals.len() - 1) as u16);
                         }
                         Instr::Integer(int) => {
-                            // let id = get_biggest_locals_id(locals);
                             locals.push(Intern::from(int.to_string()));
                             return Instr::String((locals.len() - 1) as u16);
                         }
                         Instr::Float(float) => {
-                            // let id = get_biggest_locals_id(locals);
                             locals.push(Intern::from(float.to_string()));
                             return Instr::String((locals.len() - 1) as u16);
                         }
@@ -602,11 +598,6 @@ fn pre_match(
         _ => input,
     }
 }
-
-// VERY SLOW -> NEED TO REMOVE IN THE FUTURE
-// fn get_biggest_locals_id(locals: &mut Vec<(u16, Intern<String>)>) -> u16 {
-//     *locals.iter().map(|(id, _)| id).max().unwrap_or(&0) + 1
-// }
 
 fn execute(
     lines: &[Instr],
