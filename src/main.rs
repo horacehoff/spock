@@ -407,25 +407,19 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String
     for x in lines {
         match x {
             ParserInstr::VariableDeclaration(block) => {
-                // DONE
                 let x = block.name;
                 let y = block.value;
                 let result = simplify(Vec::from(y), true, locals);
                 output.extend(result);
                 if block.is_declared {
-                    // let len = get_biggest_locals_id(locals);
                     locals.push(Intern::from(x));
                     output.push(Instr::VarUpdate((locals.len() - 1) as u32));
-                    // test.push(Instr::VarUpdate(Intern::<String>::from(x)));
                 } else {
-                    // let len = get_biggest_locals_id(locals);
                     locals.push(Intern::from(x));
                     output.push(Instr::VarStore((locals.len() - 1) as u32));
-                    // test.push(Instr::VarStore(Intern::<String>::from(x)));
                 }
             }
             ParserInstr::FunctionCall(block) => {
-                // DONE
                 let name = block.name;
                 let y = block.args;
                 for x in split_vec(Vec::from(y), ParserInstr::Separator) {
@@ -433,10 +427,8 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String
                     output.extend(result);
                     output.push(Instr::StoreArg);
                 }
-                // let len = get_biggest_locals_id(locals);
                 locals.push(Intern::from(name));
                 output.push(Instr::FuncCall((locals.len() - 1) as u32));
-                // test.push(Instr::FuncCall(Intern::<String>::from_ref(&name)));
             }
             ParserInstr::FunctionReturn(ret) => {
                 let result = simplify(Vec::from(ret), true, locals);
@@ -471,17 +463,11 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String
                 output.push(Instr::Jump(true, sum as u16))
             }
             ParserInstr::String(str) => {
-                // DONE
-                // let len = get_biggest_locals_id(locals);
                 locals.push(Intern::from(str));
-                // locals.push(((locals.len() + 1) as u16, str));
                 output.push(Instr::String((locals.len() - 1) as u16));
             }
             ParserInstr::VariableIdentifier(str) => {
-                // DONE
-                // let len = get_biggest_locals_id(locals);
                 locals.push(Intern::from(str));
-                // locals.push(((locals.len() + 1) as u16, str));
                 output.push(Instr::VariableIdentifier((locals.len() - 1) as u32));
             }
             _ => output.push(types_to_instr(x)),
