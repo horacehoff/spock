@@ -459,7 +459,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
                 .into_iter()
                 .flat_map(|x| parse_expression(x))
                 .collect();
-            println!("OPERATION IS {operation:?}");
+            // println!("OPERATION IS {operation:?}");
             let mut operator: Operator = Operator::Null;
             let mut result: ParserInstr = ParserInstr::Null;
             for elem in operation {
