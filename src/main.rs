@@ -425,32 +425,30 @@ fn types_to_instr(x: ParserInstr) -> Instr {
 }
 
 #[inline(never)]
-fn simplify(
-    lines: Vec<ParserInstr>,
-    store: bool,
-    locals: &mut Vec<(u16, Intern<String>)>,
-) -> Vec<Instr> {
+fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String>>) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::with_capacity(lines.len());
     for x in lines {
         match x {
             ParserInstr::VariableDeclaration(block) => {
+                // DONE
                 let x = block.name;
                 let y = block.value;
                 let result = simplify(Vec::from(y), true, locals);
                 output.extend(result);
                 if block.is_declared {
-                    let len = get_biggest_locals_id(locals);
-                    locals.push((len, Intern::from(x)));
-                    output.push(Instr::VarUpdate(len));
+                    // let len = get_biggest_locals_id(locals);
+                    locals.push(Intern::from(x));
+                    output.push(Instr::VarUpdate((locals.len() - 1) as u16));
                     // test.push(Instr::VarUpdate(Intern::<String>::from(x)));
                 } else {
-                    let len = get_biggest_locals_id(locals);
-                    locals.push((len, Intern::from(x)));
-                    output.push(Instr::VarStore(len));
+                    // let len = get_biggest_locals_id(locals);
+                    locals.push(Intern::from(x));
+                    output.push(Instr::VarStore((locals.len() - 1) as u16));
                     // test.push(Instr::VarStore(Intern::<String>::from(x)));
                 }
             }
             ParserInstr::FunctionCall(block) => {
+                // DONE
                 let name = block.name;
                 let y = block.args;
                 for x in split_vec(Vec::from(y), ParserInstr::Separator) {
@@ -458,9 +456,9 @@ fn simplify(
                     output.extend(result);
                     output.push(Instr::StoreArg);
                 }
-                let len = get_biggest_locals_id(locals);
-                locals.push((len, Intern::from(name)));
-                output.push(Instr::FuncCall(len));
+                // let len = get_biggest_locals_id(locals);
+                locals.push(Intern::from(name));
+                output.push(Instr::FuncCall((locals.len() - 1) as u16));
                 // test.push(Instr::FuncCall(Intern::<String>::from_ref(&name)));
             }
             ParserInstr::FunctionReturn(ret) => {
@@ -496,14 +494,16 @@ fn simplify(
                 output.push(Instr::Jump(true, sum as u16))
             }
             ParserInstr::String(str) => {
-                let len = get_biggest_locals_id(locals);
-                locals.push((len, Intern::from(str)));
+                // DONE
+                // let len = get_biggest_locals_id(locals);
+                locals.push(Intern::from(str));
                 // locals.push(((locals.len() + 1) as u16, str));
-                output.push(Instr::String(len));
+                output.push(Instr::String((locals.len() - 1) as u16));
             }
             ParserInstr::VariableIdentifier(str) => {
-                let len = get_biggest_locals_id(locals);
-                locals.push((len, Intern::from(str)));
+                // DONE
+                // let len = get_biggest_locals_id(locals);
+                locals.push(Intern::from(str));
                 // locals.push(((locals.len() + 1) as u16, str));
                 output.push(Instr::VariableIdentifier((locals.len() - 1) as u16));
             }
@@ -534,11 +534,11 @@ fn pre_match(
     depth: u16,
     func_args: &mut Vec<Instr>,
     functions: &FunctionsSlice,
-    locals: &mut Vec<(u16, Intern<String>)>,
+    locals: &mut Vec<Intern<String>>,
 ) -> Instr {
     match input {
         Instr::VariableIdentifier(id) => {
-            let elem = locals[id as usize].1;
+            let elem = locals[id as usize];
             *variables
                 .iter()
                 .find_map(|(x, instr)| if *x == elem { Some(instr) } else { None })
@@ -551,12 +551,7 @@ fn pre_match(
             if depth == 0 {
                 return input;
             }
-            let name = locals
-                .iter()
-                .find(|(id, _)| *id == name)
-                .unwrap()
-                .1
-                .as_str();
+            let name = locals[name as usize].as_str();
             println!("ARGS ARE {func_args:?}");
             match name {
                 "str" => {
@@ -565,31 +560,28 @@ fn pre_match(
                     // let elem = locals.iter().find(|(id, _)| id == func).unwrap();
                     match element {
                         Instr::Bool(bool) => {
-                            let id = get_biggest_locals_id(locals);
-                            locals.push((
-                                id,
-                                Intern::from(
-                                    {
-                                        if bool {
-                                            "true"
-                                        } else {
-                                            "false"
-                                        }
+                            // let id = get_biggest_locals_id(locals);
+                            locals.push(Intern::from(
+                                {
+                                    if bool {
+                                        "true"
+                                    } else {
+                                        "false"
                                     }
-                                    .to_string(),
-                                ),
+                                }
+                                .to_string(),
                             ));
-                            return Instr::String(id);
+                            return Instr::String((locals.len() - 1) as u16);
                         }
                         Instr::Integer(int) => {
-                            let id = get_biggest_locals_id(locals);
-                            locals.push((id, Intern::from(int.to_string())));
-                            return Instr::String(id);
+                            // let id = get_biggest_locals_id(locals);
+                            locals.push(Intern::from(int.to_string()));
+                            return Instr::String((locals.len() - 1) as u16);
                         }
                         Instr::Float(float) => {
-                            let id = get_biggest_locals_id(locals);
-                            locals.push((id, Intern::from(float.to_string())));
-                            return Instr::String(id);
+                            // let id = get_biggest_locals_id(locals);
+                            locals.push(Intern::from(float.to_string()));
+                            return Instr::String((locals.len() - 1) as u16);
                         }
                         Instr::String(_) => return element,
                         _ => todo!(),
@@ -635,15 +627,15 @@ fn pre_match(
 }
 
 // VERY SLOW -> NEED TO REMOVE IN THE FUTURE
-fn get_biggest_locals_id(locals: &mut Vec<(u16, Intern<String>)>) -> u16 {
-    *locals.iter().map(|(id, _)| id).max().unwrap_or(&0) + 1
-}
+// fn get_biggest_locals_id(locals: &mut Vec<(u16, Intern<String>)>) -> u16 {
+//     *locals.iter().map(|(id, _)| id).max().unwrap_or(&0) + 1
+// }
 
 fn execute(
     lines: &[Instr],
     functions: &FunctionsSlice,
     args: Vec<(Intern<String>, Instr)>,
-    str_pool: &mut Vec<(u16, Intern<String>)>,
+    str_pool: &mut Vec<Intern<String>>,
 ) -> Instr {
     // util::print_instructions(lines);
     // keeps track of items
@@ -689,7 +681,7 @@ fn execute(
             // VARIABLE IS ALREADY STORED
             Instr::VarUpdate(str) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
-                let str = str_pool.iter().find(|(id, _)| *id == str).unwrap().1;
+                let str = str_pool[str as usize];
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) {
                     elem.1 = stack.pop().unwrap()
                 } else {
@@ -699,7 +691,7 @@ fn execute(
             // VARIABLE DECLARATION
             Instr::VarStore(str) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
-                let str = str_pool.iter().find(|(id, _)| *id == str).unwrap().1;
+                let str = str_pool[str as usize];
                 if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) {
                     elem.1 = stack.pop().unwrap()
                 }
@@ -727,9 +719,9 @@ fn execute(
             Instr::FuncCall(name) => {
                 if depth == 0 {
                     // println!("ARGS REG IS {args_register:?}");
-                    let index = str_pool.iter().position(|(id, _)| *id == name).unwrap();
-                    log!("REMOVING INDEX {index}");
-                    let func_name = str_pool.get(index).unwrap().1;
+                    // let index = str_pool.iter().position(|(id, _)| *id == name).unwrap();
+                    // log!("REMOVING INDEX {index}");
+                    let func_name = str_pool[name as usize];
                     if *func_name == "print" {
                         assert_eq!(args_list.len(), 1, "Invalid number of arguments");
                         println!("{}", print_form(&args_list.remove(0), str_pool))
@@ -816,10 +808,10 @@ fn execute(
                         },
                         Instr::String(parent) => match operator.pop().unwrap() {
                             Operator::Multiply => {
-                                let index =
-                                    str_pool.iter().position(|(id, _)| id == parent).unwrap();
-                                let str = str_pool.get_mut(index).unwrap();
-                                str.1 = Intern::from(str.1.repeat(int as usize));
+                                // let index =
+                                //     str_pool.iter().position(|(id, _)| id == parent).unwrap();
+                                let str = str_pool.get_mut(*parent as usize).unwrap();
+                                *str = Intern::from(str.repeat(int as usize));
                             }
                             other => error(
                                 &format!(
@@ -941,16 +933,17 @@ fn execute(
                     match elem {
                         Instr::String(parent) => match operator.pop().unwrap() {
                             Operator::Add => {
-                                let parent_index =
-                                    str_pool.iter().position(|(id, _)| id == parent).unwrap();
-                                let base_string =
-                                    str_pool.iter().find(|(id, _)| *id == str).unwrap().1;
-                                if let Some(parent_string) = str_pool.get_mut(parent_index) {
+                                // let parent_index =
+                                //     str_pool.iter().position(|(id, _)| id == parent).unwrap();
+                                // let base_string =
+                                //     str_pool.iter().find(|(id, _)| *id == str).unwrap().1;
+                                let base_string = str_pool[str as usize];
+                                if let Some(parent_string) = str_pool.get_mut(*parent as usize) {
                                     let str = concat_string!(
-                                        parent_string.1.as_str(),
+                                        parent_string.as_str(),
                                         base_string.as_str()
                                     );
-                                    parent_string.1 = Intern::from(str.clone());
+                                    *parent_string = Intern::from(str);
                                 }
                             }
                             other => error(
@@ -965,11 +958,11 @@ fn execute(
                         },
                         Instr::Integer(parent) => match operator.pop().unwrap() {
                             Operator::Multiply => {
-                                let current_index =
-                                    str_pool.iter().position(|(id, _)| *id == str).unwrap();
-                                if let Some(base_string) = str_pool.get_mut(current_index) {
-                                    base_string.1 =
-                                        Intern::from(base_string.1.repeat(*parent as usize));
+                                // let current_index =
+                                //     str_pool.iter().position(|(id, _)| *id == str).unwrap();
+                                if let Some(base_string) = str_pool.get_mut(str as usize) {
+                                    *base_string =
+                                        Intern::from(base_string.repeat(*parent as usize));
                                 }
                             }
                             other => error(
@@ -1079,7 +1072,7 @@ fn main() {
                     .iter()
                     .flat_map(|line| line.iter().map(|x| (*x).clone()))
                     .collect();
-                let mut locals: Vec<(u16, Intern<String>)> = Vec::with_capacity(
+                let mut locals: Vec<Intern<String>> = Vec::with_capacity(
                     first_stack
                         .iter()
                         .filter(|obj| matches!(obj, ParserInstr::String(_)))

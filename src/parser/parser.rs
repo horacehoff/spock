@@ -11,13 +11,13 @@ pub type Functions = Vec<(
     Intern<String>,
     Vec<Intern<String>>,
     Vec<Instr>,
-    Vec<(u16, Intern<String>)>,
+    Vec<Intern<String>>,
 )>;
 pub type FunctionsSlice = [(
     Intern<String>,
     Vec<Intern<String>>,
     Vec<Instr>,
-    Vec<(u16, Intern<String>)>,
+    Vec<Intern<String>>,
 )];
 
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
