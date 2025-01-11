@@ -12,7 +12,7 @@ use crate::util::{error, get_type, op_to_symbol, print_form, split_vec};
 use colored::Colorize;
 use concat_string::concat_string;
 use internment::Intern;
-use likely_stable::likely;
+use likely_stable::{if_likely, if_unlikely, likely};
 use snmalloc_rs::SnMalloc;
 use std::fs;
 use std::fs::remove_dir_all;
@@ -650,19 +650,19 @@ fn execute(
             Instr::VarUpdate(str) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
                 let str = str_pool[str as usize];
-                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) {
+                if_likely!(let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) => {
                     elem.1 = stack.pop().unwrap()
                 } else {
                     error(&format!("Unknown variable '{}'", str.red()), "");
-                }
+                })
             }
             // VARIABLE DECLARATION
             Instr::VarStore(str) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
                 let str = str_pool[str as usize];
-                if let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) {
+                if_unlikely!(let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) => {
                     elem.1 = stack.pop().unwrap()
-                }
+                });
                 variables.push((str, stack.pop().unwrap()))
             }
             Instr::If(jump_size) => {
@@ -686,9 +686,6 @@ fn execute(
             // Function call that shouldn't return anything
             Instr::FuncCall(name) => {
                 if likely(depth == 0) {
-                    // println!("ARGS REG IS {args_register:?}");
-                    // let index = str_pool.iter().position(|(id, _)| *id == name).unwrap();
-                    // log!("REMOVING INDEX {index}");
                     let func_name = str_pool[name as usize];
                     if *func_name == "print" {
                         assert_eq!(args_list.len(), 1, "Invalid number of arguments");
