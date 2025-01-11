@@ -41,7 +41,7 @@ pub enum Instr {
     VariableIdentifier(u32),
 
     Bool(bool),
-    String(u16),
+    String(u32),
     Integer(i32),
     Float(f32),
 }

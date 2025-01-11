@@ -1,4 +1,5 @@
 #![allow(clippy::too_many_lines)]
+extern crate core;
 
 #[path = "parser/parser.rs"]
 mod parser;
@@ -6,7 +7,7 @@ mod parser;
 mod parser_functions;
 mod util;
 
-use crate::parser::{FunctionsSlice, Instr, Operator, ParserInstr};
+use crate::parser::{ConditionBlock, FunctionsSlice, Instr, Operator, ParserInstr};
 use crate::parser_functions::parse_functions;
 use crate::util::{error, get_type, op_to_symbol, print_form, split_vec};
 use colored::Colorize;
@@ -438,19 +439,42 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String
             ParserInstr::Condition(block) => {
                 let condition = simplify(Vec::from(block.condition), true, locals);
                 let in_code = simplify(Vec::from(block.code), false, locals);
-                let added = in_code.len();
+                if condition == vec![Instr::Store, Instr::Bool(true), Instr::StopStore] {
+                    output.extend(in_code);
+                    continue;
+                }
                 output.extend(condition);
-                output.push(Instr::If(added as u16));
-                output.extend(in_code);
-                // if block.else_blocks.len() > 0 {
-                //     for else_block in block.else_blocks {
-                //         let condition = simplify(Vec::from(else_block.0), true, i);
-                //         i = condition.1 + 1;
-                //         let in_code = simplify(Vec::from(else_block.1), false, i);
-                //         i = in_code.1 + 1;
-                //         let added = in_code.0.len();
-                //     }
-                // }
+
+                let mut added_else_length = 0;
+                let mut added_else_blocks: Vec<Instr> =
+                    Vec::with_capacity(block.else_blocks.len() * 5);
+                for else_block in block.else_blocks {
+                    let else_condition = else_block.0;
+                    let else_condition_length = else_condition.len();
+
+                    let block = ParserInstr::Condition(Box::from(ConditionBlock {
+                        condition: else_condition,
+                        code: else_block.1,
+                        else_blocks: Box::new([]),
+                    }));
+                    let result = simplify(vec![block], false, locals);
+
+                    if else_condition_length == 0 {
+                        added_else_length += result.len();
+                        added_else_blocks.extend(result);
+                    }
+                }
+
+                let main_branch_length = in_code.len();
+                if added_else_length != 0 {
+                    output.push(Instr::If((main_branch_length + 1) as u16));
+                    output.extend(in_code);
+                    output.push(Instr::Jump(false, added_else_length as u16));
+                    output.extend(added_else_blocks)
+                } else {
+                    output.push(Instr::If((main_branch_length) as u16));
+                    output.extend(in_code)
+                }
             }
             ParserInstr::While(block) => {
                 let condition = simplify(Vec::from(block.condition), true, locals);
@@ -464,7 +488,7 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String
             }
             ParserInstr::String(str) => {
                 locals.push(Intern::from(str));
-                output.push(Instr::String((locals.len() - 1) as u16));
+                output.push(Instr::String((locals.len() - 1) as u32));
             }
             ParserInstr::VariableIdentifier(str) => {
                 locals.push(Intern::from(str));
@@ -532,15 +556,15 @@ fn pre_match(
                                 }
                                 .to_string(),
                             ));
-                            return Instr::String((locals.len() - 1) as u16);
+                            return Instr::String((locals.len() - 1) as u32);
                         }
                         Instr::Integer(int) => {
                             locals.push(Intern::from(int.to_string()));
-                            return Instr::String((locals.len() - 1) as u16);
+                            return Instr::String((locals.len() - 1) as u32);
                         }
                         Instr::Float(float) => {
                             locals.push(Intern::from(float.to_string()));
-                            return Instr::String((locals.len() - 1) as u16);
+                            return Instr::String((locals.len() - 1) as u32);
                         }
                         Instr::String(_) => return element,
                         _ => todo!(),
@@ -591,7 +615,7 @@ fn execute(
     args: Vec<(Intern<String>, Instr)>,
     str_pool: &mut Vec<Intern<String>>,
 ) -> Instr {
-    // util::print_instructions(lines);
+    util::print_instructions(lines);
     // keeps track of items
     let mut stack: Vec<Instr> = Vec::with_capacity(
         lines
@@ -674,7 +698,12 @@ fn execute(
                 if likely(depth == 0) {
                     let func_name = str_pool[name as usize];
                     if *func_name == "print" {
-                        assert_eq!(args_list.len(), 1, "Invalid number of arguments");
+                        assert_eq!(
+                            args_list.len(),
+                            1,
+                            "Invalid number of arguments, expected 1, got {}",
+                            args_list.len()
+                        );
                         println!("{}", print_form(&args_list.remove(0), str_pool))
                     } else {
                     }
