@@ -3,7 +3,6 @@ return x;
 }
 
 func main() {
-print(str(567)+"that's awesome!");
 let count = 0;
 let limit = 1000000;
 let result = 1;

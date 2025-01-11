@@ -505,7 +505,7 @@ fn simplify(
                 let len = get_biggest_locals_id(locals);
                 locals.push((len, Intern::from(str)));
                 // locals.push(((locals.len() + 1) as u16, str));
-                output.push(Instr::VariableIdentifier(len));
+                output.push(Instr::VariableIdentifier((locals.len() - 1) as u16));
             }
             _ => output.push(types_to_instr(x)),
         }
@@ -538,7 +538,7 @@ fn pre_match(
 ) -> Instr {
     match input {
         Instr::VariableIdentifier(id) => {
-            let elem = locals.iter().find(|(x, _)| id == *x).unwrap().1;
+            let elem = locals[id as usize].1;
             *variables
                 .iter()
                 .find_map(|(x, instr)| if *x == elem { Some(instr) } else { None })
@@ -645,7 +645,7 @@ fn execute(
     args: Vec<(Intern<String>, Instr)>,
     str_pool: &mut Vec<(u16, Intern<String>)>,
 ) -> Instr {
-    util::print_instructions(lines);
+    // util::print_instructions(lines);
     // keeps track of items
     let mut stack: Vec<Instr> = Vec::with_capacity(
         lines
@@ -729,7 +729,7 @@ fn execute(
                     // println!("ARGS REG IS {args_register:?}");
                     let index = str_pool.iter().position(|(id, _)| *id == name).unwrap();
                     log!("REMOVING INDEX {index}");
-                    let func_name = str_pool.swap_remove(index).1;
+                    let func_name = str_pool.get(index).unwrap().1;
                     if *func_name == "print" {
                         assert_eq!(args_list.len(), 1, "Invalid number of arguments");
                         println!("{}", print_form(&args_list.remove(0), str_pool))
