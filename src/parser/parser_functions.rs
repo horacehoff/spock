@@ -38,23 +38,22 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
             // next is either function args or function code (see .pest file to understand why)
             let args_or_block = func.next().unwrap();
             let mut args: Vec<Intern<String>> = Vec::new();
-            let code_txt: &str;
-            // if it's args, then parse args, else,
-            if args_or_block.as_rule() == Rule::function_decl_args {
+            let code_txt: &str = if args_or_block.as_rule() == Rule::function_decl_args {
                 args = args_or_block
                     .into_inner()
                     .map(|x| Intern::from_ref(x.as_span().as_str()))
                     .collect();
-                code_txt = func.next().unwrap().as_str()
+                func.next().unwrap().as_str()
             } else {
-                code_txt = args_or_block.as_str()
-            }
+                args_or_block.as_str()
+            };
+
             // parse function code
             let parsed = parse_code(code_txt);
             // flatten the nested vec
             let flat_code: Vec<ParserInstr> = parsed
                 .iter()
-                .flat_map(|line| line.iter().map(|x| x.clone()))
+                .flat_map(|line| line.iter().cloned())
                 .collect();
             let mut locals: Vec<Intern<String>> = Vec::with_capacity(
                 flat_code

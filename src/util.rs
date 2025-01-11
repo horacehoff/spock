@@ -235,7 +235,7 @@ pub fn get_printable_form(x: &ParserInstr) -> String {
     }
 }
 
-pub fn print_form(x: &Instr, locals: &mut Vec<Intern<String>>) -> String {
+pub fn print_form(x: &Instr, locals: &mut [Intern<String>]) -> String {
     // println!("LOCALS ARE {locals:?}");
     match x {
         Instr::String(str) => locals[*str as usize].to_string(),

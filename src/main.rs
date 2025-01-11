@@ -13,15 +13,17 @@ use colored::Colorize;
 use concat_string::concat_string;
 use internment::Intern;
 use likely_stable::{if_likely, if_unlikely, likely};
-use snmalloc_rs::SnMalloc;
+use mimalloc::MiMalloc;
+// use snmalloc_rs::SnMalloc;
 use std::fs;
 use std::fs::remove_dir_all;
 use std::io::{Read, Write as _};
 use std::ops::{Add, Deref};
 use std::path::Path;
 use std::time::Instant;
+
 #[global_allocator]
-static ALLOC: SnMalloc = SnMalloc;
+static GLOBAL: MiMalloc = MiMalloc;
 
 // #[unroll_for_loops]
 // // #[inline(always)]
@@ -500,15 +502,15 @@ fn pre_match(
     locals: &mut Vec<Intern<String>>,
 ) -> Instr {
     match input {
-        Instr::VariableIdentifier(id) => {
-            let elem = locals[id as usize];
+        Instr::VariableIdentifier(id) => unsafe {
+            let elem = locals.get_unchecked(id as usize);
             *variables
                 .iter()
-                .find_map(|(x, instr)| if *x == elem { Some(instr) } else { None })
+                .find_map(|(x, instr)| if x == elem { Some(instr) } else { None })
                 .unwrap_or_else(|| {
                     panic!("{}", error_msg!(format!("Variable '{id}' does not exist")))
                 })
-        }
+        },
         // Function call that should return something (because depth > 0)
         Instr::FuncCall(name) => {
             if depth == 0 {
@@ -683,7 +685,7 @@ fn execute(
                 }
             }
             Instr::FuncReturn => {
-                assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
+                assert!(!stack.is_empty(), "[COMPUTE BUG] Stack empty");
                 return stack.pop().unwrap();
             }
             // PRIMITIVE TYPES
