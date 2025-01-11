@@ -151,6 +151,17 @@ macro_rules! math_to_type {
 }
 
 #[macro_export]
+macro_rules! parser_math_to_type {
+    ($x:expr) => {
+        if $x == $x.trunc() {
+            ParserInstr::Integer($x as i32)
+        } else {
+            ParserInstr::Float($x)
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! if_let {
     // When likely is specified
     (likely, $pattern:pat, $value:expr, $body:block) => {

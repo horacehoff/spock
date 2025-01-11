@@ -14,5 +14,5 @@ func main() {
 //     count = count + 1;
 // }
 // print(result);
-let x = 1+1;
+let x = 1*5+7;
 }

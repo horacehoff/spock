@@ -37,6 +37,9 @@ terms = _{ term+ }
 
 operation = { ops ~ expression }
 
+// just ints/floats for now
+consts_operation = {(integer | float) ~ ops ~ (integer | float) ~ (ops ~ (integer | float | consts_operation))*}
+
 and_operation = {"&&" ~ expression}
 
 or_operation = {"||" ~ expression}
@@ -47,7 +50,7 @@ variableRedeclaration = {identifier ~ "=" ~ expression}
 
 
 expression_unit = _{
-    variableDeclaration | variableRedeclaration | operation | and_operation | or_operation | terms
+    variableDeclaration | variableRedeclaration | consts_operation | operation | and_operation | or_operation | terms
 }
 
 expression = {expression_unit+}

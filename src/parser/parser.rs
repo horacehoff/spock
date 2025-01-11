@@ -1,6 +1,6 @@
-use crate::log;
 use crate::parser::Rule::func_call;
 use crate::util::error;
+use crate::{log, parser_math_to_type};
 use internment::Intern;
 use pest::iterators::Pair;
 use pest::Parser;
@@ -449,6 +449,103 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
                 priority_calc.append(&mut parse_expression(priority_pair));
             }
             output.push(ParserInstr::Or(Box::from(priority_calc)));
+        }
+        // Pre-process operations between constants to speed things up
+        Rule::consts_operation => {
+            recursive = false;
+            let operation: Vec<ParserInstr> = pair
+                .clone()
+                .into_inner()
+                .into_iter()
+                .flat_map(|x| parse_expression(x))
+                .collect();
+            println!("OPERATION IS {operation:?}");
+            let mut operator: Operator = Operator::Null;
+            let mut result: ParserInstr = ParserInstr::Null;
+            for elem in operation {
+                if result == ParserInstr::Null {
+                    result = elem;
+                    continue;
+                }
+                match elem {
+                    ParserInstr::Operation(op) => {
+                        operator = op;
+                    }
+                    ParserInstr::Integer(int) => {
+                        if let ParserInstr::Float(parent) = result {
+                            match operator {
+                                Operator::Add => result = parser_math_to_type!(parent + int as f32),
+                                Operator::Sub => result = parser_math_to_type!(parent - int as f32),
+                                Operator::Divide => {
+                                    result = parser_math_to_type!(parent / int as f32)
+                                }
+                                Operator::Multiply => {
+                                    result = parser_math_to_type!(parent * int as f32)
+                                }
+                                Operator::Power => result = parser_math_to_type!(parent.powi(int)),
+                                Operator::Modulo => {
+                                    result = parser_math_to_type!(parent % int as f32)
+                                }
+                                _ => todo!(),
+                            }
+                        } else if let ParserInstr::Integer(parent) = result {
+                            match operator {
+                                Operator::Add => result = ParserInstr::Integer(parent + int),
+                                Operator::Sub => result = ParserInstr::Integer(parent - int),
+                                Operator::Divide => {
+                                    result = parser_math_to_type!(parent as f32 / int as f32)
+                                }
+                                Operator::Multiply => result = ParserInstr::Integer(parent * int),
+                                Operator::Power => {
+                                    result = ParserInstr::Integer(parent.pow(int as u32))
+                                }
+                                Operator::Modulo => result = ParserInstr::Integer(parent % int),
+                                _ => todo!(),
+                            }
+                        }
+                    }
+                    ParserInstr::Float(float) => {
+                        if let ParserInstr::Float(parent) = result {
+                            match operator {
+                                Operator::Add => result = ParserInstr::Float(parent + float),
+                                Operator::Sub => result = ParserInstr::Float(parent - float),
+                                Operator::Divide => result = parser_math_to_type!(parent / float),
+                                Operator::Multiply => result = parser_math_to_type!(parent * float),
+                                Operator::Power => {
+                                    result = parser_math_to_type!(parent.powf(float))
+                                }
+                                Operator::Modulo => result = parser_math_to_type!(parent % float),
+                                _ => todo!(),
+                            }
+                        } else if let ParserInstr::Integer(parent) = result {
+                            match operator {
+                                Operator::Add => {
+                                    result = parser_math_to_type!(parent as f32 + float)
+                                }
+                                Operator::Sub => {
+                                    result = parser_math_to_type!(parent as f32 - float)
+                                }
+                                Operator::Divide => {
+                                    result = parser_math_to_type!(parent as f32 / float)
+                                }
+                                Operator::Multiply => {
+                                    result = parser_math_to_type!(parent as f32 * float)
+                                }
+                                Operator::Power => {
+                                    result = parser_math_to_type!((parent as f32).powf(float))
+                                }
+                                Operator::Modulo => {
+                                    result = parser_math_to_type!(parent as f32 % float)
+                                }
+                                _ => todo!(),
+                            }
+                        }
+                    }
+                    _ => error(&format!("Unkown constant value {elem:?}"), ""),
+                }
+            }
+            // println!("RESULT IS {result:?}");
+            output.push(result);
         }
         _ => {}
     }

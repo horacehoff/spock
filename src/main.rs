@@ -712,7 +712,8 @@ fn execute(
     let mut variables: Vec<(Intern<String>, Instr)> = args;
     let mut line: usize = 0;
     let total_len = lines.len();
-    while line < total_len {
+    while line == total_len {
+        // while line < total_len {
         match pre_match(
             lines[line],
             &mut variables,
@@ -1109,7 +1110,7 @@ fn main() {
 
     let mut functions: Functions;
 
-    if !Path::new(&format!(".compute/{}", hash)).exists() {
+    if !Path::new(&format!(".computee/{}", hash)).exists() {
         // BEGIN PARSE
         let temp_funcs = parse_functions(content.trim(), true);
         log!("FUNCS: {temp_funcs:?}");
