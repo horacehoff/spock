@@ -556,59 +556,76 @@ fn pre_match(
                 .unwrap()
                 .1
                 .as_str();
+            println!("ARGS ARE {func_args:?}");
             match name {
-                // "str" => {
-                //     assert_args_number!("str", func_args.len(), 1);
-                //     match func_args.remove(0) {
-                //         Instr::Bool(bool) => Instr::String(Intern::from(
-                //             {
-                //                 if bool {
-                //                     "true"
-                //                 } else {
-                //                     "false"
-                //                 }
-                //             }
-                //             .to_string(),
-                //         )),
-                //         Instr::Integer(int) => Instr::String(Intern::from(int.to_string())),
-                //         Instr::Float(float) => Instr::String(Intern::from(float.to_string())),
-                //         Instr::String(_) => func_args[0],
-                //         _ => todo!(),
-                //     }
-                // }
+                "str" => {
+                    assert_args_number!("str", func_args.len(), 1);
+                    let element = func_args.remove(0);
+                    // let elem = locals.iter().find(|(id, _)| id == func).unwrap();
+                    match element {
+                        Instr::Bool(bool) => {
+                            let id = get_biggest_locals_id(locals);
+                            locals.push((
+                                id,
+                                Intern::from(
+                                    {
+                                        if bool {
+                                            "true"
+                                        } else {
+                                            "false"
+                                        }
+                                    }
+                                    .to_string(),
+                                ),
+                            ));
+                            return Instr::String(id);
+                        }
+                        Instr::Integer(int) => {
+                            let id = get_biggest_locals_id(locals);
+                            locals.push((id, Intern::from(int.to_string())));
+                            return Instr::String(id);
+                        }
+                        Instr::Float(float) => {
+                            let id = get_biggest_locals_id(locals);
+                            locals.push((id, Intern::from(float.to_string())));
+                            return Instr::String(id);
+                        }
+                        Instr::String(_) => return element,
+                        _ => todo!(),
+                    }
+                }
                 _ => {
-                    // if let Some(func) = functions
-                    //     .iter()
-                    //     .find(|(func_name, _, _, _)| name == *func_name)
-                    // {
-                    //     let expected_args = &func.1;
-                    //     if expected_args.len() != func_args.len() {
-                    //         error(
-                    //             &format!(
-                    //                 "Function '{}' expected {} arguments, but received {}",
-                    //                 func.0,
-                    //                 expected_args.len(),
-                    //                 func_args.len()
-                    //             ),
-                    //             "",
-                    //         );
-                    //     }
-                    //
-                    //     let args: Vec<(Intern<String>, Instr)> = expected_args
-                    //         .iter()
-                    //         .enumerate()
-                    //         .map(|(x, y)| (*y, func_args.remove(x)))
-                    //         .collect();
-                    // log!("ARGS IS {args:?}");
-                    // log!("FUNCTION ARGS IS {func_args:?}");
-                    // let return_obj = execute(&func.2, functions, args);
-                    // println!("RETURNING {return_obj:?}");
-                    // return return_obj;
-                    Instr::Null
-                    // } else {
-                    //     error(&format!("Unknown function '{}'", name.red()), "");
-                    //     panic!()
-                    // }
+                    if let Some(func) = functions
+                        .iter()
+                        .find(|(func_name, _, _, _)| name == **func_name)
+                    {
+                        let expected_args = &func.1;
+                        if expected_args.len() != func_args.len() {
+                            error(
+                                &format!(
+                                    "Function '{}' expected {} arguments, but received {}",
+                                    func.0,
+                                    expected_args.len(),
+                                    func_args.len()
+                                ),
+                                "",
+                            );
+                        }
+
+                        let args: Vec<(Intern<String>, Instr)> = expected_args
+                            .iter()
+                            .enumerate()
+                            .map(|(x, y)| (*y, func_args.remove(x)))
+                            .collect();
+                        log!("ARGS IS {args:?}");
+                        log!("FUNCTION ARGS IS {func_args:?}");
+                        let return_obj = execute(&func.2, functions, args, locals);
+                        println!("RETURNING {return_obj:?}");
+                        return return_obj;
+                    } else {
+                        error(&format!("Unknown function '{}'", name.red()), "");
+                        panic!()
+                    }
                 }
             }
         }
@@ -652,8 +669,7 @@ fn execute(
     let mut variables: Vec<(Intern<String>, Instr)> = args;
     let mut line: usize = 0;
     let total_len = lines.len();
-    while line == total_len {
-        // while line < total_len {
+    while line < total_len {
         match pre_match(
             lines[line],
             &mut variables,
@@ -1053,7 +1069,7 @@ fn main() {
     if !Path::new(&format!(".compute/{}", hash)).exists() {
         // BEGIN PARSE
         let temp_funcs = parse_functions(content.trim(), true);
-        log!("FUNCS: {temp_funcs:?}");
+        // log!("FUNCS: {temp_funcs:?}");
         functions = temp_funcs
             .iter()
             .map(|(name, args, lines)| {
