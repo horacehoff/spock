@@ -32,6 +32,7 @@ use crate::parser_functions::parse_functions;
 // use crate::string::{string_ops, to_title_case};
 use crate::util::{error, get_type, op_to_symbol, print_form, split_vec};
 use colored::Colorize;
+use concat_string::concat_string;
 use internment::Intern;
 use snmalloc_rs::SnMalloc;
 use std::fs;
@@ -730,6 +731,7 @@ fn execute(
                     log!("REMOVING INDEX {index}");
                     let func_name = str_pool.swap_remove(index).1;
                     if *func_name == "print" {
+                        assert_eq!(args_list.len(), 1, "Invalid number of arguments");
                         println!("{}", print_form(&args_list.remove(0), str_pool))
                     } else {
                     }
@@ -941,14 +943,14 @@ fn execute(
                             Operator::Add => {
                                 let parent_index =
                                     str_pool.iter().position(|(id, _)| id == parent).unwrap();
-
-                                let current_index =
-                                    str_pool.iter().position(|(id, _)| *id == str).unwrap();
-                                let base_string = str_pool.swap_remove(current_index);
-
+                                let base_string =
+                                    str_pool.iter().find(|(id, _)| *id == str).unwrap().1;
                                 if let Some(parent_string) = str_pool.get_mut(parent_index) {
-                                    parent_string.1 =
-                                        Intern::from(parent_string.1.to_string() + &base_string.1)
+                                    let str = concat_string!(
+                                        parent_string.1.as_str(),
+                                        base_string.as_str()
+                                    );
+                                    parent_string.1 = Intern::from(str.clone());
                                 }
                             }
                             other => error(

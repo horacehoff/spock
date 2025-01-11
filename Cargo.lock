@@ -134,6 +134,7 @@ dependencies = [
  "blake3",
  "branches",
  "colored",
+    "concat-string",
  "const-currying",
  "fancy-regex",
  "internment",
@@ -143,6 +144,12 @@ dependencies = [
  "snmalloc-rs",
  "unroll",
 ]
+
+[[package]]
+name = "concat-string"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7439becb5fafc780b6f4de382b1a7a3e70234afe783854a4702ee8adbb838609"
 
 [[package]]
 name = "const-currying"
