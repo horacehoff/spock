@@ -1110,7 +1110,7 @@ fn main() {
 
     let mut functions: Functions;
 
-    if !Path::new(&format!(".computee/{}", hash)).exists() {
+    if !Path::new(&format!(".compute/{}", hash)).exists() {
         // BEGIN PARSE
         let temp_funcs = parse_functions(content.trim(), true);
         log!("FUNCS: {temp_funcs:?}");
