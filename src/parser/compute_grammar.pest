@@ -78,8 +78,10 @@ while_statement = { "while" ~ "("? ~ condition ~ ")"? ~ block }
 
 loop_statement = { "for" ~ "("? ~ identifier ~ "in" ~ expression ~ ")"? ~ block }
 
-function_decl_args = {identifier ~ ("," ~ identifier)}
+function_decl_args = {identifier ~ ("," ~ identifier)*}
 function_pattern_match = {"|" ~ identifier ~ "|" ~ expression}
 function = {"func" ~ identifier ~ "(" ~ function_decl_args? ~ ")" ~ block}
+
+prog = {function+}
 
 WHITESPACE = _{ " " | "\t" | "\n" }

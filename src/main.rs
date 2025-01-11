@@ -26,7 +26,7 @@ mod util;
 // use crate::float::float_ops;
 // use crate::integer::integer_ops;
 // use crate::namespaces::namespace_functions;
-use crate::parser::{Functions, FunctionsSlice, Instr, Operator, ParserInstr};
+use crate::parser::{FunctionsSlice, Instr, Operator, ParserInstr};
 use crate::parser_functions::parse_functions;
 // use crate::preprocess::preprocess;
 // use crate::string::{string_ops, to_title_case};
@@ -36,8 +36,8 @@ use concat_string::concat_string;
 use internment::Intern;
 use snmalloc_rs::SnMalloc;
 use std::fs;
-use std::fs::{remove_dir_all, File};
-use std::io::{BufReader, Read, Write as _};
+use std::fs::remove_dir_all;
+use std::io::{Read, Write as _};
 use std::ops::{Add, Deref};
 use std::path::Path;
 use std::time::Instant;
@@ -438,12 +438,12 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String
                 if block.is_declared {
                     // let len = get_biggest_locals_id(locals);
                     locals.push(Intern::from(x));
-                    output.push(Instr::VarUpdate((locals.len() - 1) as u16));
+                    output.push(Instr::VarUpdate((locals.len() - 1) as u32));
                     // test.push(Instr::VarUpdate(Intern::<String>::from(x)));
                 } else {
                     // let len = get_biggest_locals_id(locals);
                     locals.push(Intern::from(x));
-                    output.push(Instr::VarStore((locals.len() - 1) as u16));
+                    output.push(Instr::VarStore((locals.len() - 1) as u32));
                     // test.push(Instr::VarStore(Intern::<String>::from(x)));
                 }
             }
@@ -458,7 +458,7 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String
                 }
                 // let len = get_biggest_locals_id(locals);
                 locals.push(Intern::from(name));
-                output.push(Instr::FuncCall((locals.len() - 1) as u16));
+                output.push(Instr::FuncCall((locals.len() - 1) as u32));
                 // test.push(Instr::FuncCall(Intern::<String>::from_ref(&name)));
             }
             ParserInstr::FunctionReturn(ret) => {
@@ -505,7 +505,7 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String
                 // let len = get_biggest_locals_id(locals);
                 locals.push(Intern::from(str));
                 // locals.push(((locals.len() + 1) as u16, str));
-                output.push(Instr::VariableIdentifier((locals.len() - 1) as u16));
+                output.push(Instr::VariableIdentifier((locals.len() - 1) as u32));
             }
             _ => output.push(types_to_instr(x)),
         }
@@ -1051,74 +1051,21 @@ fn main() {
     }
     let arg = args.first().unwrap();
 
-    let content = fs::read_to_string("example.compute").unwrap_or_else(|_| {
+    let content = fs::read_to_string(arg).unwrap_or_else(|_| {
         error(&format!("Unable to read file '{args:?}'"), "");
         std::process::exit(1)
     });
+
     let now = Instant::now();
-
-    let hash = blake3::hash(content.as_bytes()).to_string();
-
-    let mut functions: Functions;
-
-    if !Path::new(&format!(".compute/{}", hash)).exists() {
-        // BEGIN PARSE
-        let temp_funcs = parse_functions(content.trim(), true);
-        // log!("FUNCS: {temp_funcs:?}");
-        functions = temp_funcs
-            .iter()
-            .map(|(name, args, lines)| {
-                let first_stack: Vec<ParserInstr> = lines
-                    .iter()
-                    .flat_map(|line| line.iter().map(|x| (*x).clone()))
-                    .collect();
-                let mut locals: Vec<Intern<String>> = Vec::with_capacity(
-                    first_stack
-                        .iter()
-                        .filter(|obj| matches!(obj, ParserInstr::String(_)))
-                        .count(),
-                );
-                let final_stack = simplify(first_stack, false, &mut locals);
-                (
-                    Intern::from(name.clone()),
-                    args.iter().map(|x| Intern::from(x.to_string())).collect(),
-                    final_stack,
-                    locals,
-                )
-            })
-            .collect();
-
-        let data = bincode::serialize(&functions).unwrap();
-        fs::create_dir_all(".compute/").unwrap();
-        File::create(format!(".compute/{}", hash))
-            .unwrap()
-            .write_all(&data)
-            .unwrap();
-        // END PARSE
-    } else {
-        let file = File::open(format!(".compute/{}", hash)).unwrap();
-        let mut reader = BufReader::with_capacity(128 * 1024, file);
-        let mut buffer = Vec::new();
-        reader.read_to_end(&mut buffer).unwrap();
-
-        functions = bincode::deserialize(&buffer).unwrap_or_else(|_| {
-            panic!(
-                "{}",
-                error_msg!("Failed to read from cache", "Delete the .compute folder")
-            )
-        });
-    }
-
+    let mut functions = parse_functions(content, true);
     let mut main_function = functions.swap_remove(
         functions
             .iter()
             .position(|(x, _, _, _)| **x == "main")
             .unwrap(),
     );
-
     log!("PARSED IN: {:.2?}", now.elapsed());
-    // log!("FUNCS: {:?}", functions);
-    // log!("MAIN: {:?}", main_function);
+
     let now = Instant::now();
     execute(&main_function.2, &functions, vec![], &mut main_function.3);
 

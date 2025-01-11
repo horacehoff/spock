@@ -35,10 +35,10 @@ pub enum Instr {
     If(u16),
 
     // u16 represents str below this comment
-    VarStore(u16),
-    VarUpdate(u16),
-    FuncCall(u16),
-    VariableIdentifier(u16),
+    VarStore(u32),
+    VarUpdate(u32),
+    FuncCall(u32),
+    VariableIdentifier(u32),
 
     Bool(bool),
     String(u16),
