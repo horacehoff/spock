@@ -394,10 +394,8 @@ static GLOBAL: MiMalloc = MiMalloc;
 fn types_to_instr(x: ParserInstr) -> Instr {
     match x {
         ParserInstr::Integer(int) => return Instr::Integer(int),
+        ParserInstr::Float(float) => return Instr::Float(float),
         ParserInstr::Bool(bool) => return Instr::Bool(bool),
-        // ParserInstr::VariableIdentifier(id) => {
-        //     Instr::VariableIdentifier(Intern::<String>::from(id))
-        // }
         ParserInstr::Operation(op) => return Instr::Operation(op),
         _ => todo!("{:?}", x),
     }
