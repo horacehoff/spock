@@ -1,39 +1,18 @@
 #![allow(clippy::too_many_lines)]
 
-// #[path = "legacy/types/array.rs"]
-// mod array;
-// #[path = "legacy/functions/builtin.rs"]
-// mod builtin;
-// #[path = "legacy/types/file.rs"]
-// mod file;
-// #[path = "legacy/types/float.rs"]
-// mod float;
-// #[path = "legacy/types/integer.rs"]
-// mod integer;
-// #[path = "legacy/functions/namespaces.rs"]
-// mod namespaces;
 #[path = "parser/parser.rs"]
 mod parser;
 #[path = "parser/parser_functions.rs"]
 mod parser_functions;
-// mod preprocess;
-// #[path = "legacy/types/string.rs"]
-// mod string;
 mod util;
 
-// use crate::array::array_ops;
-// use crate::builtin::builtin_functions;
-// use crate::float::float_ops;
-// use crate::integer::integer_ops;
-// use crate::namespaces::namespace_functions;
 use crate::parser::{FunctionsSlice, Instr, Operator, ParserInstr};
 use crate::parser_functions::parse_functions;
-// use crate::preprocess::preprocess;
-// use crate::string::{string_ops, to_title_case};
 use crate::util::{error, get_type, op_to_symbol, print_form, split_vec};
 use colored::Colorize;
 use concat_string::concat_string;
 use internment::Intern;
+use likely_stable::likely;
 use snmalloc_rs::SnMalloc;
 use std::fs;
 use std::fs::remove_dir_all;
@@ -41,8 +20,6 @@ use std::io::{Read, Write as _};
 use std::ops::{Add, Deref};
 use std::path::Path;
 use std::time::Instant;
-// use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator};
-
 #[global_allocator]
 static ALLOC: SnMalloc = SnMalloc;
 
@@ -674,7 +651,7 @@ fn execute(
             Instr::Store => depth += 1,
             Instr::StopStore => depth -= 1,
             Instr::Operation(op) => {
-                if depth > 0 {
+                if likely(depth > 0) {
                     operator.push(op)
                 }
             }
@@ -717,7 +694,7 @@ fn execute(
             Instr::StoreArg => args_list.push(stack.pop().unwrap()),
             // Function call that shouldn't return anything
             Instr::FuncCall(name) => {
-                if depth == 0 {
+                if likely(depth == 0) {
                     // println!("ARGS REG IS {args_register:?}");
                     // let index = str_pool.iter().position(|(id, _)| *id == name).unwrap();
                     // log!("REMOVING INDEX {index}");
@@ -727,6 +704,8 @@ fn execute(
                         println!("{}", print_form(&args_list.remove(0), str_pool))
                     } else {
                     }
+                } else {
+                    todo!("Depth > 0 ??? (func_call)")
                 }
             }
             Instr::FuncReturn => {
@@ -808,8 +787,6 @@ fn execute(
                         },
                         Instr::String(parent) => match operator.pop().unwrap() {
                             Operator::Multiply => {
-                                // let index =
-                                //     str_pool.iter().position(|(id, _)| id == parent).unwrap();
                                 let str = str_pool.get_mut(*parent as usize).unwrap();
                                 *str = Intern::from(str.repeat(int as usize));
                             }
@@ -933,10 +910,6 @@ fn execute(
                     match elem {
                         Instr::String(parent) => match operator.pop().unwrap() {
                             Operator::Add => {
-                                // let parent_index =
-                                //     str_pool.iter().position(|(id, _)| id == parent).unwrap();
-                                // let base_string =
-                                //     str_pool.iter().find(|(id, _)| *id == str).unwrap().1;
                                 let base_string = str_pool[str as usize];
                                 if let Some(parent_string) = str_pool.get_mut(*parent as usize) {
                                     let str = concat_string!(
@@ -958,8 +931,6 @@ fn execute(
                         },
                         Instr::Integer(parent) => match operator.pop().unwrap() {
                             Operator::Multiply => {
-                                // let current_index =
-                                //     str_pool.iter().position(|(id, _)| *id == str).unwrap();
                                 if let Some(base_string) = str_pool.get_mut(str as usize) {
                                     *base_string =
                                         Intern::from(base_string.repeat(*parent as usize));
@@ -990,14 +961,12 @@ fn execute(
             _ => {}
         }
         line += 1;
-        // log!("---\nREGISTER {register:?}\nVARIABLES {variables:?}")
     }
     Instr::Null
 }
 
 fn main() {
     dbg!(size_of::<Instr>());
-    // dbg!(size_of::<ParserInstr>());
     let totaltime = Instant::now();
     let args: Vec<String> = std::env::args()
         .skip(1)
