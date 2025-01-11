@@ -56,30 +56,12 @@ macro_rules! log_release {
 #[macro_export]
 macro_rules! assert_args_number {
     ($func_name:expr, $received_args_len:expr, $expected_args_len:expr) => {
-        // if $received_args_len != $expected_args_len {
-        //     error(
-        //         &format!(
-        //             "Function '{}' expected {} argument(s) but received {}",
-        //             $func_name, $expected_args_len, $received_args_len
-        //         ),
-        //         "",
-        //     );
-        // }
         assert!($received_args_len == $expected_args_len,
             "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\nFunction '{}' expected {} argument(s) but received {}\n--------------",
             $func_name, $expected_args_len, $received_args_len
         )
     };
     ($func_name:expr, $received_args_len:expr, $min_args_len:expr, $max_args_len:expr) => {
-        // if $received_args_len < $min_args_len || $received_args_len > $max_args_len {
-        //     error(
-        //         &format!(
-        //             "Function '{}' expected between {} and {} arguments but received {}",
-        //             $func_name, $min_args_len, $max_args_len, $received_args_len
-        //         ),
-        //         "Remove the excess arguments",
-        //     );
-        // }
         assert!(
             $received_args_len >= $min_args_len && $received_args_len <= $max_args_len,
             "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\nFunction '{}' expected between {} and {} argument(s) but received {}\n--------------",
@@ -88,21 +70,21 @@ macro_rules! assert_args_number {
     };
 }
 
-macro_rules! get_value {
-    ($x:expr) => {
-        match $x {
-            ParserInstr::String(x) => x,
-            ParserInstr::Float(x) => x,
-            ParserInstr::Integer(x) => x,
-            ParserInstr::Bool(x) => x,
-            ParserInstr::Array(x) => x,
-            _ => error(
-                format!("{}", error_msg!(format!("Cannot get value of {:?}", $x))),
-                "",
-            ),
-        }
-    };
-}
+// macro_rules! get_value {
+//     ($x:expr) => {
+//         match $x {
+//             ParserInstr::String(x) => x,
+//             ParserInstr::Float(x) => x,
+//             ParserInstr::Integer(x) => x,
+//             ParserInstr::Bool(x) => x,
+//             ParserInstr::Array(x) => x,
+//             _ => error(
+//                 format!("{}", error_msg!(format!("Cannot get value of {:?}", $x))),
+//                 "",
+//             ),
+//         }
+//     };
+// }
 
 pub fn get_type<'a>(unknown: Instr) -> &'a str {
     match unknown {
@@ -161,65 +143,65 @@ macro_rules! parser_math_to_type {
     };
 }
 
-#[macro_export]
-macro_rules! if_let {
-    // When likely is specified
-    (likely, $pattern:pat, $value:expr, $body:block) => {
-        if likely(matches!($value, $pattern)) {
-            if let $pattern = $value {
-                $body
-            }
-        }
-    };
-
-    (likely, $pattern:pat, $value:expr, $body:block, else $elseblock:block) => {
-        if likely(matches!($value, $pattern)) {
-            if let $pattern = $value {
-                $body
-            } else {
-                $elseblock
-            }
-        } else {
-            $elseblock
-        }
-    };
-
-    // When unlikely is specified
-    (unlikely, $pattern:pat, $value:expr, $body:block) => {
-        if unlikely(matches!($value, $pattern)) {
-            if let $pattern = $value {
-                $body
-            }
-        }
-    };
-
-    (unlikely, $pattern:pat, $value:expr, $body:block, else $elseblock:block) => {
-        if unlikely(matches!($value, $pattern)) {
-            if let $pattern = $value {
-                $body
-            } else {
-                $elseblock
-            }
-        } else {
-            $elseblock
-        }
-    };
-
-    // Default (no prediction hint)
-    ($pattern:pat, $value:pat, $body:block) => {
-        if let $pattern = $value {
-            $body
-        }
-    };
-
-    ($pattern:pat, $value:expr, $body:block, else $elseblock:block) => {
-        if let $pattern = $value {
-            $body
-        } else {
-            $elseblock
-        }
-    };
-}
+// #[macro_export]
+// macro_rules! if_let {
+//     // When likely is specified
+//     (likely, $pattern:pat, $value:expr, $body:block) => {
+//         if likely(matches!($value, $pattern)) {
+//             if let $pattern = $value {
+//                 $body
+//             }
+//         }
+//     };
+//
+//     (likely, $pattern:pat, $value:expr, $body:block, else $elseblock:block) => {
+//         if likely(matches!($value, $pattern)) {
+//             if let $pattern = $value {
+//                 $body
+//             } else {
+//                 $elseblock
+//             }
+//         } else {
+//             $elseblock
+//         }
+//     };
+//
+//     // When unlikely is specified
+//     (unlikely, $pattern:pat, $value:expr, $body:block) => {
+//         if unlikely(matches!($value, $pattern)) {
+//             if let $pattern = $value {
+//                 $body
+//             }
+//         }
+//     };
+//
+//     (unlikely, $pattern:pat, $value:expr, $body:block, else $elseblock:block) => {
+//         if unlikely(matches!($value, $pattern)) {
+//             if let $pattern = $value {
+//                 $body
+//             } else {
+//                 $elseblock
+//             }
+//         } else {
+//             $elseblock
+//         }
+//     };
+//
+//     // Default (no prediction hint)
+//     ($pattern:pat, $value:pat, $body:block) => {
+//         if let $pattern = $value {
+//             $body
+//         }
+//     };
+//
+//     ($pattern:pat, $value:expr, $body:block, else $elseblock:block) => {
+//         if let $pattern = $value {
+//             $body
+//         } else {
+//             $elseblock
+//         }
+//     };
+// }
 
 pub fn get_printable_form(x: &ParserInstr) -> String {
     match x {
