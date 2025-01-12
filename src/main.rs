@@ -13,7 +13,7 @@ use crate::util::{error, get_type, op_to_symbol, print_form, split_vec};
 use colored::Colorize;
 use concat_string::concat_string;
 use internment::Intern;
-use likely_stable::{if_likely, if_unlikely, likely};
+use likely_stable::{if_likely, if_unlikely, likely, unlikely};
 use mimalloc::MiMalloc;
 // use snmalloc_rs::SnMalloc;
 use std::fs;
@@ -694,7 +694,7 @@ fn execute(
                 let condition = stack.pop().unwrap();
                 if condition == Instr::Bool(false) {
                     line += jump_size as usize;
-                } else if condition != Instr::Bool(true) {
+                } else if unlikely(condition != Instr::Bool(true)) {
                     error(&format!("'{:?}' is not a boolean", &condition), "");
                 }
             }
@@ -733,7 +733,7 @@ fn execute(
             Instr::Integer(int) => unsafe {
                 check_register_adress!(Instr::Integer(int), depth, line, stack);
                 let index = stack.len() - 1;
-                let elem = stack.get_unchecked_mut(index);
+                let elem = stack.get_mut(index).unwrap();
                 match elem {
                     Instr::Integer(parent) => {
                         match operator.pop().unwrap() {
