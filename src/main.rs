@@ -452,13 +452,7 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String
                     let else_condition = else_block.0;
                     let else_condition_length = else_condition.len();
 
-                    // let block = ParserInstr::Condition(Box::from(ConditionBlock {
-                    //     condition: else_condition,
-                    //     code: else_block.1,
-                    //     else_blocks: Box::new([]),
-                    // }));
-                    // let result = simplify(vec![block], false, locals);
-
+                    // can only use if/else - if/elseif combination for now
                     if else_condition_length == 0 {
                         let block = ParserInstr::Condition(Box::from(ConditionBlock {
                             condition: else_condition,
