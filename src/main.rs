@@ -544,7 +544,10 @@ fn pre_match(
                 .iter()
                 .find_map(|(x, instr)| if x == elem { Some(instr) } else { None })
                 .unwrap_or_else(|| {
-                    panic!("{}", error_msg!(format!("Variable '{id}' does not exist")))
+                    panic!(
+                        "{}",
+                        error_msg!(format!("Variable '{elem}' does not exist"))
+                    )
                 })
         },
         // Function call that should return something (because depth > 0)
