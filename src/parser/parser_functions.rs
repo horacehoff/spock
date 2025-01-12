@@ -24,7 +24,7 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
             + 1,
     );
     // if true --> file has never been parsed
-    if !Path::new(&format!(".computee/{}", hash)).exists() {
+    if !Path::new(&format!(".compute/{}", hash)).exists() {
         // Counts the number of functions that aren't defined in the text's first line, + 1 to account for any function defined in the first line
         let funcs = ComputeParser::parse(Rule::prog, &content)
             .unwrap()
