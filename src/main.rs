@@ -1,21 +1,21 @@
 #![allow(clippy::too_many_lines)]
 extern crate core;
 
+mod instr_set;
 #[path = "parser/parser.rs"]
 mod parser;
 #[path = "parser/parser_functions.rs"]
 mod parser_functions;
 mod util;
 
-use crate::parser::{ConditionBlock, FunctionsSlice, Instr, Operator, ParserInstr};
+use crate::parser::{FunctionsSlice, Instr, Operator};
 use crate::parser_functions::parse_functions;
-use crate::util::{error, get_type, op_to_symbol, print_form, split_vec};
+use crate::util::{error, get_type, op_to_symbol, print_form};
 use colored::Colorize;
 use concat_string::concat_string;
 use internment::Intern;
 use likely_stable::{if_likely, if_unlikely, likely, unlikely};
 use mimalloc::MiMalloc;
-// use snmalloc_rs::SnMalloc;
 use std::fs;
 use std::fs::remove_dir_all;
 use std::io::{Read, Write as _};
@@ -392,132 +392,6 @@ static GLOBAL: MiMalloc = MiMalloc;
 //     ParserInstr::Null
 // }
 
-fn types_to_instr(x: ParserInstr) -> Instr {
-    match x {
-        ParserInstr::Integer(int) => return Instr::Integer(int),
-        ParserInstr::Float(float) => return Instr::Float(float),
-        ParserInstr::Bool(bool) => return Instr::Bool(bool),
-        ParserInstr::Operation(op) => return Instr::Operation(op),
-        _ => todo!("{:?}", x),
-    }
-}
-
-#[inline(never)]
-fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String>>) -> Vec<Instr> {
-    let mut output: Vec<Instr> = Vec::with_capacity(lines.len());
-    for x in lines {
-        match x {
-            ParserInstr::VariableDeclaration(block) => {
-                let x = block.name;
-                let y = block.value;
-                let result = simplify(Vec::from(y), true, locals);
-                output.extend(result);
-                if block.is_declared {
-                    locals.push(Intern::from(x));
-                    output.push(Instr::VarUpdate((locals.len() - 1) as u32));
-                } else {
-                    locals.push(Intern::from(x));
-                    output.push(Instr::VarStore((locals.len() - 1) as u32));
-                }
-            }
-            ParserInstr::FunctionCall(block) => {
-                let name = block.name;
-                let y = block.args;
-                for x in split_vec(Vec::from(y), ParserInstr::Separator) {
-                    let result = simplify(x, true, locals);
-                    output.extend(result);
-                    output.push(Instr::StoreArg);
-                }
-                locals.push(Intern::from(name));
-                output.push(Instr::FuncCall((locals.len() - 1) as u32));
-            }
-            ParserInstr::FunctionReturn(ret) => {
-                let result = simplify(Vec::from(ret), true, locals);
-                output.extend(result);
-                output.push(Instr::FuncReturn);
-            }
-            ParserInstr::Condition(block) => {
-                let condition = simplify(Vec::from(block.condition), true, locals);
-                let in_code = simplify(Vec::from(block.code), false, locals);
-                if condition == vec![Instr::Store, Instr::Bool(true), Instr::StopStore]
-                    || condition == vec![Instr::Store, Instr::StopStore]
-                {
-                    output.extend(in_code);
-                    continue;
-                }
-                output.extend(condition);
-
-                let mut added_else_length = 0;
-                let mut added_else_blocks: Vec<Instr> =
-                    Vec::with_capacity(block.else_blocks.len() * 5);
-                for else_block in block.else_blocks.clone() {
-                    let else_condition = else_block.0;
-                    let else_condition_length = else_condition.len();
-
-                    if else_condition_length == 0 {
-                        let block = ParserInstr::Condition(Box::from(ConditionBlock {
-                            condition: else_condition,
-                            code: else_block.1,
-                            else_blocks: Box::new([]),
-                        }));
-                        let result = simplify(vec![block], false, locals);
-
-                        added_else_length += result.len();
-                        added_else_blocks.extend(result);
-                    } else {
-                        let mut else_blocks = block.else_blocks.into_vec();
-                        else_blocks.remove(0);
-                        let block = ParserInstr::Condition(Box::from(ConditionBlock {
-                            condition: else_condition,
-                            code: else_block.1,
-                            else_blocks: Box::from(else_blocks),
-                        }));
-                        let result = simplify(vec![block], false, locals);
-                        added_else_length += result.len();
-                        added_else_blocks.extend(result);
-                        break;
-                    }
-                }
-
-                let main_branch_length = in_code.len();
-                if added_else_length != 0 {
-                    output.push(Instr::If((main_branch_length + 1) as u16));
-                    output.extend(in_code);
-                    output.push(Instr::Jump(false, added_else_length as u16));
-                    output.extend(added_else_blocks)
-                } else {
-                    output.push(Instr::If((main_branch_length) as u16));
-                    output.extend(in_code)
-                }
-            }
-            ParserInstr::While(block) => {
-                let condition = simplify(Vec::from(block.condition), true, locals);
-                let in_code = simplify(Vec::from(block.code), false, locals);
-                let added = in_code.len();
-                let sum = condition.len() + 1 + added;
-                output.extend(condition);
-                output.push(Instr::If((added + 1) as u16));
-                output.extend(in_code);
-                output.push(Instr::Jump(true, sum as u16))
-            }
-            ParserInstr::String(str) => {
-                locals.push(Intern::from(str));
-                output.push(Instr::String((locals.len() - 1) as u32));
-            }
-            ParserInstr::VariableIdentifier(str) => {
-                locals.push(Intern::from(str));
-                output.push(Instr::VariableIdentifier((locals.len() - 1) as u32));
-            }
-            _ => output.push(types_to_instr(x)),
-        }
-    }
-    if store {
-        output.insert(0, Instr::Store);
-        output.push(Instr::StopStore)
-    }
-    output
-}
-
 macro_rules! check_register_adress {
     ($elem: expr, $depth: expr, $i: expr, $register: expr) => {
         if ($register.len() as u16) < $depth {
@@ -632,7 +506,7 @@ fn execute(
     args: Vec<(Intern<String>, Instr)>,
     str_pool: &mut Vec<Intern<String>>,
 ) -> Instr {
-    util::print_instructions(lines);
+    // util::print_instructions(lines);
     // keeps track of items
     let mut stack: Vec<Instr> = Vec::with_capacity(
         lines
@@ -980,7 +854,7 @@ fn execute(
 }
 
 fn main() {
-    dbg!(size_of::<Instr>());
+    // dbg!(size_of::<Instr>());
     let totaltime = Instant::now();
     let args: Vec<String> = std::env::args()
         .skip(1)

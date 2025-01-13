@@ -1,6 +1,7 @@
+use crate::error_msg;
+use crate::instr_set::parser_to_instr_set;
 use crate::parser::{parse_code, ComputeParser, Functions, ParserInstr, Rule};
 use crate::util::error;
-use crate::{error_msg, simplify};
 use internment::Intern;
 use pest::Parser;
 use std::fs;
@@ -63,7 +64,7 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
             );
             println!("FLATTENED CODE IS {flat_code:?}");
             // convert "parser code" to the instr set
-            let instr_code = simplify(flat_code, false, &mut locals);
+            let instr_code = parser_to_instr_set(flat_code, false, &mut locals);
             functions.push((name, args, instr_code, locals))
         }
 
