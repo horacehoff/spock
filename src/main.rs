@@ -439,7 +439,9 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String
             ParserInstr::Condition(block) => {
                 let condition = simplify(Vec::from(block.condition), true, locals);
                 let in_code = simplify(Vec::from(block.code), false, locals);
-                if condition == vec![Instr::Store, Instr::Bool(true), Instr::StopStore] {
+                if condition == vec![Instr::Store, Instr::Bool(true), Instr::StopStore]
+                    || condition == vec![Instr::Store, Instr::StopStore]
+                {
                     output.extend(in_code);
                     continue;
                 }
@@ -452,7 +454,6 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String
                     let else_condition = else_block.0;
                     let else_condition_length = else_condition.len();
 
-                    // can only use if/else - if/elseif combination for now
                     if else_condition_length == 0 {
                         let block = ParserInstr::Condition(Box::from(ConditionBlock {
                             condition: else_condition,
@@ -471,7 +472,6 @@ fn simplify(lines: Vec<ParserInstr>, store: bool, locals: &mut Vec<Intern<String
                             code: else_block.1,
                             else_blocks: Box::from(else_blocks),
                         }));
-                        println!("BLOCK IM PUSHING IS {block:?}");
                         let result = simplify(vec![block], false, locals);
                         added_else_length += result.len();
                         added_else_blocks.extend(result);
@@ -632,7 +632,7 @@ fn execute(
     args: Vec<(Intern<String>, Instr)>,
     str_pool: &mut Vec<Intern<String>>,
 ) -> Instr {
-    // util::print_instructions(lines);
+    util::print_instructions(lines);
     // keeps track of items
     let mut stack: Vec<Instr> = Vec::with_capacity(
         lines
