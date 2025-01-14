@@ -1,6 +1,33 @@
-use crate::parser::{ConditionBlock, Instr, ParserInstr};
+use crate::parser::{ConditionBlock, Operator, ParserInstr};
 use crate::util::split_vec;
 use internment::Intern;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum Instr {
+    StopStore,
+    Null,
+    Store,
+    StoreArg,
+    Operation(Operator),
+    FuncReturn,
+    // JUMP X INSTRUCTIONS -- IS_NEGATIVE
+    Jump(bool, u16),
+    // JUMP SIZE IF CONDITION IS FALSE
+    If(u16),
+
+    // u16 represents str below this comment
+    VarStore(u32),
+    VarUpdate(u32),
+    FuncCall(u32),
+    VariableIdentifier(u32),
+
+    Bool(bool),
+    String(u32),
+    Integer(i32),
+    Float(f32),
+}
 
 fn types_to_instr(x: ParserInstr) -> Instr {
     match x {

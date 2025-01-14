@@ -8,11 +8,12 @@ mod parser;
 mod parser_functions;
 mod util;
 
-use crate::parser::{FunctionsSlice, Instr, Operator};
+use crate::parser::{FunctionsSlice, Operator};
 use crate::parser_functions::parse_functions;
 use crate::util::{error, get_type, op_to_symbol, print_form};
 use colored::Colorize;
 use concat_string::concat_string;
+use instr_set::Instr;
 use internment::Intern;
 use likely_stable::{if_likely, if_unlikely, likely, unlikely};
 use mimalloc::MiMalloc;

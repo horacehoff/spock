@@ -1,4 +1,5 @@
-use crate::parser::{Instr, Operator, ParserInstr};
+use crate::instr_set::Instr;
+use crate::parser::{Operator, ParserInstr};
 use internment::Intern;
 // use smartstring::alias::String;
 // use smartstring::alias::
