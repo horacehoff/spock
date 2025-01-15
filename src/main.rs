@@ -418,12 +418,13 @@ fn pre_match(
             *variables
                 .iter()
                 .find_map(|(x, instr)| if x == elem { Some(instr) } else { None })
-                .unwrap_or_else(|| {
-                    panic!(
-                        "{}",
-                        error_msg!(format!("Variable '{elem}' does not exist"))
-                    )
-                })
+                // .unwrap_or_else(|| {
+                //     panic!(
+                //         "{}",
+                //         error_msg!(format!("Variable '{elem}' does not exist"))
+                //     )
+                // })
+                .unwrap()
         },
         // Function call that should return something (because depth > 0)
         Instr::FuncCall(name) => {
@@ -508,7 +509,6 @@ fn execute(
     str_pool: &mut Vec<Intern<String>>,
 ) -> Instr {
     // util::print_instructions(lines);
-    // keeps track of items
     let mut stack: Vec<Instr> = Vec::with_capacity(
         lines
             .iter()
