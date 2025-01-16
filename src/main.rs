@@ -853,7 +853,7 @@ fn execute(
 }
 
 fn main() {
-    // dbg!(size_of::<Instr>());
+    dbg!(size_of::<Instr>());
     let totaltime = Instant::now();
     let args: Vec<String> = std::env::args()
         .skip(1)
