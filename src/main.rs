@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_lines)]
 extern crate core;
+use std::fmt::Write;
 
 mod instr_set;
 #[path = "parser/parser.rs"]
@@ -418,13 +419,12 @@ fn pre_match(
             *variables
                 .iter()
                 .find_map(|(x, instr)| if x == elem { Some(instr) } else { None })
-                // .unwrap_or_else(|| {
-                //     panic!(
-                //         "{}",
-                //         error_msg!(format!("Variable '{elem}' does not exist"))
-                //     )
-                // })
-                .unwrap()
+                .unwrap_or_else(|| {
+                    let mut buf: heapless::String<120> = heapless::String::new();
+                    core::write!(&mut buf, "Variable {} does not exist", elem).unwrap();
+                    error(&buf, "");
+                    &Instr::Null
+                })
         },
         // Function call that should return something (because depth > 0)
         Instr::FuncCall(name) => {
@@ -563,9 +563,10 @@ fn execute(
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
                 let str = str_pool[str as usize];
                 if_unlikely!(let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) => {
-                    elem.1 = stack.pop().unwrap()
+                    elem.1 = stack.pop().unwrap();
+                } else {
+                    variables.push((str, stack.pop().unwrap()))
                 });
-                variables.push((str, stack.pop().unwrap()))
             }
             Instr::If(jump_size) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");

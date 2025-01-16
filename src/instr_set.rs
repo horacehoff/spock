@@ -53,11 +53,10 @@ pub fn parser_to_instr_set(
                 let y = block.value;
                 let result = parser_to_instr_set(Vec::from(y), true, locals);
                 output.extend(result);
+                locals.push(Intern::from(x));
                 if block.is_declared {
-                    locals.push(Intern::from(x));
                     output.push(Instr::VarUpdate((locals.len() - 1) as u32));
                 } else {
-                    locals.push(Intern::from(x));
                     output.push(Instr::VarStore((locals.len() - 1) as u32));
                 }
             }
