@@ -486,11 +486,8 @@ fn pre_match(
                             .enumerate()
                             .map(|(x, y)| (*y, func_args.remove(x)))
                             .collect();
-                        log!("ARGS IS {args:?}");
-                        log!("FUNCTION ARGS IS {func_args:?}");
                         let return_obj = execute(&func.2, functions, args, locals);
-                        println!("RETURNING {return_obj:?}");
-                        return return_obj;
+                        return_obj
                     } else {
                         error(&format!("Unknown function '{}'", name.red()), "");
                         panic!()
@@ -609,7 +606,7 @@ fn execute(
                 return stack.pop().unwrap();
             }
             // PRIMITIVE TYPES
-            Instr::Integer(int) => unsafe {
+            Instr::Integer(int) => {
                 check_register_adress!(Instr::Integer(int), depth, line, stack);
                 let index = stack.len() - 1;
                 let elem = stack.get_mut(index).unwrap();
@@ -698,7 +695,7 @@ fn execute(
                     },
                     _ => error(&format!("Cannot add Integer to {}", get_type(*elem)), ""),
                 }
-            },
+            }
             Instr::Float(float) => {
                 check_register_adress!(Instr::Float(float), depth, line, stack);
                 let index = stack.len() - 1;
