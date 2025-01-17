@@ -1,5 +1,5 @@
 use crate::error_msg;
-use crate::instr_set::parser_to_instr_set;
+use crate::instr_set::{parser_to_instr_set, Instr};
 use crate::parser::{parse_code, ComputeParser, Functions, ParserInstr, Rule};
 use crate::util::error;
 use internment::Intern;
@@ -65,7 +65,19 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
             let mut variables: Vec<Intern<String>> = args.clone();
             // println!("FLATTENED CODE IS {flat_code:?}");
             // convert "parser code" to the instr set
-            let instr_code = parser_to_instr_set(flat_code, false, &mut locals, &mut variables);
+            let mut instr_code = parser_to_instr_set(flat_code, false, &mut locals, &mut variables);
+
+            // do some shit
+            let mut i = 0;
+            while i <= instr_code.len().saturating_sub(3) {
+                if let [Instr::Store, elem, Instr::StopStore] = &instr_code[i..i + 3] {
+                    instr_code.splice(i..i + 3, [*elem]);
+                    i = i.saturating_sub(1); // Reset index for overlapping patterns
+                } else {
+                    i += 1;
+                }
+            }
+
             functions.push((name, args, instr_code, locals, variables))
         }
 

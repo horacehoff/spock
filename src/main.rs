@@ -396,7 +396,7 @@ static GLOBAL: MiMalloc = MiMalloc;
 
 macro_rules! check_register_adress {
     ($elem: expr, $depth: expr, $i: expr, $register: expr) => {
-        if ($register.len() as u16) < $depth {
+        if ($register.len() as u16) < $depth || $depth == 0 {
             $register.push($elem);
             $i += 1;
             continue;
@@ -495,7 +495,7 @@ fn execute(
     str_pool: &mut Vec<Intern<String>>,
     vars_pool: &mut [Intern<String>],
 ) -> Instr {
-    // util::print_instructions(lines);
+    util::print_instructions(lines);
     let mut stack: Vec<Instr> = Vec::with_capacity(
         lines
             .iter()
@@ -529,6 +529,8 @@ fn execute(
     let total_len = lines.len();
     while line < total_len {
         // println!("VARIABLES ARE {variables:?}");
+        println!("STACK IS {stack:?}");
+        println!("VARS IS {variables:?}");
         match pre_match(
             lines[line],
             &mut variables,
@@ -540,9 +542,11 @@ fn execute(
             Instr::Store => depth += 1,
             Instr::StopStore => depth -= 1,
             Instr::Operation(op) => {
-                if likely(depth > 0) {
-                    operator.push(op)
-                }
+                operator.push(op);
+                println!("SAW OP AND OPS ARE {operator:?}");
+                // if likely(depth > 0) {
+                //     operator.push(op)
+                // }
             }
             Instr::VarSet(str) => {
                 assert!(!stack.is_empty(), "[COMPUTE BUG] Stack empty");
@@ -592,7 +596,13 @@ fn execute(
             }
             // PRIMITIVE TYPES
             Instr::Integer(int) => {
+                // if depth == 0 {
+                //     stack.push(Instr::Integer(int));
+                //     line += 1;
+                //     continue;
+                // } else {
                 check_register_adress!(Instr::Integer(int), depth, line, stack);
+                // }
                 let index = stack.len() - 1;
                 let elem = stack.get_mut(index).unwrap();
                 match elem {
