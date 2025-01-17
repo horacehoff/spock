@@ -16,7 +16,7 @@ use colored::Colorize;
 use concat_string::concat_string;
 use instr_set::Instr;
 use internment::Intern;
-use likely_stable::{if_likely, if_unlikely, likely, unlikely};
+use likely_stable::{likely, unlikely};
 use mimalloc::MiMalloc;
 use std::fs;
 use std::fs::remove_dir_all;
@@ -415,16 +415,17 @@ fn pre_match(
 ) -> Instr {
     match input {
         Instr::VariableIdentifier(id) => unsafe {
-            let elem = locals.get_unchecked(id as usize);
-            *variables
-                .iter()
-                .find_map(|(x, instr)| if x == elem { Some(instr) } else { None })
-                .unwrap_or_else(|| {
-                    let mut buf: heapless::String<120> = heapless::String::new();
-                    core::write!(&mut buf, "Variable {} does not exist", elem).unwrap();
-                    error(&buf, "");
-                    &Instr::Null
-                })
+            // let elem = locals.get_unchecked(id as usize);
+            // *variables
+            //     .iter()
+            //     .find_map(|(x, instr)| if x == elem { Some(instr) } else { None })
+            //     .unwrap_or_else(|| {
+            //         let mut buf: heapless::String<120> = heapless::String::new();
+            //         core::write!(&mut buf, "Variable {} does not exist", elem).unwrap();
+            //         error(&buf, "");
+            //         &Instr::Null
+            //     })
+            variables[id as usize].1
         },
         // Function call that should return something (because depth > 0)
         Instr::FuncCall(name) => {
@@ -466,7 +467,7 @@ fn pre_match(
                 _ => {
                     if let Some(func) = functions
                         .iter()
-                        .find(|(func_name, _, _, _)| name == **func_name)
+                        .find(|(func_name, _, _, _, _)| name == **func_name)
                     {
                         let expected_args = &func.1;
                         if expected_args.len() != func_args.len() {
@@ -486,7 +487,8 @@ fn pre_match(
                             .enumerate()
                             .map(|(x, y)| (*y, func_args.remove(x)))
                             .collect();
-                        let return_obj = execute(&func.2, functions, args, locals);
+                        let mut vars = func.4.clone();
+                        let return_obj = execute(&func.2, functions, args, locals, &mut vars);
                         return_obj
                     } else {
                         error(&format!("Unknown function '{}'", name.red()), "");
@@ -504,6 +506,7 @@ fn execute(
     functions: &FunctionsSlice,
     args: Vec<(Intern<String>, Instr)>,
     str_pool: &mut Vec<Intern<String>>,
+    vars: &mut Vec<Intern<String>>,
 ) -> Instr {
     // util::print_instructions(lines);
     let mut stack: Vec<Instr> = Vec::with_capacity(
@@ -526,10 +529,13 @@ fn execute(
             .count(),
     );
     // keeps track of variables
-    let mut variables: Vec<(Intern<String>, Instr)> = args;
+    let mut variables: Vec<(Intern<String>, Instr)> =
+        vars.iter().map(|id| (*id, Instr::Null)).collect();
+    // let mut variables: Vec<(Intern<String>, Instr)> = args;
     let mut line: usize = 0;
     let total_len = lines.len();
     while line < total_len {
+        // println!("VARIABLES ARE {variables:?}");
         match pre_match(
             lines[line],
             &mut variables,
@@ -546,25 +552,32 @@ fn execute(
                 }
             }
             // VARIABLE IS ALREADY STORED
-            Instr::VarUpdate(str) => {
+            Instr::VarSet(str) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
-                let str = str_pool[str as usize];
-                if_likely!(let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) => {
-                    elem.1 = stack.pop().unwrap()
-                } else {
-                    error(&format!("Unknown variable '{}'", str.red()), "");
-                })
+                // let str = str_pool[str as usize];
+                // if_likely!(let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) => {
+                //     elem.1 = stack.pop().unwrap()
+                // } else {
+                //     error(&format!("Unknown variable '{}'", str.red()), "");
+                // })
+                // let elem = variables.get_mut(str as usize).unwrap();
+                // println!("POPPED IS {popped:?}");
+                variables[str as usize].1 = stack.pop().unwrap();
             }
             // VARIABLE DECLARATION
-            Instr::VarStore(str) => {
-                assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
-                let str = str_pool[str as usize];
-                if_unlikely!(let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) => {
-                    elem.1 = stack.pop().unwrap();
-                } else {
-                    variables.push((str, stack.pop().unwrap()))
-                });
-            }
+            // Instr::VarStore(str) => {
+            //     assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
+            //     // let str = str_pool[str as usize];
+            //     // if_unlikely!(let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) => {
+            //     //     elem.1 = stack.pop().unwrap();
+            //     // } else {
+            //     //     variables.push((str, stack.pop().unwrap()))
+            //     // });
+            //     let elem = variables.get_mut(str as usize).unwrap();
+            //     let popped = stack.pop().unwrap();
+            //     // println!("POPPED IS {popped:?}");
+            //     elem.1 = popped;
+            // }
             Instr::If(jump_size) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
                 let condition = stack.pop().unwrap();
@@ -849,6 +862,7 @@ fn execute(
         }
         line += 1;
     }
+    // println!("VARIABLES ARE {variables:?}");
     Instr::Null
 }
 
@@ -917,13 +931,19 @@ fn main() {
     let mut main_function = functions.swap_remove(
         functions
             .iter()
-            .position(|(x, _, _, _)| **x == "main")
+            .position(|(x, _, _, _, _)| **x == "main")
             .unwrap(),
     );
     log!("PARSED IN: {:.2?}", now.elapsed());
 
     let now = Instant::now();
-    execute(&main_function.2, &functions, vec![], &mut main_function.3);
+    execute(
+        &main_function.2,
+        &functions,
+        vec![],
+        &mut main_function.3,
+        &mut main_function.4,
+    );
 
     log_release!("EXECUTED IN: {:.2?}", now.elapsed());
     log!("TOTAL: {:.2?}", totaltime.elapsed());

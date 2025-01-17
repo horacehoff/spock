@@ -18,8 +18,9 @@ pub enum Instr {
     If(u16),
 
     // u16 represents str below this comment
-    VarStore(u32),
-    VarUpdate(u32),
+    // VarStore(u32),
+    // VarUpdate(u32),
+    VarSet(u32),
     FuncCall(u32),
     VariableIdentifier(u32),
 
@@ -44,6 +45,7 @@ pub fn parser_to_instr_set(
     lines: Vec<ParserInstr>,
     store: bool,
     locals: &mut Vec<Intern<String>>,
+    variables: &mut Vec<Intern<String>>,
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::with_capacity(lines.len());
     for x in lines {
@@ -51,20 +53,25 @@ pub fn parser_to_instr_set(
             ParserInstr::VariableDeclaration(block) => {
                 let x = block.name;
                 let y = block.value;
-                let result = parser_to_instr_set(Vec::from(y), true, locals);
+                let result = parser_to_instr_set(Vec::from(y), true, locals, variables);
                 output.extend(result);
-                locals.push(Intern::from(x));
+                let name = Intern::from(x);
+                locals.push(name);
                 if block.is_declared {
-                    output.push(Instr::VarUpdate((locals.len() - 1) as u32));
+                    if let Some(index) = variables.iter().position(|id| *id == name) {
+                        output.push(Instr::VarSet(index as u32));
+                        // output.push(Instr::VarUpdate((locals.len() - 1) as u32));
+                    }
                 } else {
-                    output.push(Instr::VarStore((locals.len() - 1) as u32));
+                    output.push(Instr::VarSet((locals.len() - 1) as u32));
+                    variables.push(name);
                 }
             }
             ParserInstr::FunctionCall(block) => {
                 let name = block.name;
                 let y = block.args;
                 for x in split_vec(Vec::from(y), ParserInstr::Separator) {
-                    let result = parser_to_instr_set(x, true, locals);
+                    let result = parser_to_instr_set(x, true, locals, variables);
                     output.extend(result);
                     output.push(Instr::StoreArg);
                 }
@@ -72,13 +79,14 @@ pub fn parser_to_instr_set(
                 output.push(Instr::FuncCall((locals.len() - 1) as u32));
             }
             ParserInstr::FunctionReturn(ret) => {
-                let result = parser_to_instr_set(Vec::from(ret), true, locals);
+                let result = parser_to_instr_set(Vec::from(ret), true, locals, variables);
                 output.extend(result);
                 output.push(Instr::FuncReturn);
             }
             ParserInstr::Condition(block) => {
-                let condition = parser_to_instr_set(Vec::from(block.condition), true, locals);
-                let in_code = parser_to_instr_set(Vec::from(block.code), false, locals);
+                let condition =
+                    parser_to_instr_set(Vec::from(block.condition), true, locals, variables);
+                let in_code = parser_to_instr_set(Vec::from(block.code), false, locals, variables);
                 if condition == vec![Instr::Store, Instr::Bool(true), Instr::StopStore]
                     || condition == vec![Instr::Store, Instr::StopStore]
                 {
@@ -100,7 +108,7 @@ pub fn parser_to_instr_set(
                             code: else_block.1,
                             else_blocks: Box::new([]),
                         }));
-                        let result = parser_to_instr_set(vec![block], false, locals);
+                        let result = parser_to_instr_set(vec![block], false, locals, variables);
 
                         added_else_length += result.len();
                         added_else_blocks.extend(result);
@@ -112,7 +120,7 @@ pub fn parser_to_instr_set(
                             code: else_block.1,
                             else_blocks: Box::from(else_blocks),
                         }));
-                        let result = parser_to_instr_set(vec![block], false, locals);
+                        let result = parser_to_instr_set(vec![block], false, locals, variables);
                         added_else_length += result.len();
                         added_else_blocks.extend(result);
                         break;
@@ -131,8 +139,9 @@ pub fn parser_to_instr_set(
                 }
             }
             ParserInstr::While(block) => {
-                let condition = parser_to_instr_set(Vec::from(block.condition), true, locals);
-                let in_code = parser_to_instr_set(Vec::from(block.code), false, locals);
+                let condition =
+                    parser_to_instr_set(Vec::from(block.condition), true, locals, variables);
+                let in_code = parser_to_instr_set(Vec::from(block.code), false, locals, variables);
                 let added = in_code.len();
                 let sum = condition.len() + 1 + added;
                 output.extend(condition);
@@ -145,8 +154,12 @@ pub fn parser_to_instr_set(
                 output.push(Instr::String((locals.len() - 1) as u32));
             }
             ParserInstr::VariableIdentifier(str) => {
-                locals.push(Intern::from(str));
-                output.push(Instr::VariableIdentifier((locals.len() - 1) as u32));
+                let name = Intern::from(str);
+                if let Some(index) = variables.iter().position(|id| *id == name) {
+                    locals.push(name);
+                    output.push(Instr::VariableIdentifier(index as u32));
+                    // output.push(Instr::VariableIdentifier((locals.len() - 1) as u32));
+                }
             }
             _ => output.push(types_to_instr(x)),
         }

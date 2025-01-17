@@ -346,12 +346,12 @@ pub fn print_instructions(lines: &[Instr]) {
             Instr::If(cond) => {
                 println!("{i} {} CMP      {}", "--".repeat(depth), cond);
             }
-            Instr::VarStore(id) => {
+            Instr::VarSet(id) => {
                 println!("{i} {} SETVAR      {}", "--".repeat(depth), id);
             }
-            Instr::VarUpdate(id) => {
-                println!("{i} {} SETVAR      {}", "--".repeat(depth), id);
-            }
+            // Instr::VarUpdate(id) => {
+            //     println!("{i} {} SETVAR      {}", "--".repeat(depth), id);
+            // }
             Instr::FuncCall(id) => {
                 println!("{i} {} CALL      {}", "--".repeat(depth), id);
             }

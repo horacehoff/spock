@@ -62,13 +62,14 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
                     .filter(|obj| matches!(obj, ParserInstr::String(_)))
                     .count(),
             );
-            println!("FLATTENED CODE IS {flat_code:?}");
+            let mut variables: Vec<Intern<String>> = Vec::new();
+            // println!("FLATTENED CODE IS {flat_code:?}");
             // convert "parser code" to the instr set
-            let instr_code = parser_to_instr_set(flat_code, false, &mut locals);
-            functions.push((name, args, instr_code, locals))
+            let instr_code = parser_to_instr_set(flat_code, false, &mut locals, &mut variables);
+            functions.push((name, args, instr_code, locals, variables))
         }
 
-        if !functions.iter().any(|(name, _, _, _)| **name == "main") && check_main {
+        if !functions.iter().any(|(name, _, _, _, _)| **name == "main") && check_main {
             error("No main function", "Add 'func main() {}' to your file");
         }
 

@@ -9,16 +9,18 @@ use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
 
 pub type Functions = Vec<(
-    Intern<String>,
-    Vec<Intern<String>>,
-    Vec<Instr>,
-    Vec<Intern<String>>,
+    Intern<String>,      // name
+    Vec<Intern<String>>, // args
+    Vec<Instr>,          // code
+    Vec<Intern<String>>, // locals
+    Vec<Intern<String>>, // vars
 )>;
 pub type FunctionsSlice = [(
-    Intern<String>,
-    Vec<Intern<String>>,
-    Vec<Instr>,
-    Vec<Intern<String>>,
+    Intern<String>,      // name
+    Vec<Intern<String>>, // args
+    Vec<Instr>,          // code
+    Vec<Intern<String>>, // locals
+    Vec<Intern<String>>, // vars
 )];
 
 #[derive(Parser)]
