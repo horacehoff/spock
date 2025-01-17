@@ -411,28 +411,16 @@ fn pre_match(
     depth: u16,
     func_args: &mut Vec<Instr>,
     functions: &FunctionsSlice,
-    locals: &mut Vec<Intern<String>>,
+    str_pool: &mut Vec<Intern<String>>,
 ) -> Instr {
     match input {
-        Instr::VariableIdentifier(id) => unsafe {
-            // let elem = locals.get_unchecked(id as usize);
-            // *variables
-            //     .iter()
-            //     .find_map(|(x, instr)| if x == elem { Some(instr) } else { None })
-            //     .unwrap_or_else(|| {
-            //         let mut buf: heapless::String<120> = heapless::String::new();
-            //         core::write!(&mut buf, "Variable {} does not exist", elem).unwrap();
-            //         error(&buf, "");
-            //         &Instr::Null
-            //     })
-            variables[id as usize].1
-        },
+        Instr::VariableIdentifier(id) => variables[id as usize].1,
         // Function call that should return something (because depth > 0)
         Instr::FuncCall(name) => {
             if depth == 0 {
                 return input;
             }
-            let name = locals[name as usize].as_str();
+            let name = str_pool[name as usize].as_str();
             println!("ARGS ARE {func_args:?}");
             match name {
                 "str" => {
@@ -440,7 +428,7 @@ fn pre_match(
                     let element = func_args.remove(0);
                     match element {
                         Instr::Bool(bool) => {
-                            locals.push(Intern::from(
+                            str_pool.push(Intern::from(
                                 {
                                     if bool {
                                         "true"
@@ -450,15 +438,15 @@ fn pre_match(
                                 }
                                 .to_string(),
                             ));
-                            return Instr::String((locals.len() - 1) as u32);
+                            return Instr::String((str_pool.len() - 1) as u32);
                         }
                         Instr::Integer(int) => {
-                            locals.push(Intern::from(int.to_string()));
-                            return Instr::String((locals.len() - 1) as u32);
+                            str_pool.push(Intern::from(int.to_string()));
+                            return Instr::String((str_pool.len() - 1) as u32);
                         }
                         Instr::Float(float) => {
-                            locals.push(Intern::from(float.to_string()));
-                            return Instr::String((locals.len() - 1) as u32);
+                            str_pool.push(Intern::from(float.to_string()));
+                            return Instr::String((str_pool.len() - 1) as u32);
                         }
                         Instr::String(_) => return element,
                         _ => todo!(),
@@ -489,7 +477,7 @@ fn pre_match(
                             .collect();
                         let mut vars = func.4.clone();
                         println!("CALLING {:?} WITH ARGS {args:?}", &func.2);
-                        let return_obj = execute(&func.2, functions, args, locals, &mut vars);
+                        let return_obj = execute(&func.2, functions, args, str_pool, &mut vars);
                         return_obj
                     } else {
                         error(&format!("Unknown function '{}'", name.red()), "");
@@ -532,7 +520,19 @@ fn execute(
     // keeps track of variables
     let mut variables: Vec<(Intern<String>, Instr)> =
         vars.iter().map(|id| (*id, Instr::Null)).collect();
-    variables.extend(args);
+    if !args.is_empty() {
+        variables = variables
+            .iter()
+            .map(|(id, true_val)| {
+                if let Some(elem) = args.iter().find(|(x, value)| x == id) {
+                    (*id, elem.1)
+                } else {
+                    (*id, *true_val)
+                }
+            })
+            .collect();
+    }
+    // variables.extend(args);
     // let mut variables: Vec<(Intern<String>, Instr)> = args;
     let mut line: usize = 0;
     let total_len = lines.len();
@@ -553,33 +553,10 @@ fn execute(
                     operator.push(op)
                 }
             }
-            // VARIABLE IS ALREADY STORED
             Instr::VarSet(str) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
-                // let str = str_pool[str as usize];
-                // if_likely!(let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) => {
-                //     elem.1 = stack.pop().unwrap()
-                // } else {
-                //     error(&format!("Unknown variable '{}'", str.red()), "");
-                // })
-                // let elem = variables.get_mut(str as usize).unwrap();
-                // println!("POPPED IS {popped:?}");
                 variables[str as usize].1 = stack.pop().unwrap();
             }
-            // VARIABLE DECLARATION
-            // Instr::VarStore(str) => {
-            //     assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
-            //     // let str = str_pool[str as usize];
-            //     // if_unlikely!(let Some(elem) = variables.iter_mut().find(|(id, _)| *id == str) => {
-            //     //     elem.1 = stack.pop().unwrap();
-            //     // } else {
-            //     //     variables.push((str, stack.pop().unwrap()))
-            //     // });
-            //     let elem = variables.get_mut(str as usize).unwrap();
-            //     let popped = stack.pop().unwrap();
-            //     // println!("POPPED IS {popped:?}");
-            //     elem.1 = popped;
-            // }
             Instr::If(jump_size) => {
                 assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
                 let condition = stack.pop().unwrap();
