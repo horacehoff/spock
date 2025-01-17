@@ -1,7 +1,13 @@
-func test(x) {
-    return x;
-}
-
 func main() {
-print(test(256));
+let count = 0;
+let limit = 1000000;
+let result = 1;
+while count < limit {
+    result = result * 2;
+    if result > 1000000 {
+        result = result % 1000000;
+    }
+    count = count + 1;
+}
+print(result);
 }

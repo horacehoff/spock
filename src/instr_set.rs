@@ -17,8 +17,6 @@ pub enum Instr {
     // JUMP SIZE IF CONDITION IS FALSE
     If(u16),
 
-    // VarStore(u32),
-    // VarUpdate(u32),
     VarSet(u32),             // index of variable
     FuncCall(u32),           // index of str in str_pool
     VariableIdentifier(u32), // index of str in str_pool
