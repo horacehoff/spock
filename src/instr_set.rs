@@ -1,5 +1,5 @@
 use crate::parser::{ConditionBlock, Operator, ParserInstr};
-use crate::util::split_vec;
+use crate::util::{error, split_vec};
 use internment::Intern;
 use serde::{Deserialize, Serialize};
 
@@ -17,12 +17,11 @@ pub enum Instr {
     // JUMP SIZE IF CONDITION IS FALSE
     If(u16),
 
-    // u16 represents str below this comment
     // VarStore(u32),
     // VarUpdate(u32),
-    VarSet(u32),
-    FuncCall(u32),
-    VariableIdentifier(u32),
+    VarSet(u32),             // index of variable
+    FuncCall(u32),           // index of str in str_pool
+    VariableIdentifier(u32), // index of str in str_pool
 
     Bool(bool),
     String(u32),
@@ -80,7 +79,9 @@ pub fn parser_to_instr_set(
             }
             ParserInstr::FunctionReturn(ret) => {
                 let result = parser_to_instr_set(Vec::from(ret), true, locals, variables);
-                output.extend(result);
+                if result != vec![Instr::Store, Instr::StopStore] {
+                    output.extend(result);
+                }
                 output.push(Instr::FuncReturn);
             }
             ParserInstr::Condition(block) => {
@@ -159,6 +160,8 @@ pub fn parser_to_instr_set(
                     locals.push(name);
                     output.push(Instr::VariableIdentifier(index as u32));
                     // output.push(Instr::VariableIdentifier((locals.len() - 1) as u32));
+                } else {
+                    error(&format!("Unknown variable {name}"), "");
                 }
             }
             _ => output.push(types_to_instr(x)),

@@ -1,3 +1,7 @@
+func test(x) {
+    return x;
+}
+
 func main() {
 let count = 0;
 let limit = 1000000;
@@ -10,4 +14,5 @@ while count < limit {
     count = count + 1;
 }
 print(result);
+print(test(256));
 }

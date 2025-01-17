@@ -62,7 +62,7 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
                     .filter(|obj| matches!(obj, ParserInstr::String(_)))
                     .count(),
             );
-            let mut variables: Vec<Intern<String>> = Vec::new();
+            let mut variables: Vec<Intern<String>> = args.clone();
             // println!("FLATTENED CODE IS {flat_code:?}");
             // convert "parser code" to the instr set
             let instr_code = parser_to_instr_set(flat_code, false, &mut locals, &mut variables);

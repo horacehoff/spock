@@ -488,6 +488,7 @@ fn pre_match(
                             .map(|(x, y)| (*y, func_args.remove(x)))
                             .collect();
                         let mut vars = func.4.clone();
+                        println!("CALLING {:?} WITH ARGS {args:?}", &func.2);
                         let return_obj = execute(&func.2, functions, args, locals, &mut vars);
                         return_obj
                     } else {
@@ -531,6 +532,7 @@ fn execute(
     // keeps track of variables
     let mut variables: Vec<(Intern<String>, Instr)> =
         vars.iter().map(|id| (*id, Instr::Null)).collect();
+    variables.extend(args);
     // let mut variables: Vec<(Intern<String>, Instr)> = args;
     let mut line: usize = 0;
     let total_len = lines.len();
@@ -615,7 +617,9 @@ fn execute(
                 }
             }
             Instr::FuncReturn => {
-                assert!(!stack.is_empty(), "[COMPUTE BUG] Stack empty");
+                // assert!(!stack.is_empty(), "[COMPUTE BUG] Stack empty");
+                println!("STACK IS {stack:?}");
+                println!("VARS IS {variables:?}");
                 return stack.pop().unwrap();
             }
             // PRIMITIVE TYPES
