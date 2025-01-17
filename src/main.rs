@@ -495,7 +495,7 @@ fn execute(
     functions: &FunctionsSlice,
     args: Vec<(Intern<String>, Instr)>,
     str_pool: &mut Vec<Intern<String>>,
-    vars: &mut Vec<Intern<String>>,
+    vars_pool: &mut Vec<Intern<String>>,
 ) -> Instr {
     // util::print_instructions(lines);
     let mut stack: Vec<Instr> = Vec::with_capacity(
@@ -519,21 +519,14 @@ fn execute(
     );
     // keeps track of variables
     let mut variables: Vec<(Intern<String>, Instr)> =
-        vars.iter().map(|id| (*id, Instr::Null)).collect();
+        vars_pool.iter().map(|id| (*id, Instr::Null)).collect();
     if !args.is_empty() {
-        variables = variables
-            .iter()
-            .map(|(id, true_val)| {
-                if let Some(elem) = args.iter().find(|(x, value)| x == id) {
-                    (*id, elem.1)
-                } else {
-                    (*id, *true_val)
-                }
-            })
-            .collect();
+        for (id, true_val) in variables.iter_mut() {
+            if let Some(elem) = args.iter().find(|(x, _)| x == id) {
+                *true_val = elem.1;
+            }
+        }
     }
-    // variables.extend(args);
-    // let mut variables: Vec<(Intern<String>, Instr)> = args;
     let mut line: usize = 0;
     let total_len = lines.len();
     while line < total_len {
