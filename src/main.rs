@@ -448,7 +448,7 @@ fn pre_match(
                             str_pool.push(Intern::from(float.to_string()));
                             return Instr::String((str_pool.len() - 1) as u32);
                         }
-                        Instr::String(_) => return element,
+                        Instr::String(_) => element,
                         _ => todo!(),
                     }
                 }
@@ -477,8 +477,8 @@ fn pre_match(
                             .collect();
                         let mut vars = func.4.clone();
                         println!("CALLING {:?} WITH ARGS {args:?}", &func.2);
-                        let return_obj = execute(&func.2, functions, args, str_pool, &mut vars);
-                        return_obj
+                        execute(&func.2, functions, args, str_pool, &mut vars)
+                        // return_obj
                     } else {
                         error(&format!("Unknown function '{}'", name.red()), "");
                         panic!()
@@ -495,7 +495,7 @@ fn execute(
     functions: &FunctionsSlice,
     args: Vec<(Intern<String>, Instr)>,
     str_pool: &mut Vec<Intern<String>>,
-    vars_pool: &mut Vec<Intern<String>>,
+    vars_pool: &mut [Intern<String>],
 ) -> Instr {
     // util::print_instructions(lines);
     let mut stack: Vec<Instr> = Vec::with_capacity(
@@ -547,11 +547,11 @@ fn execute(
                 }
             }
             Instr::VarSet(str) => {
-                assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
+                assert!(!stack.is_empty(), "[COMPUTE BUG] Stack empty");
                 variables[str as usize].1 = stack.pop().unwrap();
             }
             Instr::If(jump_size) => {
-                assert!(stack.len() > 0, "[COMPUTE BUG] Stack empty");
+                assert!(!stack.is_empty(), "[COMPUTE BUG] Stack empty");
                 let condition = stack.pop().unwrap();
                 if condition == Instr::Bool(false) {
                     line += jump_size as usize;
