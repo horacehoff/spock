@@ -59,7 +59,6 @@ pub fn parser_to_instr_set(
                 if block.is_declared {
                     if let Some(index) = variables.iter().position(|id| *id == name) {
                         output.push(Instr::VarSet(index as u32));
-                        // output.push(Instr::VarUpdate((locals.len() - 1) as u32));
                     }
                 } else {
                     output.push(Instr::VarSet((locals.len() - 1) as u32));
@@ -159,7 +158,6 @@ pub fn parser_to_instr_set(
                 if let Some(index) = variables.iter().position(|id| *id == name) {
                     locals.push(name);
                     output.push(Instr::VariableIdentifier(index as u32));
-                    // output.push(Instr::VariableIdentifier((locals.len() - 1) as u32));
                 } else {
                     error(&format!("Unknown variable {name}"), "");
                 }
