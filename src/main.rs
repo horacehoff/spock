@@ -476,9 +476,7 @@ fn pre_match(
                             .map(|(x, y)| (*y, func_args.remove(x)))
                             .collect();
                         let mut vars = func.4.clone();
-                        println!("CALLING {:?} WITH ARGS {args:?}", &func.2);
                         execute(&func.2, functions, args, str_pool, &mut vars)
-                        // return_obj
                     } else {
                         error(&format!("Unknown function '{}'", name.red()), "");
                         panic!()
