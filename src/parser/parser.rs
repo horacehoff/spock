@@ -749,15 +749,12 @@ pub fn parse_code(content: &str) -> Vec<Vec<ParserInstr>> {
                     })));
                 }
                 Rule::variableDeclaration => {
-                    // recursive = false;
-                    // println!("DECLARING {}\n\n", inside);
                     let mut priority_calc: Vec<ParserInstr> = Vec::new();
                     for priority_pair in inside.clone().into_inner() {
                         priority_calc.append(&mut parse_expression(priority_pair));
                     }
                     let parsed_name = priority_calc.remove(0);
                     if let ParserInstr::VariableIdentifier(name) = parsed_name {
-                        // println!("PRIORITY CALC IS {priority_calc:?}\n\n");
                         line_instructions.push(ParserInstr::VariableDeclaration(Box::from(
                             VariableDeclarationBlock {
                                 name: name,
@@ -767,29 +764,21 @@ pub fn parse_code(content: &str) -> Vec<Vec<ParserInstr>> {
                         )));
                     }
                 }
-                // TODO
-                // CHECK IF WORKS (UNLIKELY)
                 Rule::variableRedeclaration => {
-                    // recursive = false;
                     let mut priority_calc: Vec<ParserInstr> = Vec::new();
-                    for priority_pair in pair.clone().into_inner().skip(1) {
+                    for priority_pair in inside.clone().into_inner() {
                         priority_calc.append(&mut parse_expression(priority_pair));
                     }
-                    line_instructions.push(ParserInstr::VariableDeclaration(Box::from(
-                        VariableDeclarationBlock {
-                            name: pair
-                                .clone()
-                                .into_inner()
-                                .next()
-                                .unwrap()
-                                .as_str()
-                                .trim()
-                                .parse()
-                                .unwrap(),
-                            value: Box::from(priority_calc),
-                            is_declared: true,
-                        },
-                    )));
+                    let parsed_name = priority_calc.remove(0);
+                    if let ParserInstr::VariableIdentifier(name) = parsed_name {
+                        line_instructions.push(ParserInstr::VariableDeclaration(Box::from(
+                            VariableDeclarationBlock {
+                                name: name,
+                                value: Box::from(priority_calc),
+                                is_declared: true,
+                            },
+                        )));
+                    }
                 }
                 _ => {}
             }
