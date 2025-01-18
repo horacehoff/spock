@@ -3,6 +3,9 @@ use crate::util::{error, split_vec};
 use internment::Intern;
 use serde::{Deserialize, Serialize};
 
+pub type Integer = i32;
+pub type Float = f32;
+
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum Instr {
@@ -23,8 +26,8 @@ pub enum Instr {
 
     Bool(bool),
     String(u32),
-    Integer(i32),
-    Float(f32),
+    Integer(Integer),
+    Float(Float),
 }
 
 fn types_to_instr(x: ParserInstr) -> Instr {

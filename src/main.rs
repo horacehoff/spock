@@ -9,6 +9,7 @@ mod parser;
 mod parser_functions;
 mod util;
 
+use crate::instr_set::Integer;
 use crate::parser::{FunctionsSlice, Operator};
 use crate::parser_functions::parse_functions;
 use crate::util::{error, get_type, op_to_symbol, print_form};
@@ -396,11 +397,14 @@ static GLOBAL: MiMalloc = MiMalloc;
 
 macro_rules! check_register_adress {
     ($elem: expr, $depth: expr, $i: expr, $register: expr) => {
-        if ($register.len() as u16) < $depth || $depth == 0 {
-            $register.push($elem);
-            $i += 1;
-            continue;
-        }
+        // if ($register.len() as u16) < $depth || $depth == 0 {
+        //     $register.push($elem);
+        //     $i += 1;
+        //     continue;
+        // }
+        $register.push($elem);
+        $i += 1;
+        continue;
     };
 }
 
@@ -488,6 +492,20 @@ fn pre_match(
     }
 }
 
+fn int_int(parent: Integer, child: Integer, op: Operator) -> Instr {
+    match op {
+        Operator::Add => Instr::Integer(parent + child),
+        Operator::Sub => Instr::Integer(parent - child),
+        Operator::Divide => Instr::Integer(parent / child),
+        Operator::Multiply => Instr::Integer(parent * child),
+        Operator::Power => Instr::Integer(parent.pow(child as u32)),
+        Operator::Modulo => Instr::Integer(parent % child),
+        Operator::Equal => Instr::Bool(parent == child),
+        Operator::NotEqual => Instr::Bool(parent != child),
+        _ => panic!("NO OP"),
+    }
+}
+
 fn execute(
     lines: &[Instr],
     functions: &FunctionsSlice,
@@ -540,7 +558,18 @@ fn execute(
         ) {
             Instr::Store => depth += 1,
             Instr::StopStore => depth -= 1,
-            Instr::Operation(op) => operator.push(op),
+            Instr::Operation(op) => {
+                let o2 = stack.pop().unwrap();
+                let o1 = stack.pop().unwrap();
+                match o1 {
+                    Instr::Integer(child) => match o2 {
+                        Instr::Integer(parent) => stack.push(int_int(parent, child, op)),
+                        _ => {}
+                    },
+                    _ => {}
+                }
+                // operator.push(op)
+            }
             Instr::VarSet(str) => {
                 assert!(!stack.is_empty(), "[COMPUTE BUG] Stack empty");
                 variables[str as usize].1 = stack.pop().unwrap();

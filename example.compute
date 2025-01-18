@@ -6,6 +6,8 @@ b = 3;
 
 let c = 3;
 
-let count = (a+b)*c;
+let count = a+b;
+
+print(count);
 
 }
