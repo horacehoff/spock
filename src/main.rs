@@ -396,7 +396,7 @@ static GLOBAL: MiMalloc = MiMalloc;
 
 macro_rules! check_register_adress {
     ($elem: expr, $depth: expr, $i: expr, $register: expr) => {
-        if ($register.len() as u16) < $depth {
+        if ($register.len() as u16) < $depth || $depth == 0 {
             $register.push($elem);
             $i += 1;
             continue;
@@ -529,8 +529,7 @@ fn execute(
     let total_len = lines.len();
     while line < total_len {
         // println!("VARIABLES ARE {variables:?}");
-        println!("STACK IS {stack:?}");
-        println!("VARS IS {variables:?}");
+        // println!("STACK IS {stack:?}");
         match pre_match(
             lines[line],
             &mut variables,
@@ -543,7 +542,6 @@ fn execute(
             Instr::StopStore => depth -= 1,
             Instr::Operation(op) => {
                 operator.push(op);
-                println!("SAW OP AND OPS ARE {operator:?}");
                 // if likely(depth > 0) {
                 //     operator.push(op)
                 // }

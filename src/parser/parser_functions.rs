@@ -52,10 +52,7 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
             // parse function code
             let parsed = parse_code(code_txt);
             // flatten the nested vec
-            let flat_code: Vec<ParserInstr> = parsed
-                .iter()
-                .flat_map(|line| line.iter().cloned())
-                .collect();
+            let flat_code: Vec<ParserInstr> = parsed.iter().flat_map(|line| line.clone()).collect();
             let mut locals: Vec<Intern<String>> = Vec::with_capacity(
                 flat_code
                     .iter()

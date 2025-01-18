@@ -59,8 +59,8 @@ pub fn parser_to_instr_set(
                         output.push(Instr::VarSet(index as u32));
                     }
                 } else {
-                    output.push(Instr::VarSet((locals.len() - 1) as u32));
                     variables.push(name);
+                    output.push(Instr::VarSet((variables.len() - 1) as u32));
                 }
             }
             ParserInstr::FunctionCall(block) => {
@@ -163,7 +163,17 @@ pub fn parser_to_instr_set(
             _ => output.push(types_to_instr(x)),
         }
     }
-    if store {
+    if store
+        && !(output.len() == 1
+            && matches!(
+                output[0],
+                Instr::Integer(_)
+                    | Instr::String(_)
+                    | Instr::VariableIdentifier(_)
+                    | Instr::Float(_)
+                    | Instr::Bool(_)
+            ))
+    {
         output.insert(0, Instr::Store);
         output.push(Instr::StopStore)
     }
