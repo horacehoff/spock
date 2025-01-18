@@ -1,5 +1,3 @@
 func main() {
-let test = 10;
-let count = 5+test;
-print(count);
+let count = (a+b)*c;
 }

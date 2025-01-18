@@ -540,12 +540,7 @@ fn execute(
         ) {
             Instr::Store => depth += 1,
             Instr::StopStore => depth -= 1,
-            Instr::Operation(op) => {
-                operator.push(op);
-                // if likely(depth > 0) {
-                //     operator.push(op)
-                // }
-            }
+            Instr::Operation(op) => operator.push(op),
             Instr::VarSet(str) => {
                 assert!(!stack.is_empty(), "[COMPUTE BUG] Stack empty");
                 variables[str as usize].1 = stack.pop().unwrap();

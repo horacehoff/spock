@@ -99,7 +99,9 @@ pub enum ParserInstr {
     // FunctionPatternMatching(SmolStr, Box<[Types]>),
     NamespaceFunctionCall(Box<NamespaceFunctionCallBlock>),
     FunctionReturn(Box<[ParserInstr]>),
-    Priority(Box<[ParserInstr]>),
+    // Priority(Box<[ParserInstr]>),
+    LPAREN,
+    RPAREN,
     Operation(Operator),
     // NAME - VALUE - IS_REDECLARE
     VariableDeclaration(Box<VariableDeclarationBlock>),
@@ -158,6 +160,35 @@ pub fn wrap_to_flat(inp: Vec<ParserInstr>) -> Vec<ParserInstr> {
     new_vec
 }
 
+pub fn print_ast(pair: Pair<impl pest::RuleType>, indent: usize) {
+    println!(
+        "{}- {:?}: {:?}",
+        " ".repeat(indent),
+        pair.as_rule(),
+        pair.as_str().trim()
+    );
+    for inner_pair in pair.into_inner() {
+        print_ast(inner_pair, indent + 2);
+    }
+}
+
+pub fn parse_operation(operation_input: Pair<Rule>) -> Vec<ParserInstr> {
+    let mut return_vector: Vec<ParserInstr> = Vec::new();
+    for x in operation_input.into_inner() {
+        // println!("PAIR IS {x:?}");
+        if x.as_rule() == Rule::expression || x.as_rule() == Rule::operation {
+            return_vector.extend(parse_operation(x));
+        } else {
+            return_vector.extend(parse_expression(x));
+        }
+    }
+    // println!("VEC IS {return_vector:?}");
+
+    return_vector
+}
+
+pub fn op_to_rpn(operation_input: Vec<ParserInstr>) -> Vec<ParserInstr> {}
+
 pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
     let mut output: Vec<ParserInstr> = Vec::new();
     let mut recursive = true;
@@ -176,6 +207,12 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
                 .unwrap(),
         )),
         Rule::bool => output.push(ParserInstr::Bool(pair.as_str() == "true")),
+        Rule::LPAREN => {
+            output.push(ParserInstr::LPAREN);
+        }
+        Rule::RPAREN => {
+            output.push(ParserInstr::RPAREN);
+        }
         Rule::array_suite => {
             recursive = false;
             let mut suite: Vec<ParserInstr> = Vec::new();
@@ -342,14 +379,20 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
                 ));
             }
         }
-        Rule::priority => {
-            recursive = false;
-            let mut priority_calc: Vec<ParserInstr> = Vec::new();
-            for priority_pair in pair.clone().into_inner() {
-                priority_calc.append(&mut parse_expression(priority_pair));
-            }
-            output.push(ParserInstr::Priority(Box::from(priority_calc)));
-        }
+        // Rule::priority => {
+        //     recursive = false;
+        //     let mut priority_calc: Vec<ParserInstr> = Vec::new();
+        //     for priority_pair in pair.clone().into_inner() {
+        //         priority_calc.append(&mut parse_expression(priority_pair));
+        //     }
+        //     if priority_calc.len() == 1 {
+        //         output.extend(priority_calc);
+        //     } else {
+        //         output.push(ParserInstr::LPAREN);
+        //         output.extend(priority_calc);
+        //         output.push(ParserInstr::RPAREN);
+        //     }
+        // }
         Rule::ops => match pair.as_str() {
             "+" => output.push(ParserInstr::Operation(Operator::Add)),
             "-" => output.push(ParserInstr::Operation(Operator::Sub)),
@@ -367,50 +410,72 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
             ">=" => output.push(ParserInstr::Operation(Operator::SuperiorEqual)),
             _ => todo!(),
         },
-        Rule::variableDeclaration => {
+        Rule::operation => {
             recursive = false;
-            let mut priority_calc: Vec<ParserInstr> = Vec::new();
-            for priority_pair in pair.clone().into_inner().skip(1) {
-                priority_calc.append(&mut parse_expression(priority_pair));
-            }
-            output.push(ParserInstr::VariableDeclaration(Box::from(
-                VariableDeclarationBlock {
-                    name: pair
-                        .clone()
-                        .into_inner()
-                        .next()
-                        .unwrap()
-                        .as_str()
-                        .trim()
-                        .parse()
-                        .unwrap(),
-                    value: Box::from(priority_calc),
-                    is_declared: false,
-                },
-            )));
+            let parsed = parse_operation(pair.clone());
+            let extra_parsed = op_to_rpn(parsed);
+            println!("PARSEDFINAL IS {extra_parsed:?}")
+            // output.extend());
+            // println!("OP IS {}", pair.clone());
+            // // print_ast(pair.clone(), 0);
+            // let mut fully_parsed:Vec<ParserInstr> = Vec::new();
+            // println!("PAIR IS {:?}", pair.clone().into_inner().flatten());
+            // for mut x in pair.clone().into_inner().flatten() {
+            //     println!("RULE {:?}", x);
+            //     if x.as_rule() == Rule::operation {
+            //
+            //     } else {
+            //         fully_parsed.extend(parse_expression(x));
+            //     }
+            //     // fully_parsed.extend(parse_expression(x));
+            //     // println!("PAIR IS {:?}", x.as_span());
+            // }
+            // println!("FULLY PARSED IS {fully_parsed:?}");
         }
-        Rule::variableRedeclaration => {
-            recursive = false;
-            let mut priority_calc: Vec<ParserInstr> = Vec::new();
-            for priority_pair in pair.clone().into_inner().skip(1) {
-                priority_calc.append(&mut parse_expression(priority_pair));
-            }
-            output.push(ParserInstr::VariableDeclaration(Box::from(
-                VariableDeclarationBlock {
-                    name: pair
-                        .clone()
-                        .into_inner()
-                        .next()
-                        .unwrap()
-                        .as_str()
-                        .trim()
-                        .parse()
-                        .unwrap(),
-                    value: Box::from(priority_calc),
-                    is_declared: true,
-                },
-            )));
-        }
+        // Rule::variableDeclaration => {
+        //     recursive = false;
+        //     let mut priority_calc: Vec<ParserInstr> = Vec::new();
+        //     for priority_pair in pair.clone().into_inner().skip(1) {
+        //         priority_calc.append(&mut parse_expression(priority_pair));
+        //     }
+        //     output.push(ParserInstr::VariableDeclaration(Box::from(
+        //         VariableDeclarationBlock {
+        //             name: pair
+        //                 .clone()
+        //                 .into_inner()
+        //                 .next()
+        //                 .unwrap()
+        //                 .as_str()
+        //                 .trim()
+        //                 .parse()
+        //                 .unwrap(),
+        //             value: Box::from(priority_calc),
+        //             is_declared: false,
+        //         },
+        //     )));
+        // }
+        // Rule::variableRedeclaration => {
+        //     recursive = false;
+        //     let mut priority_calc: Vec<ParserInstr> = Vec::new();
+        //     for priority_pair in pair.clone().into_inner().skip(1) {
+        //         priority_calc.append(&mut parse_expression(priority_pair));
+        //     }
+        //     output.push(ParserInstr::VariableDeclaration(Box::from(
+        //         VariableDeclarationBlock {
+        //             name: pair
+        //                 .clone()
+        //                 .into_inner()
+        //                 .next()
+        //                 .unwrap()
+        //                 .as_str()
+        //                 .trim()
+        //                 .parse()
+        //                 .unwrap(),
+        //             value: Box::from(priority_calc),
+        //             is_declared: true,
+        //         },
+        //     )));
+        // }
         Rule::and_operation => {
             recursive = false;
             let mut priority_calc: Vec<ParserInstr> = Vec::new();
@@ -541,7 +606,7 @@ pub fn parse_code(content: &str) -> Vec<Vec<ParserInstr>> {
         std::process::exit(1)
     }) {
         // _visualize_parse_tree(pair.clone(), 0);
-        for inside in pair.into_inner() {
+        for inside in pair.clone().into_inner() {
             let mut line_instructions: Vec<ParserInstr> = Vec::new();
             match inside.as_rule() {
                 Rule::expression => {
@@ -664,6 +729,49 @@ pub fn parse_code(content: &str) -> Vec<Vec<ParserInstr>> {
                         arr: Box::from(target_array),
                         code: Box::from(loop_code),
                     })));
+                }
+                Rule::variableDeclaration => {
+                    // recursive = false;
+                    println!("DECLARING {}", pair.clone().into_inner());
+                    let mut priority_calc: Vec<ParserInstr> = Vec::new();
+                    for priority_pair in pair.clone().into_inner() {
+                        priority_calc.append(&mut parse_expression(priority_pair));
+                    }
+                    let parsed_name = priority_calc.remove(0);
+                    if let ParserInstr::VariableIdentifier(name) = parsed_name {
+                        println!("PRIORITY CALC IS {priority_calc:?}");
+                        line_instructions.push(ParserInstr::VariableDeclaration(Box::from(
+                            VariableDeclarationBlock {
+                                name: name,
+                                value: Box::from(priority_calc),
+                                is_declared: false,
+                            },
+                        )));
+                    }
+                }
+                // TODO
+                // CHECK IF WORKS (UNLIKELY)
+                Rule::variableRedeclaration => {
+                    // recursive = false;
+                    let mut priority_calc: Vec<ParserInstr> = Vec::new();
+                    for priority_pair in pair.clone().into_inner().skip(1) {
+                        priority_calc.append(&mut parse_expression(priority_pair));
+                    }
+                    line_instructions.push(ParserInstr::VariableDeclaration(Box::from(
+                        VariableDeclarationBlock {
+                            name: pair
+                                .clone()
+                                .into_inner()
+                                .next()
+                                .unwrap()
+                                .as_str()
+                                .trim()
+                                .parse()
+                                .unwrap(),
+                            value: Box::from(priority_calc),
+                            is_declared: true,
+                        },
+                    )));
                 }
                 _ => {}
             }

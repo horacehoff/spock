@@ -17,7 +17,10 @@ ops = {
     "-"  | "%" | "+"  | "*" | "<=" | "<"  | "==" | "!=" | "^" | ">=" | ">"  | "/"
 }
 
-priority = {"(" ~ expression ~ ")"}
+LPAREN = {"("}
+RPAREN = {")"}
+
+// priority = _{"(" ~ expression ~ ")"}
 
 func_arg = { expression ~ ("," ~ expression)* | "" }
 
@@ -28,14 +31,13 @@ func_call_namespace = {(identifier ~ "::")+ ~ func_call}
 array = {"[" ~ expression? ~ ("," ~ expression)* ~ "]"}
 
 
-array_suite = {(array | integer | float | string | bool | property| property_function | func_call_namespace | func_call | priority | identifier) ~ array+}
+array_suite = {(array | integer | float | string | bool | property| property_function | func_call_namespace | func_call | (LPAREN ~ expression ~ RPAREN) | identifier) ~ array+}
 
-term = _{ array_suite | array | integer | float | string | bool |property| property_function | func_call_namespace | func_call | priority | identifier }
+term = _{ array_suite | array | integer | float | string | bool | property | property_function | func_call_namespace | func_call | (LPAREN ~ expression ~ RPAREN) | identifier }
 
 terms = _{ term+ }
 
-
-operation = { ops ~ expression }
+operation = { term ~ (ops ~ term)+ }
 
 // just ints/floats for now
 consts_operation = {(integer | float) ~ ops ~ (integer | float) ~ (ops ~ (integer | float | consts_operation))*}
@@ -49,8 +51,14 @@ variableDeclaration = {"let" ~ identifier ~ "=" ~ expression}
 variableRedeclaration = {identifier ~ "=" ~ expression}
 
 
+expression_unit_no_op = _{
+    consts_operation | and_operation | or_operation | terms
+}
+
+expression_no_op = {expression_unit_no_op+}
+
 expression_unit = _{
-    variableDeclaration | variableRedeclaration | consts_operation | operation | and_operation | or_operation | terms
+    consts_operation | operation | and_operation | or_operation | terms
 }
 
 expression = {expression_unit+}
@@ -58,7 +66,7 @@ expression = {expression_unit+}
 return_term = {"return" ~ expression*}
 break_term = {"break"}
 
-line = _{(return_term | break_term | expression) ~ ";"}
+line = _{(return_term | break_term | variableDeclaration | variableRedeclaration | expression) ~ ";"}
 
 code = {statement+}
 

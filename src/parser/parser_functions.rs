@@ -1,5 +1,4 @@
 use crate::error_msg;
-use crate::instr_set::parser_to_instr_set;
 use crate::parser::{parse_code, ComputeParser, Functions, ParserInstr, Rule};
 use crate::util::error;
 use internment::Intern;
@@ -25,7 +24,7 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
             + 1,
     );
     // if true --> file has never been parsed
-    if !Path::new(&format!(".compute/{}", hash)).exists() {
+    if !Path::new(&format!(".computee/{}", hash)).exists() {
         // Counts the number of functions that aren't defined in the text's first line, + 1 to account for any function defined in the first line
         let funcs = ComputeParser::parse(Rule::prog, &content)
             .unwrap()
@@ -53,6 +52,7 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
             let parsed = parse_code(code_txt);
             // flatten the nested vec
             let flat_code: Vec<ParserInstr> = parsed.iter().flat_map(|line| line.clone()).collect();
+            println!("{flat_code:?}");
             let mut locals: Vec<Intern<String>> = Vec::with_capacity(
                 flat_code
                     .iter()
@@ -60,11 +60,23 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
                     .count(),
             );
             let mut variables: Vec<Intern<String>> = args.clone();
-            // println!("FLATTENED CODE IS {flat_code:?}");
-            // convert "parser code" to the instr set
-            let instr_code = parser_to_instr_set(flat_code, false, &mut locals, &mut variables);
 
-            functions.push((name, args, instr_code, locals, variables))
+            // convert to RPN
+            // let mut is_op = false;
+            // let mut corrected_code: Vec<ParserInstr> = Vec::new();
+            // let mut current_op: Vec<ParserInstr> = Vec::new();
+            // for x in flat_code {
+            //     if matches!(current_op.last().unwrap(), ParserInstr::Operation(_)) || matches!(x,  ParserInstr::Operation(_)) {
+            //
+            //     } else {
+            //         current_op.push(x);
+            //     }
+            // }
+
+            // convert "parser code" to the instr set
+            // let instr_code = parser_to_instr_set(flat_code, false, &mut locals, &mut variables);
+            //
+            // functions.push((name, args, instr_code, locals, variables))
         }
 
         if !functions.iter().any(|(name, _, _, _, _)| **name == "main") && check_main {

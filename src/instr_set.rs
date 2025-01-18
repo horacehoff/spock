@@ -177,5 +177,6 @@ pub fn parser_to_instr_set(
         output.insert(0, Instr::Store);
         output.push(Instr::StopStore)
     }
+
     output
 }
