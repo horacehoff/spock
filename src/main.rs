@@ -500,18 +500,9 @@ fn execute(
     vars_pool: &mut [Intern<String>],
 ) -> Instr {
     // util::print_instructions(lines);
-    // let mut stack: Vec<Instr> = Vec::with_capacity(
-    //     lines
-    //         .iter()
-    //         .filter(|elem| matches!(elem, Instr::Store))
-    //         .count(),
-    // );
-    let mut stack: Vec<Instr> = Vec::new();
+    let mut stack: Vec<Instr> = Vec::with_capacity(10);
     // keeps track of function args
-    let mut args_list: Vec<Instr> = Vec::new();
-    // keeps track of current "storing" depth (e.g STORE,...,STORE,... will have depth=2 after the second "STORE")
-    // unclear if really needed
-    // let mut depth: u16 = 0;
+    let mut args_list: Vec<Instr> = Vec::with_capacity(10);
     // keeps track of variables
     let mut variables: Vec<(Intern<String>, Instr)> =
         vars_pool.iter().map(|id| (*id, Instr::Null)).collect();
@@ -525,8 +516,6 @@ fn execute(
     let mut line: usize = 0;
     let total_len = lines.len();
     while line < total_len {
-        // println!("VARIABLES ARE {variables:?}");
-        // println!("STACK IS {stack:?}");
         match pre_match(
             lines[line],
             &mut variables,
@@ -534,8 +523,6 @@ fn execute(
             functions,
             str_pool,
         ) {
-            // Instr::Store => depth += 1,
-            // Instr::StopStore => depth -= 1,
             Instr::Operation(op) => {
                 let o2 = stack.pop().unwrap();
                 let index = stack.len() - 1;
@@ -572,7 +559,6 @@ fn execute(
             Instr::StoreArg => args_list.push(stack.pop().unwrap()),
             // Function call that shouldn't return anything
             Instr::FuncCall(name, false) => {
-                // if likely(depth == 0) {
                 let func_name = str_pool[name as usize];
                 if *func_name == "print" {
                     assert_eq!(
@@ -584,9 +570,6 @@ fn execute(
                     println!("{}", print_form(&args_list.remove(0), str_pool))
                 } else {
                 }
-                // } else {
-                //     todo!("Depth > 0 ??? (func_call)")
-                // }
             }
             Instr::FuncReturn => {
                 return stack.pop().unwrap();
@@ -596,7 +579,6 @@ fn execute(
         }
         line += 1;
     }
-    // println!("VARIABLES ARE {variables:?}");
     Instr::Null
 }
 
