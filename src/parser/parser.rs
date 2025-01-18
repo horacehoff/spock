@@ -493,7 +493,6 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
             recursive = false;
             let parsed = parse_operation(pair.clone());
             let extra_parsed = op_to_rpn(parsed);
-            println!("PARSEDFINAL IS {extra_parsed:?}");
             output.extend(extra_parsed);
         }
         Rule::and_operation => {
@@ -625,7 +624,6 @@ pub fn parse_code(content: &str) -> Vec<Vec<ParserInstr>> {
         error("Failed to parse", "Check semicolons and syntax");
         std::process::exit(1)
     }) {
-        // _visualize_parse_tree(pair.clone(), 0);
         for inside in pair.clone().into_inner() {
             let mut line_instructions: Vec<ParserInstr> = Vec::new();
             match inside.as_rule() {
@@ -752,14 +750,14 @@ pub fn parse_code(content: &str) -> Vec<Vec<ParserInstr>> {
                 }
                 Rule::variableDeclaration => {
                     // recursive = false;
-                    println!("DECLARING {}", pair.clone().into_inner());
+                    // println!("DECLARING {}\n\n", inside);
                     let mut priority_calc: Vec<ParserInstr> = Vec::new();
-                    for priority_pair in pair.clone().into_inner() {
+                    for priority_pair in inside.clone().into_inner() {
                         priority_calc.append(&mut parse_expression(priority_pair));
                     }
                     let parsed_name = priority_calc.remove(0);
                     if let ParserInstr::VariableIdentifier(name) = parsed_name {
-                        println!("PRIORITY CALC IS {priority_calc:?}");
+                        // println!("PRIORITY CALC IS {priority_calc:?}\n\n");
                         line_instructions.push(ParserInstr::VariableDeclaration(Box::from(
                             VariableDeclarationBlock {
                                 name: name,
