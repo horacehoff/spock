@@ -16,7 +16,7 @@ use crate::util::{error, print_form};
 use colored::Colorize;
 use instr_set::Instr;
 use internment::Intern;
-use likely_stable::{likely, unlikely};
+use likely_stable::unlikely;
 use mimalloc::MiMalloc;
 use std::fs;
 use std::fs::remove_dir_all;
@@ -398,7 +398,6 @@ static GLOBAL: MiMalloc = MiMalloc;
 fn pre_match(
     input: Instr,
     variables: &mut [(Intern<String>, Instr)],
-    depth: u16,
     func_args: &mut Vec<Instr>,
     functions: &FunctionsSlice,
     str_pool: &mut Vec<Intern<String>>,
@@ -406,10 +405,7 @@ fn pre_match(
     match input {
         Instr::VariableIdentifier(id) => variables[id as usize].1,
         // Function call that should return something (because depth > 0)
-        Instr::FuncCall(name) => {
-            if depth == 0 {
-                return input;
-            }
+        Instr::FuncCall(name, true) => {
             let name = str_pool[name as usize].as_str();
             println!("ARGS ARE {func_args:?}");
             match name {
@@ -504,17 +500,18 @@ fn execute(
     vars_pool: &mut [Intern<String>],
 ) -> Instr {
     // util::print_instructions(lines);
-    let mut stack: Vec<Instr> = Vec::with_capacity(
-        lines
-            .iter()
-            .filter(|elem| matches!(elem, Instr::Store))
-            .count(),
-    );
+    // let mut stack: Vec<Instr> = Vec::with_capacity(
+    //     lines
+    //         .iter()
+    //         .filter(|elem| matches!(elem, Instr::Store))
+    //         .count(),
+    // );
+    let mut stack: Vec<Instr> = Vec::new();
     // keeps track of function args
     let mut args_list: Vec<Instr> = Vec::new();
     // keeps track of current "storing" depth (e.g STORE,...,STORE,... will have depth=2 after the second "STORE")
     // unclear if really needed
-    let mut depth: u16 = 0;
+    // let mut depth: u16 = 0;
     // keeps track of variables
     let mut variables: Vec<(Intern<String>, Instr)> =
         vars_pool.iter().map(|id| (*id, Instr::Null)).collect();
@@ -533,13 +530,12 @@ fn execute(
         match pre_match(
             lines[line],
             &mut variables,
-            depth,
             &mut args_list,
             functions,
             str_pool,
         ) {
-            Instr::Store => depth += 1,
-            Instr::StopStore => depth -= 1,
+            // Instr::Store => depth += 1,
+            // Instr::StopStore => depth -= 1,
             Instr::Operation(op) => {
                 let o2 = stack.pop().unwrap();
                 let index = stack.len() - 1;
@@ -575,22 +571,22 @@ fn execute(
             }
             Instr::StoreArg => args_list.push(stack.pop().unwrap()),
             // Function call that shouldn't return anything
-            Instr::FuncCall(name) => {
-                if likely(depth == 0) {
-                    let func_name = str_pool[name as usize];
-                    if *func_name == "print" {
-                        assert_eq!(
-                            args_list.len(),
-                            1,
-                            "Invalid number of arguments, expected 1, got {}",
-                            args_list.len()
-                        );
-                        println!("{}", print_form(&args_list.remove(0), str_pool))
-                    } else {
-                    }
+            Instr::FuncCall(name, false) => {
+                // if likely(depth == 0) {
+                let func_name = str_pool[name as usize];
+                if *func_name == "print" {
+                    assert_eq!(
+                        args_list.len(),
+                        1,
+                        "Invalid number of arguments, expected 1, got {}",
+                        args_list.len()
+                    );
+                    println!("{}", print_form(&args_list.remove(0), str_pool))
                 } else {
-                    todo!("Depth > 0 ??? (func_call)")
                 }
+                // } else {
+                //     todo!("Depth > 0 ??? (func_call)")
+                // }
             }
             Instr::FuncReturn => {
                 return stack.pop().unwrap();

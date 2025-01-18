@@ -9,9 +9,7 @@ pub type Float = f32;
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum Instr {
-    StopStore,
     Null,
-    Store,
     StoreArg,
     Operation(Operator),
     FuncReturn,
@@ -20,8 +18,9 @@ pub enum Instr {
     // JUMP SIZE IF CONDITION IS FALSE
     If(u16),
 
-    VarSet(u32),             // index of variable
-    FuncCall(u32),           // index of str in str_pool
+    VarSet(u32), // index of variable
+    // throw away result ?
+    FuncCall(u32, bool),     // index of str in str_pool
     VariableIdentifier(u32), // index of str in str_pool
 
     Bool(bool),
@@ -75,11 +74,11 @@ pub fn parser_to_instr_set(
                     output.push(Instr::StoreArg);
                 }
                 locals.push(Intern::from(name));
-                output.push(Instr::FuncCall((locals.len() - 1) as u32));
+                output.push(Instr::FuncCall((locals.len() - 1) as u32, false));
             }
             ParserInstr::FunctionReturn(ret) => {
                 let result = parser_to_instr_set(Vec::from(ret), true, locals, variables);
-                if result != vec![Instr::Store, Instr::StopStore] {
+                if result != vec![] {
                     output.extend(result);
                 }
                 output.push(Instr::FuncReturn);
@@ -88,9 +87,7 @@ pub fn parser_to_instr_set(
                 let condition =
                     parser_to_instr_set(Vec::from(block.condition), true, locals, variables);
                 let in_code = parser_to_instr_set(Vec::from(block.code), false, locals, variables);
-                if condition == vec![Instr::Store, Instr::Bool(true), Instr::StopStore]
-                    || condition == vec![Instr::Store, Instr::StopStore]
-                {
+                if condition == vec![Instr::Bool(true)] || condition == vec![] {
                     output.extend(in_code);
                     continue;
                 }
@@ -177,8 +174,16 @@ pub fn parser_to_instr_set(
                     | Instr::Bool(_)
             ))
     {
-        output.insert(0, Instr::Store);
-        output.push(Instr::StopStore)
+        output = output
+            .iter()
+            .map(|elem| {
+                if let Instr::FuncCall(id, throw_away) = elem {
+                    Instr::FuncCall(*id, true)
+                } else {
+                    *elem
+                }
+            })
+            .collect();
     }
 
     output

@@ -320,17 +320,17 @@ pub fn print_instructions(lines: &[Instr]) {
     for line in lines {
         i += 1;
         match line {
-            Instr::StopStore => {
-                depth -= 1;
-                println!("{i} {} STOP", "--".repeat(depth))
-            }
+            // Instr::StopStore => {
+            //     depth -= 1;
+            //     println!("{i} {} STOP", "--".repeat(depth))
+            // }
             Instr::Null => {
                 println!("{i} {} NULL", "--".repeat(depth));
             }
-            Instr::Store => {
-                println!("{i} {} STORE", "--".repeat(depth));
-                depth += 1;
-            }
+            // Instr::Store => {
+            //     println!("{i} {} STORE", "--".repeat(depth));
+            //     depth += 1;
+            // }
             Instr::StoreArg => {
                 println!("{i} {} STORE_ARG", "--".repeat(depth));
             }
@@ -352,7 +352,7 @@ pub fn print_instructions(lines: &[Instr]) {
             // Instr::VarUpdate(id) => {
             //     println!("{i} {} SETVAR      {}", "--".repeat(depth), id);
             // }
-            Instr::FuncCall(id) => {
+            Instr::FuncCall(id, throw_away) => {
                 println!("{i} {} CALL      {}", "--".repeat(depth), id);
             }
             Instr::VariableIdentifier(id) => {
