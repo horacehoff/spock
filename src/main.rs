@@ -405,7 +405,7 @@ fn pre_match(
     match input {
         Instr::VariableIdentifier(id) => variables[id as usize].1,
         // Function call that should return something (because depth > 0)
-        Instr::FuncCall(name, true) => {
+        Instr::FuncCall(true, name) => {
             let name = str_pool[name as usize].as_str();
             println!("ARGS ARE {func_args:?}");
             match name {
@@ -558,7 +558,7 @@ fn execute(
             }
             Instr::StoreArg => args_list.push(stack.pop().unwrap()),
             // Function call that shouldn't return anything
-            Instr::FuncCall(name, false) => {
+            Instr::FuncCall(false, name) => {
                 let func_name = str_pool[name as usize];
                 if *func_name == "print" {
                     assert_eq!(

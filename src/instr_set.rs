@@ -20,7 +20,7 @@ pub enum Instr {
 
     VarSet(u32), // index of variable
     // id -- throw away result ?
-    FuncCall(u32, bool),     // index of str in str_pool
+    FuncCall(bool, u32),     // index of str in str_pool
     VariableIdentifier(u32), // index of str in str_pool
 
     Bool(bool),
@@ -74,7 +74,7 @@ pub fn parser_to_instr_set(
                     output.push(Instr::StoreArg);
                 }
                 locals.push(Intern::from(name));
-                output.push(Instr::FuncCall((locals.len() - 1) as u32, false));
+                output.push(Instr::FuncCall(false, (locals.len() - 1) as u32));
             }
             ParserInstr::FunctionReturn(ret) => {
                 let result = parser_to_instr_set(Vec::from(ret), true, locals, variables);
@@ -177,8 +177,8 @@ pub fn parser_to_instr_set(
         output = output
             .iter()
             .map(|elem| {
-                if let Instr::FuncCall(id, throw_away) = elem {
-                    Instr::FuncCall(*id, true)
+                if let Instr::FuncCall(_, id) = elem {
+                    Instr::FuncCall(true, *id)
                 } else {
                     *elem
                 }
