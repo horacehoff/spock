@@ -394,19 +394,6 @@ static GLOBAL: MiMalloc = MiMalloc;
 //     ParserInstr::Null
 // }
 
-// macro_rules! check_register_adress {
-//     ($elem: expr, $depth: expr, $i: expr, $register: expr) => {
-//         // if ($register.len() as u16) < $depth || $depth == 0 {
-//         //     $register.push($elem);
-//         //     $i += 1;
-//         //     continue;
-//         // }
-//         $register.push($elem);
-//         // $i += 1;
-//         // continue;
-//     };
-// }
-
 #[inline(always)]
 fn pre_match(
     input: Instr,
@@ -501,13 +488,11 @@ fn int_int(parent: Integer, child: Integer, op: Operator) -> Instr {
         Operator::Modulo => Instr::Integer(parent % child),
         Operator::Equal => Instr::Bool(parent == child),
         Operator::NotEqual => Instr::Bool(parent != child),
-        Operator::Null => todo!("NO OP"),
-        Operator::And => panic!("INT => AND"),
         Operator::Inferior => Instr::Bool(parent < child),
         Operator::InferiorEqual => Instr::Bool(parent <= child),
-        Operator::Or => panic!("INT => OR"),
         Operator::Superior => Instr::Bool(parent > child),
         Operator::SuperiorEqual => Instr::Bool(parent >= child),
+        _ => panic!("unexpected op int_int"),
     }
 }
 
