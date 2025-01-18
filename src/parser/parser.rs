@@ -118,6 +118,11 @@ pub enum ParserInstr {
     File(Intern<String>),
 }
 
+pub enum Associativity {
+    LEFT,
+    RIGHT,
+}
+
 #[repr(u8)]
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Copy)]
 pub enum Operator {
@@ -136,6 +141,109 @@ pub enum Operator {
     Or,
     Superior,
     SuperiorEqual,
+}
+
+pub fn parse_operation(operation_input: Pair<Rule>) -> Vec<ParserInstr> {
+    let mut return_vector: Vec<ParserInstr> = Vec::new();
+    for x in operation_input.into_inner() {
+        // println!("PAIR IS {x:?}");
+        if x.as_rule() == Rule::expression || x.as_rule() == Rule::operation {
+            return_vector.extend(parse_operation(x));
+        } else {
+            return_vector.extend(parse_expression(x));
+        }
+    }
+    // println!("VEC IS {return_vector:?}");
+
+    return_vector
+}
+
+fn get_precedence(operator: ParserInstr) -> u8 {
+    if let ParserInstr::Operation(op) = operator {
+        match op {
+            Operator::Null => {
+                panic!();
+            }
+            Operator::Add => 2,
+            Operator::Sub => 2,
+            Operator::Divide => 3,
+            Operator::Multiply => 3,
+            Operator::Power => 4,
+            Operator::Modulo => 3,
+            Operator::Equal => 7,
+            Operator::NotEqual => 7,
+            Operator::And => 11,
+            Operator::Inferior => 6,
+            Operator::InferiorEqual => 6,
+            Operator::Or => 12,
+            Operator::Superior => 6,
+            Operator::SuperiorEqual => 6,
+        }
+    } else {
+        panic!("Expected operator (get_precedence)")
+    }
+}
+
+fn is_left_associative(operator: ParserInstr) -> bool {
+    if let ParserInstr::Operation(op) = operator {
+        match op {
+            Operator::Null => {
+                panic!();
+            }
+            Operator::Power => false,
+            _ => true,
+        }
+    } else {
+        panic!("Expected operator (is_left_associative)")
+    }
+}
+
+// shunting yard algorithm implementation
+pub fn op_to_rpn(operation_input: Vec<ParserInstr>) -> Vec<ParserInstr> {
+    let mut return_vector: Vec<ParserInstr> = Vec::new();
+    let mut op_stack: Vec<ParserInstr> = Vec::new();
+    for x in operation_input {
+        // num, function,...
+        if !matches!(
+            x,
+            ParserInstr::Operation(_) | ParserInstr::LPAREN | ParserInstr::RPAREN
+        ) {
+            return_vector.push(x);
+        } else if matches!(x, ParserInstr::Operation(_))
+            && !matches!(x, ParserInstr::LPAREN | ParserInstr::RPAREN)
+        {
+            // operator
+            while !op_stack.is_empty()
+                && op_stack.last().unwrap() != &ParserInstr::LPAREN
+                && (get_precedence(op_stack.last().unwrap().clone()) > get_precedence(x.clone())
+                    || (get_precedence(op_stack.last().unwrap().clone())
+                        == get_precedence(x.clone())
+                        && is_left_associative(x.clone())))
+            {
+                return_vector.push(op_stack.pop().unwrap());
+            }
+            op_stack.push(x);
+        } else if x == ParserInstr::LPAREN {
+            op_stack.push(x);
+        } else if x == ParserInstr::RPAREN {
+            while op_stack.last().unwrap() != &ParserInstr::LPAREN {
+                assert!(!op_stack.is_empty(), "MISMATCHED PARENTHESES");
+                return_vector.push(op_stack.pop().unwrap());
+            }
+            assert_eq!(op_stack.last().unwrap(), &ParserInstr::LPAREN, "WHAT??");
+            op_stack.pop();
+        }
+    }
+    while !op_stack.is_empty() {
+        assert_ne!(
+            op_stack.last().unwrap(),
+            &ParserInstr::LPAREN,
+            "MISMATCHED PARENTHESES"
+        );
+        return_vector.push(op_stack.pop().unwrap());
+    }
+
+    return_vector
 }
 
 pub fn wrap_to_flat(inp: Vec<ParserInstr>) -> Vec<ParserInstr> {
@@ -159,35 +267,6 @@ pub fn wrap_to_flat(inp: Vec<ParserInstr>) -> Vec<ParserInstr> {
     }
     new_vec
 }
-
-pub fn print_ast(pair: Pair<impl pest::RuleType>, indent: usize) {
-    println!(
-        "{}- {:?}: {:?}",
-        " ".repeat(indent),
-        pair.as_rule(),
-        pair.as_str().trim()
-    );
-    for inner_pair in pair.into_inner() {
-        print_ast(inner_pair, indent + 2);
-    }
-}
-
-pub fn parse_operation(operation_input: Pair<Rule>) -> Vec<ParserInstr> {
-    let mut return_vector: Vec<ParserInstr> = Vec::new();
-    for x in operation_input.into_inner() {
-        // println!("PAIR IS {x:?}");
-        if x.as_rule() == Rule::expression || x.as_rule() == Rule::operation {
-            return_vector.extend(parse_operation(x));
-        } else {
-            return_vector.extend(parse_expression(x));
-        }
-    }
-    // println!("VEC IS {return_vector:?}");
-
-    return_vector
-}
-
-pub fn op_to_rpn(operation_input: Vec<ParserInstr>) -> Vec<ParserInstr> {}
 
 pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
     let mut output: Vec<ParserInstr> = Vec::new();
@@ -414,68 +493,9 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
             recursive = false;
             let parsed = parse_operation(pair.clone());
             let extra_parsed = op_to_rpn(parsed);
-            println!("PARSEDFINAL IS {extra_parsed:?}")
-            // output.extend());
-            // println!("OP IS {}", pair.clone());
-            // // print_ast(pair.clone(), 0);
-            // let mut fully_parsed:Vec<ParserInstr> = Vec::new();
-            // println!("PAIR IS {:?}", pair.clone().into_inner().flatten());
-            // for mut x in pair.clone().into_inner().flatten() {
-            //     println!("RULE {:?}", x);
-            //     if x.as_rule() == Rule::operation {
-            //
-            //     } else {
-            //         fully_parsed.extend(parse_expression(x));
-            //     }
-            //     // fully_parsed.extend(parse_expression(x));
-            //     // println!("PAIR IS {:?}", x.as_span());
-            // }
-            // println!("FULLY PARSED IS {fully_parsed:?}");
+            println!("PARSEDFINAL IS {extra_parsed:?}");
+            output.extend(extra_parsed);
         }
-        // Rule::variableDeclaration => {
-        //     recursive = false;
-        //     let mut priority_calc: Vec<ParserInstr> = Vec::new();
-        //     for priority_pair in pair.clone().into_inner().skip(1) {
-        //         priority_calc.append(&mut parse_expression(priority_pair));
-        //     }
-        //     output.push(ParserInstr::VariableDeclaration(Box::from(
-        //         VariableDeclarationBlock {
-        //             name: pair
-        //                 .clone()
-        //                 .into_inner()
-        //                 .next()
-        //                 .unwrap()
-        //                 .as_str()
-        //                 .trim()
-        //                 .parse()
-        //                 .unwrap(),
-        //             value: Box::from(priority_calc),
-        //             is_declared: false,
-        //         },
-        //     )));
-        // }
-        // Rule::variableRedeclaration => {
-        //     recursive = false;
-        //     let mut priority_calc: Vec<ParserInstr> = Vec::new();
-        //     for priority_pair in pair.clone().into_inner().skip(1) {
-        //         priority_calc.append(&mut parse_expression(priority_pair));
-        //     }
-        //     output.push(ParserInstr::VariableDeclaration(Box::from(
-        //         VariableDeclarationBlock {
-        //             name: pair
-        //                 .clone()
-        //                 .into_inner()
-        //                 .next()
-        //                 .unwrap()
-        //                 .as_str()
-        //                 .trim()
-        //                 .parse()
-        //                 .unwrap(),
-        //             value: Box::from(priority_calc),
-        //             is_declared: true,
-        //         },
-        //     )));
-        // }
         Rule::and_operation => {
             recursive = false;
             let mut priority_calc: Vec<ParserInstr> = Vec::new();

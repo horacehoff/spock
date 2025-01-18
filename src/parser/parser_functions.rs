@@ -1,4 +1,5 @@
 use crate::error_msg;
+use crate::instr_set::parser_to_instr_set;
 use crate::parser::{parse_code, ComputeParser, Functions, ParserInstr, Rule};
 use crate::util::error;
 use internment::Intern;
@@ -61,22 +62,10 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
             );
             let mut variables: Vec<Intern<String>> = args.clone();
 
-            // convert to RPN
-            // let mut is_op = false;
-            // let mut corrected_code: Vec<ParserInstr> = Vec::new();
-            // let mut current_op: Vec<ParserInstr> = Vec::new();
-            // for x in flat_code {
-            //     if matches!(current_op.last().unwrap(), ParserInstr::Operation(_)) || matches!(x,  ParserInstr::Operation(_)) {
-            //
-            //     } else {
-            //         current_op.push(x);
-            //     }
-            // }
-
             // convert "parser code" to the instr set
-            // let instr_code = parser_to_instr_set(flat_code, false, &mut locals, &mut variables);
-            //
-            // functions.push((name, args, instr_code, locals, variables))
+            let instr_code = parser_to_instr_set(flat_code, false, &mut locals, &mut variables);
+
+            functions.push((name, args, instr_code, locals, variables))
         }
 
         if !functions.iter().any(|(name, _, _, _, _)| **name == "main") && check_main {
