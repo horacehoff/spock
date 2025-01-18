@@ -402,8 +402,8 @@ macro_rules! check_register_adress {
         //     continue;
         // }
         $register.push($elem);
-        $i += 1;
-        continue;
+        // $i += 1;
+        // continue;
     };
 }
 
@@ -518,7 +518,7 @@ fn execute(
     str_pool: &mut Vec<Intern<String>>,
     vars_pool: &mut [Intern<String>],
 ) -> Instr {
-    util::print_instructions(lines);
+    // util::print_instructions(lines);
     let mut stack: Vec<Instr> = Vec::with_capacity(
         lines
             .iter()
@@ -532,12 +532,12 @@ fn execute(
     let mut depth: u16 = 0;
     // keeps track of operators according to depth
     // unclear if a vec is needed
-    let mut operator: Vec<Operator> = Vec::with_capacity(
-        lines
-            .iter()
-            .filter(|elem| matches!(elem, Instr::Operation(_)))
-            .count(),
-    );
+    // let mut operator: Vec<Operator> = Vec::with_capacity(
+    //     lines
+    //         .iter()
+    //         .filter(|elem| matches!(elem, Instr::Operation(_)))
+    //         .count(),
+    // );
     // keeps track of variables
     let mut variables: Vec<(Intern<String>, Instr)> =
         vars_pool.iter().map(|id| (*id, Instr::Null)).collect();
@@ -565,15 +565,15 @@ fn execute(
             Instr::StopStore => depth -= 1,
             Instr::Operation(op) => {
                 let o2 = stack.pop().unwrap();
-                let o1 = stack.pop().unwrap();
+                let index = stack.len() - 1;
+                let o1 = stack.get_mut(index).unwrap();
                 match o1 {
                     Instr::Integer(parent) => match o2 {
-                        Instr::Integer(child) => stack.push(int_int(parent, child, op)),
+                        Instr::Integer(child) => *o1 = int_int(*parent, child, op),
                         _ => {}
                     },
                     _ => {}
                 }
-                // operator.push(op)
             }
             Instr::VarSet(str) => {
                 assert!(!stack.is_empty(), "[COMPUTE BUG] Stack empty");

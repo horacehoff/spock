@@ -25,7 +25,7 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
             + 1,
     );
     // if true --> file has never been parsed
-    if !Path::new(&format!(".computee/{}", hash)).exists() {
+    if !Path::new(&format!(".compute/{}", hash)).exists() {
         // Counts the number of functions that aren't defined in the text's first line, + 1 to account for any function defined in the first line
         let funcs = ComputeParser::parse(Rule::prog, &content)
             .unwrap()
@@ -53,7 +53,7 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
             let parsed = parse_code(code_txt);
             // flatten the nested vec
             let flat_code: Vec<ParserInstr> = parsed.iter().flat_map(|line| line.clone()).collect();
-            println!("{flat_code:?}");
+            // println!("{flat_code:?}");
             let mut locals: Vec<Intern<String>> = Vec::with_capacity(
                 flat_code
                     .iter()
