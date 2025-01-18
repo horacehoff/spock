@@ -19,7 +19,7 @@ pub enum Instr {
     If(u16),
 
     VarSet(u32), // index of variable
-    // throw away result ?
+    // id -- throw away result ?
     FuncCall(u32, bool),     // index of str in str_pool
     VariableIdentifier(u32), // index of str in str_pool
 
