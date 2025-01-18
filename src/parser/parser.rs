@@ -118,11 +118,6 @@ pub enum ParserInstr {
     File(Intern<String>),
 }
 
-pub enum Associativity {
-    LEFT,
-    RIGHT,
-}
-
 #[repr(u8)]
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Copy)]
 pub enum Operator {
@@ -143,7 +138,7 @@ pub enum Operator {
     SuperiorEqual,
 }
 
-pub fn parse_operation(operation_input: Pair<Rule>) -> Vec<ParserInstr> {
+fn parse_operation(operation_input: Pair<Rule>) -> Vec<ParserInstr> {
     let mut return_vector: Vec<ParserInstr> = Vec::new();
     for x in operation_input.into_inner() {
         // println!("PAIR IS {x:?}");

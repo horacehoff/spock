@@ -12,9 +12,8 @@ mod util;
 use crate::instr_set::Integer;
 use crate::parser::{FunctionsSlice, Operator};
 use crate::parser_functions::parse_functions;
-use crate::util::{error, get_type, op_to_symbol, print_form};
+use crate::util::{error, print_form};
 use colored::Colorize;
-use concat_string::concat_string;
 use instr_set::Instr;
 use internment::Intern;
 use likely_stable::{likely, unlikely};
@@ -568,8 +567,8 @@ fn execute(
                 let o2 = stack.pop().unwrap();
                 let o1 = stack.pop().unwrap();
                 match o1 {
-                    Instr::Integer(child) => match o2 {
-                        Instr::Integer(parent) => stack.push(int_int(parent, child, op)),
+                    Instr::Integer(parent) => match o2 {
+                        Instr::Integer(child) => stack.push(int_int(parent, child, op)),
                         _ => {}
                     },
                     _ => {}
@@ -627,240 +626,240 @@ fn execute(
                 //     continue;
                 // } else {
                 check_register_adress!(Instr::Integer(int), depth, line, stack);
+                // // }
+                // let index = stack.len() - 1;
+                // let elem = stack.get_mut(index).unwrap();
+                // match elem {
+                //     Instr::Integer(parent) => {
+                //         match operator.pop().unwrap() {
+                //             Operator::Add => *elem = Instr::Integer(*parent + int),
+                //             Operator::Sub => *elem = Instr::Integer(*parent - int),
+                //             Operator::Divide => {
+                //                 assert_ne!(
+                //                     int,
+                //                     0,
+                //                     "{}",
+                //                     error_msg!(format!("Division by zero ({int} / 0)"))
+                //                 );
+                //                 *elem = math_to_type!(*parent as f32 / int as f32);
+                //             }
+                //             Operator::Multiply => *elem = Instr::Integer(*parent * int),
+                //             Operator::Power => *elem = Instr::Integer(parent.pow(int as u32)),
+                //             Operator::Modulo => *elem = Instr::Integer(*parent % int),
+                //             Operator::Equal => *elem = Instr::Bool(*parent == int),
+                //             Operator::NotEqual => *elem = Instr::Bool(*parent != int),
+                //             Operator::Inferior => *elem = Instr::Bool(*parent < int),
+                //             Operator::InferiorEqual => *elem = Instr::Bool(*parent <= int),
+                //             Operator::Superior => *elem = Instr::Bool(*parent > int),
+                //             Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= int),
+                //
+                //             // AND
+                //             // OR
+                //             other => error(
+                //                 &format!(
+                //                     "Operation not supported:\n{} {} {}",
+                //                     "Integer".blue(),
+                //                     op_to_symbol(other).red(),
+                //                     "Integer".blue()
+                //                 ),
+                //                 "",
+                //             ),
+                //         }
+                //     }
+                //     Instr::Float(parent) => match operator.pop().unwrap() {
+                //         Operator::Add => *elem = Instr::Float(*parent + int as f32),
+                //         Operator::Sub => *elem = Instr::Float(*parent - int as f32),
+                //         Operator::Divide => {
+                //             assert_ne!(
+                //                 int,
+                //                 0,
+                //                 "{}",
+                //                 error_msg!(format!("Division by zero ({int} / 0)"))
+                //             );
+                //             *elem = Instr::Float(*parent / int as f32)
+                //         }
+                //         Operator::Multiply => *elem = Instr::Float(*parent * int as f32),
+                //         Operator::Power => *elem = Instr::Float(parent.powf(int as f32)),
+                //         Operator::Modulo => *elem = Instr::Float(*parent % int as f32),
+                //         Operator::Equal => *elem = Instr::Bool(*parent == int as f32),
+                //         Operator::NotEqual => *elem = Instr::Bool(*parent != int as f32),
+                //         Operator::Inferior => *elem = Instr::Bool(*parent < int as f32),
+                //         Operator::InferiorEqual => *elem = Instr::Bool(*parent <= int as f32),
+                //         Operator::Superior => *elem = Instr::Bool(*parent > int as f32),
+                //         Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= int as f32),
+                //         other => error(
+                //             &format!(
+                //                 "Operation not supported:\n{} {} {}",
+                //                 "Float".blue(),
+                //                 op_to_symbol(other).red(),
+                //                 "Integer".blue()
+                //             ),
+                //             "",
+                //         ),
+                //     },
+                //     Instr::String(parent) => match operator.pop().unwrap() {
+                //         Operator::Multiply => {
+                //             let str = str_pool.get_mut(*parent as usize).unwrap();
+                //             *str = Intern::from(str.repeat(int as usize));
+                //         }
+                //         other => error(
+                //             &format!(
+                //                 "Operation not supported:\n{} {} {}",
+                //                 "String".blue(),
+                //                 op_to_symbol(other).red(),
+                //                 "Integer".blue()
+                //             ),
+                //             "",
+                //         ),
+                //     },
+                //     _ => error(&format!("Cannot add Integer to {}", get_type(*elem)), ""),
                 // }
-                let index = stack.len() - 1;
-                let elem = stack.get_mut(index).unwrap();
-                match elem {
-                    Instr::Integer(parent) => {
-                        match operator.pop().unwrap() {
-                            Operator::Add => *elem = Instr::Integer(*parent + int),
-                            Operator::Sub => *elem = Instr::Integer(*parent - int),
-                            Operator::Divide => {
-                                assert_ne!(
-                                    int,
-                                    0,
-                                    "{}",
-                                    error_msg!(format!("Division by zero ({int} / 0)"))
-                                );
-                                *elem = math_to_type!(*parent as f32 / int as f32);
-                            }
-                            Operator::Multiply => *elem = Instr::Integer(*parent * int),
-                            Operator::Power => *elem = Instr::Integer(parent.pow(int as u32)),
-                            Operator::Modulo => *elem = Instr::Integer(*parent % int),
-                            Operator::Equal => *elem = Instr::Bool(*parent == int),
-                            Operator::NotEqual => *elem = Instr::Bool(*parent != int),
-                            Operator::Inferior => *elem = Instr::Bool(*parent < int),
-                            Operator::InferiorEqual => *elem = Instr::Bool(*parent <= int),
-                            Operator::Superior => *elem = Instr::Bool(*parent > int),
-                            Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= int),
-
-                            // AND
-                            // OR
-                            other => error(
-                                &format!(
-                                    "Operation not supported:\n{} {} {}",
-                                    "Integer".blue(),
-                                    op_to_symbol(other).red(),
-                                    "Integer".blue()
-                                ),
-                                "",
-                            ),
-                        }
-                    }
-                    Instr::Float(parent) => match operator.pop().unwrap() {
-                        Operator::Add => *elem = Instr::Float(*parent + int as f32),
-                        Operator::Sub => *elem = Instr::Float(*parent - int as f32),
-                        Operator::Divide => {
-                            assert_ne!(
-                                int,
-                                0,
-                                "{}",
-                                error_msg!(format!("Division by zero ({int} / 0)"))
-                            );
-                            *elem = Instr::Float(*parent / int as f32)
-                        }
-                        Operator::Multiply => *elem = Instr::Float(*parent * int as f32),
-                        Operator::Power => *elem = Instr::Float(parent.powf(int as f32)),
-                        Operator::Modulo => *elem = Instr::Float(*parent % int as f32),
-                        Operator::Equal => *elem = Instr::Bool(*parent == int as f32),
-                        Operator::NotEqual => *elem = Instr::Bool(*parent != int as f32),
-                        Operator::Inferior => *elem = Instr::Bool(*parent < int as f32),
-                        Operator::InferiorEqual => *elem = Instr::Bool(*parent <= int as f32),
-                        Operator::Superior => *elem = Instr::Bool(*parent > int as f32),
-                        Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= int as f32),
-                        other => error(
-                            &format!(
-                                "Operation not supported:\n{} {} {}",
-                                "Float".blue(),
-                                op_to_symbol(other).red(),
-                                "Integer".blue()
-                            ),
-                            "",
-                        ),
-                    },
-                    Instr::String(parent) => match operator.pop().unwrap() {
-                        Operator::Multiply => {
-                            let str = str_pool.get_mut(*parent as usize).unwrap();
-                            *str = Intern::from(str.repeat(int as usize));
-                        }
-                        other => error(
-                            &format!(
-                                "Operation not supported:\n{} {} {}",
-                                "String".blue(),
-                                op_to_symbol(other).red(),
-                                "Integer".blue()
-                            ),
-                            "",
-                        ),
-                    },
-                    _ => error(&format!("Cannot add Integer to {}", get_type(*elem)), ""),
-                }
             }
             Instr::Float(float) => {
                 check_register_adress!(Instr::Float(float), depth, line, stack);
-                let index = stack.len() - 1;
-                if let Some(elem) = stack.get_mut(index) {
-                    match elem {
-                        Instr::Integer(parent) => {
-                            match operator.pop().unwrap() {
-                                Operator::Add => *elem = Instr::Float(*parent as f32 + float),
-                                Operator::Sub => *elem = Instr::Float(*parent as f32 - float),
-                                Operator::Divide => {
-                                    assert_ne!(
-                                        float,
-                                        0.0,
-                                        "{}",
-                                        error_msg!(format!("Division by zero ({float} / 0)"))
-                                    );
-                                    *elem = math_to_type!(*parent as f32 / float);
-                                }
-                                Operator::Multiply => *elem = Instr::Float(*parent as f32 * float),
-                                Operator::Power => {
-                                    *elem = Instr::Float(parent.pow(float as u32) as f32)
-                                }
-                                Operator::Modulo => *elem = Instr::Float(*parent as f32 % float),
-                                Operator::Equal => *elem = Instr::Bool(*parent as f32 == float),
-                                Operator::NotEqual => *elem = Instr::Bool(*parent as f32 != float),
-                                Operator::Inferior => {
-                                    *elem = Instr::Bool((*parent as f32) < (float))
-                                }
-                                Operator::InferiorEqual => {
-                                    *elem = Instr::Bool(*parent as f32 <= float)
-                                }
-                                Operator::Superior => *elem = Instr::Bool(*parent as f32 > float),
-                                Operator::SuperiorEqual => {
-                                    *elem = Instr::Bool(*parent as f32 >= float)
-                                }
-
-                                // AND
-                                // OR
-                                other => error(
-                                    &format!(
-                                        "Operation not supported:\n{} {} {}",
-                                        "Integer".blue(),
-                                        op_to_symbol(other).red(),
-                                        "Float".blue()
-                                    ),
-                                    "",
-                                ),
-                            }
-                        }
-                        Instr::Float(parent) => {
-                            match operator.pop().unwrap() {
-                                Operator::Add => *elem = Instr::Float(*parent + float),
-                                Operator::Sub => *elem = Instr::Float(*parent - float),
-                                Operator::Divide => {
-                                    assert_ne!(
-                                        float,
-                                        0.0,
-                                        "{}",
-                                        error_msg!(format!("Division by zero ({float} / 0)"))
-                                    );
-                                    *elem = Instr::Float(*parent / float)
-                                }
-                                Operator::Multiply => *elem = Instr::Float(*parent * float),
-                                Operator::Power => *elem = Instr::Float(parent.powf(float)),
-                                Operator::Modulo => *elem = Instr::Float(*parent % float),
-                                Operator::Equal => *elem = Instr::Bool(*parent == float),
-                                Operator::NotEqual => *elem = Instr::Bool(*parent != float),
-                                Operator::Inferior => *elem = Instr::Bool(*parent < float),
-                                Operator::InferiorEqual => *elem = Instr::Bool(*parent <= float),
-                                Operator::Superior => *elem = Instr::Bool(*parent > float),
-                                Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= float),
-
-                                // AND
-                                // OR
-                                other => error(
-                                    &format!(
-                                        "Operation not supported:\n{} {} {}",
-                                        "Float".blue(),
-                                        op_to_symbol(other).red(),
-                                        "Float".blue()
-                                    ),
-                                    "",
-                                ),
-                            }
-                        }
-                        _ => error(&format!("Cannot add Float to {}", get_type(*elem)), ""),
-                    }
-                } else {
-                    error(
-                        "[COMPUTE] UNABLE TO RETRIEVE FROM REGISTER",
-                        "This is probably a Compute bug",
-                    );
-                }
+                // let index = stack.len() - 1;
+                // if let Some(elem) = stack.get_mut(index) {
+                //     match elem {
+                //         Instr::Integer(parent) => {
+                //             match operator.pop().unwrap() {
+                //                 Operator::Add => *elem = Instr::Float(*parent as f32 + float),
+                //                 Operator::Sub => *elem = Instr::Float(*parent as f32 - float),
+                //                 Operator::Divide => {
+                //                     assert_ne!(
+                //                         float,
+                //                         0.0,
+                //                         "{}",
+                //                         error_msg!(format!("Division by zero ({float} / 0)"))
+                //                     );
+                //                     *elem = math_to_type!(*parent as f32 / float);
+                //                 }
+                //                 Operator::Multiply => *elem = Instr::Float(*parent as f32 * float),
+                //                 Operator::Power => {
+                //                     *elem = Instr::Float(parent.pow(float as u32) as f32)
+                //                 }
+                //                 Operator::Modulo => *elem = Instr::Float(*parent as f32 % float),
+                //                 Operator::Equal => *elem = Instr::Bool(*parent as f32 == float),
+                //                 Operator::NotEqual => *elem = Instr::Bool(*parent as f32 != float),
+                //                 Operator::Inferior => {
+                //                     *elem = Instr::Bool((*parent as f32) < (float))
+                //                 }
+                //                 Operator::InferiorEqual => {
+                //                     *elem = Instr::Bool(*parent as f32 <= float)
+                //                 }
+                //                 Operator::Superior => *elem = Instr::Bool(*parent as f32 > float),
+                //                 Operator::SuperiorEqual => {
+                //                     *elem = Instr::Bool(*parent as f32 >= float)
+                //                 }
+                //
+                //                 // AND
+                //                 // OR
+                //                 other => error(
+                //                     &format!(
+                //                         "Operation not supported:\n{} {} {}",
+                //                         "Integer".blue(),
+                //                         op_to_symbol(other).red(),
+                //                         "Float".blue()
+                //                     ),
+                //                     "",
+                //                 ),
+                //             }
+                //         }
+                //         Instr::Float(parent) => {
+                //             match operator.pop().unwrap() {
+                //                 Operator::Add => *elem = Instr::Float(*parent + float),
+                //                 Operator::Sub => *elem = Instr::Float(*parent - float),
+                //                 Operator::Divide => {
+                //                     assert_ne!(
+                //                         float,
+                //                         0.0,
+                //                         "{}",
+                //                         error_msg!(format!("Division by zero ({float} / 0)"))
+                //                     );
+                //                     *elem = Instr::Float(*parent / float)
+                //                 }
+                //                 Operator::Multiply => *elem = Instr::Float(*parent * float),
+                //                 Operator::Power => *elem = Instr::Float(parent.powf(float)),
+                //                 Operator::Modulo => *elem = Instr::Float(*parent % float),
+                //                 Operator::Equal => *elem = Instr::Bool(*parent == float),
+                //                 Operator::NotEqual => *elem = Instr::Bool(*parent != float),
+                //                 Operator::Inferior => *elem = Instr::Bool(*parent < float),
+                //                 Operator::InferiorEqual => *elem = Instr::Bool(*parent <= float),
+                //                 Operator::Superior => *elem = Instr::Bool(*parent > float),
+                //                 Operator::SuperiorEqual => *elem = Instr::Bool(*parent >= float),
+                //
+                //                 // AND
+                //                 // OR
+                //                 other => error(
+                //                     &format!(
+                //                         "Operation not supported:\n{} {} {}",
+                //                         "Float".blue(),
+                //                         op_to_symbol(other).red(),
+                //                         "Float".blue()
+                //                     ),
+                //                     "",
+                //                 ),
+                //             }
+                //         }
+                //         _ => error(&format!("Cannot add Float to {}", get_type(*elem)), ""),
+                //     }
+                // } else {
+                //     error(
+                //         "[COMPUTE] UNABLE TO RETRIEVE FROM REGISTER",
+                //         "This is probably a Compute bug",
+                //     );
+                // }
             }
             Instr::String(str) => {
                 check_register_adress!(Instr::String(str), depth, line, stack);
-                let index = stack.len() - 1;
-                if let Some(elem) = stack.get_mut(index) {
-                    match elem {
-                        Instr::String(parent) => match operator.pop().unwrap() {
-                            Operator::Add => {
-                                let base_string = str_pool[str as usize];
-                                if let Some(parent_string) = str_pool.get_mut(*parent as usize) {
-                                    let str = concat_string!(
-                                        parent_string.as_str(),
-                                        base_string.as_str()
-                                    );
-                                    *parent_string = Intern::from(str);
-                                }
-                            }
-                            other => error(
-                                &format!(
-                                    "Operation not supported:\n{} {} {}",
-                                    "String".blue(),
-                                    op_to_symbol(other).red(),
-                                    "String".blue()
-                                ),
-                                "",
-                            ),
-                        },
-                        Instr::Integer(parent) => match operator.pop().unwrap() {
-                            Operator::Multiply => {
-                                if let Some(base_string) = str_pool.get_mut(str as usize) {
-                                    *base_string =
-                                        Intern::from(base_string.repeat(*parent as usize));
-                                }
-                            }
-                            other => error(
-                                &format!(
-                                    "Operation not supported:\n{} {} {}",
-                                    "Integer".blue(),
-                                    op_to_symbol(other).red(),
-                                    "String".blue()
-                                ),
-                                "",
-                            ),
-                        },
-                        _ => error(&format!("Cannot add String to {}", get_type(*elem)), ""),
-                    }
-                } else {
-                    error(
-                        "[COMPUTE] UNABLE TO RETRIEVE FROM REGISTER",
-                        "This is probably a Compute bug",
-                    );
-                }
+                // let index = stack.len() - 1;
+                // if let Some(elem) = stack.get_mut(index) {
+                //     match elem {
+                //         Instr::String(parent) => match operator.pop().unwrap() {
+                //             Operator::Add => {
+                //                 let base_string = str_pool[str as usize];
+                //                 if let Some(parent_string) = str_pool.get_mut(*parent as usize) {
+                //                     let str = concat_string!(
+                //                         parent_string.as_str(),
+                //                         base_string.as_str()
+                //                     );
+                //                     *parent_string = Intern::from(str);
+                //                 }
+                //             }
+                //             other => error(
+                //                 &format!(
+                //                     "Operation not supported:\n{} {} {}",
+                //                     "String".blue(),
+                //                     op_to_symbol(other).red(),
+                //                     "String".blue()
+                //                 ),
+                //                 "",
+                //             ),
+                //         },
+                //         Instr::Integer(parent) => match operator.pop().unwrap() {
+                //             Operator::Multiply => {
+                //                 if let Some(base_string) = str_pool.get_mut(str as usize) {
+                //                     *base_string =
+                //                         Intern::from(base_string.repeat(*parent as usize));
+                //                 }
+                //             }
+                //             other => error(
+                //                 &format!(
+                //                     "Operation not supported:\n{} {} {}",
+                //                     "Integer".blue(),
+                //                     op_to_symbol(other).red(),
+                //                     "String".blue()
+                //                 ),
+                //                 "",
+                //             ),
+                //         },
+                //         _ => error(&format!("Cannot add String to {}", get_type(*elem)), ""),
+                //     }
+                // } else {
+                //     error(
+                //         "[COMPUTE] UNABLE TO RETRIEVE FROM REGISTER",
+                //         "This is probably a Compute bug",
+                //     );
+                // }
             }
             Instr::Bool(bool) => {
                 check_register_adress!(Instr::Bool(bool), depth, line, stack);
