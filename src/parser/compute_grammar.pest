@@ -20,8 +20,6 @@ ops = {
 LPAREN = {"("}
 RPAREN = {")"}
 
-// priority = _{"(" ~ expression ~ ")"}
-
 func_arg = { expression ~ ("," ~ expression)* | "" }
 
 func_call = {identifier ~ "(" ~ func_arg ~ ")"}
@@ -52,7 +50,7 @@ variableRedeclaration = {identifier ~ "=" ~ expression}
 
 
 expression_unit_no_op = _{
-    consts_operation | and_operation | or_operation | terms
+    terms | consts_operation | and_operation | or_operation
 }
 
 expression_no_op = {expression_unit_no_op+}
@@ -66,11 +64,11 @@ expression = {expression_unit+}
 return_term = {"return" ~ expression*}
 break_term = {"break"}
 
-line = _{(return_term | break_term | variableDeclaration | variableRedeclaration | expression) ~ ";"}
+line = _{(variableDeclaration | variableRedeclaration | return_term | break_term | expression) ~ ";"}
 
 code = {statement+}
 
-statement = _{ if_statement | while_statement  | loop_statement | line }
+statement = _{ if_statement | while_statement | loop_statement | line }
 
 if_statement = { "if" ~ "("? ~ condition ~ ")"? ~ block ~ else_if_block* ~ else_block? }
 
