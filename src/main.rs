@@ -396,7 +396,7 @@ static GLOBAL: MiMalloc = MiMalloc;
 
 macro_rules! check_register_adress {
     ($elem: expr, $depth: expr, $i: expr, $register: expr) => {
-        if ($register.len() as u16) < $depth || $depth == 0 {
+        if ($register.len() as u16) < $depth {
             $register.push($elem);
             $i += 1;
             continue;
@@ -589,9 +589,6 @@ fn execute(
                 }
             }
             Instr::FuncReturn => {
-                // assert!(!stack.is_empty(), "[COMPUTE BUG] Stack empty");
-                println!("STACK IS {stack:?}");
-                println!("VARS IS {variables:?}");
                 return stack.pop().unwrap();
             }
             // PRIMITIVE TYPES
