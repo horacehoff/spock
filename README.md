@@ -23,21 +23,15 @@ if (x == 20) {
 becomes...
 
 ```
-1  STORE
-2 -- INT(20)
-3  STOP
-4  SETVAR      0
-5  STORE
-6 -- VAR      1
-7 -- OP      ==
-8 -- INT(20)
-9  STOP
-10  CMP      5
-11  STORE
-12 -- STR      2
-13  STOP
-14  STORE_ARG
-15  CALL      3
+1  INT(20)
+2  SETVAR      0
+3  VAR      0
+4  INT(20)
+5  OP      ==
+6  CMP      3
+7  STR      2
+8  STORE_ARG
+9  CALL      3 DISCARD
 ```
 
 ## Syntax examples
