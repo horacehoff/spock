@@ -10,7 +10,7 @@ mod parser;
 mod util;
 
 use crate::functions::parse_functions;
-use crate::instr_set::Integer;
+use crate::instr_set::{Float, Integer};
 use crate::parser::{FunctionsSlice, Operator};
 use crate::util::{error, print_form};
 use colored::Colorize;
@@ -129,6 +129,24 @@ fn int_int(parent: Integer, child: Integer, op: Operator) -> Instr {
     }
 }
 
+fn float_float(parent: Float, child: Float, op: Operator) -> Instr {
+    match op {
+        Operator::Add => Instr::Float(parent + child),
+        Operator::Sub => Instr::Float(parent - child),
+        Operator::Divide => Instr::Float(parent / child),
+        Operator::Multiply => Instr::Float(parent * child),
+        Operator::Power => Instr::Float(parent.powf(child)),
+        Operator::Modulo => Instr::Float(parent % child),
+        Operator::Equal => Instr::Bool(parent == child),
+        Operator::NotEqual => Instr::Bool(parent != child),
+        Operator::Inferior => Instr::Bool(parent < child),
+        Operator::InferiorEqual => Instr::Bool(parent <= child),
+        Operator::Superior => Instr::Bool(parent > child),
+        Operator::SuperiorEqual => Instr::Bool(parent >= child),
+        _ => panic!("unexpected op float_float"),
+    }
+}
+
 fn execute(
     lines: &[Instr],
     functions: &FunctionsSlice,
@@ -168,7 +186,10 @@ fn execute(
                     (Instr::Integer(parent), Instr::Integer(child)) => {
                         *o1 = int_int(*parent, child, op)
                     }
-                    _ => {}
+                    (Instr::Float(parent), Instr::Float(child)) => {
+                        *o1 = float_float(*parent, child, op)
+                    }
+                    _ => todo!(""),
                 }
             }
             Instr::VarSet(str) => {
