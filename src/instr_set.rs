@@ -14,9 +14,9 @@ pub enum Instr {
     Operation(Operator),
     FuncReturn,
     // JUMP X INSTRUCTIONS -- IS_NEGATIVE
-    Jump(bool, u16),
+    Jump(bool, u32),
     // JUMP SIZE IF CONDITION IS FALSE
-    If(u16),
+    If(u32),
 
     VarSet(u32), // index of variable
     // id -- use result?
@@ -127,12 +127,12 @@ pub fn parser_to_instr_set(
 
                 let main_branch_length = in_code.len();
                 if added_else_length != 0 {
-                    output.push(Instr::If((main_branch_length + 1) as u16));
+                    output.push(Instr::If((main_branch_length + 1) as u32));
                     output.extend(in_code);
-                    output.push(Instr::Jump(false, added_else_length as u16));
+                    output.push(Instr::Jump(false, added_else_length as u32));
                     output.extend(added_else_blocks)
                 } else {
-                    output.push(Instr::If((main_branch_length) as u16));
+                    output.push(Instr::If((main_branch_length) as u32));
                     output.extend(in_code)
                 }
             }
@@ -143,9 +143,9 @@ pub fn parser_to_instr_set(
                 let added = in_code.len();
                 let sum = condition.len() + 1 + added;
                 output.extend(condition);
-                output.push(Instr::If((added + 1) as u16));
+                output.push(Instr::If((added + 1) as u32));
                 output.extend(in_code);
-                output.push(Instr::Jump(true, sum as u16))
+                output.push(Instr::Jump(true, sum as u32))
             }
             ParserInstr::String(str) => {
                 locals.push(Intern::from(str));
