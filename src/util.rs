@@ -1,5 +1,5 @@
 use crate::instr_set::Instr;
-use crate::parser::{Operator, ParserInstr};
+use crate::parser::Operator;
 use internment::Intern;
 // use smartstring::alias::String;
 // use smartstring::alias::
@@ -53,39 +53,6 @@ macro_rules! log_release {
         println!("\x1b[33m[LOG] {}\x1b[0m", format!($($rest)*))
     }
 }
-
-#[macro_export]
-macro_rules! assert_args_number {
-    ($func_name:expr, $received_args_len:expr, $expected_args_len:expr) => {
-        assert!($received_args_len == $expected_args_len,
-            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\nFunction '{}' expected {} argument(s) but received {}\n--------------",
-            $func_name, $expected_args_len, $received_args_len
-        )
-    };
-    ($func_name:expr, $received_args_len:expr, $min_args_len:expr, $max_args_len:expr) => {
-        assert!(
-            $received_args_len >= $min_args_len && $received_args_len <= $max_args_len,
-            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\nFunction '{}' expected between {} and {} argument(s) but received {}\n--------------",
-            $func_name, $min_args_len, $max_args_len, $received_args_len
-        )
-    };
-}
-
-// macro_rules! get_value {
-//     ($x:expr) => {
-//         match $x {
-//             ParserInstr::String(x) => x,
-//             ParserInstr::Float(x) => x,
-//             ParserInstr::Integer(x) => x,
-//             ParserInstr::Bool(x) => x,
-//             ParserInstr::Array(x) => x,
-//             _ => error(
-//                 format!("{}", error_msg!(format!("Cannot get value of {:?}", $x))),
-//                 "",
-//             ),
-//         }
-//     };
-// }
 
 pub fn get_type<'a>(unknown: Instr) -> &'a str {
     match unknown {
@@ -142,98 +109,6 @@ macro_rules! parser_math_to_type {
             ParserInstr::Float($x)
         }
     };
-}
-
-// #[macro_export]
-// macro_rules! if_let {
-//     // When likely is specified
-//     (likely, $pattern:pat, $value:expr, $body:block) => {
-//         if likely(matches!($value, $pattern)) {
-//             if let $pattern = $value {
-//                 $body
-//             }
-//         }
-//     };
-//
-//     (likely, $pattern:pat, $value:expr, $body:block, else $elseblock:block) => {
-//         if likely(matches!($value, $pattern)) {
-//             if let $pattern = $value {
-//                 $body
-//             } else {
-//                 $elseblock
-//             }
-//         } else {
-//             $elseblock
-//         }
-//     };
-//
-//     // When unlikely is specified
-//     (unlikely, $pattern:pat, $value:expr, $body:block) => {
-//         if unlikely(matches!($value, $pattern)) {
-//             if let $pattern = $value {
-//                 $body
-//             }
-//         }
-//     };
-//
-//     (unlikely, $pattern:pat, $value:expr, $body:block, else $elseblock:block) => {
-//         if unlikely(matches!($value, $pattern)) {
-//             if let $pattern = $value {
-//                 $body
-//             } else {
-//                 $elseblock
-//             }
-//         } else {
-//             $elseblock
-//         }
-//     };
-//
-//     // Default (no prediction hint)
-//     ($pattern:pat, $value:pat, $body:block) => {
-//         if let $pattern = $value {
-//             $body
-//         }
-//     };
-//
-//     ($pattern:pat, $value:expr, $body:block, else $elseblock:block) => {
-//         if let $pattern = $value {
-//             $body
-//         } else {
-//             $elseblock
-//         }
-//     };
-// }
-
-pub fn get_printable_form(x: &ParserInstr) -> String {
-    match x {
-        ParserInstr::String(ref str) => str.parse().unwrap(),
-        ParserInstr::Float(ref float) => float.to_string().parse().unwrap(),
-        ParserInstr::Integer(ref int) => int.to_string().parse().unwrap(),
-        ParserInstr::Bool(ref boolean) => boolean.to_string().parse().unwrap(),
-        ParserInstr::Array(ref x, _, _) => {
-            let arr = x;
-            ("[".to_owned()
-                + arr
-                    .iter()
-                    .map(|item| get_printable_form(item).to_string() + ",")
-                    .collect::<String>()
-                    .trim_end_matches(',')
-                    .parse::<String>()
-                    .unwrap()
-                    .as_str()
-                + "]")
-                .parse()
-                .unwrap()
-        }
-        ParserInstr::Null => "Null".parse().unwrap(),
-        _ => {
-            error(
-                &format!("Cannot display {} type", get_printable_type!(x)),
-                "",
-            );
-            "".parse().unwrap()
-        }
-    }
 }
 
 pub fn print_form(x: &Instr, locals: &mut [Intern<String>]) -> String {

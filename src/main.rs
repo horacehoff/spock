@@ -28,371 +28,18 @@ use std::time::Instant;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-// #[unroll_for_loops]
-// // #[inline(always)]
-// fn process_stack(
-//     stack_in: &[ParserInstr],
-//     variables: &Vec<(String, ParserInstr)>,
-//     functions: &[(String, &[String], &[ParserInstr])],
-// ) -> ParserInstr {
-//     let mut output: ParserInstr = match stack_in.first().unwrap_or(&ParserInstr::Integer(0)) {
-//         ParserInstr::VariableIdentifier(ref var) => variables
-//             .iter()
-//             .find(|(name, _)| name == var)
-//             .unwrap_or_else(|| {
-//                 error(&format!("Unknown variable '{var}'"), "");
-//                 std::process::exit(1)
-//             })
-//             .1
-//             .clone(),
-//         ParserInstr::Wrap(ref x) => process_stack(x, variables, functions),
-//         other => {
-//             if !matches!(
-//                 other,
-//                 ParserInstr::FunctionCall(_)
-//                     | ParserInstr::NamespaceFunctionCall(_)
-//                     | ParserInstr::Priority(_)
-//                     | ParserInstr::Array(_, _, _)
-//             ) {
-//                 other.clone()
-//             } else {
-//                 preprocess(other, variables, functions)
-//             }
-//         }
-//     };
-//     let mut current_operator: Operator = Operator::Null;
-//     for p_element in stack_in.iter().skip(1) {
-//         let element: &ParserInstr = match p_element {
-//             // Types::VariableIdentifier(ref var) => variables.get(var).unwrap_or_else(|| {
-//             //     error(&format!("Unknown variable '{var}'"), "");
-//             //     std::process::exit(1)
-//             // }),
-//             ParserInstr::VariableIdentifier(ref var) => {
-//                 &variables
-//                     .iter()
-//                     .find(|(name, _)| name == var)
-//                     .unwrap_or_else(|| {
-//                         error(&format!("Unknown variable '{var}'"), "");
-//                         std::process::exit(1)
-//                     })
-//                     .1
-//             }
-//             ParserInstr::Wrap(ref x) => &process_stack(x, variables, functions),
-//             other => {
-//                 if !matches!(
-//                     other,
-//                     ParserInstr::FunctionCall(_)
-//                         | ParserInstr::NamespaceFunctionCall(_)
-//                         | ParserInstr::Priority(_)
-//                         | ParserInstr::Array(_, true, false)
-//                         | ParserInstr::Array(_, false, true)
-//                 ) {
-//                     other
-//                 } else {
-//                     &preprocess(other, variables, functions)
-//                 }
-//             }
-//         };
-//
-//         match element {
-//             ParserInstr::Operation(ref op) => current_operator = *op,
-//             ParserInstr::Integer(ref x) => {
-//                 output = integer_ops(*x, output, current_operator);
-//             }
-//             ParserInstr::String(ref x) => output = string_ops(x, output, current_operator),
-//             ParserInstr::Float(ref x) => output = float_ops(*x, output, current_operator),
-//             ParserInstr::Array(ref x, _, false) => output = array_ops(x, output, current_operator),
-//             ParserInstr::Property(ref block) => {
-//                 let args: Vec<ParserInstr> =
-//                     util::split_vec_box(&block.args, ParserInstr::Separator)
-//                         .iter()
-//                         .map(|w| process_stack(w, variables, functions))
-//                         .collect();
-//                 match output {
-//                     ParserInstr::String(ref str) => string_props!(str, args, block.name, output),
-//                     ParserInstr::Float(num) => float_props!(num, args, block.name, output),
-//                     ParserInstr::Integer(num) => integer_props!(num, args, block.name, output),
-//                     ParserInstr::Array(ref arr, _, false) => {
-//                         array_props!(arr, args, block.name, output)
-//                     }
-//
-//                     // OBJECTS
-//                     ParserInstr::File(filepath) => {
-//                         file_props!(filepath.as_str(), args, block.name, output)
-//                     }
-//                     _ => error(
-//                         &format!(
-//                             "Unknown function '{}' for object {}",
-//                             block.name,
-//                             get_printable_type!(output)
-//                         ),
-//                         "",
-//                     ),
-//                 }
-//             }
-//             ParserInstr::Or(ref x) | ParserInstr::And(ref x) => {
-//                 let parsed_exp = process_stack(x, variables, functions);
-//                 if_let!(
-//                     likely,
-//                     ParserInstr::Bool(inbool),
-//                     output,
-//                     {
-//                         if_let!(likely, ParserInstr::Bool(sidebool), parsed_exp, {
-//                             output = ParserInstr::Bool(if matches!(element, ParserInstr::Or(_)) {
-//                                 inbool || sidebool
-//                             } else {
-//                                 inbool && sidebool
-//                             });
-//                         }, else {
-//                             error(format!("{parsed_exp:?} is not a Boolean").as_str(), "");
-//                         });
-//                     }, else
-//                     {
-//                         error(format!("{output:?} is not a Boolean").as_str(), "");
-//                     }
-//                 );
-//             }
-//             ParserInstr::Null => {
-//                 if output == ParserInstr::Null {
-//                     match current_operator {
-//                         Operator::Equal => output = ParserInstr::Bool(true),
-//                         Operator::NotEqual => output = ParserInstr::Bool(false),
-//                         _ => error(
-//                             &format!(
-//                                 "Cannot perform operation '{current_operator:?}' between Null and Null"
-//                             ),
-//                             "",
-//                         ),
-//                     }
-//                 }
-//             }
-//             _ => error(&format!("TODO STACK {element:?}"), ""),
-//         }
-//     }
-//     output
-// }
-//
-// // #[inline(always)]
-// fn process_lines(
-//     line_array: &[ParserInstr],
-//     variables: &mut Vec<(String, ParserInstr)>,
-//     functions: &[(String, &[String], &[ParserInstr])],
-// ) -> ParserInstr {
-//     for line in line_array {
-//         match line {
-//             ParserInstr::VariableDeclaration(ref block) => {
-//                 if !block.is_declared {
-//                     variables.push((
-//                         block.name.parse().unwrap(),
-//                         process_stack(&block.value, variables, functions),
-//                     ));
-//                 } else {
-//                     let calculated = process_stack(&block.value, variables, functions);
-//                     // if let Some(x) = variables.get_mut((&block.name, _)) {
-//                     //     *x = calculated;
-//                     // }
-//                     // variables.fin
-//                     if let Some(x) = variables.iter_mut().find(|(name, _)| *name == block.name) {
-//                         x.1 = calculated;
-//                     }
-//                 }
-//             }
-//             ParserInstr::NamespaceFunctionCall(ref block) => {
-//                 let args: Vec<ParserInstr> =
-//                     util::split_vec_box(&block.args, ParserInstr::Separator)
-//                         .iter()
-//                         .map(|w| process_stack(w, variables, functions))
-//                         .collect();
-//                 if unlikely(!namespace_functions(&block.namespace, &block.name, &args).1) {
-//                     error(
-//                         &format!(
-//                             "Unknown function '{}'",
-//                             block.namespace.join(".") + "." + block.name.as_str()
-//                         ),
-//                         "",
-//                     );
-//                 };
-//             }
-//             ParserInstr::FunctionCall(ref block) => {
-//                 let args: Vec<ParserInstr> =
-//                     util::split_vec_box(&block.args, ParserInstr::Separator)
-//                         .iter()
-//                         .map(|x| process_stack(x, variables, functions))
-//                         .collect();
-//                 let (_, matched) = builtin_functions(&block.name, &args);
-//                 if block.name == "executeline" && !matched {
-//                     assert_args_number!("executeline", args.len(), 1_usize);
-//                     if_let!(likely, ParserInstr::String(line), &args[0], {
-//                         process_stack(&parse_code(line)[0], variables, functions);
-//                     }, else {
-//                         error(&format!("Cannot execute line {:?}", &args[0]), "");
-//                     });
-//                 } else if !matched {
-//                     let target_function: &(String, &[String], &[ParserInstr]) = functions
-//                         .iter()
-//                         .find(|func| func.0 == *block.name)
-//                         .unwrap_or_else(|| {
-//                             error(&format!("Unknown function '{}'", block.name), "");
-//                             std::process::exit(1)
-//                         });
-//                     assert_args_number!(block.name, args.len(), target_function.1.len());
-//                     let mut target_args: Vec<(String, ParserInstr)> = target_function
-//                         .1
-//                         .iter()
-//                         .enumerate()
-//                         .map(|(i, arg)| (arg.parse().unwrap(), args[i].clone()))
-//                         .collect();
-//
-//                     process_lines(target_function.2, &mut target_args, functions);
-//                 }
-//             }
-//             ParserInstr::PropertyFunction(ref block) => {
-//                 return process_stack(
-//                     &[
-//                         process_lines(
-//                             &[ParserInstr::FunctionCall(Box::from(
-//                                 FunctionPropertyCallBlock {
-//                                     name: block.func1_name.parse().unwrap(),
-//                                     args: block.func1_args.clone(),
-//                                 },
-//                             ))],
-//                             variables,
-//                             functions,
-//                         ),
-//                         ParserInstr::Property(Box::from(FunctionPropertyCallBlock {
-//                             name: block.func2_name.parse().unwrap(),
-//                             args: block.func2_args.clone(),
-//                         })),
-//                     ],
-//                     variables,
-//                     functions,
-//                 );
-//             }
-//             ParserInstr::Condition(ref block) => {
-//                 // let data = block;
-//                 if process_stack(&block.condition, variables, functions) == ParserInstr::Bool(true)
-//                 {
-//                     let out = process_lines(&block.code, variables, functions);
-//                     if ParserInstr::Null != out {
-//                         // if out != Types::Break {
-//                         return out;
-//                         // }
-//                         // error("Cannot break in a conditional statement","Remove the \"break\" statement");
-//                     }
-//                 } else {
-//                     for else_block in &block.else_blocks {
-//                         if else_block.0.is_empty()
-//                             || process_stack(&else_block.0, variables, functions)
-//                                 == ParserInstr::Bool(true)
-//                         {
-//                             let out = process_lines(&else_block.1, variables, functions);
-//                             if out != ParserInstr::Null {
-//                                 return out;
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//             ParserInstr::Loop(ref block) => {
-//                 let loop_array = process_stack(&block.arr, variables, functions);
-//                 if let ParserInstr::Array(target_array, false, false) = loop_array {
-//                     variables.push((block.id.parse().unwrap(), ParserInstr::Null));
-//                     for elem in target_array {
-//                         // if let Some(value) = variables.get_mut(&block.id) {
-//                         //     *value = elem;
-//                         // }
-//                         if let Some(x) = variables.iter_mut().find(|(name, _)| *name == block.id) {
-//                             x.1 = elem;
-//                         }
-//
-//                         let out: ParserInstr = process_lines(&block.code, variables, functions);
-//                         if out != ParserInstr::Null {
-//                             variables.swap_remove(
-//                                 variables
-//                                     .iter()
-//                                     .position(|(name, _)| *name == block.id)
-//                                     .unwrap(),
-//                             );
-//                             // variables.remove(&block.id);
-//                             if out == ParserInstr::Break {
-//                                 break;
-//                             }
-//                             return out;
-//                         }
-//                     }
-//                     // variables.remove(&block.id);
-//                     variables.swap_remove(
-//                         variables
-//                             .iter()
-//                             .position(|(name, _)| *name == block.id)
-//                             .unwrap(),
-//                     );
-//                 } else if let ParserInstr::String(ref target_string) = loop_array {
-//                     variables.push((block.id.parse().unwrap(), ParserInstr::Null));
-//                     for elem in target_string.chars() {
-//                         // if let Some(value) = variables.get_mut(&block.id) {
-//                         //     *value = Types::String(elem.to_smolstr());
-//                         // }
-//                         if let Some(x) = variables.iter_mut().find(|(name, _)| *name == block.id) {
-//                             x.1 = ParserInstr::String(elem.to_string().parse().unwrap());
-//                         }
-//
-//                         let out: ParserInstr = process_lines(&block.code, variables, functions);
-//                         if out != ParserInstr::Null {
-//                             // variables.remove(&block.id);
-//                             variables.swap_remove(
-//                                 variables
-//                                     .iter()
-//                                     .position(|(name, _)| *name == block.id)
-//                                     .unwrap(),
-//                             );
-//                             if out == ParserInstr::Break {
-//                                 break;
-//                             }
-//                             return out;
-//                         }
-//                     }
-//                     // variables.remove(&block.id);
-//                     variables.swap_remove(
-//                         variables
-//                             .iter()
-//                             .position(|(name, _)| *name == block.id)
-//                             .unwrap(),
-//                     );
-//                 }
-//             }
-//             ParserInstr::While(ref block) => {
-//                 while let ParserInstr::Bool(true) =
-//                     process_stack(&block.condition, variables, functions)
-//                 {
-//                     // let now = Instant::now();
-//                     let out = process_lines(&block.code, variables, functions);
-//                     // println!("WHILE ITERATION {:.2?}", now.elapsed());
-//                     if out != ParserInstr::Null {
-//                         if out == ParserInstr::Break {
-//                             break;
-//                         }
-//                         return out;
-//                     }
-//                 }
-//             }
-//             ParserInstr::FunctionReturn(ref x) => {
-//                 return process_stack(x, variables, functions);
-//             }
-//             ParserInstr::Break => {
-//                 return ParserInstr::Break;
-//             }
-//             ParserInstr::Wrap(ref x) => {
-//                 let x = process_lines(x, variables, functions);
-//                 if x != ParserInstr::Null {
-//                     return x;
-//                 }
-//             }
-//             _ => error(&format!("TODO LINE LOGIC {line:?}"), ""),
-//         }
-//     }
-//     ParserInstr::Null
-// }
+macro_rules! check_args {
+    ($name: expr, $args:expr, $num: expr) => {
+        assert_eq!(
+            $args.len(),
+            $num,
+            "Function '{}' expected {} arguments, got {}",
+            $name,
+            $num,
+            $args.len()
+        );
+    };
+}
 
 #[inline(always)]
 fn pre_match(
@@ -410,7 +57,7 @@ fn pre_match(
             println!("ARGS ARE {func_args:?}");
             match name {
                 "str" => {
-                    assert_args_number!("str", func_args.len(), 1);
+                    check_args!("str", func_args, 1);
                     let element = func_args.remove(0);
                     match element {
                         Instr::Bool(bool) => {
@@ -444,17 +91,7 @@ fn pre_match(
                         .find(|(func_name, _, _, _, _)| name == **func_name)
                     {
                         let expected_args = &func.1;
-                        if expected_args.len() != func_args.len() {
-                            error(
-                                &format!(
-                                    "Function '{}' expected {} arguments, but received {}",
-                                    func.0,
-                                    expected_args.len(),
-                                    func_args.len()
-                                ),
-                                "",
-                            );
-                        }
+                        check_args!("str", func_args, expected_args.len());
 
                         let args: Vec<(Intern<String>, Instr)> = expected_args
                             .iter()
@@ -499,7 +136,7 @@ fn execute(
     str_pool: &mut Vec<Intern<String>>,
     vars_pool: &mut [Intern<String>],
 ) -> Instr {
-    util::print_instructions(lines);
+    // util::print_instructions(lines);
     let mut stack: Vec<Instr> = Vec::with_capacity(10);
     // keeps track of function args
     let mut args_list: Vec<Instr> = Vec::with_capacity(10);
@@ -560,12 +197,7 @@ fn execute(
             Instr::FuncCall(false, name) => {
                 let func_name = str_pool[name as usize];
                 if *func_name == "print" {
-                    assert_eq!(
-                        args_list.len(),
-                        1,
-                        "Invalid number of arguments, expected 1, got {}",
-                        args_list.len()
-                    );
+                    check_args!("str", args_list, 1);
                     println!("{}", print_form(&args_list.remove(0), str_pool))
                 } else {
                 }
