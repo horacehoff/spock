@@ -205,7 +205,8 @@ pub fn op_to_rpn(operation_input: Vec<ParserInstr>) -> Vec<ParserInstr> {
         ) {
             return_vector.push(x);
         } else if matches!(x, ParserInstr::Operation(_))
-            && !matches!(x, ParserInstr::LPAREN | ParserInstr::RPAREN)
+            && x != ParserInstr::LPAREN
+            && x != ParserInstr::RPAREN
         {
             // operator
             while !op_stack.is_empty()
