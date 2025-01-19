@@ -19,7 +19,7 @@ pub enum Instr {
     If(u16),
 
     VarSet(u32), // index of variable
-    // id -- throw away result ?
+    // id -- use result?
     FuncCall(bool, u32),     // index of str in str_pool
     VariableIdentifier(u32), // index of str in str_pool
 
@@ -177,7 +177,7 @@ pub fn parser_to_instr_set(
         output = output
             .iter()
             .map(|elem| {
-                if let Instr::FuncCall(_, id) = elem {
+                if let Instr::FuncCall(false, id) = elem {
                     Instr::FuncCall(true, *id)
                 } else {
                     *elem

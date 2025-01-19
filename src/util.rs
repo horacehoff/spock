@@ -341,11 +341,13 @@ pub fn print_instructions(lines: &[Instr]) {
             Instr::VarSet(id) => {
                 println!("{i} {} SETVAR      {}", "--".repeat(depth), id);
             }
-            // Instr::VarUpdate(id) => {
-            //     println!("{i} {} SETVAR      {}", "--".repeat(depth), id);
-            // }
-            Instr::FuncCall(id, throw_away) => {
-                println!("{i} {} CALL      {}", "--".repeat(depth), id);
+            Instr::FuncCall(use_result, id) => {
+                println!(
+                    "{i} {} CALL      {} {}",
+                    "--".repeat(depth),
+                    id,
+                    if *use_result { "USE_RESULT" } else { "DISCARD" }
+                );
             }
             Instr::VariableIdentifier(id) => {
                 println!("{i} {} VAR      {}", "--".repeat(depth), id);
