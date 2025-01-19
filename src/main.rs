@@ -12,7 +12,7 @@ mod util;
 use crate::functions::parse_functions;
 use crate::instr_set::{Float, Integer};
 use crate::parser::{FunctionsSlice, Operator};
-use crate::util::{error, print_form};
+use crate::util::{error, get_type, op_to_symbol, print_form};
 use colored::Colorize;
 use instr_set::Instr;
 use internment::Intern;
@@ -189,7 +189,12 @@ fn execute(
                     (Instr::Float(parent), Instr::Float(child)) => {
                         *o1 = float_float(*parent, child, op)
                     }
-                    _ => todo!(""),
+                    _ => todo!(
+                        "Operation not implemented: {} {} {}",
+                        get_type(*o1),
+                        op_to_symbol(op),
+                        get_type(o2)
+                    ),
                 }
             }
             Instr::VarSet(str) => {
