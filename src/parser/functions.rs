@@ -81,7 +81,7 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
     } else {
         // file has already been parsed, load it from cache
         let file = File::open(format!(".compute/{}", hash)).unwrap();
-        let mut reader = BufReader::with_capacity(128 * 1024, file);
+        let mut reader = BufReader::with_capacity(2048, file);
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer).unwrap();
 

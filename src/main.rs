@@ -2,16 +2,16 @@
 extern crate core;
 use std::fmt::Write;
 
+#[path = "parser/functions.rs"]
+mod functions;
 mod instr_set;
 #[path = "parser/parser.rs"]
 mod parser;
-#[path = "parser/parser_functions.rs"]
-mod parser_functions;
 mod util;
 
+use crate::functions::parse_functions;
 use crate::instr_set::Integer;
 use crate::parser::{FunctionsSlice, Operator};
-use crate::parser_functions::parse_functions;
 use crate::util::{error, print_form};
 use colored::Colorize;
 use instr_set::Instr;
