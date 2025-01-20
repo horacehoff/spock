@@ -1,8 +1,6 @@
 use crate::instr_set::Instr;
 use crate::parser::Operator;
 use internment::Intern;
-// use smartstring::alias::String;
-// use smartstring::alias::
 
 pub fn error(message: &str, tip: &str) {
     if tip.is_empty() {
@@ -24,7 +22,6 @@ macro_rules! error_msg {
             "--------------\n{}\n{}\n--------------",
             "\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m", $x
         )
-        .as_str()
     };
     ($x:expr, $y:expr) => {
         format!(
@@ -34,7 +31,6 @@ macro_rules! error_msg {
             "\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m",
             $y
         )
-        .as_str()
     };
 }
 
@@ -61,7 +57,7 @@ pub fn get_type<'a>(unknown: Instr) -> &'a str {
         Instr::Bool(_) => "Boolean",
         Instr::Float(_) => "Float",
         _ => {
-            error(error_msg!(format!("Cannot get type of {:?}", unknown)), "");
+            error(&error_msg!(format!("Cannot get type of {:?}", unknown)), "");
             ""
         }
     }
