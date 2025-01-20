@@ -111,6 +111,7 @@ fn pre_match(
     }
 }
 
+#[inline(always)]
 fn int_int(parent: Integer, child: Integer, op: Operator) -> Instr {
     match op {
         Operator::Add => Instr::Integer(parent + child),
@@ -129,6 +130,7 @@ fn int_int(parent: Integer, child: Integer, op: Operator) -> Instr {
     }
 }
 
+#[inline(always)]
 fn float_float(parent: Float, child: Float, op: Operator) -> Instr {
     match op {
         Operator::Add => Instr::Float(parent + child),
@@ -154,7 +156,7 @@ fn execute(
     str_pool: &mut Vec<Intern<String>>,
     vars_pool: &mut [Intern<String>],
 ) -> Instr {
-    util::print_instructions(lines);
+    // util::print_instructions(lines);
     let mut stack: Vec<Instr> = Vec::with_capacity(5);
     // keeps track of function args
     let mut args_list: Vec<Instr> = Vec::with_capacity(10);
