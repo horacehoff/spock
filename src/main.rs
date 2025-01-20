@@ -71,15 +71,15 @@ fn pre_match(
                                 }
                                 .to_string(),
                             ));
-                            return Instr::String((str_pool.len() - 1) as u32);
+                            Instr::String((str_pool.len() - 1) as u32)
                         }
                         Instr::Integer(int) => {
                             str_pool.push(Intern::from(int.to_string()));
-                            return Instr::String((str_pool.len() - 1) as u32);
+                            Instr::String((str_pool.len() - 1) as u32)
                         }
                         Instr::Float(float) => {
                             str_pool.push(Intern::from(float.to_string()));
-                            return Instr::String((str_pool.len() - 1) as u32);
+                            Instr::String((str_pool.len() - 1) as u32)
                         }
                         Instr::String(_) => element,
                         _ => todo!(),
