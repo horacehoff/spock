@@ -191,53 +191,51 @@ pub fn split_vec_box<T: PartialEq + Clone>(input: &[T], separator: T) -> Vec<Vec
 
 pub fn print_instructions(lines: &[Instr]) {
     let mut i = 0;
-    let mut depth = 0;
     for line in lines {
         i += 1;
         match line {
             Instr::Null => {
-                println!("{i} {} NULL", "--".repeat(depth));
+                println!("{i} NULL");
             }
             Instr::StoreArg => {
-                println!("{i} {} STORE_ARG", "--".repeat(depth));
+                println!("{i} STORE_ARG");
             }
             Instr::Operation(op) => {
-                println!("{i} {} OP      {}", "--".repeat(depth), op_to_symbol(*op));
+                println!("{i} OP      {}", op_to_symbol(*op));
             }
             Instr::FuncReturn => {
-                println!("{i} {} RET", "--".repeat(depth));
+                println!("{i} RET");
             }
             Instr::Jump(x, y) => {
-                println!("{i} {} JMP      {}", "--".repeat(depth), y);
+                println!("{i} JMP      {}", y);
             }
             Instr::If(cond) => {
-                println!("{i} {} CMP      {}", "--".repeat(depth), cond);
+                println!("{i} CMP      {}", cond);
             }
             Instr::VarSet(id) => {
-                println!("{i} {} SETVAR      {}", "--".repeat(depth), id);
+                println!("{i} SETVAR      {}", id);
             }
             Instr::FuncCall(use_result, id) => {
                 println!(
-                    "{i} {} CALL      {} {}",
-                    "--".repeat(depth),
+                    "{i} CALL      {} {}",
                     id,
                     if *use_result { "USE_RESULT" } else { "DISCARD" }
                 );
             }
             Instr::VariableIdentifier(id) => {
-                println!("{i} {} VAR      {}", "--".repeat(depth), id);
+                println!("{i} VAR      {}", id);
             }
             Instr::Bool(bool) => {
-                println!("{i} {} BOOL({})", "--".repeat(depth), bool);
+                println!("{i} BOOL({})", bool);
             }
             Instr::String(id) => {
-                println!("{i} {} STR      {}", "--".repeat(depth), id);
+                println!("{i} STR      {}", id);
             }
             Instr::Integer(int) => {
-                println!("{i} {} INT({})", "--".repeat(depth), int);
+                println!("{i} INT({})", int);
             }
             Instr::Float(float) => {
-                println!("{i} {} FLOAT({})", "--".repeat(depth), float);
+                println!("{i} FLOAT({})", float);
             }
         }
     }

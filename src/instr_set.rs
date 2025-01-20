@@ -31,10 +31,10 @@ pub enum Instr {
 
 fn types_to_instr(x: ParserInstr) -> Instr {
     match x {
-        ParserInstr::Integer(int) => return Instr::Integer(int),
-        ParserInstr::Float(float) => return Instr::Float(float),
-        ParserInstr::Bool(bool) => return Instr::Bool(bool),
-        ParserInstr::Operation(op) => return Instr::Operation(op),
+        ParserInstr::Integer(int) => Instr::Integer(int),
+        ParserInstr::Float(float) => Instr::Float(float),
+        ParserInstr::Bool(bool) => Instr::Bool(bool),
+        ParserInstr::Operation(op) => Instr::Operation(op),
         _ => todo!("{:?}", x),
     }
 }
