@@ -165,7 +165,7 @@ fn execute(
     str_pool: &mut Vec<Intern<String>>,
     vars_pool: &[Intern<String>],
 ) -> Instr {
-    util::print_instructions(lines);
+    // util::print_instructions(lines);
     let mut stack: Vec<Instr> = Vec::with_capacity(5);
     // keeps track of function args
     let mut args_list: Vec<Instr> = Vec::with_capacity(10);

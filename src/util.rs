@@ -18,38 +18,6 @@ macro_rules! error {
     };
 }
 
-// pub fn error(message: Arguments, tip: &str) {
-//     if tip.is_empty() {
-//         eprintln!(
-//             "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{message}\n--------------"
-//         );
-//     } else {
-//         eprintln!(
-//             "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{message}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{tip}\n--------------"
-//         );
-//     }
-//     std::process::exit(1);
-// }
-
-#[macro_export]
-macro_rules! error_msg {
-    ($x:expr) => {
-        format!(
-            "--------------\n{}\n{}\n--------------",
-            "\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m", $x
-        )
-    };
-    ($x:expr, $y:expr) => {
-        format!(
-            "--------------\n{}\n{}\n{}\n{}\n--------------",
-            "\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m",
-            $x,
-            "\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m",
-            $y
-        )
-    };
-}
-
 // https://stackoverflow.com/a/63305257
 #[macro_export]
 macro_rules! log {
@@ -89,9 +57,7 @@ macro_rules! get_printable_type {
             ParserInstr::Array(_, _, _) => "Array",
             ParserInstr::Null => "Null",
             _ => {
-                println!("{:?}", $x);
-                error(format_args!("Cannot get type of {:?}", $x), "");
-                ""
+                error!(format_args!("Cannot get type of {:?}", $x), "");
             }
         }
     };
