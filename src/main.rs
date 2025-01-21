@@ -1,7 +1,4 @@
 #![allow(clippy::too_many_lines)]
-extern crate core;
-use std::fmt::Write;
-
 #[path = "parser/functions.rs"]
 mod functions;
 mod instr_set;
@@ -21,8 +18,6 @@ use likely_stable::unlikely;
 use mimalloc::MiMalloc;
 use std::fs;
 use std::fs::remove_dir_all;
-use std::io::{Read, Write as _};
-use std::ops::{Add, Deref};
 use std::path::Path;
 use std::time::Instant;
 
