@@ -107,7 +107,7 @@ fn pre_match(
 }
 
 #[inline(always)]
-fn int_int(parent: Integer, child: Integer, op: Operator) -> Instr {
+unsafe fn int_int(parent: Integer, child: Integer, op: Operator) -> Instr {
     match op {
         Operator::Add => Instr::Integer(parent + child),
         Operator::Sub => Instr::Integer(parent - child),
@@ -121,12 +121,12 @@ fn int_int(parent: Integer, child: Integer, op: Operator) -> Instr {
         Operator::InferiorEqual => Instr::Bool(parent <= child),
         Operator::Superior => Instr::Bool(parent > child),
         Operator::SuperiorEqual => Instr::Bool(parent >= child),
-        _ => panic!("unexpected op int_int"),
+        _ => std::hint::unreachable_unchecked(),
     }
 }
 
 #[inline(always)]
-fn float_float(parent: Float, child: Float, op: Operator) -> Instr {
+unsafe fn float_float(parent: Float, child: Float, op: Operator) -> Instr {
     match op {
         Operator::Add => Instr::Float(parent + child),
         Operator::Sub => Instr::Float(parent - child),
@@ -140,7 +140,7 @@ fn float_float(parent: Float, child: Float, op: Operator) -> Instr {
         Operator::InferiorEqual => Instr::Bool(parent <= child),
         Operator::Superior => Instr::Bool(parent > child),
         Operator::SuperiorEqual => Instr::Bool(parent >= child),
-        _ => panic!("unexpected op float_float"),
+        _ => std::hint::unreachable_unchecked(),
     }
 }
 
@@ -154,7 +154,9 @@ fn str_str(parent: u32, child: u32, op: Operator, str_pool: &mut Vec<Intern<Stri
                 Intern::from(concat_string!(parent_string.as_str(), base_string.as_str()));
             Instr::String(parent)
         }
-        _ => panic!("unexpected op str_str"),
+        _ => {
+            error!("unexpected op str_str");
+        }
     }
 }
 
@@ -194,12 +196,12 @@ fn execute(
                 let index = stack.len() - 1;
                 let o1 = stack.get_mut(index).unwrap();
                 match (&o1, o2) {
-                    (Instr::Integer(parent), Instr::Integer(child)) => {
+                    (Instr::Integer(parent), Instr::Integer(child)) => unsafe {
                         *o1 = int_int(*parent, child, op)
-                    }
-                    (Instr::Float(parent), Instr::Float(child)) => {
+                    },
+                    (Instr::Float(parent), Instr::Float(child)) => unsafe {
                         *o1 = float_float(*parent, child, op)
-                    }
+                    },
                     (Instr::String(parent), Instr::String(child)) => {
                         *o1 = str_str(*parent, child, op, str_pool);
                     }
