@@ -14,6 +14,7 @@ use crate::instr_set::{Float, Integer};
 use crate::parser::{FunctionsSlice, Operator};
 use crate::util::{error, get_type, op_to_symbol, print_form};
 use colored::Colorize;
+use concat_string::concat_string;
 use instr_set::Instr;
 use internment::Intern;
 use likely_stable::unlikely;
@@ -149,6 +150,20 @@ fn float_float(parent: Float, child: Float, op: Operator) -> Instr {
     }
 }
 
+#[inline(always)]
+fn str_str(parent: u32, child: u32, op: Operator, str_pool: &mut Vec<Intern<String>>) -> Instr {
+    match op {
+        Operator::Add => {
+            let base_string = str_pool[child as usize];
+            let parent_string = str_pool.get_mut(parent as usize).unwrap();
+            *parent_string =
+                Intern::from(concat_string!(parent_string.as_str(), base_string.as_str()));
+            Instr::String(parent)
+        }
+        _ => panic!("unexpected op str_str"),
+    }
+}
+
 fn execute(
     lines: &[Instr],
     functions: &FunctionsSlice,
@@ -156,7 +171,7 @@ fn execute(
     str_pool: &mut Vec<Intern<String>>,
     vars_pool: &mut [Intern<String>],
 ) -> Instr {
-    // util::print_instructions(lines);
+    util::print_instructions(lines);
     let mut stack: Vec<Instr> = Vec::with_capacity(5);
     // keeps track of function args
     let mut args_list: Vec<Instr> = Vec::with_capacity(10);
@@ -190,6 +205,9 @@ fn execute(
                     }
                     (Instr::Float(parent), Instr::Float(child)) => {
                         *o1 = float_float(*parent, child, op)
+                    }
+                    (Instr::String(parent), Instr::String(child)) => {
+                        *o1 = str_str(*parent, child, op, str_pool);
                     }
                     _ => todo!(
                         "Operation not implemented: {} {} {}",
