@@ -141,15 +141,12 @@ pub enum Operator {
 fn parse_operation(operation_input: Pair<Rule>) -> Vec<ParserInstr> {
     let mut return_vector: Vec<ParserInstr> = Vec::new();
     for x in operation_input.into_inner() {
-        // println!("PAIR IS {x:?}");
         if x.as_rule() == Rule::expression || x.as_rule() == Rule::operation {
             return_vector.extend(parse_operation(x));
         } else {
             return_vector.extend(parse_expression(x));
         }
     }
-    // println!("VEC IS {return_vector:?}");
-
     return_vector
 }
 

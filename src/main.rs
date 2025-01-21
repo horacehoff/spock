@@ -169,7 +169,7 @@ fn execute(
     functions: &FunctionsSlice,
     args: Vec<(Intern<String>, Instr)>,
     str_pool: &mut Vec<Intern<String>>,
-    vars_pool: &mut [Intern<String>],
+    vars_pool: &[Intern<String>],
 ) -> Instr {
     util::print_instructions(lines);
     let mut stack: Vec<Instr> = Vec::with_capacity(5);
