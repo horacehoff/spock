@@ -2,18 +2,34 @@ use crate::instr_set::Instr;
 use crate::parser::Operator;
 use internment::Intern;
 
-pub fn error(message: &str, tip: &str) {
-    if tip.is_empty() {
+#[macro_export]
+macro_rules! error {
+    ($x: expr) => {
         eprintln!(
-            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{message}\n--------------"
+            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{}\n--------------", $x
         );
-    } else {
+        std::process::exit(1);
+    };
+    ($x: expr, $y: expr) => {
         eprintln!(
-            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{message}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{tip}\n--------------"
+            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{}\n--------------", $x, $y
         );
-    }
-    std::process::exit(1);
+        std::process::exit(1);
+    };
 }
+
+// pub fn error(message: Arguments, tip: &str) {
+//     if tip.is_empty() {
+//         eprintln!(
+//             "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{message}\n--------------"
+//         );
+//     } else {
+//         eprintln!(
+//             "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{message}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{tip}\n--------------"
+//         );
+//     }
+//     std::process::exit(1);
+// }
 
 #[macro_export]
 macro_rules! error_msg {
@@ -57,8 +73,7 @@ pub fn get_type<'a>(unknown: Instr) -> &'a str {
         Instr::Bool(_) => "Boolean",
         Instr::Float(_) => "Float",
         _ => {
-            error(&error_msg!(format!("Cannot get type of {:?}", unknown)), "");
-            ""
+            error!(format_args!("Cannot get type of {:?}", unknown));
         }
     }
 }
@@ -75,10 +90,7 @@ macro_rules! get_printable_type {
             ParserInstr::Null => "Null",
             _ => {
                 println!("{:?}", $x);
-                error(
-                    &format!("{}", error_msg!(format!("Cannot get type of {:?}", $x))),
-                    "",
-                );
+                error(format_args!("Cannot get type of {:?}", $x), "");
                 ""
             }
         }
@@ -115,8 +127,7 @@ pub fn print_form(x: &Instr, locals: &mut [Intern<String>]) -> String {
         Instr::Integer(ref int) => int.to_string().parse().unwrap(),
         Instr::Bool(ref boolean) => boolean.to_string().parse().unwrap(),
         _ => {
-            error(&format!("Cannot display {x:?}"), "");
-            "".parse().unwrap()
+            error!(format_args!("Cannot display {x:?}"));
         }
     }
 }

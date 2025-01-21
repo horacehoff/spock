@@ -1,5 +1,6 @@
+use crate::error;
 use crate::parser::{ConditionBlock, Operator, ParserInstr};
-use crate::util::{error, split_vec};
+use crate::util::split_vec;
 use internment::Intern;
 use serde::{Deserialize, Serialize};
 
@@ -157,7 +158,7 @@ pub fn parser_to_instr_set(
                     locals.push(name);
                     output.push(Instr::VariableIdentifier(index as u32));
                 } else {
-                    error(&format!("Unknown variable {name}"), "");
+                    error!(format_args!("Unknown variable {name}"), "");
                 }
             }
             _ => output.push(types_to_instr(x)),

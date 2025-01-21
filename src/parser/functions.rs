@@ -1,7 +1,6 @@
-use crate::error_msg;
+use crate::error;
 use crate::instr_set::parser_to_instr_set;
 use crate::parser::{parse_code, ComputeParser, Functions, ParserInstr, Rule};
-use crate::util::error;
 use internment::Intern;
 use pest::Parser;
 use std::fs;
@@ -69,7 +68,7 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
         }
 
         if !functions.iter().any(|(name, _, _, _, _)| **name == "main") && check_main {
-            error("No main function", "Add 'func main() {}' to your file");
+            error!("No main function", "Add 'func main() {}' to your file");
         }
 
         let data = bincode::serialize(&functions).unwrap();
@@ -86,10 +85,7 @@ pub fn parse_functions(content: String, check_main: bool) -> Functions {
         reader.read_to_end(&mut buffer).unwrap();
 
         functions = bincode::deserialize(&buffer).unwrap_or_else(|_| {
-            panic!(
-                "{}",
-                error_msg!("Failed to read from cache", "Delete the .compute folder")
-            )
+            error!("Failed to read from cache", "Delete the .compute folder");
         });
     }
 

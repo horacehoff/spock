@@ -12,7 +12,7 @@ mod util;
 use crate::functions::parse_functions;
 use crate::instr_set::{Float, Integer};
 use crate::parser::{FunctionsSlice, Operator};
-use crate::util::{error, get_type, op_to_symbol, print_form};
+use crate::util::{get_type, op_to_symbol, print_form};
 use colored::Colorize;
 use concat_string::concat_string;
 use instr_set::Instr;
@@ -102,8 +102,7 @@ fn pre_match(
                         let mut vars = func.4.clone();
                         execute(&func.2, functions, args, str_pool, &mut vars)
                     } else {
-                        error(&format!("Unknown function '{}'", name.red()), "");
-                        panic!()
+                        error!(format_args!("Unknown function '{}'", name.red()));
                     }
                 }
             }
@@ -227,7 +226,7 @@ fn execute(
                 if condition == Instr::Bool(false) {
                     line += jump_size as usize;
                 } else if unlikely(condition != Instr::Bool(true)) {
-                    error(&format!("'{:?}' is not a boolean", &condition), "");
+                    error!(format_args!("'{:?}' is not a boolean", &condition));
                 }
             }
             Instr::Jump(neg, jump_size) => {
@@ -305,15 +304,13 @@ fn main() {
         && Path::new(".compute").exists()
     {
         remove_dir_all(Path::new(".compute")).unwrap_or_else(|_| {
-            error("Failed to delete the cache folder (.compute)", "");
-            std::process::exit(1)
+            error!("Failed to delete the cache folder (.compute)");
         });
     }
     let arg = args.first().unwrap();
 
     let content = fs::read_to_string(arg).unwrap_or_else(|_| {
-        error(&format!("Unable to read file '{args:?}'"), "");
-        std::process::exit(1)
+        error!(format_args!("Unable to read file '{args:?}'"), "");
     });
 
     let now = Instant::now();

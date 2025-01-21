@@ -1,7 +1,6 @@
 use crate::instr_set::Instr;
 use crate::parser::Rule::func_call;
-use crate::util::error;
-use crate::{log, parser_math_to_type};
+use crate::{error, log, parser_math_to_type};
 use internment::Intern;
 use pest::iterators::Pair;
 use pest::Parser;
@@ -432,10 +431,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
                     },
                 )));
             } else {
-                error(
-                    format!("{func_call:?} is not a valid function").as_str(),
-                    "",
-                );
+                error!(format_args!("{func_call:?} is not a valid function"));
             }
         }
         Rule::identifier => {
@@ -593,7 +589,9 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
                             }
                         }
                     }
-                    _ => error(&format!("Unkown constant value {elem:?}"), ""),
+                    _ => {
+                        error!(format_args!("Unkown constant value {elem:?}"));
+                    }
                 }
             }
             // println!("RESULT IS {result:?}");
@@ -614,8 +612,7 @@ pub fn parse_expression(pair: Pair<Rule>) -> Vec<ParserInstr> {
 pub fn parse_code(content: &str) -> Vec<Vec<ParserInstr>> {
     let mut instructions: Vec<Vec<ParserInstr>> = Vec::new();
     for pair in ComputeParser::parse(Rule::code, content).unwrap_or_else(|_| {
-        error("Failed to parse", "Check semicolons and syntax");
-        std::process::exit(1)
+        error!("Failed to parse", "Check semicolons and syntax");
     }) {
         for inside in pair.clone().into_inner() {
             let mut line_instructions: Vec<ParserInstr> = Vec::new();
