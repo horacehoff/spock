@@ -88,13 +88,23 @@ fn pre_match(
                     {
                         let expected_args = &func.1;
                         check_args!("str", func_args, expected_args.len());
-
+                        let mut pool = func.3.clone();
                         let args: Vec<(Intern<String>, Instr)> = expected_args
                             .iter()
                             .enumerate()
-                            .map(|(x, y)| (*y, func_args.remove(x)))
+                            .map(|(x, y)| {
+                                let arg_val = func_args.remove(x);
+                                if let Instr::String(str) = arg_val {
+                                    pool.push(str_pool[str as usize]);
+                                    (*y, Instr::String((pool.len() - 1) as u32))
+                                } else {
+                                    (*y, arg_val)
+                                }
+                            })
                             .collect();
-                        execute(&func.2, functions, args, str_pool, &func.4)
+                        let return_value = execute(&func.2, functions, &args, &mut pool, &func.4);
+                        // BROKEN FOR STRINGS
+                        return return_value;
                     } else {
                         error!(format_args!("Unknown function '{}'", name.red()));
                     }
@@ -159,14 +169,18 @@ fn str_str(parent: u32, child: u32, op: Operator, str_pool: &mut Vec<Intern<Stri
     }
 }
 
+// fn string_to_correctid(str_pool: &[Intern<String>], args: &mut Vec<(Intern<String>, Instr)>) {
+//
+// }
+
 fn execute(
     lines: &[Instr],
     functions: &FunctionsSlice,
-    args: Vec<(Intern<String>, Instr)>,
+    args: &[(Intern<String>, Instr)],
     str_pool: &mut Vec<Intern<String>>,
     vars_pool: &[Intern<String>],
 ) -> Instr {
-    // util::print_instructions(lines);
+    util::print_instructions(lines);
     let mut stack: Vec<Instr> = Vec::with_capacity(10);
     // keeps track of function args
     let mut args_list: Vec<Instr> = Vec::with_capacity(10);
@@ -238,11 +252,41 @@ fn execute(
             Instr::StoreArg => args_list.push(stack.pop().unwrap()),
             // Function call that shouldn't return anything
             Instr::FuncCall(false, name) => {
+                println!("---");
+                println!("STR POOL IS {str_pool:?}");
+                println!("ID IS  {name:?}");
+                println!("QUERIED NAME IS   {:?}", str_pool[name as usize]);
+                println!("---");
                 let func_name = str_pool[name as usize];
-                if *func_name == "print" {
-                    check_args!("str", args_list, 1);
-                    println!("{}", print_form(&args_list.remove(0), str_pool))
-                } else {
+                match func_name.as_str() {
+                    "print" => {
+                        check_args!("str", args_list, 1);
+                        println!("{}", print_form(&args_list.remove(0), str_pool))
+                    }
+                    function => {
+                        if let Some(func) = functions.iter().find(|(x, _, _, _, _)| **x == function)
+                        {
+                            let expected_args = &func.1;
+                            check_args!(function, args_list, expected_args.len());
+                            let mut pool = func.3.clone();
+                            let args: Vec<(Intern<String>, Instr)> = expected_args
+                                .iter()
+                                .enumerate()
+                                .map(|(x, y)| {
+                                    let arg_val = args_list.remove(x);
+                                    if let Instr::String(str) = arg_val {
+                                        pool.push(str_pool[str as usize]);
+                                        (*y, Instr::String((pool.len() - 1) as u32))
+                                    } else {
+                                        (*y, arg_val)
+                                    }
+                                })
+                                .collect();
+                            execute(&func.2, functions, &args, &mut pool, &func.4);
+                        } else {
+                            error!(format_args!("Unknown function '{}'", function.red()));
+                        }
+                    }
                 }
             }
             Instr::FuncReturn => {
@@ -325,7 +369,7 @@ fn main() {
     execute(
         &main_function.2,
         &functions,
-        vec![],
+        &[],
         &mut main_function.3,
         &mut main_function.4,
     );

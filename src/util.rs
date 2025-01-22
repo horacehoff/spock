@@ -86,7 +86,6 @@ macro_rules! parser_math_to_type {
 }
 
 pub fn print_form(x: &Instr, locals: &mut [Intern<String>]) -> String {
-    // println!("LOCALS ARE {locals:?}");
     match x {
         Instr::String(str) => locals[*str as usize].to_string(),
         Instr::Float(ref float) => float.to_string().parse().unwrap(),
