@@ -94,8 +94,7 @@ fn pre_match(
                             .enumerate()
                             .map(|(x, y)| (*y, func_args.remove(x)))
                             .collect();
-                        let mut vars = func.4.clone();
-                        execute(&func.2, functions, args, str_pool, &mut vars)
+                        execute(&func.2, functions, args, str_pool, &func.4)
                     } else {
                         error!(format_args!("Unknown function '{}'", name.red()));
                     }
@@ -168,7 +167,7 @@ fn execute(
     vars_pool: &[Intern<String>],
 ) -> Instr {
     // util::print_instructions(lines);
-    let mut stack: Vec<Instr> = Vec::with_capacity(5);
+    let mut stack: Vec<Instr> = Vec::with_capacity(10);
     // keeps track of function args
     let mut args_list: Vec<Instr> = Vec::with_capacity(10);
     // keeps track of variables
@@ -184,6 +183,8 @@ fn execute(
     let mut line: usize = 0;
     let total_len = lines.len();
     while line < total_len {
+        // println!("{}", stack.len() > 10);
+        // println!("{}", args_list.len() > 10);
         match pre_match(
             lines[line],
             &mut variables,
