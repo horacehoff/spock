@@ -180,8 +180,8 @@ pub fn print_instructions(lines: &[Instr]) {
             Instr::FuncReturn => {
                 println!("{i} RET");
             }
-            Instr::Jump(x, y) => {
-                println!("{i} JMP      {}", y);
+            Instr::Jump(neg, y) => {
+                println!("{i} JMP     {} {}", if *neg { "NEG" } else { "POS" }, y);
             }
             Instr::If(cond) => {
                 println!("{i} CMP      {}", cond);
