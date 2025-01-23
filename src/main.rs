@@ -103,8 +103,11 @@ fn pre_match(
                             })
                             .collect();
                         let return_value = execute(&func.2, functions, &args, &mut pool, &func.4);
-                        // BROKEN FOR STRINGS
-                        return return_value;
+                        if let Instr::String(str) = return_value {
+                            str_pool.push(pool[str as usize]);
+                            return Instr::String((str_pool.len() - 1) as u32);
+                        }
+                        return_value
                     } else {
                         error!(format_args!("Unknown function '{}'", name.red()));
                     }

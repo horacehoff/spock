@@ -1,6 +1,6 @@
 func test(x) {
     print(x);
-    return x;
+    return x+"!!!";
 }
 
 func main() {
