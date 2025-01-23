@@ -162,15 +162,14 @@ fn str_str(parent: u32, child: u32, op: Operator, str_pool: &mut Vec<Intern<Stri
                 Intern::from(concat_string!(parent_string.as_str(), base_string.as_str()));
             Instr::String(parent)
         }
-        _ => {
-            error!("unexpected op str_str");
+        other => {
+            error!(format_args!(
+                "Operation not implemented: String {} String",
+                op_to_symbol(other)
+            ));
         }
     }
 }
-
-// fn string_to_correctid(str_pool: &[Intern<String>], args: &mut Vec<(Intern<String>, Instr)>) {
-//
-// }
 
 fn execute(
     lines: &[Instr],
