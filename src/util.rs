@@ -15,7 +15,7 @@ macro_rules! error {
             "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{}\n--------------", $x, $y
         );
         std::process::exit(1);
-    };
+    }
 }
 
 // https://stackoverflow.com/a/63305257

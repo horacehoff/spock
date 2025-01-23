@@ -215,12 +215,14 @@ fn execute(
                     (Instr::String(parent), Instr::String(child)) => {
                         *o1 = str_str(parent, child, op, str_pool);
                     }
-                    _ => todo!(
-                        "Operation not implemented: {} {} {}",
-                        get_type(*o1),
-                        op_to_symbol(op),
-                        get_type(o2)
-                    ),
+                    _ => {
+                        error!(format_args!(
+                            "Operation not implemented: {} {} {}",
+                            get_type(*o1),
+                            op_to_symbol(op),
+                            get_type(o2)
+                        ));
+                    }
                 }
             }
             Instr::VarSet(str) => {
