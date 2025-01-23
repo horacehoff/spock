@@ -299,54 +299,54 @@ fn main() {
     dbg!(size_of::<Instr>());
     let totaltime = Instant::now();
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.is_empty() {
-        println!(
-            "
-      ______   ______   .___  ___. .______    __    __  .___________. _______
-     /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
-    |  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
-    |  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
-    |  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
-     \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
-    \x1b[3mLive long and prosper!\x1b[0m\n- Spock
-    
-    To run a file, run: `compute <file>`
-    To get help, run `compute -h`
-            "
-        );
-        return;
-    } else if args == vec!["-h"] {
-        println!(
-            "
-      ______   ______   .___  ___. .______    __    __  .___________. _______
-     /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
-    |  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
-    |  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
-    |  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
-     \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
-    \x1b[3mHelp me, Obi-Wan Kenobi. You’re my only hope.\x1b[0m\n- Princess Leia
-    
-    compute [filename] [-c]
-    
-    positional arguments:
-      filename
-    
-    options:
-      -c, --clear-cache    Delete the cache folder
-            "
-        );
-        return;
-    } else if args.len() >= 2
-        && (&args[1] == "-c" || &args[1] == "--clear-cache")
-        && Path::new(".compute").exists()
-    {
-        remove_dir_all(Path::new(".compute")).unwrap_or_else(|_| {
-            error!("Failed to delete the cache folder (.compute)");
-        });
-    }
-    let arg = args.first().unwrap();
+    // if args.is_empty() {
+    //     println!(
+    //         "
+    //   ______   ______   .___  ___. .______    __    __  .___________. _______
+    //  /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
+    // |  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
+    // |  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
+    // |  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
+    //  \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
+    // \x1b[3mLive long and prosper!\x1b[0m\n- Spock
+    //
+    // To run a file, run: `compute <file>`
+    // To get help, run `compute -h`
+    //         "
+    //     );
+    //     return;
+    // } else if args == vec!["-h"] {
+    //     println!(
+    //         "
+    //   ______   ______   .___  ___. .______    __    __  .___________. _______
+    //  /      | /  __  \\  |   \\/   | |   _  \\  |  |  |  | |           ||   ____|
+    // |  ,----'|  |  |  | |  \\  /  | |  |_)  | |  |  |  | `---|  |----`|  |__
+    // |  |     |  |  |  | |  |\\/|  | |   ___/  |  |  |  |     |  |     |   __|
+    // |  `----.|  `--'  | |  |  |  | |  |      |  `--'  |     |  |     |  |____
+    //  \\______| \\______/  |__|  |__| | _|       \\______/      |__|     |_______|\n
+    // \x1b[3mHelp me, Obi-Wan Kenobi. You’re my only hope.\x1b[0m\n- Princess Leia
+    //
+    // compute [filename] [-c]
+    //
+    // positional arguments:
+    //   filename
+    //
+    // options:
+    //   -c, --clear-cache    Delete the cache folder
+    //         "
+    //     );
+    //     return;
+    // } else if args.len() >= 2
+    //     && (&args[1] == "-c" || &args[1] == "--clear-cache")
+    //     && Path::new(".compute").exists()
+    // {
+    //     remove_dir_all(Path::new(".compute")).unwrap_or_else(|_| {
+    //         error!("Failed to delete the cache folder (.compute)");
+    //     });
+    // }
+    // let arg = args.first().unwrap();
 
-    let content = fs::read_to_string(arg).unwrap_or_else(|_| {
+    let content = fs::read_to_string("test.compute").unwrap_or_else(|_| {
         error!(format_args!("Unable to read file '{args:?}'"), "");
     });
 
