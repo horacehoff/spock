@@ -115,7 +115,7 @@ fn pre_match(
 }
 
 #[inline(always)]
-unsafe fn int_int(parent: Integer, child: Integer, op: Operator) -> Instr {
+fn int_int(parent: Integer, child: Integer, op: Operator) -> Instr {
     match op {
         Operator::Add => Instr::Integer(parent + child),
         Operator::Sub => Instr::Integer(parent - child),
@@ -129,12 +129,12 @@ unsafe fn int_int(parent: Integer, child: Integer, op: Operator) -> Instr {
         Operator::InferiorEqual => Instr::Bool(parent <= child),
         Operator::Superior => Instr::Bool(parent > child),
         Operator::SuperiorEqual => Instr::Bool(parent >= child),
-        _ => std::hint::unreachable_unchecked(),
+        _ => unreachable!(),
     }
 }
 
 #[inline(always)]
-unsafe fn float_float(parent: Float, child: Float, op: Operator) -> Instr {
+fn float_float(parent: Float, child: Float, op: Operator) -> Instr {
     match op {
         Operator::Add => Instr::Float(parent + child),
         Operator::Sub => Instr::Float(parent - child),
@@ -148,7 +148,7 @@ unsafe fn float_float(parent: Float, child: Float, op: Operator) -> Instr {
         Operator::InferiorEqual => Instr::Bool(parent <= child),
         Operator::Superior => Instr::Bool(parent > child),
         Operator::SuperiorEqual => Instr::Bool(parent >= child),
-        _ => std::hint::unreachable_unchecked(),
+        _ => unreachable!(),
     }
 }
 
@@ -206,12 +206,12 @@ fn execute(
                 let o2 = stack.pop().unwrap();
                 let o1 = stack.last_mut().unwrap();
                 match (*o1, o2) {
-                    (Instr::Integer(parent), Instr::Integer(child)) => unsafe {
+                    (Instr::Integer(parent), Instr::Integer(child)) => {
                         *o1 = int_int(parent, child, op)
-                    },
-                    (Instr::Float(parent), Instr::Float(child)) => unsafe {
+                    }
+                    (Instr::Float(parent), Instr::Float(child)) => {
                         *o1 = float_float(parent, child, op)
-                    },
+                    }
                     (Instr::String(parent), Instr::String(child)) => {
                         *o1 = str_str(parent, child, op, str_pool);
                     }
