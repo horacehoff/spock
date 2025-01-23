@@ -17,8 +17,6 @@ use internment::Intern;
 use likely_stable::unlikely;
 use mimalloc::MiMalloc;
 use std::fs;
-use std::fs::remove_dir_all;
-use std::path::Path;
 use std::time::Instant;
 
 #[global_allocator]
@@ -162,6 +160,8 @@ fn str_str(parent: u32, child: u32, op: Operator, str_pool: &mut Vec<Intern<Stri
                 Intern::from(concat_string!(parent_string.as_str(), base_string.as_str()));
             Instr::String(parent)
         }
+        Operator::Equal => Instr::Bool(str_pool[child as usize] == str_pool[parent as usize]),
+        Operator::NotEqual => Instr::Bool(str_pool[child as usize] != str_pool[parent as usize]),
         other => {
             error!(format_args!(
                 "Operation not implemented: String {} String",
@@ -178,7 +178,7 @@ fn execute(
     str_pool: &mut Vec<Intern<String>>,
     vars_pool: &[Intern<String>],
 ) -> Instr {
-    util::print_instructions(lines);
+    // util::print_instructions(lines);
     let mut stack: Vec<Instr> = Vec::with_capacity(10);
     // keeps track of function args
     let mut args_list: Vec<Instr> = Vec::with_capacity(10);
