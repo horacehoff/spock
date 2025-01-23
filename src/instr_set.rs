@@ -36,7 +36,7 @@ fn types_to_instr(x: ParserInstr) -> Instr {
         ParserInstr::Float(float) => Instr::Float(float),
         ParserInstr::Bool(bool) => Instr::Bool(bool),
         ParserInstr::Operation(op) => Instr::Operation(op),
-        _ => todo!("{:?}", x),
+        _ => unreachable!(),
     }
 }
 
@@ -164,27 +164,12 @@ pub fn parser_to_instr_set(
             _ => output.push(types_to_instr(x)),
         }
     }
-    if store
-        && !(output.len() == 1
-            && matches!(
-                output[0],
-                Instr::Integer(_)
-                    | Instr::String(_)
-                    | Instr::VariableIdentifier(_)
-                    | Instr::Float(_)
-                    | Instr::Bool(_)
-            ))
-    {
-        output = output
-            .iter()
-            .map(|elem| {
-                if let Instr::FuncCall(false, id) = elem {
-                    Instr::FuncCall(true, *id)
-                } else {
-                    *elem
-                }
-            })
-            .collect();
+    if store {
+        for x in output.iter_mut() {
+            if let Instr::FuncCall(bool, _) = x {
+                *bool = true;
+            }
+        }
     }
 
     output
