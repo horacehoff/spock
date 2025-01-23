@@ -48,72 +48,68 @@ fn pre_match(
     match input {
         Instr::VariableIdentifier(id) => variables[id as usize].1,
         // Function call that should return something (because depth > 0)
-        Instr::FuncCall(true, name) => {
-            let name = str_pool[name as usize].as_str();
-            println!("ARGS ARE {func_args:?}");
-            match name {
-                "str" => {
-                    check_args!("str", func_args, 1);
-                    let element = func_args.remove(0);
-                    match element {
-                        Instr::Bool(bool) => {
-                            str_pool.push(Intern::from(
-                                {
-                                    if bool {
-                                        "true"
-                                    } else {
-                                        "false"
-                                    }
-                                }
-                                .to_string(),
-                            ));
-                            Instr::String((str_pool.len() - 1) as u32)
-                        }
-                        Instr::Integer(int) => {
-                            str_pool.push(Intern::from(int.to_string()));
-                            Instr::String((str_pool.len() - 1) as u32)
-                        }
-                        Instr::Float(float) => {
-                            str_pool.push(Intern::from(float.to_string()));
-                            Instr::String((str_pool.len() - 1) as u32)
-                        }
-                        Instr::String(_) => element,
-                        _ => todo!(),
-                    }
-                }
-                _ => {
-                    if let Some(func) = functions
-                        .iter()
-                        .find(|(func_name, _, _, _, _)| name == **func_name)
-                    {
-                        let expected_args = &func.1;
-                        check_args!("str", func_args, expected_args.len());
-                        let mut pool = func.3.clone();
-                        let args: Vec<(Intern<String>, Instr)> = expected_args
-                            .iter()
-                            .enumerate()
-                            .map(|(x, y)| {
-                                let arg_val = func_args.remove(x);
-                                if let Instr::String(str) = arg_val {
-                                    pool.push(str_pool[str as usize]);
-                                    (*y, Instr::String((pool.len() - 1) as u32))
+        Instr::FuncCall(true, name) => match str_pool[name as usize].as_str() {
+            "str" => {
+                check_args!("str", func_args, 1);
+                let element = func_args.remove(0);
+                match element {
+                    Instr::Bool(bool) => {
+                        str_pool.push(Intern::from(
+                            {
+                                if bool {
+                                    "true"
                                 } else {
-                                    (*y, arg_val)
+                                    "false"
                                 }
-                            })
-                            .collect();
-                        let return_value = execute(&func.2, functions, &args, &mut pool, &func.4);
-                        if let Instr::String(str) = return_value {
-                            str_pool.push(pool[str as usize]);
-                            return Instr::String((str_pool.len() - 1) as u32);
-                        }
-                        return_value
-                    } else {
-                        error!(format_args!("Unknown function '{}'", name.red()));
+                            }
+                            .to_string(),
+                        ));
+                        Instr::String((str_pool.len() - 1) as u32)
                     }
+                    Instr::Integer(int) => {
+                        str_pool.push(Intern::from(int.to_string()));
+                        Instr::String((str_pool.len() - 1) as u32)
+                    }
+                    Instr::Float(float) => {
+                        str_pool.push(Intern::from(float.to_string()));
+                        Instr::String((str_pool.len() - 1) as u32)
+                    }
+                    Instr::String(_) => element,
+                    _ => todo!(),
                 }
             }
-        }
+            func => {
+                if let Some(func) = functions
+                    .iter()
+                    .find(|(func_name, _, _, _, _)| func == **func_name)
+                {
+                    let expected_args = &func.1;
+                    check_args!("str", func_args, expected_args.len());
+                    let mut pool = func.3.clone();
+                    let args: Vec<(Intern<String>, Instr)> = expected_args
+                        .iter()
+                        .enumerate()
+                        .map(|(x, y)| {
+                            let arg_val = func_args.remove(x);
+                            if let Instr::String(str) = arg_val {
+                                pool.push(str_pool[str as usize]);
+                                (*y, Instr::String((pool.len() - 1) as u32))
+                            } else {
+                                (*y, arg_val)
+                            }
+                        })
+                        .collect();
+                    let return_value = execute(&func.2, functions, &args, &mut pool, &func.4);
+                    if let Instr::String(str) = return_value {
+                        str_pool.push(pool[str as usize]);
+                        return Instr::String((str_pool.len() - 1) as u32);
+                    }
+                    return_value
+                } else {
+                    error!(format_args!("Unknown function '{}'", func.red()));
+                }
+            }
+        },
         _ => input,
     }
 }
@@ -255,11 +251,11 @@ fn execute(
             Instr::StoreArg => args_list.push(stack.pop().unwrap()),
             // Function call that shouldn't return anything
             Instr::FuncCall(false, name) => {
-                println!("---");
-                println!("STR POOL IS {str_pool:?}");
-                println!("ID IS  {name:?}");
-                println!("QUERIED NAME IS   {:?}", str_pool[name as usize]);
-                println!("---");
+                // println!("---");
+                // println!("STR POOL IS {str_pool:?}");
+                // println!("ID IS  {name:?}");
+                // println!("QUERIED NAME IS   {:?}", str_pool[name as usize]);
+                // println!("---");
                 let func_name = str_pool[name as usize];
                 match func_name.as_str() {
                     "print" => {
