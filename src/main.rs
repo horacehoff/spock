@@ -178,7 +178,7 @@ fn execute(
     str_pool: &mut Vec<Intern<String>>,
     vars_pool: &[Intern<String>],
 ) -> Instr {
-    util::print_instructions(lines);
+    // util::print_instructions(lines);
     let mut stack: Vec<Instr> = Vec::with_capacity(10);
     // keeps track of function args
     let mut args_list: Vec<Instr> = Vec::with_capacity(10);
@@ -195,8 +195,6 @@ fn execute(
     let mut line: usize = 0;
     let total_len = lines.len();
     while line < total_len {
-        // println!("{}", stack.len() > 10);
-        // println!("{}", args_list.len() > 10);
         match pre_match(
             lines[line],
             &mut variables,
@@ -206,17 +204,16 @@ fn execute(
         ) {
             Instr::Operation(op) => {
                 let o2 = stack.pop().unwrap();
-                let index = stack.len() - 1;
-                let o1 = stack.get_mut(index).unwrap();
-                match (&o1, o2) {
+                let o1 = stack.last_mut().unwrap();
+                match (*o1, o2) {
                     (Instr::Integer(parent), Instr::Integer(child)) => unsafe {
-                        *o1 = int_int(*parent, child, op)
+                        *o1 = int_int(parent, child, op)
                     },
                     (Instr::Float(parent), Instr::Float(child)) => unsafe {
-                        *o1 = float_float(*parent, child, op)
+                        *o1 = float_float(parent, child, op)
                     },
                     (Instr::String(parent), Instr::String(child)) => {
-                        *o1 = str_str(*parent, child, op, str_pool);
+                        *o1 = str_str(parent, child, op, str_pool);
                     }
                     _ => todo!(
                         "Operation not implemented: {} {} {}",
