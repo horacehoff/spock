@@ -12,6 +12,11 @@ pub enum Instr {
     Print(u32),
     Data(u32),
 
+    // LOGIC
+    Jmp(u32),
+    // condition id -- size
+    Cmp(u32, u32),
+
     // OPS
     Add(u32, u32, u32),
     Mul(u32, u32, u32),
@@ -26,11 +31,23 @@ pub enum Instr {
 }
 
 fn main() {
-    let instructions: Vec<Instr> = vec![Instr::Inf(0, 1, 1), Instr::Print(1)];
+    let instructions: Vec<Instr> = vec![Instr::Inf(1, 0, 1), Instr::Cmp(1, 1), Instr::Print(1)];
     let mut consts: Vec<Const> = vec![Const::Number(10.0), Const::Number(20.0)];
 
-    for instruction in instructions {
+    let len = instructions.len();
+    let mut i: usize = 0;
+    while i < len {
+        let instruction = instructions[i];
         match instruction {
+            Instr::Jmp(size) => {
+                i += size as usize;
+            }
+            Instr::Cmp(cond_id, size) => {
+                let condition = consts[cond_id as usize];
+                if let Const::Bool(false) = condition {
+                    i += size as usize;
+                }
+            }
             Instr::Add(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
@@ -165,5 +182,6 @@ fn main() {
             }
             _ => todo!(""),
         }
+        i += 1;
     }
 }
