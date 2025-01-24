@@ -35,6 +35,11 @@ macro_rules! check_args {
     };
 }
 
+macro_rules! last_index {
+      ($x: expr) => {
+    ($x.len() - 1)
+    }}
+
 #[inline(always)]
 fn pre_match(
     input: Instr,
