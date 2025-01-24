@@ -1,8 +1,12 @@
+use concat_string::concat_string;
+use internment::Intern;
+
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Const {
     Number(f64),
     Bool(bool),
+    String(Intern<String>),
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -42,7 +46,7 @@ fn main() {
     let mut consts: Vec<Const> = vec![
         Const::Number(10.0),
         Const::Number(20.0),
-        Const::Number(42.0),
+        Const::String(Intern::from_ref("It works!")),
     ];
 
     let len = instructions.len();
@@ -71,6 +75,10 @@ fn main() {
                     (Const::Number(parent), Const::Number(child)) => {
                         let result = parent + child;
                         consts[dest as usize] = Const::Number(result);
+                    }
+                    (Const::String(parent), Const::String(child)) => {
+                        let result = concat_string!(*parent, *child);
+                        consts[dest as usize] = Const::String(Intern::from(result));
                     }
                     _ => todo!(""),
                 }
@@ -124,6 +132,10 @@ fn main() {
                         let result = parent == child;
                         consts[dest as usize] = Const::Bool(result);
                     }
+                    (Const::String(parent), Const::String(child)) => {
+                        let result = parent == child;
+                        consts[dest as usize] = Const::Bool(result);
+                    }
                     _ => todo!(""),
                 }
             }
@@ -137,6 +149,10 @@ fn main() {
                         consts[dest as usize] = Const::Bool(result);
                     }
                     (Const::Bool(parent), Const::Bool(child)) => {
+                        let result = parent != child;
+                        consts[dest as usize] = Const::Bool(result);
+                    }
+                    (Const::String(parent), Const::String(child)) => {
                         let result = parent != child;
                         consts[dest as usize] = Const::Bool(result);
                     }
@@ -193,7 +209,7 @@ fn main() {
             }
             Instr::Print(target) => {
                 let elem = consts[target as usize];
-                println!("PRINT => {elem:?}")
+                println!("PRINT => {elem:?}");
             }
             _ => todo!(""),
         }
