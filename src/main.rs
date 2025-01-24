@@ -1,5 +1,6 @@
 use concat_string::concat_string;
 use internment::Intern;
+use std::time::Instant;
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
@@ -40,16 +41,18 @@ pub enum Instr {
 
 fn main() {
     dbg!(size_of::<Instr>());
+
+    let now = Instant::now();
     let instructions: Vec<Instr> = vec![
-        Instr::Inf(0, 4, 6),
-        Instr::Cmp(6, 6),
+        Instr::Inf(0, 3, 6),
+        Instr::Cmp(6, 7),
+        Instr::Add(0, 5, 0),
         Instr::Mul(1, 2, 1),
-        Instr::Sup(1, 3, 7),
+        Instr::Sup(1, 4, 7),
         Instr::Cmp(7, 1),
         Instr::Mod(1, 4, 1),
-        Instr::Add(0, 5, 0),
+        Instr::Jmp(7, true),
         Instr::Print(1),
-        Instr::Jmp(8, true),
     ];
     let mut consts: Vec<Data> = vec![
         // count
@@ -69,6 +72,7 @@ fn main() {
     let mut i: usize = 0;
     while i < len {
         let instruction = instructions[i];
+        // println!("{consts:?}");
         match instruction {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
@@ -220,7 +224,7 @@ fn main() {
             Instr::Inf(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
-
+                // println!("IS {first_elem:?} INF TO {second_elem:?}???");
                 match (first_elem, second_elem) {
                     (Data::Number(parent), Data::Number(child)) => {
                         let result = parent < child;
@@ -243,10 +247,13 @@ fn main() {
             }
             Instr::Print(target) => {
                 let elem = consts[target as usize];
-                println!("PRINT => {elem:?}");
+                // println!("{consts:?}");
+                println!("{elem:?}");
             }
             _ => todo!(""),
         }
         i += 1;
     }
+
+    println!("EXEC TIME {:.2?}", now.elapsed())
 }
