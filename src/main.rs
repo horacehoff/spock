@@ -13,7 +13,8 @@ pub enum Instr {
     Data(u16),
 
     // LOGIC
-    Jmp(u16),
+    // size -- is_neg
+    Jmp(u16, bool),
     // condition id -- size
     Cmp(u16, u16),
 
@@ -32,16 +33,29 @@ pub enum Instr {
 
 fn main() {
     dbg!(std::mem::size_of::<Instr>());
-    let instructions: Vec<Instr> = vec![Instr::Inf(1, 0, 1), Instr::Cmp(1, 1), Instr::Print(1)];
-    let mut consts: Vec<Const> = vec![Const::Number(10.0), Const::Number(20.0)];
+    let instructions: Vec<Instr> = vec![
+        Instr::Inf(1, 0, 1),
+        Instr::Cmp(1, 1),
+        Instr::Print(1),
+        Instr::Print(2),
+    ];
+    let mut consts: Vec<Const> = vec![
+        Const::Number(10.0),
+        Const::Number(20.0),
+        Const::Number(42.0),
+    ];
 
     let len = instructions.len();
     let mut i: usize = 0;
     while i < len {
         let instruction = instructions[i];
         match instruction {
-            Instr::Jmp(size) => {
-                i += size as usize;
+            Instr::Jmp(size, is_neg) => {
+                if is_neg {
+                    i -= size as usize;
+                } else {
+                    i += size as usize;
+                }
             }
             Instr::Cmp(cond_id, size) => {
                 let condition = consts[cond_id as usize];
