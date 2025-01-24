@@ -25,6 +25,8 @@ pub enum Instr {
 
     // name id -- value id
     SetVar(u16, u16),
+    // var idx -- slot id
+    Get(u16, u16),
 
     // OPS
     Add(u16, u16, u16),
@@ -43,15 +45,18 @@ fn main() {
     dbg!(std::mem::size_of::<Instr>());
     let instructions: Vec<Instr> = vec![
         Instr::SetVar(2, 1),
+        Instr::Get(0, 2),
+        Instr::SetVar(3, 2),
         Instr::Inf(1, 0, 1),
         Instr::Cmp(1, 1),
         Instr::Print(1),
-        Instr::Print(2),
+        // Instr::Print(2),
     ];
     let mut consts: Vec<Data> = vec![
         Data::Number(10.0),
         Data::Number(20.0),
-        Data::String(Intern::from_ref("test")),
+        Data::String(Intern::from_ref("hello")),
+        Data::String(Intern::from_ref("world")),
     ];
     let mut args: Vec<Data> = Vec::new();
     let mut vars: Vec<(Intern<String>, Data)> = Vec::new();
@@ -84,6 +89,7 @@ fn main() {
                 }
                 println!("VARS {vars:?}")
             }
+            Instr::Get(idx, slot) => consts[slot as usize] = vars[idx as usize].1,
             Instr::Cmp(cond_id, size) => {
                 let condition = consts[cond_id as usize];
                 if let Data::Bool(false) = condition {
