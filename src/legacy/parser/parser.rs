@@ -13,6 +13,7 @@ pub type Functions = Vec<(
     Vec<Instr>,          // code
     Vec<Intern<String>>, // locals
     Vec<Intern<String>>, // vars
+    Vec<Instr>,          // consts_pos
 )>;
 pub type FunctionsSlice = [(
     Intern<String>,      // name
@@ -20,6 +21,7 @@ pub type FunctionsSlice = [(
     Vec<Instr>,          // code
     Vec<Intern<String>>, // locals
     Vec<Intern<String>>, // vars
+    Vec<Instr>,          // consts_pos
 )];
 
 #[derive(Parser)]

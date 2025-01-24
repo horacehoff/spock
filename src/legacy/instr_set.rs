@@ -28,17 +28,19 @@ pub enum Instr {
     String(u32),
     Integer(Integer),
     Float(Float),
+
+    LOAD(u32),
 }
 
-fn types_to_instr(x: ParserInstr) -> Instr {
-    match x {
-        ParserInstr::Integer(int) => Instr::Integer(int),
-        ParserInstr::Float(float) => Instr::Float(float),
-        ParserInstr::Bool(bool) => Instr::Bool(bool),
-        ParserInstr::Operation(op) => Instr::Operation(op),
-        _ => unreachable!(),
-    }
-}
+// fn types_to_instr(x: ParserInstr) -> Instr {
+//     match x {
+//         ParserInstr::Integer(int) => Instr::Integer(int),
+//         ParserInstr::Float(float) => Instr::Float(float),
+//         ParserInstr::Bool(bool) => Instr::Bool(bool),
+//         ParserInstr::Operation(op) => Instr::Operation(op),
+//         _ => unreachable!(),
+//     }
+// }
 
 #[inline(never)]
 pub fn parser_to_instr_set(
@@ -46,6 +48,7 @@ pub fn parser_to_instr_set(
     store: bool,
     locals: &mut Vec<Intern<String>>,
     variables: &mut Vec<Intern<String>>,
+    consts_pos: &mut Vec<Instr>,
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::with_capacity(lines.len());
     for x in lines {
@@ -53,7 +56,7 @@ pub fn parser_to_instr_set(
             ParserInstr::VariableDeclaration(block) => {
                 let x = block.name;
                 let y = block.value;
-                let result = parser_to_instr_set(Vec::from(y), true, locals, variables);
+                let result = parser_to_instr_set(Vec::from(y), true, locals, variables, consts_pos);
                 output.extend(result);
                 let name = Intern::from(x);
                 locals.push(name);
@@ -70,7 +73,7 @@ pub fn parser_to_instr_set(
                 let name = block.name;
                 let y = block.args;
                 for x in split_vec(Vec::from(y), ParserInstr::Separator) {
-                    let result = parser_to_instr_set(x, true, locals, variables);
+                    let result = parser_to_instr_set(x, true, locals, variables, consts_pos);
                     output.extend(result);
                     output.push(Instr::StoreArg);
                 }
@@ -78,16 +81,28 @@ pub fn parser_to_instr_set(
                 output.push(Instr::FuncCall(false, (locals.len() - 1) as u32));
             }
             ParserInstr::FunctionReturn(ret) => {
-                let result = parser_to_instr_set(Vec::from(ret), true, locals, variables);
+                let result =
+                    parser_to_instr_set(Vec::from(ret), true, locals, variables, consts_pos);
                 if result != vec![] {
                     output.extend(result);
                 }
                 output.push(Instr::FuncReturn);
             }
             ParserInstr::Condition(block) => {
-                let condition =
-                    parser_to_instr_set(Vec::from(block.condition), true, locals, variables);
-                let in_code = parser_to_instr_set(Vec::from(block.code), false, locals, variables);
+                let condition = parser_to_instr_set(
+                    Vec::from(block.condition),
+                    true,
+                    locals,
+                    variables,
+                    consts_pos,
+                );
+                let in_code = parser_to_instr_set(
+                    Vec::from(block.code),
+                    false,
+                    locals,
+                    variables,
+                    consts_pos,
+                );
                 if condition == vec![Instr::Bool(true)] || condition == vec![] {
                     output.extend(in_code);
                     continue;
@@ -107,7 +122,8 @@ pub fn parser_to_instr_set(
                             code: else_block.1,
                             else_blocks: Box::new([]),
                         }));
-                        let result = parser_to_instr_set(vec![block], false, locals, variables);
+                        let result =
+                            parser_to_instr_set(vec![block], false, locals, variables, consts_pos);
 
                         added_else_length += result.len();
                         added_else_blocks.extend(result);
@@ -119,7 +135,8 @@ pub fn parser_to_instr_set(
                             code: else_block.1,
                             else_blocks: Box::from(else_blocks),
                         }));
-                        let result = parser_to_instr_set(vec![block], false, locals, variables);
+                        let result =
+                            parser_to_instr_set(vec![block], false, locals, variables, consts_pos);
                         added_else_length += result.len();
                         added_else_blocks.extend(result);
                         break;
@@ -138,9 +155,20 @@ pub fn parser_to_instr_set(
                 }
             }
             ParserInstr::While(block) => {
-                let condition =
-                    parser_to_instr_set(Vec::from(block.condition), true, locals, variables);
-                let in_code = parser_to_instr_set(Vec::from(block.code), false, locals, variables);
+                let condition = parser_to_instr_set(
+                    Vec::from(block.condition),
+                    true,
+                    locals,
+                    variables,
+                    consts_pos,
+                );
+                let in_code = parser_to_instr_set(
+                    Vec::from(block.code),
+                    false,
+                    locals,
+                    variables,
+                    consts_pos,
+                );
                 let added = in_code.len();
                 let sum = condition.len() + 1 + added;
                 output.extend(condition);
@@ -161,7 +189,15 @@ pub fn parser_to_instr_set(
                     error!(format_args!("Unknown variable {name}"), "");
                 }
             }
-            _ => output.push(types_to_instr(x)),
+            ParserInstr::Integer(int) => output.push(Instr::Integer(int)),
+            // ParserInstr::Float(float) => {
+            //     output.push(Instr::Float(float))
+            // }
+            // ParserInstr::Bool(bool) => {
+            //     output.push(Instr::Bool(bool))
+            // }
+            ParserInstr::Operation(op) => output.push(Instr::Operation(op)),
+            _ => {}
         }
     }
     if store {

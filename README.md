@@ -3,14 +3,14 @@ A work-in-progress programming language written in Rust for the best performance
 
 Key facts:
 - ~5-6x faster than Python in most cases
-  - Rewrite in progress
+  - Complete rewrite in progress (switching to register machine)
 - Does not support nested functions
 - Many bugs
 
 ## Instruction Set
 
 Compute uses an instruction set with a size of 8 bytes.
-The available instructions can be seen [here](src/instr_set.rs).
+The available instructions can be seen [here](src/legacy/instr_set.rs).
 
 ```
 let x = 20;

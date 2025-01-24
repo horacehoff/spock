@@ -211,6 +211,7 @@ pub fn print_instructions(lines: &[Instr]) {
             Instr::Float(float) => {
                 println!("{i} FLOAT({})", float);
             }
+            &Instr::LOAD(_) => todo!(),
         }
     }
 }
