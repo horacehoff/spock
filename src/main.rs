@@ -22,11 +22,7 @@ pub enum Instr {
     // condition id -- size
     Cmp(u16, u16),
     // CopyArg(u16, u16),
-
-    // name id -- value id
-    SetVar(u16, u16),
-    // var idx -- slot id
-    Get(u16, u16),
+    Mov(u16, u16),
 
     // OPS
     Add(u16, u16, u16),
@@ -44,12 +40,8 @@ pub enum Instr {
 fn main() {
     dbg!(std::mem::size_of::<Instr>());
     let instructions: Vec<Instr> = vec![
-        Instr::SetVar(2, 1),
-        Instr::Get(0, 2),
-        Instr::SetVar(3, 2),
-        Instr::Inf(1, 0, 1),
-        Instr::Cmp(1, 1),
-        Instr::Print(1),
+        Instr::Mov(1, 3),
+        Instr::Print(3),
         // Instr::Print(2),
     ];
     let mut consts: Vec<Data> = vec![
@@ -58,8 +50,6 @@ fn main() {
         Data::String(Intern::from_ref("hello")),
         Data::String(Intern::from_ref("world")),
     ];
-    let mut args: Vec<Data> = Vec::new();
-    let mut vars: Vec<(Intern<String>, Data)> = Vec::new();
 
     let len = instructions.len();
     let mut i: usize = 0;
@@ -73,23 +63,9 @@ fn main() {
                     i += size as usize;
                 }
             }
-            // Instr::CopyArg(org, dest) => {
-            //     let elem = consts[org as usize];
-            //     args.push(elem);
-            // }
-            Instr::SetVar(name, value) => {
-                let name = consts[name as usize];
-                let value = consts[value as usize];
-                if let Data::String(var_name) = name {
-                    if let Some(idx) = vars.iter().position(|(x, _)| *x == var_name) {
-                        vars[idx].1 = value;
-                    } else {
-                        vars.push((var_name, value))
-                    }
-                }
-                println!("VARS {vars:?}")
+            Instr::Mov(tgt, dest) => {
+                consts[dest as usize] = consts[tgt as usize];
             }
-            Instr::Get(idx, slot) => consts[slot as usize] = vars[idx as usize].1,
             Instr::Cmp(cond_id, size) => {
                 let condition = consts[cond_id as usize];
                 if let Data::Bool(false) = condition {
