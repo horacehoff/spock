@@ -39,17 +39,17 @@ pub enum Instr {
 }
 
 fn main() {
-    dbg!(std::mem::size_of::<Instr>());
+    dbg!(size_of::<Instr>());
     let instructions: Vec<Instr> = vec![
         Instr::Inf(0, 4, 6),
-        Instr::Cmp(6, 5),
+        Instr::Cmp(6, 6),
         Instr::Mul(1, 2, 1),
         Instr::Sup(1, 3, 7),
         Instr::Cmp(7, 1),
         Instr::Mod(1, 4, 1),
         Instr::Add(0, 5, 0),
-        Instr::Jmp(7, true),
         Instr::Print(1),
+        Instr::Jmp(8, true),
     ];
     let mut consts: Vec<Data> = vec![
         // count
@@ -73,8 +73,10 @@ fn main() {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
                     i -= size as usize;
+                    continue;
                 } else {
                     i += size as usize;
+                    continue;
                 }
             }
             Instr::Mov(tgt, dest) => {
