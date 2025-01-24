@@ -29,6 +29,7 @@ pub enum Instr {
     Mul(u16, u16, u16),
     Sub(u16, u16, u16),
     Div(u16, u16, u16),
+    Mod(u16, u16, u16),
     Eq(u16, u16, u16),
     NotEq(u16, u16, u16),
     Sup(u16, u16, u16),
@@ -40,15 +41,28 @@ pub enum Instr {
 fn main() {
     dbg!(std::mem::size_of::<Instr>());
     let instructions: Vec<Instr> = vec![
-        Instr::Mov(1, 3),
-        Instr::Print(3),
-        // Instr::Print(2),
+        Instr::Inf(0, 4, 6),
+        Instr::Cmp(6, 5),
+        Instr::Mul(1, 2, 1),
+        Instr::Sup(1, 3, 7),
+        Instr::Cmp(7, 1),
+        Instr::Mod(1, 4, 1),
+        Instr::Add(0, 5, 0),
+        Instr::Jmp(7, true),
+        Instr::Print(1),
     ];
     let mut consts: Vec<Data> = vec![
-        Data::Number(10.0),
-        Data::Number(20.0),
-        Data::String(Intern::from_ref("hello")),
-        Data::String(Intern::from_ref("world")),
+        // count
+        Data::Number(0.0),
+        // result
+        Data::Number(1.0),
+        // nums
+        Data::Number(2.0),       // -> 2
+        Data::Number(1000000.0), // -> 3
+        Data::Number(1000000.0), // -> 4
+        Data::Number(1.0),       // -> 5
+        Data::Bool(false),       // -> 6
+        Data::Bool(false),       // -> 7
     ];
 
     let len = instructions.len();
@@ -70,6 +84,7 @@ fn main() {
                 let condition = consts[cond_id as usize];
                 if let Data::Bool(false) = condition {
                     i += size as usize;
+                    continue;
                 }
             }
             Instr::Add(o1, o2, dest) => {
@@ -119,6 +134,18 @@ fn main() {
                 match (first_elem, second_elem) {
                     (Data::Number(parent), Data::Number(child)) => {
                         let result = parent - child;
+                        consts[dest as usize] = Data::Number(result);
+                    }
+                    _ => todo!(""),
+                }
+            }
+            Instr::Mod(o1, o2, dest) => {
+                let first_elem = consts[o1 as usize];
+                let second_elem = consts[o2 as usize];
+
+                match (first_elem, second_elem) {
+                    (Data::Number(parent), Data::Number(child)) => {
+                        let result = parent % child;
                         consts[dest as usize] = Data::Number(result);
                     }
                     _ => todo!(""),
