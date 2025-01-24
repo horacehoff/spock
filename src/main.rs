@@ -9,28 +9,29 @@ pub enum Const {
 #[repr(u8)]
 pub enum Instr {
     Null,
-    Print(u32),
-    Data(u32),
+    Print(u16),
+    Data(u16),
 
     // LOGIC
-    Jmp(u32),
+    Jmp(u16),
     // condition id -- size
-    Cmp(u32, u32),
+    Cmp(u16, u16),
 
     // OPS
-    Add(u32, u32, u32),
-    Mul(u32, u32, u32),
-    Sub(u32, u32, u32),
-    Div(u32, u32, u32),
-    Eq(u32, u32, u32),
-    NotEq(u32, u32, u32),
-    Sup(u32, u32, u32),
-    SupEq(u32, u32, u32),
-    Inf(u32, u32, u32),
-    InfEq(u32, u32, u32),
+    Add(u16, u16, u16),
+    Mul(u16, u16, u16),
+    Sub(u16, u16, u16),
+    Div(u16, u16, u16),
+    Eq(u16, u16, u16),
+    NotEq(u16, u16, u16),
+    Sup(u16, u16, u16),
+    SupEq(u16, u16, u16),
+    Inf(u16, u16, u16),
+    InfEq(u16, u16, u16),
 }
 
 fn main() {
+    dbg!(std::mem::size_of::<Instr>());
     let instructions: Vec<Instr> = vec![Instr::Inf(1, 0, 1), Instr::Cmp(1, 1), Instr::Print(1)];
     let mut consts: Vec<Const> = vec![Const::Number(10.0), Const::Number(20.0)];
 
