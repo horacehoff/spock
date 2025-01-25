@@ -264,7 +264,8 @@ pub enum Expr {
     String(String),
     Var(String),
     Group(Box<[Expr]>),
-    VariableDeclaration(String, Box<Expr>),
+    VarDeclare(String, Box<Expr>),
+    VarAssign(String, Box<Expr>),
 }
 
 #[derive(Debug)]
@@ -291,8 +292,8 @@ fn main() {
     dbg!(size_of::<Data>());
 
     let now = Instant::now();
-    let parser = grammar::VariableDeclarationParser::new()
-        .parse("let test = 2*2+world")
+    let parser = grammar::StatementParser::new()
+        .parse("test = 2*2+world;")
         .unwrap();
     println!("{parser:?}");
     println!("Parsed in {:.2?}", now.elapsed());

@@ -4,8 +4,21 @@ use crate::{Expr, Opcode};
 
 grammar;
 
-pub VariableDeclaration: Expr = {
-    "let" <v: Var> "=" <e: Expression> => Expr::VariableDeclaration(v, Box::from(e))
+pub Statement: Expr = {
+    Line => <>
+}
+
+pub Line: Expr = {
+    <a: VarDeclare> ";" => a,
+    <a: VarAssign> ";" => a,
+}
+
+pub VarDeclare: Expr = {
+    "let" <v: Var> "=" <e: Expression> => Expr::VarDeclare(v, Box::from(e))
+}
+
+pub VarAssign: Expr = {
+    <v: Var> "=" <e: Expression> => Expr::VarAssign(v, Box::from(e))
 }
 
 pub Expression: Expr = {
