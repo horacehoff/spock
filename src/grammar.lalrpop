@@ -4,8 +4,12 @@ use crate::{Expr, Opcode};
 
 grammar;
 
+ElseIfBlock:Expr = {
+    "else" "if" <o1: Expression> "{" <o2:Code> "}" => Expr::ElseIfBlock(Box::from(o1), o2)
+}
+
 ConditionalBlock: Expr = {
-    "if" <o1: Expression> "{" <o2:Code> "}" => Expr::Condition(Box::from(o1), o2)
+    "if" <o1: Expression> "{" <o2:Code> "}" <o3: ElseIfBlock*> <o4: ("else" "{" <Code> "}")?> => Expr::Condition(Box::from(o1), o2, Box::from(o3), o4)
 }
 
 pub Code: Box<[Expr]> = {

@@ -46,9 +46,8 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
     let len = instructions.len();
     let mut i: usize = 0;
     while i < len {
-        let instruction = instructions[i];
         // println!("{consts:?}");
-        match instruction {
+        match instructions[i] {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
                     i -= size as usize;
@@ -266,7 +265,9 @@ pub enum Expr {
     Group(Box<[Expr]>),
     VarDeclare(String, Box<Expr>),
     VarAssign(String, Box<Expr>),
-    Condition(Box<Expr>, Box<[Expr]>),
+    // condition - code -- else_blocks(condition array)
+    Condition(Box<Expr>, Box<[Expr]>, Box<[Expr]>, Option<Box<[Expr]>>),
+    ElseIfBlock(Box<Expr>, Box<[Expr]>),
 }
 
 #[derive(Debug)]
@@ -291,12 +292,13 @@ lalrpop_mod!(pub grammar);
 fn main() {
     dbg!(size_of::<Instr>());
     dbg!(size_of::<Data>());
+    dbg!(size_of::<Expr>());
 
     let now = Instant::now();
-    let parser = grammar::CodeParser::new()
-        .parse("test = 2*2+world;if true == true {let world = false;}")
+    let parsed = grammar::CodeParser::new()
+        .parse("test = 2*2+world;if true == true {let world = false;} else if true == false {let world = true;} else {let world = 56;}")
         .unwrap();
-    println!("{parser:?}");
+    println!("{parsed:?}");
     println!("Parsed in {:.2?}", now.elapsed());
 
     let now = Instant::now();
