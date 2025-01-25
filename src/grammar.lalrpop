@@ -1,6 +1,25 @@
 use std::str::FromStr;
+use crate::{ParserInstr, Operator};
 
 
 grammar;
 
 pub Num: f64 = <s:r"[0-9]+"> => f64::from_str(s).unwrap();
+
+pub Instr: ParserInstr = {
+    <o1: Instr> <o2: InstrOp> <o3: Instr> => ParserInstr::Op(Box::new(o1), o2, Box::new(o3)),
+    <t: Term> => ParserInstr::Num(t),
+};
+
+pub Term: f64 = {
+    <n:Num> => n,
+    "(" <t:Term> ")" => t,
+};
+
+
+InstrOp: Operator = {
+    "+" => Operator::Add,
+    "-" => Operator::Sub,
+    "*" => Operator::Mul,
+    "/" => Operator::Div,
+};

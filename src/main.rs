@@ -255,11 +255,34 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
     }
 }
 
+pub enum ParserInstr {
+    Num(f64),
+    Op(Box<ParserInstr>, Operator, Box<ParserInstr>),
+}
+
+pub enum Operator {
+    Add,
+    Mul,
+    Sub,
+    Div,
+    Mod,
+    Eq,
+    NotEq,
+    Sup,
+    SupEq,
+    Inf,
+    InfEq,
+    BoolAnd,
+    BoolOr,
+}
+
 lalrpop_mod!(pub grammar);
 
 fn main() {
     dbg!(size_of::<Instr>());
     dbg!(size_of::<Data>());
+
+    assert!(grammar::NumParser::new().parse("22").is_ok());
 
     let now = Instant::now();
     let instructions: Vec<Instr> = vec![
