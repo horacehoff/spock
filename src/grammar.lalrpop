@@ -1,25 +1,24 @@
 use std::str::FromStr;
-use crate::{ParserInstr, Operator};
+use crate::{Expr, Opcode};
 
 
 grammar;
 
-pub Num: f64 = <s:r"[0-9]+"> => f64::from_str(s).unwrap();
-
-pub Instr: ParserInstr = {
-    <o1: Instr> <o2: InstrOp> <o3: Instr> => ParserInstr::Op(Box::new(o1), o2, Box::new(o3)),
-    <t: Term> => ParserInstr::Num(t),
+pub Term: Box<Expr> = {
+    <t: Num> => Box::new(Expr::Num(t)), // (4)
+    <b: Bool> => Box::new(Expr::Bool(b)),
+    <s: String> => Box::new(Expr::String(s)),
+    "(" <o2: Term> ")" => Box::new(Expr::Priority(o2)),
 };
 
-pub Term: f64 = {
-    <n:Num> => n,
-    "(" <t:Term> ")" => t,
+Num: f64 = {
+    <n: r"[+-]?([0-9]*[.])?[0-9]+"> => f64::from_str(n).unwrap()
 };
 
-
-InstrOp: Operator = {
-    "+" => Operator::Add,
-    "-" => Operator::Sub,
-    "*" => Operator::Mul,
-    "/" => Operator::Div,
+Bool: bool = {
+    <b: r"true|false"> => bool::from_str(b).unwrap()
 };
+
+String: String = {
+    <s: r#"\"(?:\"\"|[^\"])*\""#> => String::from(s.trim_matches('"'))
+}
