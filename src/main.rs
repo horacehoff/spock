@@ -259,9 +259,11 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 pub enum Expr {
     Num(f64),
     Bool(bool),
-    Op(Opcode),
+    Op(Box<Expr>, Vec<(Opcode, Box<Expr>)>),
+    // Op_Child(Opcode, Box<Expr>),
     Priority(Box<Expr>),
     String(String),
+    Var(String),
 }
 
 #[derive(Debug)]
@@ -270,6 +272,15 @@ pub enum Opcode {
     Div,
     Add,
     Sub,
+    Mod,
+    Eq,
+    NotEq,
+    Sup,
+    SupEq,
+    Inf,
+    InfEq,
+    BoolAnd,
+    BoolOr,
 }
 
 lalrpop_mod!(pub grammar);
@@ -278,8 +289,8 @@ fn main() {
     dbg!(size_of::<Instr>());
     dbg!(size_of::<Data>());
 
-    let parser = grammar::TermParser::new()
-        .parse("(\"Hello there!\")")
+    let parser = grammar::OperationParser::new()
+        .parse("46 + 68 / 687 + 67")
         .unwrap();
     println!("PARSED {parser:?}");
 

@@ -4,6 +4,13 @@ use crate::{Expr, Opcode};
 
 grammar;
 
+
+pub Operation: Expr = {
+    <o1: Term> <o3: (<Op> <Term>)*> => {
+        Expr::Op(o1, o3)
+    }
+}
+
 pub Term: Box<Expr> = {
     <t: Num> => Box::new(Expr::Num(t)), // (4)
     <b: Bool> => Box::new(Expr::Bool(b)),
@@ -21,4 +28,20 @@ Bool: bool = {
 
 String: String = {
     <s: r#"\"(?:\"\"|[^\"])*\""#> => String::from(s.trim_matches('"'))
+}
+
+Op: Opcode = {
+    "*" => Opcode::Mul,
+    "+" => Opcode::Add,
+    "/" => Opcode::Div,
+    "-" => Opcode::Sub,
+    "%" => Opcode::Mod,
+    "==" => Opcode::Eq,
+    "!="  =>  Opcode::NotEq,
+    ">"  =>  Opcode::Sup,
+     ">="  => Opcode::SupEq,
+     "<" =>   Opcode::Inf,
+     "<="  => Opcode::InfEq,
+     "&&"  => Opcode::BoolAnd,
+     "||"  => Opcode::BoolOr,
 }
