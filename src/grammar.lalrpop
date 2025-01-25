@@ -4,15 +4,19 @@ use crate::{Expr, Opcode};
 
 grammar;
 
+pub Expression: Expr = {
+    <o:Operation> => o,
+    <t: Term> => *t,
+}
 
 pub Operation: Expr = {
-    <o1: Term> <o3: (<Op> <Term>)*> => {
-        Expr::Op(o1, o3)
+    <o1: Term> <o3: (<Op> <Term>)+> => {
+        Expr::Op(o1, o3.into_boxed_slice())
     }
 }
 
 pub Term: Box<Expr> = {
-    <t: Num> => Box::new(Expr::Num(t)), // (4)
+    <t: Num> => Box::new(Expr::Num(t)),
     <b: Bool> => Box::new(Expr::Bool(b)),
     <s: String> => Box::new(Expr::String(s)),
     "(" <o2: Term> ")" => Box::new(Expr::Priority(o2)),

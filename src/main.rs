@@ -259,11 +259,11 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 pub enum Expr {
     Num(f64),
     Bool(bool),
-    Op(Box<Expr>, Vec<(Opcode, Box<Expr>)>),
-    // Op_Child(Opcode, Box<Expr>),
+    Op(Box<Expr>, Box<[(Opcode, Box<Expr>)]>),
     Priority(Box<Expr>),
     String(String),
     Var(String),
+    Group(Box<[Expr]>),
 }
 
 #[derive(Debug)]
@@ -289,10 +289,12 @@ fn main() {
     dbg!(size_of::<Instr>());
     dbg!(size_of::<Data>());
 
-    let parser = grammar::OperationParser::new()
+    let now = Instant::now();
+    let parser = grammar::ExpressionParser::new()
         .parse("46 + 68 / 687 + 67")
         .unwrap();
-    println!("PARSED {parser:?}");
+    println!("{parser:?}");
+    println!("Parsed in {:.2?}", now.elapsed());
 
     let now = Instant::now();
     let instructions: Vec<Instr> = vec![
