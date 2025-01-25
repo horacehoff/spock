@@ -4,35 +4,44 @@ use crate::{Expr, Opcode};
 
 grammar;
 
-pub Statement: Expr = {
+ConditionalBlock: Expr = {
+    "if" <o1: Expression> "{" <o2:Code> "}" => Expr::Condition(Box::from(o1), o2)
+}
+
+pub Code: Box<[Expr]> = {
+    <s: Statement*> => s.into_boxed_slice()
+}
+
+Statement: Expr = {
+    ConditionalBlock => <>,
     Line => <>
 }
 
-pub Line: Expr = {
+Line: Expr = {
     <a: VarDeclare> ";" => a,
     <a: VarAssign> ";" => a,
 }
 
-pub VarDeclare: Expr = {
+VarDeclare: Expr = {
     "let" <v: Var> "=" <e: Expression> => Expr::VarDeclare(v, Box::from(e))
 }
 
-pub VarAssign: Expr = {
+VarAssign: Expr = {
     <v: Var> "=" <e: Expression> => Expr::VarAssign(v, Box::from(e))
 }
 
-pub Expression: Expr = {
+Expression: Expr = {
     <o:Operation> => o,
     <t: Term> => *t,
 }
 
-pub Operation: Expr = {
+Operation: Expr = {
     <o1: Term> <o3: (<Op> <Term>)+> => {
         Expr::Op(o1, o3.into_boxed_slice())
     }
 }
 
-pub Term: Box<Expr> = {
+Term: Box<Expr> = {
     <t: Num> => Box::new(Expr::Num(t)),
     <b: Bool> => Box::new(Expr::Bool(b)),
     <s: String> => Box::new(Expr::String(s)),
