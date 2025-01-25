@@ -4,6 +4,10 @@ use crate::{Expr, Opcode};
 
 grammar;
 
+pub VariableDeclaration: Expr = {
+    "let" <v: Var> "=" <e: Expression> => Expr::VariableDeclaration(v, Box::from(e))
+}
+
 pub Expression: Expr = {
     <o:Operation> => o,
     <t: Term> => *t,
@@ -19,6 +23,7 @@ pub Term: Box<Expr> = {
     <t: Num> => Box::new(Expr::Num(t)),
     <b: Bool> => Box::new(Expr::Bool(b)),
     <s: String> => Box::new(Expr::String(s)),
+    <v: Var> => Box::new(Expr::Var(v)),
     "(" <o2: Term> ")" => Box::new(Expr::Priority(o2)),
 };
 
@@ -27,11 +32,16 @@ Num: f64 = {
 };
 
 Bool: bool = {
-    <b: r"true|false"> => bool::from_str(b).unwrap()
+    "true" => true,
+    "false" => false,
 };
 
 String: String = {
     <s: r#"\"(?:\"\"|[^\"])*\""#> => String::from(s.trim_matches('"'))
+}
+
+Var: String = {
+    <v: r#"[a-zA-Z_]*"#> => String::from(v),
 }
 
 Op: Opcode = {
