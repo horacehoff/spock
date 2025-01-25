@@ -1,0 +1,6 @@
+use std::str::FromStr;
+
+
+grammar;
+
+pub Num: f64 = <s:r"[0-9]+"> => f64::from_str(s).unwrap();
