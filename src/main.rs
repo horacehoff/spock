@@ -321,6 +321,25 @@ fn parser_to_instr_set(
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
             Expr::Op(left, right) => {
                 assigned_directly = true;
+                let operation: Vec<Expr> = process_op(Expr::Op(left, right));
+
+                fn process_op(op: Expr) -> Vec<Expr> {
+                    let mut operation: Vec<Expr> = vec![];
+                    if let Expr::Op(left, right) = op {
+                        operation.push(*left);
+                        for x in right {
+                            operation.push(Expr::Opcode(x.0));
+                            if matches!(*x.1, Expr::Op(_, _)) {
+                                operation.extend(process_op(*x.1));
+                            } else {
+                                operation.push(*x.1);
+                            }
+                        }
+                    }
+                    operation
+                }
+
+                println!("OP {operation:?}")
             }
             _ => todo!("{x:?}"),
         }
