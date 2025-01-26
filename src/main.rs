@@ -17,7 +17,7 @@ pub enum Data {
 pub enum Instr {
     Null,
     Print(u16),
-    Data(u16),
+    // Data(u16),
 
     // LOGIC
     // size -- is_neg
@@ -260,6 +260,7 @@ pub enum Expr {
     Num(f64),
     Bool(bool),
     Op(Box<Expr>, Box<[(Opcode, Box<Expr>)]>),
+    Opcode(Opcode),
     Priority(Box<Expr>),
     String(String),
     Var(String),
@@ -292,6 +293,42 @@ pub enum Opcode {
 
 lalrpop_mod!(pub grammar);
 
+fn parser_to_instr_set(
+    input: Vec<Expr>,
+    variables: &mut Vec<(String, u16)>,
+    consts: &mut Vec<Data>,
+) -> (Vec<Instr>, bool) {
+    // very bad
+    let mut output: Vec<Instr> = Vec::new();
+    let mut assigned_directly: bool = false;
+    for x in input {
+        match x {
+            Expr::VarDeclare(name, value) => {
+                let val = parser_to_instr_set(vec![*value], variables, consts).0;
+                output.extend(val);
+                variables.push((name.to_string(), (consts.len() - 1) as u16));
+            }
+            Expr::VarAssign(ref name, value) => {
+                let var = variables.iter().find(|(x, _)| x == name).unwrap().clone();
+                let (val, assigned) = parser_to_instr_set(vec![*value], variables, consts);
+                output.extend(val);
+                if !assigned {
+                    output.push(Instr::Mov((consts.len() - 1) as u16, var.1));
+                }
+            }
+            Expr::Num(num) => consts.push(Data::Number(num)),
+            Expr::Bool(bool) => consts.push(Data::Bool(bool)),
+            Expr::String(str) => consts.push(Data::String(Intern::from(str))),
+            Expr::Op(left, right) => {
+                assigned_directly = true;
+            }
+            _ => todo!("{x:?}"),
+        }
+    }
+
+    (output, assigned_directly)
+}
+
 fn main() {
     dbg!(size_of::<Instr>());
     dbg!(size_of::<Data>());
@@ -299,16 +336,17 @@ fn main() {
 
     let now = Instant::now();
 
-    let mut contents = String::new();
-    for line in fs::read_to_string("test.compute").unwrap().lines() {
-        contents.push_str(line.trim());
-    }
-
-    println!("FILE CONTENTS IS {contents:?}");
+    let contents = fs::read_to_string("test.compute").unwrap();
 
     let parsed = grammar::CodeParser::new().parse(&contents).unwrap();
     println!("{parsed:?}");
     println!("Parsed in {:.2?}", now.elapsed());
+
+    let mut variables: Vec<(String, u16)> = Vec::new();
+    let mut consts: Vec<Data> = Vec::new();
+    let instructions = parser_to_instr_set(parsed.into_vec(), &mut variables, &mut consts).0;
+    println!("INSTR OUT {instructions:?}");
+    println!("CONSTS ARE {consts:?}");
 
     let now = Instant::now();
     let instructions: Vec<Instr> = vec![
@@ -335,6 +373,6 @@ fn main() {
         Data::Bool(false),       // -> 6
         Data::Bool(false),       // -> 7
     ];
-    execute(&instructions, &mut consts);
+    // execute(&instructions, &mut consts);
     println!("EXEC TIME {:.2?}", now.elapsed())
 }
