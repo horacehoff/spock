@@ -10,7 +10,7 @@ Key facts:
 ## Instruction Set
 
 Compute uses an instruction set with a size of 8 bytes.
-The available instructions can be seen [here](src/legacy/instr_set.rs).
+The available instructions can be seen [here](src/main.rs).
 
 ```
 let x = 20;

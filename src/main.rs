@@ -1,6 +1,7 @@
 use concat_string::concat_string;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
+use std::fs;
 use std::time::Instant;
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -269,6 +270,7 @@ pub enum Expr {
     Condition(Box<Expr>, Box<[Expr]>, Box<[Expr]>, Option<Box<[Expr]>>),
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
     WhileBlock(Box<Expr>, Box<[Expr]>),
+    FunctionCall(String, Box<[Expr]>),
 }
 
 #[derive(Debug)]
@@ -296,9 +298,15 @@ fn main() {
     dbg!(size_of::<Expr>());
 
     let now = Instant::now();
-    let parsed = grammar::CodeParser::new()
-        .parse("test = 2*2+world;if true == true {let world = false;} else if true == false {let world = true;} else {let world = 56;}")
-        .unwrap();
+
+    let mut contents = String::new();
+    for line in fs::read_to_string("test.compute").unwrap().lines() {
+        contents.push_str(line.trim());
+    }
+
+    println!("FILE CONTENTS IS {contents:?}");
+
+    let parsed = grammar::CodeParser::new().parse(&contents).unwrap();
     println!("{parsed:?}");
     println!("Parsed in {:.2?}", now.elapsed());
 

@@ -29,6 +29,7 @@ Statement: Expr = {
 Line: Expr = {
     <a: VarDeclare> ";" => a,
     <a: VarAssign> ";" => a,
+    <a: Expression> ";" => a,
 }
 
 VarDeclare: Expr = {
@@ -55,8 +56,13 @@ Term: Box<Expr> = {
     <b: Bool> => Box::new(Expr::Bool(b)),
     <s: String> => Box::new(Expr::String(s)),
     <v: Var> => Box::new(Expr::Var(v)),
+    <f: FunctionCall> => Box::new(<>),
     "(" <o2: Term> ")" => Box::new(Expr::Priority(o2)),
 };
+
+FunctionCall: Expr = {
+    <o1: r#"([a-zA-Z_]*)\("#> <o2: (Expression)*> ")" => Expr::FunctionCall(String::from(o1.trim_end_matches('(')), o2.into_boxed_slice())
+}
 
 Num: f64 = {
     <n: r"[+-]?([0-9]*[.])?[0-9]+"> => f64::from_str(n).unwrap()
