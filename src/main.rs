@@ -265,9 +265,10 @@ pub enum Expr {
     Group(Box<[Expr]>),
     VarDeclare(String, Box<Expr>),
     VarAssign(String, Box<Expr>),
-    // condition - code -- else_blocks(condition array)
+    // condition - code -- else_if_blocks(condition array) - else_block
     Condition(Box<Expr>, Box<[Expr]>, Box<[Expr]>, Option<Box<[Expr]>>),
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
+    WhileBlock(Box<Expr>, Box<[Expr]>),
 }
 
 #[derive(Debug)]

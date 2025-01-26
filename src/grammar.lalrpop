@@ -12,12 +12,17 @@ ConditionalBlock: Expr = {
     "if" <o1: Expression> "{" <o2:Code> "}" <o3: ElseIfBlock*> <o4: ("else" "{" <Code> "}")?> => Expr::Condition(Box::from(o1), o2, Box::from(o3), o4)
 }
 
+WhileBlock: Expr = {
+    "while" <o1: Expression> "{" <o2:Code> "}" => Expr::WhileBlock(Box::from(o1), o2)
+}
+
 pub Code: Box<[Expr]> = {
     <s: Statement*> => s.into_boxed_slice()
 }
 
 Statement: Expr = {
     ConditionalBlock => <>,
+    WhileBlock => <>,
     Line => <>
 }
 

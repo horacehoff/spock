@@ -15,7 +15,7 @@ The available instructions can be seen [here](src/legacy/instr_set.rs).
 ```
 let x = 20;
 // parentheses are optional
-if (x == 20) {
+if (x < 200) {
   print("TRUE!");
 }
 ```
@@ -23,15 +23,9 @@ if (x == 20) {
 becomes...
 
 ```
-1  INT(20)
-2  SETVAR      0
-3  VAR      0
-4  INT(20)
-5  OP      ==
-6  CMP      3
-7  STR      2
-8  STORE_ARG
-9  CALL      3 DISCARD
+1 INF 0 1 2
+2 CMP 2 2
+3 PRINT 3
 ```
 
 ## Syntax examples
