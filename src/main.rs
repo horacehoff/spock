@@ -34,6 +34,7 @@ pub enum Instr {
     Sub(u16, u16, u16),
     Div(u16, u16, u16),
     Mod(u16, u16, u16),
+    Pow(u16, u16, u16),
     Eq(u16, u16, u16),
     NotEq(u16, u16, u16),
     Sup(u16, u16, u16),
@@ -392,6 +393,7 @@ fn get_tgt_id(x: Instr) -> u16 {
         Instr::Sub(_, _, y) => y,
         Instr::Div(_, _, y) => y,
         Instr::Mod(_, _, y) => y,
+        Instr::Pow(_, _, y) => y,
         Instr::Eq(_, _, y) => y,
         Instr::NotEq(_, _, y) => y,
         Instr::Sup(_, _, y) => y,
@@ -475,61 +477,129 @@ fn parser_to_instr_set(
                 let mut final_stack: Vec<Instr> = Vec::new();
                 for x in op {
                     if let Expr::Opcode(op) = x {
-                        match op {
-                            Opcode::Null => todo!(""),
-                            Opcode::Mul => {}
-                            Opcode::Div => {}
-                            Opcode::Add => {
-                                if !final_stack.is_empty() {
-                                    let old_id = get_tgt_id(*final_stack.last().unwrap());
-                                    let new = item_stack.pop().unwrap();
-                                    output.extend(parser_to_instr_set(
-                                        vec![new],
-                                        variables,
-                                        consts,
-                                    ));
+                        if !final_stack.is_empty() {
+                            let old_id = get_tgt_id(*final_stack.last().unwrap());
+                            let new = item_stack.pop().unwrap();
+                            output.extend(parser_to_instr_set(vec![new], variables, consts));
 
-                                    let len = consts.len();
-                                    final_stack.push(Instr::Add(
-                                        old_id,
-                                        (len - 1) as u16,
-                                        (len - 1) as u16,
-                                    ));
-                                } else {
-                                    let last = item_stack.pop().unwrap();
-                                    let first = item_stack.pop().unwrap();
-
-                                    output.extend(parser_to_instr_set(
-                                        vec![first],
-                                        variables,
-                                        consts,
-                                    ));
-                                    output.extend(parser_to_instr_set(
-                                        vec![last],
-                                        variables,
-                                        consts,
-                                    ));
-
-                                    let len = consts.len();
-                                    final_stack.push(Instr::Add(
-                                        (len - 2) as u16,
-                                        (len - 1) as u16,
-                                        (len - 1) as u16,
-                                    ));
-                                }
+                            let len = consts.len();
+                            let x = old_id;
+                            let y = (len - 1) as u16;
+                            let z = y;
+                            // MATCH OP
+                            // final_stack.push(Instr::Add(
+                            //     old_id,
+                            //     (len - 1) as u16,
+                            //     (len - 1) as u16,
+                            // ));
+                            match op {
+                                Opcode::Null => {}
+                                Opcode::Mul => final_stack.push(Instr::Mul(x, y, z)),
+                                Opcode::Div => final_stack.push(Instr::Div(x, y, z)),
+                                Opcode::Add => final_stack.push(Instr::Add(x, y, z)),
+                                Opcode::Sub => final_stack.push(Instr::Sub(x, y, z)),
+                                Opcode::Mod => final_stack.push(Instr::Mod(x, y, z)),
+                                Opcode::Pow => final_stack.push(Instr::Pow(x, y, z)),
+                                Opcode::Eq => final_stack.push(Instr::Eq(x, y, z)),
+                                Opcode::NotEq => final_stack.push(Instr::NotEq(x, y, z)),
+                                Opcode::Sup => final_stack.push(Instr::Sup(x, y, z)),
+                                Opcode::SupEq => final_stack.push(Instr::SupEq(x, y, z)),
+                                Opcode::Inf => final_stack.push(Instr::Inf(x, y, z)),
+                                Opcode::InfEq => final_stack.push(Instr::InfEq(x, y, z)),
+                                Opcode::BoolAnd => final_stack.push(Instr::BoolAnd(x, y, z)),
+                                Opcode::BoolOr => final_stack.push(Instr::BoolOr(x, y, z)),
                             }
-                            Opcode::Sub => {}
-                            Opcode::Mod => {}
-                            Opcode::Pow => {}
-                            Opcode::Eq => {}
-                            Opcode::NotEq => {}
-                            Opcode::Sup => {}
-                            Opcode::SupEq => {}
-                            Opcode::Inf => {}
-                            Opcode::InfEq => {}
-                            Opcode::BoolAnd => {}
-                            Opcode::BoolOr => {}
+                        } else {
+                            let last = item_stack.pop().unwrap();
+                            let first = item_stack.pop().unwrap();
+
+                            output.extend(parser_to_instr_set(vec![first], variables, consts));
+                            output.extend(parser_to_instr_set(vec![last], variables, consts));
+
+                            let len = consts.len();
+
+                            let x = (len - 2) as u16;
+                            let y = (len - 1) as u16;
+                            let z = y;
+                            // MATCH
+                            match op {
+                                Opcode::Null => {}
+                                Opcode::Mul => final_stack.push(Instr::Mul(x, y, z)),
+                                Opcode::Div => final_stack.push(Instr::Div(x, y, z)),
+                                Opcode::Add => final_stack.push(Instr::Add(x, y, z)),
+                                Opcode::Sub => final_stack.push(Instr::Sub(x, y, z)),
+                                Opcode::Mod => final_stack.push(Instr::Mod(x, y, z)),
+                                Opcode::Pow => final_stack.push(Instr::Pow(x, y, z)),
+                                Opcode::Eq => final_stack.push(Instr::Eq(x, y, z)),
+                                Opcode::NotEq => final_stack.push(Instr::NotEq(x, y, z)),
+                                Opcode::Sup => final_stack.push(Instr::Sup(x, y, z)),
+                                Opcode::SupEq => final_stack.push(Instr::SupEq(x, y, z)),
+                                Opcode::Inf => final_stack.push(Instr::Inf(x, y, z)),
+                                Opcode::InfEq => final_stack.push(Instr::InfEq(x, y, z)),
+                                Opcode::BoolAnd => final_stack.push(Instr::BoolAnd(x, y, z)),
+                                Opcode::BoolOr => final_stack.push(Instr::BoolOr(x, y, z)),
+                            }
+                            // final_stack.push(Instr::Add(
+                            //     (len - 2) as u16,
+                            //     (len - 1) as u16,
+                            //     (len - 1) as u16,
+                            // ));
                         }
+                        // match op {
+                        //     Opcode::Null => todo!(""),
+                        //     Opcode::Mul => {}
+                        //     Opcode::Div => {}
+                        //     Opcode::Add => {
+                        //         if !final_stack.is_empty() {
+                        //             let old_id = get_tgt_id(*final_stack.last().unwrap());
+                        //             let new = item_stack.pop().unwrap();
+                        //             output.extend(parser_to_instr_set(
+                        //                 vec![new],
+                        //                 variables,
+                        //                 consts,
+                        //             ));
+                        //
+                        //             let len = consts.len();
+                        //             final_stack.push(Instr::Add(
+                        //                 old_id,
+                        //                 (len - 1) as u16,
+                        //                 (len - 1) as u16,
+                        //             ));
+                        //         } else {
+                        //             let last = item_stack.pop().unwrap();
+                        //             let first = item_stack.pop().unwrap();
+                        //
+                        //             output.extend(parser_to_instr_set(
+                        //                 vec![first],
+                        //                 variables,
+                        //                 consts,
+                        //             ));
+                        //             output.extend(parser_to_instr_set(
+                        //                 vec![last],
+                        //                 variables,
+                        //                 consts,
+                        //             ));
+                        //
+                        //             let len = consts.len();
+                        //             final_stack.push(Instr::Add(
+                        //                 (len - 2) as u16,
+                        //                 (len - 1) as u16,
+                        //                 (len - 1) as u16,
+                        //             ));
+                        //         }
+                        //     }
+                        //     Opcode::Sub => {}
+                        //     Opcode::Mod => {}
+                        //     Opcode::Pow => {}
+                        //     Opcode::Eq => {}
+                        //     Opcode::NotEq => {}
+                        //     Opcode::Sup => {}
+                        //     Opcode::SupEq => {}
+                        //     Opcode::Inf => {}
+                        //     Opcode::InfEq => {}
+                        //     Opcode::BoolAnd => {}
+                        //     Opcode::BoolOr => {}
+                        // }
                     } else {
                         item_stack.push(x);
                     }
