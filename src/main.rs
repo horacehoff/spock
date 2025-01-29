@@ -255,7 +255,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Num(f64),
     Bool(bool),
@@ -264,7 +264,7 @@ pub enum Expr {
     Priority(Box<Expr>),
     String(String),
     Var(String),
-    Group(Box<[Expr]>),
+    // Group(Box<[Expr]>),
     VarDeclare(String, Box<Expr>),
     VarAssign(String, Box<Expr>),
     // condition - code -- else_if_blocks(condition array) - else_block
@@ -272,9 +272,11 @@ pub enum Expr {
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
     WhileBlock(Box<Expr>, Box<[Expr]>),
     FunctionCall(String, Box<[Expr]>),
+    LPAREN,
+    RPAREN,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Opcode {
     Mul,
     Div,
@@ -297,42 +299,64 @@ fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
     consts: &mut Vec<Data>,
-) -> (Vec<Instr>, bool) {
+) -> Vec<Instr> {
     // very bad
     let mut output: Vec<Instr> = Vec::new();
-    let mut assigned_directly: bool = false;
     for x in input {
         match x {
-            Expr::VarDeclare(name, value) => {
-                let val = parser_to_instr_set(vec![*value], variables, consts).0;
-                output.extend(val);
-                variables.push((name.to_string(), (consts.len() - 1) as u16));
-            }
-            Expr::VarAssign(ref name, value) => {
-                let var = variables.iter().find(|(x, _)| x == name).unwrap().clone();
-                let (val, assigned) = parser_to_instr_set(vec![*value], variables, consts);
-                output.extend(val);
-                if !assigned {
-                    output.push(Instr::Mov((consts.len() - 1) as u16, var.1));
-                }
-            }
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
             Expr::Op(left, right) => {
-                assigned_directly = true;
-                let operation: Vec<Expr> = process_op(Expr::Op(left, right));
+                let operation: Vec<Expr> = process_op(Expr::Op(left, right), variables, consts);
 
-                fn process_op(op: Expr) -> Vec<Expr> {
+                fn remove_priority(
+                    x: Expr,
+                    variables: &mut Vec<(String, u16)>,
+                    consts: &mut Vec<Data>,
+                ) -> Vec<Expr> {
+                    println!("YES");
+                    match x {
+                        Expr::Num(_) => return vec![x],
+                        Expr::Bool(_) => return vec![x],
+                        Expr::Op(_, _) => return process_op(x, variables, consts),
+                        Expr::Opcode(_) => return vec![x],
+                        Expr::Priority(x) => {
+                            let mut output: Vec<Expr> = vec![];
+                            output.push(Expr::LPAREN);
+                            output.extend(remove_priority(*x, variables, consts));
+                            output.push(Expr::RPAREN);
+                            return output;
+                        }
+                        Expr::String(_) => return vec![x],
+                        Expr::Var(_) => return vec![x],
+                        Expr::VarDeclare(_, _) => return vec![x],
+                        Expr::VarAssign(_, _) => return vec![x],
+                        Expr::Condition(_, _, _, _) => return vec![x],
+                        Expr::ElseIfBlock(_, _) => return vec![x],
+                        Expr::WhileBlock(_, _) => return vec![x],
+                        Expr::FunctionCall(_, _) => return vec![x],
+                        Expr::LPAREN => return vec![x],
+                        Expr::RPAREN => return vec![x],
+                        // _ => todo!("{x:?}")
+                    };
+                }
+
+                fn process_op(
+                    op: Expr,
+                    variables: &mut Vec<(String, u16)>,
+                    consts: &mut Vec<Data>,
+                ) -> Vec<Expr> {
                     let mut operation: Vec<Expr> = vec![];
-                    if let Expr::Op(left, right) = op {
-                        operation.push(*left);
-                        for x in right {
-                            operation.push(Expr::Opcode(x.0));
-                            if matches!(*x.1, Expr::Op(_, _)) {
-                                operation.extend(process_op(*x.1));
+                    if let Expr::Op(left, mut right) = op {
+                        operation.extend(remove_priority(*left, variables, consts));
+                        for x in right.iter_mut() {
+                            let val = *x.1.clone();
+                            operation.extend(remove_priority(Expr::Opcode(x.0), variables, consts));
+                            if matches!(val, Expr::Op(_, _)) {
+                                operation.extend(process_op(val, variables, consts));
                             } else {
-                                operation.push(*x.1);
+                                operation.extend(remove_priority(val, variables, consts));
                             }
                         }
                     }
@@ -345,7 +369,7 @@ fn parser_to_instr_set(
         }
     }
 
-    (output, assigned_directly)
+    output
 }
 
 fn main() {
@@ -359,13 +383,13 @@ fn main() {
 
     let parsed = grammar::CodeParser::new().parse(&contents).unwrap();
     println!("{parsed:?}");
-    println!("Parsed in {:.2?}", now.elapsed());
 
     let mut variables: Vec<(String, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
-    let instructions = parser_to_instr_set(parsed.into_vec(), &mut variables, &mut consts).0;
+    let instructions = parser_to_instr_set(parsed.into_vec(), &mut variables, &mut consts);
     println!("INSTR OUT {instructions:?}");
     println!("CONSTS ARE {consts:?}");
+    println!("Parsed in {:.2?}", now.elapsed());
 
     let now = Instant::now();
     let instructions: Vec<Instr> = vec![
