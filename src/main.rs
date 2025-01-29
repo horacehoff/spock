@@ -410,13 +410,19 @@ fn parser_to_instr_set(
     variables: &mut Vec<(String, u16)>,
     consts: &mut Vec<Data>,
 ) -> Vec<Instr> {
-    // very bad
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
         match x {
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
+            Expr::Condition(x, y, z, w) => {
+                let condition = parser_to_instr_set(vec![*x], variables, consts);
+                output.extend(condition);
+                let condition_id = get_tgt_id(*output.last().unwrap());
+                println!("CONDITION IS {condition_id:?}");
+                // TODO
+            }
             Expr::Op(left, right) => {
                 fn remove_priority(
                     x: Expr,
