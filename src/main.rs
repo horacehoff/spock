@@ -380,6 +380,29 @@ pub fn op_to_rpn(operation_input: Vec<Expr>) -> Vec<Expr> {
     return_vector
 }
 
+fn get_tgt_id(x: Instr) -> u16 {
+    match x {
+        Instr::Null => todo!(""),
+        Instr::Print(_) => todo!(""),
+        Instr::Jmp(_, _) => todo!(""),
+        Instr::Cmp(_, _) => todo!(""),
+        Instr::Mov(_, y) => y,
+        Instr::Add(_, _, y) => y,
+        Instr::Mul(_, _, y) => y,
+        Instr::Sub(_, _, y) => y,
+        Instr::Div(_, _, y) => y,
+        Instr::Mod(_, _, y) => y,
+        Instr::Eq(_, _, y) => y,
+        Instr::NotEq(_, _, y) => y,
+        Instr::Sup(_, _, y) => y,
+        Instr::SupEq(_, _, y) => y,
+        Instr::Inf(_, _, y) => y,
+        Instr::InfEq(_, _, y) => y,
+        Instr::BoolAnd(_, _, y) => y,
+        Instr::BoolOr(_, _, y) => y,
+    }
+}
+
 fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
@@ -457,19 +480,43 @@ fn parser_to_instr_set(
                             Opcode::Mul => {}
                             Opcode::Div => {}
                             Opcode::Add => {
-                                println!("{item_stack:?}");
-                                let last = item_stack.pop().unwrap();
-                                let first = item_stack.pop().unwrap();
+                                if !final_stack.is_empty() {
+                                    let old_id = get_tgt_id(*final_stack.last().unwrap());
+                                    let new = item_stack.pop().unwrap();
+                                    output.extend(parser_to_instr_set(
+                                        vec![new],
+                                        variables,
+                                        consts,
+                                    ));
 
-                                output.extend(parser_to_instr_set(vec![first], variables, consts));
-                                output.extend(parser_to_instr_set(vec![last], variables, consts));
+                                    let len = consts.len();
+                                    final_stack.push(Instr::Add(
+                                        old_id,
+                                        (len - 1) as u16,
+                                        (len - 1) as u16,
+                                    ));
+                                } else {
+                                    let last = item_stack.pop().unwrap();
+                                    let first = item_stack.pop().unwrap();
 
-                                let len = consts.len();
-                                final_stack.push(Instr::Add(
-                                    (len - 2) as u16,
-                                    (len - 1) as u16,
-                                    (len - 1) as u16,
-                                ));
+                                    output.extend(parser_to_instr_set(
+                                        vec![first],
+                                        variables,
+                                        consts,
+                                    ));
+                                    output.extend(parser_to_instr_set(
+                                        vec![last],
+                                        variables,
+                                        consts,
+                                    ));
+
+                                    let len = consts.len();
+                                    final_stack.push(Instr::Add(
+                                        (len - 2) as u16,
+                                        (len - 1) as u16,
+                                        (len - 1) as u16,
+                                    ));
+                                }
                             }
                             Opcode::Sub => {}
                             Opcode::Mod => {}
