@@ -87,6 +87,7 @@ Op: Opcode = {
     "/" => Opcode::Div,
     "-" => Opcode::Sub,
     "%" => Opcode::Mod,
+    "^" => Opcode::Pow,
     "==" => Opcode::Eq,
     "!="  =>  Opcode::NotEq,
     ">"  =>  Opcode::Sup,

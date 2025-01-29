@@ -1,6 +1,7 @@
 use concat_string::concat_string;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
+use std::cmp::PartialEq;
 use std::fs;
 use std::time::Instant;
 
@@ -255,7 +256,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Num(f64),
     Bool(bool),
@@ -276,13 +277,15 @@ pub enum Expr {
     RPAREN,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Opcode {
+    Null,
     Mul,
     Div,
     Add,
     Sub,
     Mod,
+    Pow,
     Eq,
     NotEq,
     Sup,
@@ -294,6 +297,88 @@ pub enum Opcode {
 }
 
 lalrpop_mod!(pub grammar);
+
+fn get_precedence(operator: Expr) -> u8 {
+    if let Expr::Opcode(op) = operator {
+        match op {
+            Opcode::Null => {
+                panic!();
+            }
+            Opcode::Add => 2,
+            Opcode::Sub => 2,
+            Opcode::Div => 3,
+            Opcode::Mul => 3,
+            Opcode::Pow => 4,
+            Opcode::Mod => 3,
+            Opcode::Eq => 7,
+            Opcode::NotEq => 7,
+            Opcode::BoolAnd => 11,
+            Opcode::Inf => 6,
+            Opcode::InfEq => 6,
+            Opcode::BoolOr => 12,
+            Opcode::Sup => 6,
+            Opcode::SupEq => 6,
+        }
+    } else {
+        todo!("")
+    }
+}
+
+fn is_left_associative(operator: Expr) -> bool {
+    if let Expr::Opcode(op) = operator {
+        match op {
+            Opcode::Null => {
+                panic!();
+            }
+            Opcode::Pow => false,
+            _ => true,
+        }
+    } else {
+        todo!("")
+    }
+}
+
+pub fn op_to_rpn(operation_input: Vec<Expr>) -> Vec<Expr> {
+    let mut return_vector: Vec<Expr> = Vec::new();
+    let mut op_stack: Vec<Expr> = Vec::new();
+    for x in operation_input {
+        // num, function,...
+        if !matches!(x, Expr::Opcode(_) | Expr::LPAREN | Expr::RPAREN) {
+            return_vector.push(x);
+        } else if matches!(x, Expr::Opcode(_)) && x != Expr::LPAREN && x != Expr::RPAREN {
+            // operator
+            while !op_stack.is_empty()
+                && op_stack.last().unwrap() != &Expr::LPAREN
+                && (get_precedence(op_stack.last().unwrap().clone()) > get_precedence(x.clone())
+                    || (get_precedence(op_stack.last().unwrap().clone())
+                        == get_precedence(x.clone())
+                        && is_left_associative(x.clone())))
+            {
+                return_vector.push(op_stack.pop().unwrap());
+            }
+            op_stack.push(x);
+        } else if x == Expr::LPAREN {
+            op_stack.push(x);
+        } else if x == Expr::RPAREN {
+            while op_stack.last().unwrap() != &Expr::LPAREN {
+                assert!(!op_stack.is_empty(), "MISMATCHED PARENTHESES");
+                return_vector.push(op_stack.pop().unwrap());
+            }
+            assert_eq!(op_stack.last().unwrap(), &Expr::LPAREN, "WHAT??");
+            op_stack.pop();
+        }
+    }
+    while !op_stack.is_empty() {
+        assert_ne!(
+            op_stack.last().unwrap(),
+            &Expr::LPAREN,
+            "MISMATCHED PARENTHESES"
+        );
+        return_vector.push(op_stack.pop().unwrap());
+    }
+
+    return_vector
+}
 
 fn parser_to_instr_set(
     input: Vec<Expr>,
@@ -308,14 +393,11 @@ fn parser_to_instr_set(
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
             Expr::Op(left, right) => {
-                let operation: Vec<Expr> = process_op(Expr::Op(left, right), variables, consts);
-
                 fn remove_priority(
                     x: Expr,
                     variables: &mut Vec<(String, u16)>,
                     consts: &mut Vec<Data>,
                 ) -> Vec<Expr> {
-                    println!("YES");
                     match x {
                         Expr::Num(_) => return vec![x],
                         Expr::Bool(_) => return vec![x],
@@ -341,7 +423,6 @@ fn parser_to_instr_set(
                         // _ => todo!("{x:?}")
                     };
                 }
-
                 fn process_op(
                     op: Expr,
                     variables: &mut Vec<(String, u16)>,
@@ -363,7 +444,50 @@ fn parser_to_instr_set(
                     operation
                 }
 
-                println!("OP {operation:?}")
+                let temp_op: Vec<Expr> = process_op(Expr::Op(left, right), variables, consts);
+                let op = op_to_rpn(temp_op);
+                println!("OP {op:?}");
+
+                let mut item_stack: Vec<Expr> = Vec::new();
+                let mut final_stack: Vec<Instr> = Vec::new();
+                for x in op {
+                    if let Expr::Opcode(op) = x {
+                        match op {
+                            Opcode::Null => todo!(""),
+                            Opcode::Mul => {}
+                            Opcode::Div => {}
+                            Opcode::Add => {
+                                println!("{item_stack:?}");
+                                let last = item_stack.pop().unwrap();
+                                let first = item_stack.pop().unwrap();
+
+                                output.extend(parser_to_instr_set(vec![first], variables, consts));
+                                output.extend(parser_to_instr_set(vec![last], variables, consts));
+
+                                let len = consts.len();
+                                final_stack.push(Instr::Add(
+                                    (len - 2) as u16,
+                                    (len - 1) as u16,
+                                    (len - 1) as u16,
+                                ));
+                            }
+                            Opcode::Sub => {}
+                            Opcode::Mod => {}
+                            Opcode::Pow => {}
+                            Opcode::Eq => {}
+                            Opcode::NotEq => {}
+                            Opcode::Sup => {}
+                            Opcode::SupEq => {}
+                            Opcode::Inf => {}
+                            Opcode::InfEq => {}
+                            Opcode::BoolAnd => {}
+                            Opcode::BoolOr => {}
+                        }
+                    } else {
+                        item_stack.push(x);
+                    }
+                }
+                output.extend(final_stack);
             }
             _ => todo!("{x:?}"),
         }
