@@ -472,6 +472,27 @@ fn parser_to_instr_set(
                     output.extend(val);
                 }
             }
+            Expr::VarAssign(x, y) => {
+                if let Some((name, id)) = variables.clone().iter().find(|(w, _)| w == &x) {
+                    let val = *y;
+                    if let Expr::Num(data) = val {
+                        consts.push(Data::Number(data));
+                        output.push(Instr::Mov((consts.len() - 1) as u16, *id))
+                    } else if let Expr::String(data) = val {
+                        consts.push(Data::String(Intern::from(data)));
+                        output.push(Instr::Mov((consts.len() - 1) as u16, *id))
+                    } else if let Expr::Bool(data) = val {
+                        consts.push(Data::Bool(data));
+                        output.push(Instr::Mov((consts.len() - 1) as u16, *id))
+                    } else {
+                        let mut value = parser_to_instr_set(vec![val], variables, consts);
+                        move_to_id(&mut value, *id);
+                        output.extend(value);
+                    }
+                } else {
+                    todo!("Var {x} doesn't exist")
+                }
+            }
             Expr::Op(left, right) => {
                 fn remove_priority(
                     x: Expr,
