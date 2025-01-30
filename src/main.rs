@@ -11,6 +11,7 @@ pub enum Data {
     Number(f64),
     Bool(bool),
     String(Intern<String>),
+    Null,
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -405,6 +406,34 @@ fn get_tgt_id(x: Instr) -> u16 {
     }
 }
 
+fn move_to_id(x: &mut Vec<Instr>, tgt_id: u16) {
+    println!("X IS {x:?}");
+    if x.is_empty() {
+        return;
+    }
+    match x.last_mut().unwrap() {
+        Instr::Null => todo!(""),
+        Instr::Print(_) => todo!(""),
+        Instr::Jmp(_, _) => todo!(""),
+        Instr::Cmp(_, _) => todo!(""),
+        Instr::Mov(_, z) => *z = tgt_id,
+        Instr::Add(_, _, z) => *z = tgt_id,
+        Instr::Mul(_, _, z) => *z = tgt_id,
+        Instr::Sub(_, _, z) => *z = tgt_id,
+        Instr::Div(_, _, z) => *z = tgt_id,
+        Instr::Mod(_, _, z) => *z = tgt_id,
+        Instr::Pow(_, _, z) => *z = tgt_id,
+        Instr::Eq(_, _, z) => *z = tgt_id,
+        Instr::NotEq(_, _, z) => *z = tgt_id,
+        Instr::Sup(_, _, z) => *z = tgt_id,
+        Instr::SupEq(_, _, z) => *z = tgt_id,
+        Instr::Inf(_, _, z) => *z = tgt_id,
+        Instr::InfEq(_, _, z) => *z = tgt_id,
+        Instr::BoolAnd(_, _, z) => *z = tgt_id,
+        Instr::BoolOr(_, _, z) => *z = tgt_id,
+    }
+}
+
 fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
@@ -422,6 +451,26 @@ fn parser_to_instr_set(
                 let condition_id = get_tgt_id(*output.last().unwrap());
                 println!("CONDITION IS {condition_id:?}");
                 // TODO
+            }
+            Expr::VarDeclare(x, y) => {
+                let val = *y;
+                if let Expr::Num(data) = val {
+                    consts.push(Data::Number(data));
+                    variables.push((x, (consts.len() - 1) as u16));
+                } else if let Expr::String(data) = val {
+                    consts.push(Data::String(Intern::from(data)));
+                    variables.push((x, (consts.len() - 1) as u16));
+                } else if let Expr::Bool(data) = val {
+                    consts.push(Data::Bool(data));
+                    variables.push((x, (consts.len() - 1) as u16));
+                } else {
+                    consts.push(Data::Null);
+                    let len = (consts.len() - 1) as u16;
+                    variables.push((x, len));
+                    let mut val = parser_to_instr_set(vec![val], variables, consts);
+                    move_to_id(&mut val, len);
+                    output.extend(val);
+                }
             }
             Expr::Op(left, right) => {
                 fn remove_priority(
@@ -569,6 +618,7 @@ fn main() {
     let instructions = parser_to_instr_set(parsed.into_vec(), &mut variables, &mut consts);
     println!("INSTR OUT {instructions:?}");
     println!("CONSTS ARE {consts:?}");
+    println!("VARS ARE {variables:?}");
     println!("Parsed in {:.2?}", now.elapsed());
 
     let now = Instant::now();
@@ -596,6 +646,6 @@ fn main() {
         Data::Bool(false),       // -> 6
         Data::Bool(false),       // -> 7
     ];
-    // execute(&instructions, &mut consts);
+    execute(&instructions, &mut consts);
     println!("EXEC TIME {:.2?}", now.elapsed())
 }
