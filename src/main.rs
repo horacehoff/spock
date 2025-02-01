@@ -467,6 +467,11 @@ fn parser_to_instr_set(
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
+            Expr::Var(name) => {
+                if let Some((_, id)) = variables.iter().find(|(x, _)| x == &name) {
+                    consts.push(consts[*id as usize])
+                }
+            }
             Expr::Condition(x, y, z, w) => {
                 let condition = parser_to_instr_set(vec![*x], variables, consts);
                 output.extend(condition);
