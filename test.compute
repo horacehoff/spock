@@ -1,5 +1,6 @@
 let x = 30;
-if 15+16 == 31 {
+if 30 == 30 {
     x = 40;
     print(x);
 }
+print(x);

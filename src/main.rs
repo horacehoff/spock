@@ -434,6 +434,28 @@ fn move_to_id(x: &mut Vec<Instr>, tgt_id: u16) {
     }
 }
 
+macro_rules! handle_ops {
+    ($final_stack: expr, $x: expr, $y: expr, $z: expr, $op: expr) => {
+        match $op {
+            Opcode::Null => {}
+            Opcode::Mul => $final_stack.push(Instr::Mul($x, $y, $z)),
+            Opcode::Div => $final_stack.push(Instr::Div($x, $y, $z)),
+            Opcode::Add => $final_stack.push(Instr::Add($x, $y, $z)),
+            Opcode::Sub => $final_stack.push(Instr::Sub($x, $y, $z)),
+            Opcode::Mod => $final_stack.push(Instr::Mod($x, $y, $z)),
+            Opcode::Pow => $final_stack.push(Instr::Pow($x, $y, $z)),
+            Opcode::Eq => $final_stack.push(Instr::Eq($x, $y, $z)),
+            Opcode::NotEq => $final_stack.push(Instr::NotEq($x, $y, $z)),
+            Opcode::Sup => $final_stack.push(Instr::Sup($x, $y, $z)),
+            Opcode::SupEq => $final_stack.push(Instr::SupEq($x, $y, $z)),
+            Opcode::Inf => $final_stack.push(Instr::Inf($x, $y, $z)),
+            Opcode::InfEq => $final_stack.push(Instr::InfEq($x, $y, $z)),
+            Opcode::BoolAnd => $final_stack.push(Instr::BoolAnd($x, $y, $z)),
+            Opcode::BoolOr => $final_stack.push(Instr::BoolOr($x, $y, $z)),
+        }
+    };
+}
+
 fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
@@ -581,23 +603,7 @@ fn parser_to_instr_set(
                             let x = old_id;
                             let y = (len - 1) as u16;
                             let z = y;
-                            match op {
-                                Opcode::Null => {}
-                                Opcode::Mul => final_stack.push(Instr::Mul(x, y, z)),
-                                Opcode::Div => final_stack.push(Instr::Div(x, y, z)),
-                                Opcode::Add => final_stack.push(Instr::Add(x, y, z)),
-                                Opcode::Sub => final_stack.push(Instr::Sub(x, y, z)),
-                                Opcode::Mod => final_stack.push(Instr::Mod(x, y, z)),
-                                Opcode::Pow => final_stack.push(Instr::Pow(x, y, z)),
-                                Opcode::Eq => final_stack.push(Instr::Eq(x, y, z)),
-                                Opcode::NotEq => final_stack.push(Instr::NotEq(x, y, z)),
-                                Opcode::Sup => final_stack.push(Instr::Sup(x, y, z)),
-                                Opcode::SupEq => final_stack.push(Instr::SupEq(x, y, z)),
-                                Opcode::Inf => final_stack.push(Instr::Inf(x, y, z)),
-                                Opcode::InfEq => final_stack.push(Instr::InfEq(x, y, z)),
-                                Opcode::BoolAnd => final_stack.push(Instr::BoolAnd(x, y, z)),
-                                Opcode::BoolOr => final_stack.push(Instr::BoolOr(x, y, z)),
-                            }
+                            handle_ops!(final_stack, x, y, z, op)
                         } else {
                             let last = item_stack.pop().unwrap();
                             let first = item_stack.pop().unwrap();
@@ -610,23 +616,7 @@ fn parser_to_instr_set(
                             let x = (len - 2) as u16;
                             let y = (len - 1) as u16;
                             let z = y;
-                            match op {
-                                Opcode::Null => {}
-                                Opcode::Mul => final_stack.push(Instr::Mul(x, y, z)),
-                                Opcode::Div => final_stack.push(Instr::Div(x, y, z)),
-                                Opcode::Add => final_stack.push(Instr::Add(x, y, z)),
-                                Opcode::Sub => final_stack.push(Instr::Sub(x, y, z)),
-                                Opcode::Mod => final_stack.push(Instr::Mod(x, y, z)),
-                                Opcode::Pow => final_stack.push(Instr::Pow(x, y, z)),
-                                Opcode::Eq => final_stack.push(Instr::Eq(x, y, z)),
-                                Opcode::NotEq => final_stack.push(Instr::NotEq(x, y, z)),
-                                Opcode::Sup => final_stack.push(Instr::Sup(x, y, z)),
-                                Opcode::SupEq => final_stack.push(Instr::SupEq(x, y, z)),
-                                Opcode::Inf => final_stack.push(Instr::Inf(x, y, z)),
-                                Opcode::InfEq => final_stack.push(Instr::InfEq(x, y, z)),
-                                Opcode::BoolAnd => final_stack.push(Instr::BoolAnd(x, y, z)),
-                                Opcode::BoolOr => final_stack.push(Instr::BoolOr(x, y, z)),
-                            }
+                            handle_ops!(final_stack, x, y, z, op)
                         }
                     } else {
                         item_stack.push(x);
