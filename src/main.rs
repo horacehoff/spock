@@ -449,7 +449,8 @@ fn parser_to_instr_set(
                 let condition = parser_to_instr_set(vec![*x], variables, consts);
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
-                let cond_code = parser_to_instr_set(y.into_vec(), variables, consts);
+                let mut priv_vars = variables.clone();
+                let cond_code = parser_to_instr_set(y.into_vec(), &mut priv_vars, consts);
                 let len = cond_code.len();
                 output.push(Instr::Cmp(condition_id, len as u16));
                 output.extend(cond_code);
