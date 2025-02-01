@@ -250,7 +250,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
             Instr::Print(target) => {
                 let elem = consts[target as usize];
                 // println!("{consts:?}");
-                println!("{elem:?}");
+                println!("PRINTING => {elem:?}");
             }
             _ => todo!(""),
         }
@@ -497,6 +497,19 @@ fn parser_to_instr_set(
                     }
                 } else {
                     todo!("Var {x} doesn't exist")
+                }
+            }
+            Expr::FunctionCall(x, y) => {
+                let args: Vec<Expr> = y.into_vec();
+                match x.as_str() {
+                    "print" => {
+                        let arg = args[0].clone();
+                        if let Expr::Var(id) = arg {
+                            let var = variables.iter().find(|(name, _)| name == &id).unwrap().1;
+                            output.push(Instr::Print(var));
+                        }
+                    }
+                    unknown => todo!("{unknown}"),
                 }
             }
             Expr::Op(left, right) => {
