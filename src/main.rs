@@ -84,7 +84,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         let result = concat_string!(*parent, *child);
                         consts[dest as usize] = Data::String(Intern::from(result));
                     }
-                    _ => todo!(""),
+                    x => todo!("{x:?}"),
                 }
             }
             Instr::Mul(o1, o2, dest) => {
@@ -312,14 +312,14 @@ fn get_precedence(operator: Expr) -> u8 {
             Opcode::Mul => 3,
             Opcode::Pow => 4,
             Opcode::Mod => 3,
-            Opcode::Eq => 7,
-            Opcode::NotEq => 7,
-            Opcode::BoolAnd => 11,
-            Opcode::Inf => 6,
-            Opcode::InfEq => 6,
-            Opcode::BoolOr => 12,
-            Opcode::Sup => 6,
-            Opcode::SupEq => 6,
+            Opcode::Eq => 1,
+            Opcode::NotEq => 1,
+            Opcode::BoolAnd => 1,
+            Opcode::Inf => 1,
+            Opcode::InfEq => 1,
+            Opcode::BoolOr => 1,
+            Opcode::Sup => 1,
+            Opcode::SupEq => 1,
         }
     } else {
         todo!("")
@@ -451,7 +451,7 @@ fn parser_to_instr_set(
                 let condition_id = get_tgt_id(*output.last().unwrap());
                 let mut priv_vars = variables.clone();
                 let cond_code = parser_to_instr_set(y.into_vec(), &mut priv_vars, consts);
-                let len = cond_code.len();
+                let len = cond_code.len() + 1;
                 output.push(Instr::Cmp(condition_id, len as u16));
                 output.extend(cond_code);
 
@@ -674,5 +674,6 @@ fn main() {
     //     Data::Bool(false),       // -> 7
     // ];
     execute(&instructions, &mut consts);
+    println!("CONSTS are {consts:?}");
     println!("EXEC TIME {:.2?}", now.elapsed())
 }
