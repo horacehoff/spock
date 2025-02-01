@@ -602,26 +602,73 @@ fn parser_to_instr_set(
                         if !final_stack.is_empty() {
                             let old_id = get_tgt_id(*final_stack.last().unwrap());
                             let new = item_stack.pop().unwrap();
-                            output.extend(parser_to_instr_set(vec![new], variables, consts));
-
-                            let len = consts.len();
-                            let x = old_id;
-                            let y = (len - 1) as u16;
-                            let z = y;
-                            handle_ops!(final_stack, x, y, z, op)
+                            if let Expr::Var(name) = new {
+                                if let Some((_, id)) = variables.iter().find(|(x, _)| x == &name) {
+                                    let x = old_id;
+                                    let y = *id;
+                                    let z = old_id;
+                                    handle_ops!(final_stack, x, y, z, op)
+                                }
+                            } else {
+                                output.extend(parser_to_instr_set(vec![new], variables, consts));
+                                let len = consts.len();
+                                let x = old_id;
+                                let y = (len - 1) as u16;
+                                let z = y;
+                                handle_ops!(final_stack, x, y, z, op)
+                            }
                         } else {
                             let last = item_stack.pop().unwrap();
                             let first = item_stack.pop().unwrap();
+                            if let Expr::Var(name) = first {
+                                if let Some((_, id)) =
+                                    variables.clone().iter().find(|(x, _)| x == &name)
+                                {
+                                    output.extend(parser_to_instr_set(
+                                        vec![last],
+                                        variables,
+                                        consts,
+                                    ));
 
-                            output.extend(parser_to_instr_set(vec![first], variables, consts));
-                            output.extend(parser_to_instr_set(vec![last], variables, consts));
+                                    let len = consts.len();
 
-                            let len = consts.len();
+                                    let x = *id;
+                                    let y = (len - 1) as u16;
+                                    let z = y;
+                                    handle_ops!(final_stack, x, y, z, op)
+                                } else {
+                                    todo!("")
+                                }
+                            } else if let Expr::Var(name) = last {
+                                if let Some((_, id)) =
+                                    variables.clone().iter().find(|(x, _)| x == &name)
+                                {
+                                    output.extend(parser_to_instr_set(
+                                        vec![first],
+                                        variables,
+                                        consts,
+                                    ));
 
-                            let x = (len - 2) as u16;
-                            let y = (len - 1) as u16;
-                            let z = y;
-                            handle_ops!(final_stack, x, y, z, op)
+                                    let len = consts.len();
+
+                                    let x = (len - 1) as u16;
+                                    let y = *id;
+                                    let z = (len - 1) as u16;
+                                    handle_ops!(final_stack, x, y, z, op)
+                                } else {
+                                    todo!("")
+                                }
+                            } else {
+                                output.extend(parser_to_instr_set(vec![first], variables, consts));
+                                output.extend(parser_to_instr_set(vec![last], variables, consts));
+
+                                let len = consts.len();
+
+                                let x = (len - 2) as u16;
+                                let y = (len - 1) as u16;
+                                let z = y;
+                                handle_ops!(final_stack, x, y, z, op)
+                            }
                         }
                     } else {
                         item_stack.push(x);

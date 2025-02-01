@@ -1,6 +1,6 @@
 let x = 30;
 if x == 30 {
     x = 40;
+    x = x+1;
     print(x);
 }
-print(x);
