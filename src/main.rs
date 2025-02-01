@@ -449,6 +449,11 @@ fn parser_to_instr_set(
                 let condition = parser_to_instr_set(vec![*x], variables, consts);
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
+                let cond_code = parser_to_instr_set(y.into_vec(), variables, consts);
+                let len = cond_code.len();
+                output.push(Instr::Cmp(condition_id, len as u16));
+                output.extend(cond_code);
+
                 println!("CONDITION IS {condition_id:?}");
                 // TODO
             }
@@ -643,30 +648,30 @@ fn main() {
     println!("Parsed in {:.2?}", now.elapsed());
 
     let now = Instant::now();
-    let instructions: Vec<Instr> = vec![
-        Instr::Inf(0, 3, 6),
-        Instr::Cmp(6, 7),
-        Instr::Add(0, 5, 0),
-        Instr::Mul(1, 2, 1),
-        Instr::Sup(1, 4, 7),
-        Instr::Cmp(7, 1),
-        Instr::Mod(1, 4, 1),
-        Instr::Jmp(7, true),
-        Instr::Print(1),
-    ];
-    let mut consts: Vec<Data> = vec![
-        // count
-        Data::Number(0.0),
-        // result
-        Data::Number(1.0),
-        // nums
-        Data::Number(2.0),       // -> 2
-        Data::Number(1000000.0), // -> 3
-        Data::Number(1000000.0), // -> 4
-        Data::Number(1.0),       // -> 5
-        Data::Bool(false),       // -> 6
-        Data::Bool(false),       // -> 7
-    ];
+    // let instructions: Vec<Instr> = vec![
+    //     Instr::Inf(0, 3, 6),
+    //     Instr::Cmp(6, 7),
+    //     Instr::Add(0, 5, 0),
+    //     Instr::Mul(1, 2, 1),
+    //     Instr::Sup(1, 4, 7),
+    //     Instr::Cmp(7, 1),
+    //     Instr::Mod(1, 4, 1),
+    //     Instr::Jmp(7, true),
+    //     Instr::Print(1),
+    // ];
+    // let mut consts: Vec<Data> = vec![
+    //     // count
+    //     Data::Number(0.0),
+    //     // result
+    //     Data::Number(1.0),
+    //     // nums
+    //     Data::Number(2.0),       // -> 2
+    //     Data::Number(1000000.0), // -> 3
+    //     Data::Number(1000000.0), // -> 4
+    //     Data::Number(1.0),       // -> 5
+    //     Data::Bool(false),       // -> 6
+    //     Data::Bool(false),       // -> 7
+    // ];
     execute(&instructions, &mut consts);
     println!("EXEC TIME {:.2?}", now.elapsed())
 }
