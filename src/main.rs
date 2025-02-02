@@ -345,20 +345,20 @@ lalrpop_mod!(pub grammar);
 fn get_precedence(operator: Expr) -> u8 {
     if let Expr::Opcode(op) = operator {
         match op {
-            Opcode::Add => 2,
-            Opcode::Sub => 2,
-            Opcode::Div => 3,
-            Opcode::Mul => 3,
-            Opcode::Pow => 4,
-            Opcode::Mod => 3,
-            Opcode::Eq => 1,
-            Opcode::NotEq => 1,
-            Opcode::BoolAnd => 1,
-            Opcode::Inf => 1,
-            Opcode::InfEq => 1,
             Opcode::BoolOr => 1,
-            Opcode::Sup => 1,
-            Opcode::SupEq => 1,
+            Opcode::BoolAnd => 2,
+            Opcode::Eq => 3,
+            Opcode::NotEq => 3,
+            Opcode::Inf => 4,
+            Opcode::InfEq => 4,
+            Opcode::Sup => 4,
+            Opcode::SupEq => 4,
+            Opcode::Add => 5,
+            Opcode::Sub => 5,
+            Opcode::Mul => 6,
+            Opcode::Div => 6,
+            Opcode::Mod => 6,
+            Opcode::Pow => 7,
             Opcode::Null => unreachable!(),
         }
     } else {
@@ -672,6 +672,7 @@ fn parser_to_instr_set(
                 }
 
                 let temp_op: Vec<Expr> = process_op(Expr::Op(left, right), variables, consts);
+                print!("TEMPOP {temp_op:?}");
                 let op = op_to_rpn(temp_op);
                 print!("OP {op:?}");
 

@@ -70,7 +70,8 @@ FunctionCall: Expr = {
             args.extend(add_args.iter().map(|(_, x)|x.clone()));
         }
         Expr::FunctionCall(String::from(o1.trim_end_matches('(')), args.into_boxed_slice())
-}   }
+    }
+}
 
 Num: f64 = {
     <n: r"([0-9]*[.])?[0-9]+"> => f64::from_str(n).unwrap()
