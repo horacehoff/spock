@@ -75,9 +75,6 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 i += size as usize;
                 continue;
             }
-            Instr::Mov(tgt, dest) => {
-                consts[dest as usize] = consts[tgt as usize];
-            }
             Instr::Cmp(cond_id, size) => {
                 if consts[cond_id as usize] == Data::Bool(false) {
                     i += size as usize;
@@ -289,6 +286,9 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     }
                 }
             }
+            Instr::Mov(tgt, dest) => {
+                consts[dest as usize] = consts[tgt as usize];
+            }
             Instr::Print(target) => {
                 let elem = consts[target as usize];
                 println!("PRINTING => {elem:?}");
@@ -421,10 +421,6 @@ pub fn op_to_rpn(operation_input: Vec<Expr>) -> Vec<Expr> {
 
 fn get_tgt_id(x: Instr) -> u16 {
     match x {
-        // Instr::Null => todo!(""),
-        // Instr::Print(_) => todo!(""),
-        // Instr::Jmp(_, _) => todo!(""),
-        // Instr::Cmp(_, _) => todo!(""),
         Instr::Mov(_, y) => y,
         Instr::Add(_, _, y) => y,
         Instr::Mul(_, _, y) => y,
@@ -449,10 +445,6 @@ fn move_to_id(x: &mut Vec<Instr>, tgt_id: u16) {
         return;
     }
     match x.last_mut().unwrap() {
-        // Instr::Null => todo!(""),
-        // Instr::Print(_) => todo!(""),
-        // Instr::Jmp(_, _) => todo!(""),
-        // Instr::Cmp(_, _) => todo!(""),
         Instr::Mov(_, z) => *z = tgt_id,
         Instr::Add(_, _, z) => *z = tgt_id,
         Instr::Mul(_, _, z) => *z = tgt_id,
