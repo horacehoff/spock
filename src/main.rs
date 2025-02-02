@@ -1,3 +1,4 @@
+use colored::Colorize;
 use concat_string::concat_string;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
@@ -345,9 +346,6 @@ lalrpop_mod!(pub grammar);
 fn get_precedence(operator: Expr) -> u8 {
     if let Expr::Opcode(op) = operator {
         match op {
-            Opcode::Null => {
-                panic!();
-            }
             Opcode::Add => 2,
             Opcode::Sub => 2,
             Opcode::Div => 3,
@@ -362,23 +360,21 @@ fn get_precedence(operator: Expr) -> u8 {
             Opcode::BoolOr => 1,
             Opcode::Sup => 1,
             Opcode::SupEq => 1,
+            Opcode::Null => unreachable!(),
         }
     } else {
-        todo!("")
+        unreachable!()
     }
 }
 
 fn is_left_associative(operator: Expr) -> bool {
     if let Expr::Opcode(op) = operator {
         match op {
-            Opcode::Null => {
-                panic!();
-            }
             Opcode::Pow => false,
             _ => true,
         }
     } else {
-        todo!("")
+        unreachable!()
     }
 }
 
@@ -408,7 +404,6 @@ pub fn op_to_rpn(operation_input: Vec<Expr>) -> Vec<Expr> {
                 assert!(!op_stack.is_empty(), "MISMATCHED PARENTHESES");
                 return_vector.push(op_stack.pop().unwrap());
             }
-            assert_eq!(op_stack.last().unwrap(), &Expr::LPAREN, "WHAT??");
             op_stack.pop();
         }
     }
@@ -426,10 +421,10 @@ pub fn op_to_rpn(operation_input: Vec<Expr>) -> Vec<Expr> {
 
 fn get_tgt_id(x: Instr) -> u16 {
     match x {
-        Instr::Null => todo!(""),
-        Instr::Print(_) => todo!(""),
-        Instr::Jmp(_, _) => todo!(""),
-        Instr::Cmp(_, _) => todo!(""),
+        // Instr::Null => todo!(""),
+        // Instr::Print(_) => todo!(""),
+        // Instr::Jmp(_, _) => todo!(""),
+        // Instr::Cmp(_, _) => todo!(""),
         Instr::Mov(_, y) => y,
         Instr::Add(_, _, y) => y,
         Instr::Mul(_, _, y) => y,
@@ -445,19 +440,19 @@ fn get_tgt_id(x: Instr) -> u16 {
         Instr::InfEq(_, _, y) => y,
         Instr::BoolAnd(_, _, y) => y,
         Instr::BoolOr(_, _, y) => y,
+        _ => unreachable!(),
     }
 }
 
 fn move_to_id(x: &mut Vec<Instr>, tgt_id: u16) {
-    // print!("X IS {x:?}");
     if x.is_empty() {
         return;
     }
     match x.last_mut().unwrap() {
-        Instr::Null => todo!(""),
-        Instr::Print(_) => todo!(""),
-        Instr::Jmp(_, _) => todo!(""),
-        Instr::Cmp(_, _) => todo!(""),
+        // Instr::Null => todo!(""),
+        // Instr::Print(_) => todo!(""),
+        // Instr::Jmp(_, _) => todo!(""),
+        // Instr::Cmp(_, _) => todo!(""),
         Instr::Mov(_, z) => *z = tgt_id,
         Instr::Add(_, _, z) => *z = tgt_id,
         Instr::Mul(_, _, z) => *z = tgt_id,
@@ -473,13 +468,13 @@ fn move_to_id(x: &mut Vec<Instr>, tgt_id: u16) {
         Instr::InfEq(_, _, z) => *z = tgt_id,
         Instr::BoolAnd(_, _, z) => *z = tgt_id,
         Instr::BoolOr(_, _, z) => *z = tgt_id,
+        _ => unreachable!(),
     }
 }
 
 macro_rules! handle_ops {
     ($final_stack: expr, $x: expr, $y: expr, $z: expr, $op: expr) => {
         match $op {
-            Opcode::Null => {}
             Opcode::Mul => $final_stack.push(Instr::Mul($x, $y, $z)),
             Opcode::Div => $final_stack.push(Instr::Div($x, $y, $z)),
             Opcode::Add => $final_stack.push(Instr::Add($x, $y, $z)),
@@ -494,6 +489,7 @@ macro_rules! handle_ops {
             Opcode::InfEq => $final_stack.push(Instr::InfEq($x, $y, $z)),
             Opcode::BoolAnd => $final_stack.push(Instr::BoolAnd($x, $y, $z)),
             Opcode::BoolOr => $final_stack.push(Instr::BoolOr($x, $y, $z)),
+            Opcode::Null => unreachable!(),
         }
     };
 }
@@ -516,7 +512,7 @@ fn get_id(x: Expr, variables: &mut Vec<(String, u16)>, consts: &mut Vec<Data>) -
             if let Some((_, id)) = variables.iter().find(|(x, _)| &name == x) {
                 (*id, true)
             } else {
-                todo!("UNKNOWN VAR {name}")
+                error!(format_args!("Unknown variable {}", name.red()));
             }
         }
         _ => todo!(""),
@@ -582,7 +578,7 @@ fn parser_to_instr_set(
                     if let Some((_, var_id)) = variables.iter().find(|(x, _)| &name == x) {
                         output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
                     } else {
-                        todo!("Unknown variable {name}")
+                        error!(format_args!("Unknown variable {}", name.red()));
                     }
                 } else {
                     consts.push(Data::Null);
@@ -594,11 +590,11 @@ fn parser_to_instr_set(
                 }
             }
             Expr::VarAssign(x, y) => {
-                let (_, id) = variables
+                let id = variables
                     .iter()
                     .find(|(w, _)| w == &x)
                     .unwrap_or_else(|| panic!("Unknown variable {x}"))
-                    .clone();
+                    .1;
                 let val = *y;
                 if let Expr::Num(data) = val {
                     consts.push(Data::Number(data));
@@ -613,7 +609,7 @@ fn parser_to_instr_set(
                     if let Some((_, var_id)) = variables.iter().find(|(x, _)| &name == x) {
                         output.push(Instr::Mov(*var_id, id));
                     } else {
-                        todo!("Unknown variable {name}")
+                        error!(format_args!("Unknown variable {}", name.red()));
                     }
                 } else {
                     let mut value = parser_to_instr_set(vec![val], variables, consts);
@@ -621,17 +617,16 @@ fn parser_to_instr_set(
                     output.extend(value);
                 }
             }
-            Expr::FunctionCall(x, y) => {
-                let args: Vec<Expr> = y.into_vec();
-                match x.as_str() {
-                    "print" => {
-                        let arg = args[0].clone();
-                        let (id, _) = get_id(arg, variables, consts);
-                        output.push(Instr::Print(id));
-                    }
-                    unknown => todo!("{unknown}"),
+            Expr::FunctionCall(x, args) => match x.as_str() {
+                "print" => {
+                    let arg = args[0].clone();
+                    let (id, _) = get_id(arg, variables, consts);
+                    output.push(Instr::Print(id));
                 }
-            }
+                unknown => {
+                    error!(format_args!("Unknown function {}", unknown.red()));
+                }
+            },
             Expr::Op(left, right) => {
                 fn remove_priority(
                     x: Expr,
@@ -720,7 +715,9 @@ fn parser_to_instr_set(
                 }
                 output.extend(final_stack);
             }
-            _ => todo!("{x:?}"),
+            _ => {
+                error!("Not implemented");
+            }
         }
     }
 

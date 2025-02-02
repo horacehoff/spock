@@ -10,7 +10,7 @@ edition = "2021"
 ###libloading = "0.8.6"
 ###goblin = "0.9.2"
 internment = { version = "0.8.6" }
-#colored = "3.0.0"
+colored = "3.0.0"
 concat-string = "1.0.1"
 lalrpop-util = { version = "0.22.0", features = ["lexer"] }
 
