@@ -46,27 +46,39 @@ pub enum Instr {
     BoolOr(u16, u16, u16),
 }
 
+macro_rules! error {
+    ($x: expr) => {
+        eprintln!(
+            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{}\n--------------", $x
+        );
+        std::process::exit(1);
+    };
+    ($x: expr, $y: expr) => {
+        eprintln!(
+            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{}\n--------------", $x, $y
+        );
+        std::process::exit(1);
+    }
+}
+
 fn execute(instructions: &[Instr], consts: &mut [Data]) {
     let len = instructions.len();
     let mut i: usize = 0;
     while i < len {
-        // println!("{consts:?}");
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
                     i -= size as usize;
                     continue;
-                } else {
-                    i += size as usize;
-                    continue;
                 }
+                i += size as usize;
+                continue;
             }
             Instr::Mov(tgt, dest) => {
                 consts[dest as usize] = consts[tgt as usize];
             }
             Instr::Cmp(cond_id, size) => {
-                let condition = consts[cond_id as usize];
-                if let Data::Bool(false) = condition {
+                if consts[cond_id as usize] == Data::Bool(false) {
                     i += size as usize;
                     continue;
                 }
@@ -77,14 +89,18 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 
                 match (first_elem, second_elem) {
                     (Data::Number(parent), Data::Number(child)) => {
-                        let result = parent + child;
-                        consts[dest as usize] = Data::Number(result);
+                        consts[dest as usize] = Data::Number(parent + child);
                     }
                     (Data::String(parent), Data::String(child)) => {
                         let result = concat_string!(*parent, *child);
                         consts[dest as usize] = Data::String(Intern::from(result));
                     }
-                    x => todo!("{x:?}"),
+                    _ => {
+                        error!(format_args!(
+                            "UNSUPPORTED OPERATION: {:?} + {:?}",
+                            first_elem, second_elem
+                        ));
+                    }
                 }
             }
             Instr::Mul(o1, o2, dest) => {
@@ -93,10 +109,14 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 
                 match (first_elem, second_elem) {
                     (Data::Number(parent), Data::Number(child)) => {
-                        let result = parent * child;
-                        consts[dest as usize] = Data::Number(result);
+                        consts[dest as usize] = Data::Number(parent * child);
                     }
-                    _ => todo!(""),
+                    _ => {
+                        error!(format_args!(
+                            "UNSUPPORTED OPERATION: {:?} * {:?}",
+                            first_elem, second_elem
+                        ));
+                    }
                 }
             }
             Instr::Div(o1, o2, dest) => {
@@ -105,10 +125,14 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 
                 match (first_elem, second_elem) {
                     (Data::Number(parent), Data::Number(child)) => {
-                        let result = parent / child;
-                        consts[dest as usize] = Data::Number(result);
+                        consts[dest as usize] = Data::Number(parent / child);
                     }
-                    _ => todo!(""),
+                    _ => {
+                        error!(format_args!(
+                            "UNSUPPORTED OPERATION: {:?} / {:?}",
+                            first_elem, second_elem
+                        ));
+                    }
                 }
             }
             Instr::Sub(o1, o2, dest) => {
@@ -117,10 +141,14 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 
                 match (first_elem, second_elem) {
                     (Data::Number(parent), Data::Number(child)) => {
-                        let result = parent - child;
-                        consts[dest as usize] = Data::Number(result);
+                        consts[dest as usize] = Data::Number(parent - child);
                     }
-                    _ => todo!(""),
+                    _ => {
+                        error!(format_args!(
+                            "UNSUPPORTED OPERATION: {:?} - {:?}",
+                            first_elem, second_elem
+                        ));
+                    }
                 }
             }
             Instr::Mod(o1, o2, dest) => {
@@ -129,51 +157,41 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 
                 match (first_elem, second_elem) {
                     (Data::Number(parent), Data::Number(child)) => {
-                        let result = parent % child;
-                        consts[dest as usize] = Data::Number(result);
+                        consts[dest as usize] = Data::Number(parent % child);
                     }
-                    _ => todo!(""),
+                    _ => {
+                        error!(format_args!(
+                            "UNSUPPORTED OPERATION: {:?} % {:?}",
+                            first_elem, second_elem
+                        ));
+                    }
+                }
+            }
+            Instr::Pow(o1, o2, dest) => {
+                let first_elem = consts[o1 as usize];
+                let second_elem = consts[o2 as usize];
+
+                match (first_elem, second_elem) {
+                    (Data::Number(parent), Data::Number(child)) => {
+                        consts[dest as usize] = Data::Number(parent.powf(child));
+                    }
+                    _ => {
+                        error!(format_args!(
+                            "UNSUPPORTED OPERATION: {:?} ^ {:?}",
+                            first_elem, second_elem
+                        ));
+                    }
                 }
             }
             Instr::Eq(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
-
-                match (first_elem, second_elem) {
-                    (Data::Number(parent), Data::Number(child)) => {
-                        let result = parent == child;
-                        consts[dest as usize] = Data::Bool(result);
-                    }
-                    (Data::Bool(parent), Data::Bool(child)) => {
-                        let result = parent == child;
-                        consts[dest as usize] = Data::Bool(result);
-                    }
-                    (Data::String(parent), Data::String(child)) => {
-                        let result = parent == child;
-                        consts[dest as usize] = Data::Bool(result);
-                    }
-                    _ => todo!(""),
-                }
+                consts[dest as usize] = Data::Bool(first_elem == second_elem);
             }
             Instr::NotEq(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
-
-                match (first_elem, second_elem) {
-                    (Data::Number(parent), Data::Number(child)) => {
-                        let result = parent != child;
-                        consts[dest as usize] = Data::Bool(result);
-                    }
-                    (Data::Bool(parent), Data::Bool(child)) => {
-                        let result = parent != child;
-                        consts[dest as usize] = Data::Bool(result);
-                    }
-                    (Data::String(parent), Data::String(child)) => {
-                        let result = parent != child;
-                        consts[dest as usize] = Data::Bool(result);
-                    }
-                    _ => todo!(""),
-                }
+                consts[dest as usize] = Data::Bool(first_elem != second_elem);
             }
             Instr::Sup(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
@@ -181,10 +199,14 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 
                 match (first_elem, second_elem) {
                     (Data::Number(parent), Data::Number(child)) => {
-                        let result = parent > child;
-                        consts[dest as usize] = Data::Bool(result);
+                        consts[dest as usize] = Data::Bool(parent > child);
                     }
-                    _ => todo!("{:?}", (first_elem, second_elem)),
+                    _ => {
+                        error!(format_args!(
+                            "UNSUPPORTED OPERATION: {:?} > {:?}",
+                            first_elem, second_elem
+                        ));
+                    }
                 }
             }
             Instr::SupEq(o1, o2, dest) => {
@@ -193,22 +215,29 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 
                 match (first_elem, second_elem) {
                     (Data::Number(parent), Data::Number(child)) => {
-                        let result = parent >= child;
-                        consts[dest as usize] = Data::Bool(result);
+                        consts[dest as usize] = Data::Bool(parent >= child);
                     }
-                    _ => todo!(""),
+                    _ => {
+                        error!(format_args!(
+                            "UNSUPPORTED OPERATION: {:?} >= {:?}",
+                            first_elem, second_elem
+                        ));
+                    }
                 }
             }
             Instr::Inf(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
-                // println!("IS {first_elem:?} INF TO {second_elem:?}???");
                 match (first_elem, second_elem) {
                     (Data::Number(parent), Data::Number(child)) => {
-                        let result = parent < child;
-                        consts[dest as usize] = Data::Bool(result);
+                        consts[dest as usize] = Data::Bool(parent < child);
                     }
-                    _ => todo!(""),
+                    _ => {
+                        error!(format_args!(
+                            "UNSUPPORTED OPERATION: {:?} < {:?}",
+                            first_elem, second_elem
+                        ));
+                    }
                 }
             }
             Instr::InfEq(o1, o2, dest) => {
@@ -217,10 +246,14 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 
                 match (first_elem, second_elem) {
                     (Data::Number(parent), Data::Number(child)) => {
-                        let result = parent <= child;
-                        consts[dest as usize] = Data::Bool(result);
+                        consts[dest as usize] = Data::Bool(parent <= child);
                     }
-                    _ => todo!(""),
+                    _ => {
+                        error!(format_args!(
+                            "UNSUPPORTED OPERATION: {:?} <= {:?}",
+                            first_elem, second_elem
+                        ));
+                    }
                 }
             }
             Instr::BoolAnd(o1, o2, dest) => {
@@ -229,10 +262,14 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 
                 match (first_elem, second_elem) {
                     (Data::Bool(parent), Data::Bool(child)) => {
-                        let result = parent && child;
-                        consts[dest as usize] = Data::Bool(result);
+                        consts[dest as usize] = Data::Bool(parent && child);
                     }
-                    _ => todo!(""),
+                    _ => {
+                        error!(format_args!(
+                            "UNSUPPORTED OPERATION: {:?} && {:?}",
+                            first_elem, second_elem
+                        ));
+                    }
                 }
             }
             Instr::BoolOr(o1, o2, dest) => {
@@ -241,18 +278,23 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 
                 match (first_elem, second_elem) {
                     (Data::Bool(parent), Data::Bool(child)) => {
-                        let result = parent || child;
-                        consts[dest as usize] = Data::Bool(result);
+                        consts[dest as usize] = Data::Bool(parent || child)
                     }
-                    _ => todo!(""),
+                    _ => {
+                        error!(format_args!(
+                            "UNSUPPORTED OPERATION: {:?} || {:?}",
+                            first_elem, second_elem
+                        ));
+                    }
                 }
             }
             Instr::Print(target) => {
                 let elem = consts[target as usize];
-                // println!("{consts:?}");
                 println!("PRINTING => {elem:?}");
             }
-            _ => todo!(""),
+            Instr::Null => {
+                error!("NULL INSTRUCTION");
+            }
         }
         i += 1;
     }
@@ -535,9 +577,9 @@ fn parser_to_instr_set(
                     consts.push(Data::Bool(data));
                     variables.push((x, (consts.len() - 1) as u16));
                 } else if let Expr::Var(name) = val {
-                    if let Some((_, var_id)) = variables.clone().iter().find(|(x, _)| &name == x) {
-                        consts.push(Data::Null);
-                        variables.push((x, (consts.len() - 1) as u16));
+                    consts.push(Data::Null);
+                    variables.push((x, (consts.len() - 1) as u16));
+                    if let Some((_, var_id)) = variables.iter().find(|(x, _)| &name == x) {
                         output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
                     } else {
                         todo!("Unknown variable {name}")
@@ -552,30 +594,31 @@ fn parser_to_instr_set(
                 }
             }
             Expr::VarAssign(x, y) => {
-                if let Some((name, id)) = variables.clone().iter().find(|(w, _)| w == &x) {
-                    let val = *y;
-                    if let Expr::Num(data) = val {
-                        consts.push(Data::Number(data));
-                        output.push(Instr::Mov((consts.len() - 1) as u16, *id))
-                    } else if let Expr::String(data) = val {
-                        consts.push(Data::String(Intern::from(data)));
-                        output.push(Instr::Mov((consts.len() - 1) as u16, *id))
-                    } else if let Expr::Bool(data) = val {
-                        consts.push(Data::Bool(data));
-                        output.push(Instr::Mov((consts.len() - 1) as u16, *id))
-                    } else if let Expr::Var(name) = val {
-                        if let Some((_, var_id)) = variables.iter().find(|(x, _)| &name == x) {
-                            output.push(Instr::Mov(*var_id, *id));
-                        } else {
-                            todo!("Unknown variable {name}")
-                        }
+                let (_, id) = variables
+                    .iter()
+                    .find(|(w, _)| w == &x)
+                    .unwrap_or_else(|| panic!("Unknown variable {x}"))
+                    .clone();
+                let val = *y;
+                if let Expr::Num(data) = val {
+                    consts.push(Data::Number(data));
+                    output.push(Instr::Mov((consts.len() - 1) as u16, id))
+                } else if let Expr::String(data) = val {
+                    consts.push(Data::String(Intern::from(data)));
+                    output.push(Instr::Mov((consts.len() - 1) as u16, id))
+                } else if let Expr::Bool(data) = val {
+                    consts.push(Data::Bool(data));
+                    output.push(Instr::Mov((consts.len() - 1) as u16, id))
+                } else if let Expr::Var(name) = val {
+                    if let Some((_, var_id)) = variables.iter().find(|(x, _)| &name == x) {
+                        output.push(Instr::Mov(*var_id, id));
                     } else {
-                        let mut value = parser_to_instr_set(vec![val], variables, consts);
-                        move_to_id(&mut value, *id);
-                        output.extend(value);
+                        todo!("Unknown variable {name}")
                     }
                 } else {
-                    todo!("Var {x} doesn't exist")
+                    let mut value = parser_to_instr_set(vec![val], variables, consts);
+                    move_to_id(&mut value, id);
+                    output.extend(value);
                 }
             }
             Expr::FunctionCall(x, y) => {
@@ -653,37 +696,22 @@ fn parser_to_instr_set(
                             let old_id = get_tgt_id(*final_stack.last().unwrap());
                             let new = item_stack.pop().unwrap();
 
-                            let (new_v, new_isvar) = get_id(new, variables, consts);
+                            let (new_v, _) = get_id(new, variables, consts);
                             consts.push(Data::Null);
                             let x = old_id;
                             let y = new_v;
                             let z = consts.len() - 1;
                             handle_ops!(final_stack, x, y, z as u16, op)
-                            // if new_isvar {
-                            //     let x = old_id;
-                            //     let y = new_v;
-                            //     let z = old_id;
-                            //     handle_ops!(final_stack, x, y, z, op)
-                            // } else {
-                            //     let x = old_id;
-                            //     let y = new_v;
-                            //     let z = new_v;
-                            //     handle_ops!(final_stack, x, y, z, op)
-                            // }
                         } else {
                             let last = item_stack.pop().unwrap();
                             let first = item_stack.pop().unwrap();
 
-                            let (first_v, first_isvar) = get_id(first, variables, consts);
-                            let (second_v, second_isvar) = get_id(last, variables, consts);
+                            let (first_v, _) = get_id(first, variables, consts);
+                            let (second_v, _) = get_id(last, variables, consts);
                             let x = first_v;
                             let y = second_v;
                             consts.push(Data::Null);
                             let z = consts.len() - 1;
-                            // let mut z = y;
-                            // if second_isvar && !first_isvar {
-                            //     z = first_v;
-                            // }
                             handle_ops!(final_stack, x, y, z as u16, op)
                         }
                     } else {
@@ -699,10 +727,11 @@ fn parser_to_instr_set(
     output
 }
 
+// Live long and prosper
 fn main() {
-    dbg!(size_of::<Instr>());
-    dbg!(size_of::<Data>());
-    dbg!(size_of::<Expr>());
+    // dbg!(size_of::<Instr>());
+    // dbg!(size_of::<Data>());
+    // dbg!(size_of::<Expr>());
 
     let now = Instant::now();
 
@@ -714,10 +743,10 @@ fn main() {
     let mut variables: Vec<(String, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
     let instructions = parser_to_instr_set(parsed.into_vec(), &mut variables, &mut consts);
-    print!("INSTR OUT {instructions:?}");
-    print!("CONSTS ARE {consts:?}");
+    println!("INSTR OUT {instructions:?}");
+    println!("CONSTS ARE {consts:?}");
     print!("VARS ARE {variables:?}");
-    print!("Parsed in {:.2?}", now.elapsed());
+    println!("Parsed in {:.2?}", now.elapsed());
 
     let now = Instant::now();
     // let instructions: Vec<Instr> = vec![
