@@ -470,7 +470,6 @@ fn get_id(x: Expr, variables: &mut Vec<(String, u16)>, consts: &mut Vec<Data>) -
             consts.push(Data::Bool(bool));
             return ((consts.len() - 1) as u16, false);
         }
-        Expr::Priority(x) => return get_id(*x, variables, consts),
         Expr::Var(name) => {
             if let Some((_, id)) = variables.iter().find(|(x, _)| &name == x) {
                 (*id, true)
@@ -500,9 +499,6 @@ fn parser_to_instr_set(
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
-            Expr::Priority(x) => {
-                return parser_to_instr_set(vec![*x], variables, consts);
-            }
             Expr::Condition(x, y, z, w) => {
                 let condition = parser_to_instr_set(vec![*x], variables, consts);
                 output.extend(condition);
