@@ -20,7 +20,6 @@ pub enum Data {
 pub enum Instr {
     Null,
     Print(u16),
-    // Data(u16),
 
     // LOGIC
     // size -- is_neg
@@ -611,9 +610,10 @@ fn parser_to_instr_set(
             }
             Expr::FunctionCall(x, args) => match x.as_str() {
                 "print" => {
-                    let arg = args[0].clone();
-                    let (id, _) = get_id(arg, variables, consts);
-                    output.push(Instr::Print(id));
+                    for arg in args {
+                        let (id, _) = get_id(arg, variables, consts);
+                        output.push(Instr::Print(id));
+                    }
                 }
                 unknown => {
                     error!(format_args!("Unknown function {}", unknown.red()));
@@ -724,8 +724,9 @@ fn main() {
 
     let now = Instant::now();
 
+    print!("READ FILE");
     let contents = fs::read_to_string("test.compute").unwrap();
-
+    print!("PARSE");
     let parsed = grammar::CodeParser::new().parse(&contents).unwrap();
     print!("{parsed:?}");
 

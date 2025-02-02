@@ -61,8 +61,16 @@ Term: Box<Expr> = {
 };
 
 FunctionCall: Expr = {
-    <o1: r#"([a-zA-Z_]*)\("#> <o2: (Expression)*> ")" => Expr::FunctionCall(String::from(o1.trim_end_matches('(')), o2.into_boxed_slice())
-}
+    <o1: r#"([a-zA-Z_]*)\("#> <o2: Expression?> <o3: ("," Expression)+?> ")" => {
+        let mut args:Vec<Expr> = Vec::new();
+        if let Some(arg) = o2 {
+            args.push(arg);
+        }
+        if let Some(add_args) = o3 {
+            args.extend(add_args.iter().map(|(_, x)|x.clone()));
+        }
+        Expr::FunctionCall(String::from(o1.trim_end_matches('(')), args.into_boxed_slice())
+}   }
 
 Num: f64 = {
     <n: r"([0-9]*[.])?[0-9]+"> => f64::from_str(n).unwrap()

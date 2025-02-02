@@ -8,4 +8,4 @@ while count < limit {
     }
     count = count + 1;
 }
-print(result);
+print(result,count);
