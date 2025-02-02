@@ -184,7 +184,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         let result = parent > child;
                         consts[dest as usize] = Data::Bool(result);
                     }
-                    _ => todo!(""),
+                    _ => todo!("{:?}", (first_elem, second_elem)),
                 }
             }
             Instr::SupEq(o1, o2, dest) => {
@@ -492,11 +492,13 @@ fn parser_to_instr_set(
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
-            Expr::Var(name) => {
-                if let Some((_, id)) = variables.iter().find(|(x, _)| x == &name) {
-                    consts.push(consts[*id as usize])
-                }
-            }
+            // Expr::Var(name) => {
+            //     if let Some((_, id)) = variables.iter().find(|(x, _)| x == &name) {
+            //         consts.push(consts[*id as usize])
+            //     } else {
+            //         todo!("Unknown variable {name}")
+            //     }
+            // }
             Expr::Condition(x, y, z, w) => {
                 let condition = parser_to_instr_set(vec![*x], variables, consts);
                 output.extend(condition);
@@ -510,6 +512,17 @@ fn parser_to_instr_set(
                 println!("CONDITION IS {condition_id:?}");
                 // TODO
             }
+            Expr::WhileBlock(x, y) => {
+                let condition = parser_to_instr_set(vec![*x], variables, consts);
+                output.extend(condition);
+                let condition_id = get_tgt_id(*output.last().unwrap());
+                let mut priv_vars = variables.clone();
+                let cond_code = parser_to_instr_set(y.into_vec(), &mut priv_vars, consts);
+                let len = cond_code.len();
+                output.push(Instr::Cmp(condition_id, (len + 2) as u16));
+                output.extend(cond_code);
+                output.push(Instr::Jmp((len + 1) as u16, true));
+            }
             Expr::VarDeclare(x, y) => {
                 let val = *y;
                 if let Expr::Num(data) = val {
@@ -521,6 +534,14 @@ fn parser_to_instr_set(
                 } else if let Expr::Bool(data) = val {
                     consts.push(Data::Bool(data));
                     variables.push((x, (consts.len() - 1) as u16));
+                } else if let Expr::Var(name) = val {
+                    if let Some((_, var_id)) = variables.clone().iter().find(|(x, _)| &name == x) {
+                        consts.push(Data::Null);
+                        variables.push((x, (consts.len() - 1) as u16));
+                        output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
+                    } else {
+                        todo!("Unknown variable {name}")
+                    }
                 } else {
                     consts.push(Data::Null);
                     let len = (consts.len() - 1) as u16;
@@ -542,6 +563,12 @@ fn parser_to_instr_set(
                     } else if let Expr::Bool(data) = val {
                         consts.push(Data::Bool(data));
                         output.push(Instr::Mov((consts.len() - 1) as u16, *id))
+                    } else if let Expr::Var(name) = val {
+                        if let Some((_, var_id)) = variables.iter().find(|(x, _)| &name == x) {
+                            output.push(Instr::Mov(*var_id, *id));
+                        } else {
+                            todo!("Unknown variable {name}")
+                        }
                     } else {
                         let mut value = parser_to_instr_set(vec![val], variables, consts);
                         move_to_id(&mut value, *id);
@@ -556,10 +583,8 @@ fn parser_to_instr_set(
                 match x.as_str() {
                     "print" => {
                         let arg = args[0].clone();
-                        if let Expr::Var(id) = arg {
-                            let var = variables.iter().find(|(name, _)| name == &id).unwrap().1;
-                            output.push(Instr::Print(var));
-                        }
+                        let (id, _) = get_id(arg, variables, consts);
+                        output.push(Instr::Print(id));
                     }
                     unknown => todo!("{unknown}"),
                 }
@@ -629,17 +654,22 @@ fn parser_to_instr_set(
                             let new = item_stack.pop().unwrap();
 
                             let (new_v, new_isvar) = get_id(new, variables, consts);
-                            if new_isvar {
-                                let x = old_id;
-                                let y = new_v;
-                                let z = old_id;
-                                handle_ops!(final_stack, x, y, z, op)
-                            } else {
-                                let x = old_id;
-                                let y = new_v;
-                                let z = new_v;
-                                handle_ops!(final_stack, x, y, z, op)
-                            }
+                            consts.push(Data::Null);
+                            let x = old_id;
+                            let y = new_v;
+                            let z = consts.len() - 1;
+                            handle_ops!(final_stack, x, y, z as u16, op)
+                            // if new_isvar {
+                            //     let x = old_id;
+                            //     let y = new_v;
+                            //     let z = old_id;
+                            //     handle_ops!(final_stack, x, y, z, op)
+                            // } else {
+                            //     let x = old_id;
+                            //     let y = new_v;
+                            //     let z = new_v;
+                            //     handle_ops!(final_stack, x, y, z, op)
+                            // }
                         } else {
                             let last = item_stack.pop().unwrap();
                             let first = item_stack.pop().unwrap();
@@ -648,11 +678,13 @@ fn parser_to_instr_set(
                             let (second_v, second_isvar) = get_id(last, variables, consts);
                             let x = first_v;
                             let y = second_v;
-                            let mut z = y;
-                            if second_isvar && !first_isvar {
-                                z = first_v;
-                            }
-                            handle_ops!(final_stack, x, y, z, op)
+                            consts.push(Data::Null);
+                            let z = consts.len() - 1;
+                            // let mut z = y;
+                            // if second_isvar && !first_isvar {
+                            //     z = first_v;
+                            // }
+                            handle_ops!(final_stack, x, y, z as u16, op)
                         }
                     } else {
                         item_stack.push(x);
