@@ -407,7 +407,7 @@ fn get_tgt_id(x: Instr) -> u16 {
 }
 
 fn move_to_id(x: &mut Vec<Instr>, tgt_id: u16) {
-    println!("X IS {x:?}");
+    // print!("X IS {x:?}");
     if x.is_empty() {
         return;
     }
@@ -470,6 +470,7 @@ fn get_id(x: Expr, variables: &mut Vec<(String, u16)>, consts: &mut Vec<Data>) -
             consts.push(Data::Bool(bool));
             return ((consts.len() - 1) as u16, false);
         }
+        Expr::Priority(x) => return get_id(*x, variables, consts),
         Expr::Var(name) => {
             if let Some((_, id)) = variables.iter().find(|(x, _)| &name == x) {
                 (*id, true)
@@ -478,6 +479,13 @@ fn get_id(x: Expr, variables: &mut Vec<(String, u16)>, consts: &mut Vec<Data>) -
             }
         }
         _ => todo!(""),
+    }
+}
+
+macro_rules! print {
+    ($($x:tt)*) => {
+        #[cfg(debug_assertions)]
+        println!("\x1b[33m[LOG] {}\x1b[0m", format!($($x)*))
     }
 }
 
@@ -492,13 +500,9 @@ fn parser_to_instr_set(
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
-            // Expr::Var(name) => {
-            //     if let Some((_, id)) = variables.iter().find(|(x, _)| x == &name) {
-            //         consts.push(consts[*id as usize])
-            //     } else {
-            //         todo!("Unknown variable {name}")
-            //     }
-            // }
+            Expr::Priority(x) => {
+                return parser_to_instr_set(vec![*x], variables, consts);
+            }
             Expr::Condition(x, y, z, w) => {
                 let condition = parser_to_instr_set(vec![*x], variables, consts);
                 output.extend(condition);
@@ -509,7 +513,7 @@ fn parser_to_instr_set(
                 output.push(Instr::Cmp(condition_id, len as u16));
                 output.extend(cond_code);
 
-                println!("CONDITION IS {condition_id:?}");
+                print!("CONDITION IS {condition_id:?}");
                 // TODO
             }
             Expr::WhileBlock(x, y) => {
@@ -518,10 +522,10 @@ fn parser_to_instr_set(
                 let condition_id = get_tgt_id(*output.last().unwrap());
                 let mut priv_vars = variables.clone();
                 let cond_code = parser_to_instr_set(y.into_vec(), &mut priv_vars, consts);
-                let len = cond_code.len();
-                output.push(Instr::Cmp(condition_id, (len + 2) as u16));
+                let len = (cond_code.len() + 2) as u16;
+                output.push(Instr::Cmp(condition_id, len));
                 output.extend(cond_code);
-                output.push(Instr::Jmp((len + 1) as u16, true));
+                output.push(Instr::Jmp(len, true));
             }
             Expr::VarDeclare(x, y) => {
                 let val = *y;
@@ -643,7 +647,7 @@ fn parser_to_instr_set(
 
                 let temp_op: Vec<Expr> = process_op(Expr::Op(left, right), variables, consts);
                 let op = op_to_rpn(temp_op);
-                println!("OP {op:?}");
+                print!("OP {op:?}");
 
                 let mut item_stack: Vec<Expr> = Vec::new();
                 let mut final_stack: Vec<Instr> = Vec::new();
@@ -709,15 +713,15 @@ fn main() {
     let contents = fs::read_to_string("test.compute").unwrap();
 
     let parsed = grammar::CodeParser::new().parse(&contents).unwrap();
-    println!("{parsed:?}");
+    print!("{parsed:?}");
 
     let mut variables: Vec<(String, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
     let instructions = parser_to_instr_set(parsed.into_vec(), &mut variables, &mut consts);
-    println!("INSTR OUT {instructions:?}");
-    println!("CONSTS ARE {consts:?}");
-    println!("VARS ARE {variables:?}");
-    println!("Parsed in {:.2?}", now.elapsed());
+    print!("INSTR OUT {instructions:?}");
+    print!("CONSTS ARE {consts:?}");
+    print!("VARS ARE {variables:?}");
+    print!("Parsed in {:.2?}", now.elapsed());
 
     let now = Instant::now();
     // let instructions: Vec<Instr> = vec![
@@ -745,6 +749,6 @@ fn main() {
     //     Data::Bool(false),       // -> 7
     // ];
     execute(&instructions, &mut consts);
-    println!("CONSTS are {consts:?}");
+    print!("CONSTS are {consts:?}");
     println!("EXEC TIME {:.2?}", now.elapsed())
 }
