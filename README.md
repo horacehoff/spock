@@ -1,4 +1,4 @@
-# Compute
+# Spock
 A work-in-progress programming language written in Rust for the best performance possible, whose syntax takes inspiration from Rust and Python. Basically, its goal is to provide a faster alternative to Python, and one that's closer to low-level languages, while still being accessible to a wide audience.
 
 Key facts:
@@ -9,7 +9,7 @@ Key facts:
 
 ## Instruction Set
 
-Compute uses an instruction set with a size of 8 bytes.
+Spock uses an instruction set with a size of 8 bytes.
 The available instructions can be seen [here](src/main.rs).
 
 ```
@@ -96,8 +96,8 @@ print("hello world");
 ```
 
 ## Imports
-You can import functions from other `.compute` files by using the `import` keyword like so:
-- `otherfile.compute`:
+You can import functions from other `.spock` files by using the `import` keyword like so:
+- `otherfile.spock`:
 ```
 func demo() {
 print("Hello World!");
