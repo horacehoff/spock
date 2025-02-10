@@ -357,7 +357,7 @@ fn main() {
     // }
     // let arg = args.first().unwrap();
 
-    let content = fs::read_to_string("../../test.compute").unwrap_or_else(|_| {
+    let content = fs::read_to_string("../../test.spock").unwrap_or_else(|_| {
         error!(format_args!("Unable to read file '{args:?}'"), "");
     });
 

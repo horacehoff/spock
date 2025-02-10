@@ -623,10 +623,7 @@ fn parser_to_instr_set(
                     consts: &mut Vec<Data>,
                 ) -> Vec<Expr> {
                     match x {
-                        Expr::Num(_) => vec![x],
-                        Expr::Bool(_) => vec![x],
                         Expr::Op(_, _) => process_op(x, variables, consts),
-                        Expr::Opcode(_) => vec![x],
                         Expr::Priority(x) => {
                             let mut output: Vec<Expr> = vec![];
                             output.push(Expr::LPAREN);
@@ -634,16 +631,7 @@ fn parser_to_instr_set(
                             output.push(Expr::RPAREN);
                             output
                         }
-                        Expr::String(_) => vec![x],
-                        Expr::Var(_) => vec![x],
-                        Expr::VarDeclare(_, _) => vec![x],
-                        Expr::VarAssign(_, _) => vec![x],
-                        Expr::Condition(_, _, _, _) => vec![x],
-                        Expr::ElseIfBlock(_, _) => vec![x],
-                        Expr::WhileBlock(_, _) => vec![x],
-                        Expr::FunctionCall(_, _) => vec![x],
-                        Expr::LPAREN => vec![x],
-                        Expr::RPAREN => vec![x],
+                        _ => vec![x],
                     }
                 }
                 fn process_op(
@@ -696,7 +684,7 @@ fn parser_to_instr_set(
                             let y = second_v;
                             consts.push(Data::Null);
                             let z = consts.len() - 1;
-                            handle_ops!(final_stack, x, y, z as u16, op)
+                            handle_ops!(final_stack, x, y, z as u16, op);
                         }
                     } else {
                         item_stack.push(x);
@@ -762,5 +750,5 @@ fn main() {
     // ];
     execute(&instructions, &mut consts);
     print!("CONSTS are {consts:?}");
-    println!("EXEC TIME {:.2?}", now.elapsed())
+    println!("EXEC TIME {:.2?}", now.elapsed());
 }
