@@ -489,15 +489,15 @@ fn get_id(x: Expr, variables: &mut Vec<(String, u16)>, consts: &mut Vec<Data>) -
     match x {
         Expr::Num(num) => {
             consts.push(Data::Number(num));
-            return ((consts.len() - 1) as u16, false);
+            ((consts.len() - 1) as u16, false)
         }
         Expr::String(str) => {
             consts.push(Data::String(Intern::from(str)));
-            return ((consts.len() - 1) as u16, false);
+            ((consts.len() - 1) as u16, false)
         }
         Expr::Bool(bool) => {
             consts.push(Data::Bool(bool));
-            return ((consts.len() - 1) as u16, false);
+            ((consts.len() - 1) as u16, false)
         }
         Expr::Var(name) => {
             if let Some((_, id)) = variables.iter().find(|(x, _)| &name == x) {
@@ -626,29 +626,28 @@ fn parser_to_instr_set(
                     consts: &mut Vec<Data>,
                 ) -> Vec<Expr> {
                     match x {
-                        Expr::Num(_) => return vec![x],
-                        Expr::Bool(_) => return vec![x],
-                        Expr::Op(_, _) => return process_op(x, variables, consts),
-                        Expr::Opcode(_) => return vec![x],
+                        Expr::Num(_) => vec![x],
+                        Expr::Bool(_) => vec![x],
+                        Expr::Op(_, _) => process_op(x, variables, consts),
+                        Expr::Opcode(_) => vec![x],
                         Expr::Priority(x) => {
                             let mut output: Vec<Expr> = vec![];
                             output.push(Expr::LPAREN);
                             output.extend(remove_priority(*x, variables, consts));
                             output.push(Expr::RPAREN);
-                            return output;
+                            output
                         }
-                        Expr::String(_) => return vec![x],
-                        Expr::Var(_) => return vec![x],
-                        Expr::VarDeclare(_, _) => return vec![x],
-                        Expr::VarAssign(_, _) => return vec![x],
-                        Expr::Condition(_, _, _, _) => return vec![x],
-                        Expr::ElseIfBlock(_, _) => return vec![x],
-                        Expr::WhileBlock(_, _) => return vec![x],
-                        Expr::FunctionCall(_, _) => return vec![x],
-                        Expr::LPAREN => return vec![x],
-                        Expr::RPAREN => return vec![x],
-                        // _ => todo!("{x:?}")
-                    };
+                        Expr::String(_) => vec![x],
+                        Expr::Var(_) => vec![x],
+                        Expr::VarDeclare(_, _) => vec![x],
+                        Expr::VarAssign(_, _) => vec![x],
+                        Expr::Condition(_, _, _, _) => vec![x],
+                        Expr::ElseIfBlock(_, _) => vec![x],
+                        Expr::WhileBlock(_, _) => vec![x],
+                        Expr::FunctionCall(_, _) => vec![x],
+                        Expr::LPAREN => vec![x],
+                        Expr::RPAREN => vec![x],
+                    }
                 }
                 fn process_op(
                     op: Expr,
