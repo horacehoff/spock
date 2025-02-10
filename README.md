@@ -103,9 +103,10 @@ func demo() {
 print("Hello World!");
 }
 ```
-- `main.compute`:
+
+- `main.spock`:
 ```
-import otherfile // if the imported file is in a folder, write '<path>/otherfile'
+import path/to/otherfile.spock;
 
 func main() {
 demo();
