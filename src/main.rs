@@ -368,10 +368,7 @@ fn get_precedence(operator: Expr) -> u8 {
 
 fn is_left_associative(operator: Expr) -> bool {
     if let Expr::Opcode(op) = operator {
-        match op {
-            Opcode::Pow => false,
-            _ => true,
-        }
+        !matches!(op, Opcode::Pow)
     } else {
         unreachable!()
     }
@@ -439,7 +436,7 @@ fn get_tgt_id(x: Instr) -> u16 {
     }
 }
 
-fn move_to_id(x: &mut Vec<Instr>, tgt_id: u16) {
+fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     if x.is_empty() {
         return;
     }
@@ -485,7 +482,7 @@ macro_rules! handle_ops {
     };
 }
 
-fn get_id(x: Expr, variables: &mut Vec<(String, u16)>, consts: &mut Vec<Data>) -> (u16, bool) {
+fn get_id(x: Expr, variables: &mut [(String, u16)], consts: &mut Vec<Data>) -> (u16, bool) {
     match x {
         Expr::Num(num) => {
             consts.push(Data::Number(num));
