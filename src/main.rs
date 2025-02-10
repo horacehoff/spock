@@ -49,13 +49,13 @@ pub enum Instr {
 macro_rules! error {
     ($x: expr) => {
         eprintln!(
-            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{}\n--------------", $x
+            "--------------\n\u{001b}[31mSPOCK ERROR:\u{001b}[0m\n{}\n--------------", $x
         );
         std::process::exit(1);
     };
     ($x: expr, $y: expr) => {
         eprintln!(
-            "--------------\n\u{001b}[31mCOMPUTE ERROR:\u{001b}[0m\n{}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{}\n--------------", $x, $y
+            "--------------\n\u{001b}[31mSPOCK ERROR:\u{001b}[0m\n{}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{}\n--------------", $x, $y
         );
         std::process::exit(1);
     }
@@ -725,7 +725,7 @@ fn main() {
     let now = Instant::now();
 
     print!("READ FILE");
-    let contents = fs::read_to_string("test.compute").unwrap();
+    let contents = fs::read_to_string("test.spock").unwrap();
     print!("PARSE");
     let parsed = grammar::CodeParser::new().parse(&contents).unwrap();
     print!("{parsed:?}");
