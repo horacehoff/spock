@@ -45,7 +45,6 @@ pub enum Instr {
     BoolAnd(u16, u16, u16),
     BoolOr(u16, u16, u16),
 
-
     // Funcs
     Abs(u16, u16),
 }
@@ -296,7 +295,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let elem = consts[target as usize];
                 println!("PRINTING => {elem:?}");
             }
-            Instr::Abs(tgt,dest) => {
+            Instr::Abs(tgt, dest) => {
                 if let Data::Number(x) = consts[tgt as usize] {
                     consts[dest as usize] = Data::Number(x.abs());
                 }
@@ -494,32 +493,32 @@ macro_rules! handle_ops {
     };
 }
 
-fn get_id(x: Expr, variables: &mut Vec<(String, u16)>, consts: &mut Vec<Data>) -> (u16, bool) {
+fn get_id(x: Expr, variables: &mut Vec<(String, u16)>, consts: &mut Vec<Data>) -> u16 {
     // println!("")
     match x {
         Expr::Num(num) => {
             consts.push(Data::Number(num));
-            ((consts.len() - 1) as u16, false)
+            (consts.len() - 1) as u16
         }
         Expr::String(str) => {
             consts.push(Data::String(Intern::from(str)));
-            ((consts.len() - 1) as u16, false)
+            (consts.len() - 1) as u16
         }
         Expr::Bool(bool) => {
             consts.push(Data::Bool(bool));
-            ((consts.len() - 1) as u16, false)
+            (consts.len() - 1) as u16
         }
         Expr::Var(name) => {
             if let Some((_, id)) = variables.iter().find(|(x, _)| &name == x) {
-                (*id, true)
+                *id
             } else {
                 error!(format_args!("Unknown variable {}", name.red()));
             }
         }
         _ => {
             let out = parser_to_instr_set(vec![x], variables, consts);
-            (get_tgt_id(*out.last().unwrap()), false)
-        },
+            get_tgt_id(*out.last().unwrap())
+        }
     }
 }
 
@@ -530,12 +529,11 @@ macro_rules! print {
     }
 }
 
-
 fn returns_bool(instruction: Instr) -> bool {
     match instruction {
         Instr::Null => false,
         Instr::Print(_) => false,
-        Instr::Abs(_,_) => false,
+        Instr::Abs(_, _) => false,
         Instr::Jmp(_, _) => false,
         Instr::Cmp(_, _) => false,
         Instr::Mov(_, _) => false,
@@ -656,8 +654,11 @@ fn parser_to_instr_set(
             Expr::FunctionCall(x, args) => match x.as_str() {
                 "print" => {
                     for arg in args {
-                        if matches!(arg, Expr::Num(_) | Expr::String(_) | Expr::Bool(_) | Expr::Var(_)) {
-                            let (id, _) = get_id(arg, variables, consts);
+                        if matches!(
+                            arg,
+                            Expr::Num(_) | Expr::String(_) | Expr::Bool(_) | Expr::Var(_)
+                        ) {
+                            let id = get_id(arg, variables, consts);
                             output.push(Instr::Print(id));
                         } else {
                             let condition = parser_to_instr_set(vec![arg], variables, consts);
@@ -665,7 +666,6 @@ fn parser_to_instr_set(
                             output.extend(condition);
                             output.push(Instr::Print(last))
                         }
-                        
                     }
                 }
                 "abs" => {
@@ -674,7 +674,7 @@ fn parser_to_instr_set(
                     }
 
                     let arg = args.first().unwrap();
-                    let (id, _) = get_id(arg.clone(), variables, consts);
+                    let id = get_id(arg.clone(), variables, consts);
                     output.push(Instr::Abs(id, id));
                 }
                 unknown => {
@@ -733,7 +733,7 @@ fn parser_to_instr_set(
                             let old_id = get_tgt_id(*final_stack.last().unwrap());
                             let new = item_stack.pop().unwrap();
 
-                            let (new_v, _) = get_id(new, variables, consts);
+                            let new_v = get_id(new, variables, consts);
                             consts.push(Data::Null);
                             let x = old_id;
                             let y = new_v;
@@ -743,8 +743,8 @@ fn parser_to_instr_set(
                             let last = item_stack.pop().unwrap();
                             let first = item_stack.pop().unwrap();
 
-                            let (first_v, _) = get_id(first, variables, consts);
-                            let (second_v, _) = get_id(last, variables, consts);
+                            let first_v = get_id(first, variables, consts);
+                            let second_v = get_id(last, variables, consts);
                             let x = first_v;
                             let y = second_v;
                             consts.push(Data::Null);
