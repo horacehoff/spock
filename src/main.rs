@@ -656,9 +656,16 @@ fn parser_to_instr_set(
             Expr::FunctionCall(x, args) => match x.as_str() {
                 "print" => {
                     for arg in args {
-                        println!("{arg:?}");
-                        let (id, _) = get_id(arg, variables, consts);
-                        output.push(Instr::Print(id));
+                        if matches!(arg, Expr::Num(_) | Expr::String(_) | Expr::Bool(_) | Expr::Var(_)) {
+                            let (id, _) = get_id(arg, variables, consts);
+                            output.push(Instr::Print(id));
+                        } else {
+                            let condition = parser_to_instr_set(vec![arg], variables, consts);
+                            let last = get_tgt_id(*condition.last().unwrap());
+                            output.extend(condition);
+                            output.push(Instr::Print(last))
+                        }
+                        
                     }
                 }
                 "abs" => {
