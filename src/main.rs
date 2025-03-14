@@ -44,6 +44,10 @@ pub enum Instr {
     InfEq(u16, u16, u16),
     BoolAnd(u16, u16, u16),
     BoolOr(u16, u16, u16),
+
+
+    // Funcs
+    Abs(u16),
 }
 
 macro_rules! error {
@@ -292,6 +296,11 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let elem = consts[target as usize];
                 println!("PRINTING => {elem:?}");
             }
+            Instr::Abs(tgt) => {
+                if let Data::Number(x) = consts[tgt as usize] {
+                    consts[tgt as usize] = Data::Number(x.abs());
+                }
+            }
             Instr::Null => {
                 error!("NULL INSTRUCTION");
             }
@@ -440,6 +449,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     if x.is_empty() {
         return;
     }
+    println!("{x:?}");
     match x.last_mut().unwrap() {
         Instr::Mov(_, z) => *z = tgt_id,
         Instr::Add(_, _, z) => *z = tgt_id,
@@ -519,6 +529,7 @@ fn returns_bool(instruction: Instr) -> bool {
     match instruction {
         Instr::Null => false,
         Instr::Print(_) => false,
+        Instr::Abs(_) => false,
         Instr::Jmp(_, _) => false,
         Instr::Cmp(_, _) => false,
         Instr::Mov(_, _) => false,
@@ -563,6 +574,7 @@ fn parser_to_instr_set(
                 output.push(Instr::Cmp(condition_id, len as u16));
                 output.extend(cond_code);
 
+                print!("{consts:?}");
                 print!("CONDITION IS {condition_id:?}");
                 // TODO
             }
@@ -609,7 +621,9 @@ fn parser_to_instr_set(
                 let id = variables
                     .iter()
                     .find(|(w, _)| w == &x)
-                    .unwrap_or_else(|| panic!("Unknown variable {x}"))
+                    .unwrap_or_else(|| {
+                        error!("Unknown variable {x}");
+                    })
                     .1;
                 let val = *y;
                 if let Expr::Num(data) = val {
@@ -639,6 +653,18 @@ fn parser_to_instr_set(
                         let (id, _) = get_id(arg, variables, consts);
                         output.push(Instr::Print(id));
                     }
+                }
+                "abs" => {
+                    if args.len() > 1 {
+                        error!("Function 'abs' only expects one argument");
+                    }
+
+                    let arg = args.first().unwrap();
+                    let (id, _) = get_id(arg.clone(), variables, consts);
+                    output.push(Instr::Abs(id));
+
+
+                    println!("{args:?}")
                 }
                 unknown => {
                     error!(format_args!("Unknown function {}", unknown.red()));
