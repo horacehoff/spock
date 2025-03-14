@@ -514,6 +514,31 @@ macro_rules! print {
     }
 }
 
+
+fn returns_bool(instruction: Instr) -> bool {
+    match instruction {
+        Instr::Null => false,
+        Instr::Print(_) => false,
+        Instr::Jmp(_, _) => false,
+        Instr::Cmp(_, _) => false,
+        Instr::Mov(_, _) => false,
+        Instr::Add(_, _, _) => false,
+        Instr::Mul(_, _, _) => false,
+        Instr::Sub(_, _, _) => false,
+        Instr::Div(_, _, _) => false,
+        Instr::Mod(_, _, _) => false,
+        Instr::Pow(_, _, _) => false,
+        Instr::Eq(_, _, _) => true,
+        Instr::NotEq(_, _, _) => true,
+        Instr::Sup(_, _, _) => true,
+        Instr::SupEq(_, _, _) => true,
+        Instr::Inf(_, _, _) => true,
+        Instr::InfEq(_, _, _) => true,
+        Instr::BoolAnd(_, _, _) => true,
+        Instr::BoolOr(_, _, _) => true,
+    }
+}
+
 fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
@@ -526,7 +551,10 @@ fn parser_to_instr_set(
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
             Expr::Condition(x, y, z, w) => {
-                let condition = parser_to_instr_set(vec![*x], variables, consts);
+                let condition = parser_to_instr_set(vec![*x.clone()], variables, consts);
+                if !returns_bool(*condition.last().unwrap()) {
+                    error!(format_args!("{:?} is not a bool", *x));
+                }
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
                 let mut priv_vars = variables.clone();
