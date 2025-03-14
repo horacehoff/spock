@@ -441,6 +441,7 @@ fn get_tgt_id(x: Instr) -> u16 {
         Instr::InfEq(_, _, y) => y,
         Instr::BoolAnd(_, _, y) => y,
         Instr::BoolOr(_, _, y) => y,
+        Instr::Abs(_, y) => y,
         _ => unreachable!(),
     }
 }
@@ -449,7 +450,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     if x.is_empty() {
         return;
     }
-    println!("{x:?}");
+    print!("MOVING TO ID => {x:?}");
     match x.last_mut().unwrap() {
         Instr::Mov(_, z) => *z = tgt_id,
         Instr::Add(_, _, z) => *z = tgt_id,
@@ -493,7 +494,8 @@ macro_rules! handle_ops {
     };
 }
 
-fn get_id(x: Expr, variables: &mut [(String, u16)], consts: &mut Vec<Data>) -> (u16, bool) {
+fn get_id(x: Expr, variables: &mut Vec<(String, u16)>, consts: &mut Vec<Data>) -> (u16, bool) {
+    // println!("")
     match x {
         Expr::Num(num) => {
             consts.push(Data::Number(num));
@@ -514,7 +516,10 @@ fn get_id(x: Expr, variables: &mut [(String, u16)], consts: &mut Vec<Data>) -> (
                 error!(format_args!("Unknown variable {}", name.red()));
             }
         }
-        _ => todo!(""),
+        _ => {
+            let out = parser_to_instr_set(vec![x], variables, consts);
+            (get_tgt_id(*out.last().unwrap()), false)
+        },
     }
 }
 
@@ -651,6 +656,7 @@ fn parser_to_instr_set(
             Expr::FunctionCall(x, args) => match x.as_str() {
                 "print" => {
                     for arg in args {
+                        println!("{arg:?}");
                         let (id, _) = get_id(arg, variables, consts);
                         output.push(Instr::Print(id));
                     }
@@ -663,9 +669,6 @@ fn parser_to_instr_set(
                     let arg = args.first().unwrap();
                     let (id, _) = get_id(arg.clone(), variables, consts);
                     output.push(Instr::Abs(id, id));
-
-
-                    println!("{args:?}")
                 }
                 unknown => {
                     error!(format_args!("Unknown function {}", unknown.red()));
@@ -773,8 +776,8 @@ fn main() {
     let mut variables: Vec<(String, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
     let instructions = parser_to_instr_set(parsed.into_vec(), &mut variables, &mut consts);
-    println!("INSTR OUT {instructions:?}");
-    println!("CONSTS ARE {consts:?}");
+    print!("INSTR OUT {instructions:?}");
+    print!("CONSTS ARE {consts:?}");
     print!("VARS ARE {variables:?}");
     println!("Parsed in {:.2?}", now.elapsed());
 
