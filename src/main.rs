@@ -47,7 +47,7 @@ pub enum Instr {
 
 
     // Funcs
-    Abs(u16),
+    Abs(u16, u16),
 }
 
 macro_rules! error {
@@ -296,9 +296,9 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let elem = consts[target as usize];
                 println!("PRINTING => {elem:?}");
             }
-            Instr::Abs(tgt) => {
+            Instr::Abs(tgt,dest) => {
                 if let Data::Number(x) = consts[tgt as usize] {
-                    consts[tgt as usize] = Data::Number(x.abs());
+                    consts[dest as usize] = Data::Number(x.abs());
                 }
             }
             Instr::Null => {
@@ -466,6 +466,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         Instr::InfEq(_, _, z) => *z = tgt_id,
         Instr::BoolAnd(_, _, z) => *z = tgt_id,
         Instr::BoolOr(_, _, z) => *z = tgt_id,
+        Instr::Abs(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
 }
@@ -529,7 +530,7 @@ fn returns_bool(instruction: Instr) -> bool {
     match instruction {
         Instr::Null => false,
         Instr::Print(_) => false,
-        Instr::Abs(_) => false,
+        Instr::Abs(_,_) => false,
         Instr::Jmp(_, _) => false,
         Instr::Cmp(_, _) => false,
         Instr::Mov(_, _) => false,
@@ -661,7 +662,7 @@ fn parser_to_instr_set(
 
                     let arg = args.first().unwrap();
                     let (id, _) = get_id(arg.clone(), variables, consts);
-                    output.push(Instr::Abs(id));
+                    output.push(Instr::Abs(id, id));
 
 
                     println!("{args:?}")
