@@ -2,7 +2,7 @@ let count = 0;
 let limit = 1000000;
 let result = 1;
 print("yo eh oh!");
-print(30+abs(-50));
+print(30+abs(abs(-20)-58));
 while count < limit {
     result = result * 2;
     if result > 1000000 {
