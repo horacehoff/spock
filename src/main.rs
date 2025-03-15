@@ -362,12 +362,23 @@ pub enum Expr {
     RPAREN,
 }
 
+macro_rules! format_lines {
+    ($line: expr) => {
+        if format!("{}", $line).chars().last().unwrap() != '}' {
+            format!("{};\n", $line)
+        } else {
+            format!("{}\n", $line)
+        }
+    }
+}
+
 impl std::fmt::Display for Expr {
+
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Expr::Num(x) => write!(f, "{x}"),
             Expr::Bool(x) => write!(f, "{x}"),
-            Expr::String(x) => write!(f, "{x}"),
+            Expr::String(x) => write!(f, "\"{x}\""),
             Expr::Var(x) => write!(f, "{}", x),
             Expr::Opcode(x) => write!(f, "{}", x),
             Expr::Op(x, y) => {
@@ -386,7 +397,7 @@ impl std::fmt::Display for Expr {
                     f,
                     "if {x} {{\n{}}}",
                     y.iter()
-                        .map(|x| format!("{x};\n"))
+                        .map(|x| format_lines!(x))
                         .collect::<Vec<String>>()
                         .join("")
                 )
@@ -396,7 +407,7 @@ impl std::fmt::Display for Expr {
                     f,
                     "while {x} {{\n{}}}",
                     y.iter()
-                        .map(|x| format!("{x};\n"))
+                        .map(|x| format_lines!(x))
                         .collect::<Vec<String>>()
                         .join("")
                 )
@@ -406,6 +417,9 @@ impl std::fmt::Display for Expr {
             }
             Expr::VarDeclare(x, y) => {
                 write!(f, "let {x} = {y}")
+            }
+            Expr::FunctionCall(x, y) => {
+                write!(f, "{x}({})", y.iter().map(|w| format!("{w}")).collect::<Vec<String>>().join(","))
             }
             _ => write!(f, "{self:?}"),
         }
@@ -655,7 +669,6 @@ fn parser_to_instr_set(
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
-        println!("{x}");
         match x {
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
@@ -779,7 +792,6 @@ fn parser_to_instr_set(
                             format_args!("Replace with 'abs({})'", args.first().unwrap())
                         );
                     }
-
                     let arg = args.first().unwrap();
                     let id = get_id(arg.clone(), variables, consts, &mut output);
                     output.push(Instr::Abs(id, id));
