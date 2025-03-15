@@ -732,6 +732,7 @@ fn parser_to_instr_set(
                         output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
                     } else {
                         error!(
+                            ctx,
                             format_args!("Unknown variable {}", name.red()),
                             format_args!("Add 'let {name} = 0;'")
                         );
@@ -751,6 +752,7 @@ fn parser_to_instr_set(
                     .find(|(w, _)| w == &x)
                     .unwrap_or_else(|| {
                         error!(
+                            ctx,
                             format_args!("Unknown variable {x}"),
                             format_args!("Add 'let {x} = 0;'")
                         );
@@ -771,6 +773,7 @@ fn parser_to_instr_set(
                         output.push(Instr::Mov(*var_id, id));
                     } else {
                         error!(
+                            ctx,
                             format_args!("Unknown variable {}", name.red()),
                             format_args!("Add 'let {name} = 0;'")
                         );
@@ -801,6 +804,7 @@ fn parser_to_instr_set(
                 "abs" => {
                     if args.len() > 1 {
                         error!(
+                            ctx,
                             "Function 'abs' only expects one argument",
                             format_args!("Replace with 'abs({})'", args.first().unwrap())
                         );
