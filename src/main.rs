@@ -376,23 +376,15 @@ pub enum Opcode {
 
 lalrpop_mod!(pub grammar);
 
-fn get_precedence(operator: Expr) -> u8 {
+fn get_precedence(operator: &Expr) -> u8 {
     if let Expr::Opcode(op) = operator {
         match op {
             Opcode::BoolOr => 1,
             Opcode::BoolAnd => 2,
-            Opcode::Eq => 3,
-            Opcode::NotEq => 3,
-            Opcode::Inf => 4,
-            Opcode::InfEq => 4,
-            Opcode::Sup => 4,
-            Opcode::SupEq => 4,
-            Opcode::Add => 5,
-            Opcode::Sub => 5,
-            Opcode::Neg => 5,
-            Opcode::Mul => 6,
-            Opcode::Div => 6,
-            Opcode::Mod => 6,
+            Opcode::Eq | Opcode::NotEq => 3,
+            Opcode::Inf | Opcode::InfEq | Opcode::Sup | Opcode::SupEq => 4,
+            Opcode::Add | Opcode::Sub | Opcode::Neg => 5,
+            Opcode::Mul | Opcode::Div | Opcode::Mod => 6,
             Opcode::Pow => 7,
             Opcode::Null => unreachable!(),
         }
@@ -401,7 +393,7 @@ fn get_precedence(operator: Expr) -> u8 {
     }
 }
 
-fn is_left_associative(operator: Expr) -> bool {
+fn is_left_associative(operator: &Expr) -> bool {
     if let Expr::Opcode(op) = operator {
         !matches!(op, Opcode::Pow)
     } else {
@@ -420,10 +412,9 @@ pub fn op_to_rpn(operation_input: Vec<Expr>) -> Vec<Expr> {
             // operator
             while !op_stack.is_empty()
                 && op_stack.last().unwrap() != &Expr::LPAREN
-                && (get_precedence(op_stack.last().unwrap().clone()) > get_precedence(x.clone())
-                    || (get_precedence(op_stack.last().unwrap().clone())
-                        == get_precedence(x.clone())
-                        && is_left_associative(x.clone())))
+                && (get_precedence(op_stack.last().unwrap()) > get_precedence(&x)
+                    || (get_precedence(op_stack.last().unwrap()) == get_precedence(&x)
+                        && is_left_associative(&x)))
             {
                 return_vector.push(op_stack.pop().unwrap());
             }
@@ -452,23 +443,23 @@ pub fn op_to_rpn(operation_input: Vec<Expr>) -> Vec<Expr> {
 
 fn get_tgt_id(x: Instr) -> u16 {
     match x {
-        Instr::Mov(_, y) => y,
-        Instr::Add(_, _, y) => y,
-        Instr::Mul(_, _, y) => y,
-        Instr::Sub(_, _, y) => y,
-        Instr::Div(_, _, y) => y,
-        Instr::Mod(_, _, y) => y,
-        Instr::Pow(_, _, y) => y,
-        Instr::Eq(_, _, y) => y,
-        Instr::NotEq(_, _, y) => y,
-        Instr::Sup(_, _, y) => y,
-        Instr::SupEq(_, _, y) => y,
-        Instr::Inf(_, _, y) => y,
-        Instr::InfEq(_, _, y) => y,
-        Instr::BoolAnd(_, _, y) => y,
-        Instr::BoolOr(_, _, y) => y,
-        Instr::Neg(_, y) => y,
-        Instr::Abs(_, y) => y,
+        Instr::Mov(_, y)
+        | Instr::Add(_, _, y)
+        | Instr::Mul(_, _, y)
+        | Instr::Sub(_, _, y)
+        | Instr::Div(_, _, y)
+        | Instr::Mod(_, _, y)
+        | Instr::Pow(_, _, y)
+        | Instr::Eq(_, _, y)
+        | Instr::NotEq(_, _, y)
+        | Instr::Sup(_, _, y)
+        | Instr::SupEq(_, _, y)
+        | Instr::Inf(_, _, y)
+        | Instr::InfEq(_, _, y)
+        | Instr::BoolAnd(_, _, y)
+        | Instr::BoolOr(_, _, y)
+        | Instr::Neg(_, y)
+        | Instr::Abs(_, y) => y,
         _ => unreachable!(),
     }
 }
@@ -479,7 +470,6 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     }
     print!("MOVING TO ID => {x:?}");
     match x.last_mut().unwrap() {
-        Instr::Mov(_, z) | Instr::Neg(_, z) | Instr::Abs(_, z) => *z = tgt_id,
         Instr::Add(_, _, z)
         | Instr::Mul(_, _, z)
         | Instr::Sub(_, _, z)
@@ -493,7 +483,10 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Inf(_, _, z)
         | Instr::InfEq(_, _, z)
         | Instr::BoolAnd(_, _, z)
-        | Instr::BoolOr(_, _, z) => *z = tgt_id,
+        | Instr::BoolOr(_, _, z)
+        | Instr::Mov(_, z)
+        | Instr::Neg(_, z)
+        | Instr::Abs(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
 }
