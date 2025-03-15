@@ -50,7 +50,7 @@ Operation: Expr = {
     if let Expr::Num(x) = *t {
         return Expr::Num(-x);
     }
-        return Expr::Op(t, Box::from(vec![(Opcode::Mul, Box::from(Expr::Num(-1.0)))]));
+        return Expr::Op(Box::from(Expr::Num(0.0)), Box::from(vec![(Opcode::Neg, t)]));
     },
     <o1: Term> <o3: (<Op> <Term>)+> => {
         Expr::Op(o1, o3.into_boxed_slice())

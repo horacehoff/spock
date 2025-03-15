@@ -4,7 +4,23 @@ use internment::Intern;
 use lalrpop_util::lalrpop_mod;
 use std::cmp::PartialEq;
 use std::fs;
+use std::ops::Neg;
 use std::time::Instant;
+
+macro_rules! error {
+    ($x: expr) => {
+        eprintln!(
+            "--------------\n\u{001b}[31mSPOCK ERROR:\u{001b}[0m\n{}\n--------------", $x
+        );
+        std::process::exit(1);
+    };
+    ($x: expr, $y: expr) => {
+        eprintln!(
+            "--------------\n\u{001b}[31mSPOCK ERROR:\u{001b}[0m\n{}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{}\n--------------", $x, $y
+        );
+        std::process::exit(1);
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
@@ -13,6 +29,25 @@ pub enum Data {
     Bool(bool),
     String(Intern<String>),
     Null,
+}
+
+impl Neg for Data {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            Data::Number(x) => Data::Number(-x),
+            Data::Bool(_) => {
+                error!("Cannot reverse booleans");
+            }
+            Data::String(_) => {
+                error!("Cannot reverse strings");
+            }
+            Data::Null => {
+                error!("Tried to reverse null");
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -44,24 +79,10 @@ pub enum Instr {
     InfEq(u16, u16, u16),
     BoolAnd(u16, u16, u16),
     BoolOr(u16, u16, u16),
+    Neg(u16, u16),
 
     // Funcs
     Abs(u16, u16),
-}
-
-macro_rules! error {
-    ($x: expr) => {
-        eprintln!(
-            "--------------\n\u{001b}[31mSPOCK ERROR:\u{001b}[0m\n{}\n--------------", $x
-        );
-        std::process::exit(1);
-    };
-    ($x: expr, $y: expr) => {
-        eprintln!(
-            "--------------\n\u{001b}[31mSPOCK ERROR:\u{001b}[0m\n{}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{}\n--------------", $x, $y
-        );
-        std::process::exit(1);
-    }
 }
 
 fn execute(instructions: &[Instr], consts: &mut [Data]) {
@@ -291,6 +312,9 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
             Instr::Mov(tgt, dest) => {
                 consts[dest as usize] = consts[tgt as usize];
             }
+            Instr::Neg(tgt, dest) => {
+                consts[dest as usize] = -consts[tgt as usize];
+            }
             Instr::Print(target) => {
                 let elem = consts[target as usize];
                 println!("PRINTING => {elem:?}");
@@ -347,6 +371,7 @@ pub enum Opcode {
     InfEq,
     BoolAnd,
     BoolOr,
+    Neg,
 }
 
 lalrpop_mod!(pub grammar);
@@ -364,6 +389,7 @@ fn get_precedence(operator: Expr) -> u8 {
             Opcode::SupEq => 4,
             Opcode::Add => 5,
             Opcode::Sub => 5,
+            Opcode::Neg => 5,
             Opcode::Mul => 6,
             Opcode::Div => 6,
             Opcode::Mod => 6,
@@ -441,6 +467,7 @@ fn get_tgt_id(x: Instr) -> u16 {
         Instr::InfEq(_, _, y) => y,
         Instr::BoolAnd(_, _, y) => y,
         Instr::BoolOr(_, _, y) => y,
+        Instr::Neg(_, y) => y,
         Instr::Abs(_, y) => y,
         _ => unreachable!(),
     }
@@ -467,13 +494,14 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         Instr::InfEq(_, _, z) => *z = tgt_id,
         Instr::BoolAnd(_, _, z) => *z = tgt_id,
         Instr::BoolOr(_, _, z) => *z = tgt_id,
+        Instr::Neg(_, z) => *z = tgt_id,
         Instr::Abs(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
 }
 
 macro_rules! handle_ops {
-    ($final_stack: expr, $x: expr, $y: expr, $z: expr, $op: expr) => {
+    ($final_stack: expr, $x: expr, $y: expr, $z: expr, $op: expr, $consts: expr) => {
         match $op {
             Opcode::Mul => $final_stack.push(Instr::Mul($x, $y, $z)),
             Opcode::Div => $final_stack.push(Instr::Div($x, $y, $z)),
@@ -489,6 +517,7 @@ macro_rules! handle_ops {
             Opcode::InfEq => $final_stack.push(Instr::InfEq($x, $y, $z)),
             Opcode::BoolAnd => $final_stack.push(Instr::BoolAnd($x, $y, $z)),
             Opcode::BoolOr => $final_stack.push(Instr::BoolOr($x, $y, $z)),
+            Opcode::Neg => $final_stack.push(Instr::Neg($y, $z)),
             Opcode::Null => unreachable!(),
         }
     };
@@ -558,6 +587,7 @@ fn returns_bool(instruction: Instr) -> bool {
         Instr::InfEq(_, _, _) => true,
         Instr::BoolAnd(_, _, _) => true,
         Instr::BoolOr(_, _, _) => true,
+        Instr::Neg(_, _) => false,
     }
 }
 
@@ -745,7 +775,8 @@ fn parser_to_instr_set(
                             let x = old_id;
                             let y = new_v;
                             let z = consts.len() - 1;
-                            handle_ops!(final_stack, x, y, z as u16, op)
+                            println!("{consts:?}");
+                            handle_ops!(final_stack, x, y, z as u16, op, consts)
                         } else {
                             let last = item_stack.pop().unwrap();
                             let first = item_stack.pop().unwrap();
@@ -756,7 +787,8 @@ fn parser_to_instr_set(
                             let y = second_v;
                             consts.push(Data::Null);
                             let z = consts.len() - 1;
-                            handle_ops!(final_stack, x, y, z as u16, op);
+                            println!("{consts:?}");
+                            handle_ops!(final_stack, x, y, z as u16, op, consts);
                         }
                     } else {
                         item_stack.push(x);
