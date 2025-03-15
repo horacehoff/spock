@@ -479,23 +479,21 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     }
     print!("MOVING TO ID => {x:?}");
     match x.last_mut().unwrap() {
-        Instr::Mov(_, z) => *z = tgt_id,
-        Instr::Add(_, _, z) => *z = tgt_id,
-        Instr::Mul(_, _, z) => *z = tgt_id,
-        Instr::Sub(_, _, z) => *z = tgt_id,
-        Instr::Div(_, _, z) => *z = tgt_id,
-        Instr::Mod(_, _, z) => *z = tgt_id,
-        Instr::Pow(_, _, z) => *z = tgt_id,
-        Instr::Eq(_, _, z) => *z = tgt_id,
-        Instr::NotEq(_, _, z) => *z = tgt_id,
-        Instr::Sup(_, _, z) => *z = tgt_id,
-        Instr::SupEq(_, _, z) => *z = tgt_id,
-        Instr::Inf(_, _, z) => *z = tgt_id,
-        Instr::InfEq(_, _, z) => *z = tgt_id,
-        Instr::BoolAnd(_, _, z) => *z = tgt_id,
-        Instr::BoolOr(_, _, z) => *z = tgt_id,
-        Instr::Neg(_, z) => *z = tgt_id,
-        Instr::Abs(_, z) => *z = tgt_id,
+        Instr::Mov(_, z) | Instr::Neg(_, z) | Instr::Abs(_, z) => *z = tgt_id,
+        Instr::Add(_, _, z)
+        | Instr::Mul(_, _, z)
+        | Instr::Sub(_, _, z)
+        | Instr::Div(_, _, z)
+        | Instr::Mod(_, _, z)
+        | Instr::Pow(_, _, z)
+        | Instr::Eq(_, _, z)
+        | Instr::NotEq(_, _, z)
+        | Instr::Sup(_, _, z)
+        | Instr::SupEq(_, _, z)
+        | Instr::Inf(_, _, z)
+        | Instr::InfEq(_, _, z)
+        | Instr::BoolAnd(_, _, z)
+        | Instr::BoolOr(_, _, z) => *z = tgt_id,
         _ => unreachable!(),
     }
 }
@@ -566,17 +564,17 @@ macro_rules! print {
 }
 
 fn returns_bool(instruction: Instr) -> bool {
-    match instruction {
-        Instr::Eq(_, _, _) => true,
-        Instr::NotEq(_, _, _) => true,
-        Instr::Sup(_, _, _) => true,
-        Instr::SupEq(_, _, _) => true,
-        Instr::Inf(_, _, _) => true,
-        Instr::InfEq(_, _, _) => true,
-        Instr::BoolAnd(_, _, _) => true,
-        Instr::BoolOr(_, _, _) => true,
-        _ => false,
-    }
+    matches!(
+        instruction,
+        Instr::Eq(_, _, _)
+            | Instr::NotEq(_, _, _)
+            | Instr::Sup(_, _, _)
+            | Instr::SupEq(_, _, _)
+            | Instr::Inf(_, _, _)
+            | Instr::InfEq(_, _, _)
+            | Instr::BoolOr(_, _, _)
+            | Instr::BoolAnd(_, _, _)
+    )
 }
 
 fn parser_to_instr_set(
@@ -776,7 +774,7 @@ fn parser_to_instr_set(
                             let y = new_v;
                             let z = consts.len() - 1;
                             println!("{consts:?}");
-                            handle_ops!(final_stack, x, y, z as u16, op, consts)
+                            handle_ops!(final_stack, x, y, z as u16, op, consts);
                         }
                     } else {
                         item_stack.push(x);
