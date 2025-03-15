@@ -46,6 +46,12 @@ Expression: Expr = {
 }
 
 Operation: Expr = {
+    "-" <t: Term> => {
+    if let Expr::Num(x) = *t {
+        return Expr::Num(-x);
+    }
+        return Expr::Op(t, Box::from(vec![(Opcode::Mul, Box::from(Expr::Num(-1.0)))]));
+    },
     <o1: Term> <o3: (<Op> <Term>)+> => {
         Expr::Op(o1, o3.into_boxed_slice())
     }
@@ -74,7 +80,7 @@ FunctionCall: Expr = {
 }
 
 Num: f64 = {
-    <n: r"[-|\+]?([0-9]*[.])?[0-9]+"> => f64::from_str(n).unwrap()
+    <n: r"([0-9]*[.])?[0-9]+"> => f64::from_str(n).unwrap()
 };
 
 Bool: bool = {

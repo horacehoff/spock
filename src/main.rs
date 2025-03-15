@@ -310,6 +310,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
+    Null,
     Num(f64),
     Bool(bool),
     Op(Box<Expr>, Box<[(Opcode, Box<Expr>)]>),
@@ -763,7 +764,8 @@ fn parser_to_instr_set(
                 }
                 output.extend(final_stack);
             }
-            _ => {
+            other => {
+                println!("{other:?}");
                 error!("Not implemented");
             }
         }
