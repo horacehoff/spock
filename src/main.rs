@@ -3,6 +3,7 @@ use concat_string::concat_string;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
 use std::cmp::PartialEq;
+use std::fmt::Formatter;
 use std::fs;
 use std::ops::Neg;
 use std::time::Instant;
@@ -19,6 +20,13 @@ macro_rules! error {
             "--------------\n\u{001b}[31mSPOCK ERROR:\u{001b}[0m\n{}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{}\n--------------", $x, $y
         );
         std::process::exit(1);
+    }
+}
+
+macro_rules! print {
+    ($($x:tt)*) => {
+        #[cfg(debug_assertions)]
+        println!("\x1b[33m[LOG] {}\x1b[0m", format!($($x)*))
     }
 }
 
@@ -354,6 +362,81 @@ pub enum Expr {
     RPAREN,
 }
 
+impl std::fmt::Display for Expr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expr::Num(x) => write!(f, "{x}"),
+            Expr::Bool(x) => write!(f, "{x}"),
+            Expr::String(x) => write!(f, "{x}"),
+            Expr::Var(x) => write!(f, "{}", x),
+            Expr::Opcode(x) => write!(f, "{}", x),
+            Expr::Op(x, y) => {
+                write!(
+                    f,
+                    "{} {}",
+                    x,
+                    y.iter()
+                        .map(|w| format!("{} {}", w.0, w.1))
+                        .collect::<Vec<String>>()
+                        .join(" ")
+                )
+            }
+            Expr::Condition(x, y, z, w) => {
+                write!(
+                    f,
+                    "if {x} {{\n{}}}",
+                    y.iter()
+                        .map(|x| format!("{x};\n"))
+                        .collect::<Vec<String>>()
+                        .join("")
+                )
+            }
+            Expr::WhileBlock(x, y) => {
+                write!(
+                    f,
+                    "while {x} {{\n{}}}",
+                    y.iter()
+                        .map(|x| format!("{x};\n"))
+                        .collect::<Vec<String>>()
+                        .join("")
+                )
+            }
+            Expr::VarAssign(x, y) => {
+                write!(f, "{x} = {y}")
+            }
+            Expr::VarDeclare(x, y) => {
+                write!(f, "let {x} = {y}")
+            }
+            _ => write!(f, "{self:?}"),
+        }
+    }
+}
+
+impl std::fmt::Display for Opcode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            Opcode::Null => {
+                error!("Null operation");
+            }
+            Opcode::Mul => "*",
+            Opcode::Div => "/",
+            Opcode::Add => "+",
+            Opcode::Sub => "-",
+            Opcode::Mod => "%",
+            Opcode::Pow => "^",
+            Opcode::Eq => "==",
+            Opcode::NotEq => "!=",
+            Opcode::Sup => ">",
+            Opcode::SupEq => ">=",
+            Opcode::Inf => "<",
+            Opcode::InfEq => "<=",
+            Opcode::BoolAnd => "&&",
+            Opcode::BoolOr => "||",
+            Opcode::Neg => "-",
+        })
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Opcode {
     Null,
@@ -520,7 +603,6 @@ fn get_id(
     consts: &mut Vec<Data>,
     instr: &mut Vec<Instr>,
 ) -> u16 {
-    // println!("")
     match x {
         Expr::Num(num) => {
             consts.push(Data::Number(num));
@@ -538,7 +620,10 @@ fn get_id(
             if let Some((_, id)) = variables.iter().find(|(x, _)| &name == x) {
                 *id
             } else {
-                error!(format_args!("Unknown variable {}", name.red()));
+                error!(
+                    format_args!("Unknown variable {}", name.red()),
+                    format_args!("Add 'let {name} = 0;'")
+                );
             }
         }
         _ => {
@@ -546,13 +631,6 @@ fn get_id(
             instr.append(&mut out.clone());
             get_tgt_id(*out.last().unwrap())
         }
-    }
-}
-
-macro_rules! print {
-    ($($x:tt)*) => {
-        #[cfg(debug_assertions)]
-        println!("\x1b[33m[LOG] {}\x1b[0m", format!($($x)*))
     }
 }
 
@@ -577,6 +655,7 @@ fn parser_to_instr_set(
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
+        println!("{x}");
         match x {
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
@@ -626,7 +705,10 @@ fn parser_to_instr_set(
                     if let Some((_, var_id)) = variables.iter().find(|(x, _)| &name == x) {
                         output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
                     } else {
-                        error!(format_args!("Unknown variable {}", name.red()));
+                        error!(
+                            format_args!("Unknown variable {}", name.red()),
+                            format_args!("Add 'let {name} = 0;'")
+                        );
                     }
                 } else {
                     consts.push(Data::Null);
@@ -642,7 +724,10 @@ fn parser_to_instr_set(
                     .iter()
                     .find(|(w, _)| w == &x)
                     .unwrap_or_else(|| {
-                        error!("Unknown variable {x}");
+                        error!(
+                            format_args!("Unknown variable {x}"),
+                            format_args!("Add 'let {x} = 0;'")
+                        );
                     })
                     .1;
                 let val = *y;
@@ -659,7 +744,10 @@ fn parser_to_instr_set(
                     if let Some((_, var_id)) = variables.iter().find(|(x, _)| &name == x) {
                         output.push(Instr::Mov(*var_id, id));
                     } else {
-                        error!(format_args!("Unknown variable {}", name.red()));
+                        error!(
+                            format_args!("Unknown variable {}", name.red()),
+                            format_args!("Add 'let {name} = 0;'")
+                        );
                     }
                 } else {
                     let mut value = parser_to_instr_set(vec![val], variables, consts);
@@ -686,7 +774,10 @@ fn parser_to_instr_set(
                 }
                 "abs" => {
                     if args.len() > 1 {
-                        error!("Function 'abs' only expects one argument");
+                        error!(
+                            "Function 'abs' only expects one argument",
+                            format_args!("Replace with 'abs({})'", args.first().unwrap())
+                        );
                     }
 
                     let arg = args.first().unwrap();
@@ -698,6 +789,7 @@ fn parser_to_instr_set(
                 }
             },
             Expr::Op(left, right) => {
+                println!("{}", Expr::Op(left.clone(), right.clone()));
                 fn remove_priority(
                     x: Expr,
                     variables: &mut Vec<(String, u16)>,
@@ -755,7 +847,7 @@ fn parser_to_instr_set(
                             let y = second_v;
                             consts.push(Data::Null);
                             let z = consts.len() - 1;
-                            println!("{consts:?}");
+                            // println!("{consts:?}");
                             handle_ops!(final_stack, x, y, z as u16, op, consts);
                         } else {
                             let old_id = get_tgt_id(*final_stack.last().unwrap());
@@ -766,7 +858,7 @@ fn parser_to_instr_set(
                             let x = old_id;
                             let y = new_v;
                             let z = consts.len() - 1;
-                            println!("{consts:?}");
+                            // println!("{consts:?}");
                             handle_ops!(final_stack, x, y, z as u16, op, consts);
                         }
                     } else {
@@ -776,8 +868,7 @@ fn parser_to_instr_set(
                 output.extend(final_stack);
             }
             other => {
-                println!("{other:?}");
-                error!("Not implemented");
+                error!(format_args!("Not implemented {other:?}"));
             }
         }
     }
