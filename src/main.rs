@@ -704,7 +704,10 @@ fn parser_to_instr_set(
                 // TODO
             }
             Expr::WhileBlock(x, y) => {
-                let condition = parser_to_instr_set(vec![*x], variables, consts);
+                let condition = parser_to_instr_set(vec![*x.clone()], variables, consts);
+                if !returns_bool(*condition.last().unwrap()) {
+                    error!(ctx, format_args!("{} is not a bool", *x));
+                }
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
                 let mut priv_vars = variables.clone();
