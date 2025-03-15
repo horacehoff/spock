@@ -7,20 +7,30 @@ use std::fmt::Formatter;
 use std::fs;
 use std::ops::Neg;
 use std::time::Instant;
+use inline_colorization::*;
 
 macro_rules! error {
-    ($x: expr) => {
+    ($x: expr, $y: expr) => {
         eprintln!(
-            "--------------\n\u{001b}[31mSPOCK ERROR:\u{001b}[0m\n{}\n--------------", $x
+            "--------------\n{color_red}SPOCK ERROR:{color_reset}\n{color_bright_red}CONTEXT:{color_reset}\n{style_bold}{}{style_reset}\n{color_bright_red}ERROR:{color_reset}\n{}\n--------------", $x, $y
         );
         std::process::exit(1);
     };
-    ($x: expr, $y: expr) => {
+    ($x: expr, $y: expr, $z: expr) => {
         eprintln!(
-            "--------------\n\u{001b}[31mSPOCK ERROR:\u{001b}[0m\n{}\n\u{001b}[34mPOSSIBLE SOLUTION:\u{001b}[0m\n{}\n--------------", $x, $y
+            "--------------\n{color_red}SPOCK ERROR:{color_reset}\n{color_bright_red}CONTEXT:{color_reset}\n{style_bold}{}{style_reset}\n{color_bright_red}ERROR:{color_reset}\n{}\n{color_bright_red}POSSIBLE FIX:{color_reset}\n{}\n--------------", $x, $y, $z
         );
         std::process::exit(1);
     }
+}
+
+macro_rules! error_b {
+    ($x: expr) => {
+        eprintln!(
+            "--------------\n{color_red}SPOCK ERROR:{color_reset}\n{}\n--------------", $x
+        );
+        std::process::exit(1);
+    };
 }
 
 macro_rules! print {
@@ -46,13 +56,13 @@ impl Neg for Data {
         match self {
             Data::Number(x) => Data::Number(-x),
             Data::Bool(_) => {
-                error!("Cannot reverse booleans");
+                error_b!("Cannot reverse booleans");
             }
             Data::String(_) => {
-                error!("Cannot reverse strings");
+                error_b!("Cannot reverse strings");
             }
             Data::Null => {
-                error!("Tried to reverse null");
+                error_b!("Tried to reverse null");
             }
         }
     }
@@ -125,7 +135,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         consts[dest as usize] = Data::String(Intern::from(result));
                     }
                     _ => {
-                        error!(format_args!(
+                        error_b!(format_args!(
                             "UNSUPPORTED OPERATION: {:?} + {:?}",
                             first_elem, second_elem
                         ));
@@ -141,7 +151,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         consts[dest as usize] = Data::Number(parent * child);
                     }
                     _ => {
-                        error!(format_args!(
+                        error_b!(format_args!(
                             "UNSUPPORTED OPERATION: {:?} * {:?}",
                             first_elem, second_elem
                         ));
@@ -157,7 +167,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         consts[dest as usize] = Data::Number(parent / child);
                     }
                     _ => {
-                        error!(format_args!(
+                        error_b!(format_args!(
                             "UNSUPPORTED OPERATION: {:?} / {:?}",
                             first_elem, second_elem
                         ));
@@ -173,7 +183,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         consts[dest as usize] = Data::Number(parent - child);
                     }
                     _ => {
-                        error!(format_args!(
+                        error_b!(format_args!(
                             "UNSUPPORTED OPERATION: {:?} - {:?}",
                             first_elem, second_elem
                         ));
@@ -189,7 +199,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         consts[dest as usize] = Data::Number(parent % child);
                     }
                     _ => {
-                        error!(format_args!(
+                        error_b!(format_args!(
                             "UNSUPPORTED OPERATION: {:?} % {:?}",
                             first_elem, second_elem
                         ));
@@ -205,7 +215,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         consts[dest as usize] = Data::Number(parent.powf(child));
                     }
                     _ => {
-                        error!(format_args!(
+                        error_b!(format_args!(
                             "UNSUPPORTED OPERATION: {:?} ^ {:?}",
                             first_elem, second_elem
                         ));
@@ -231,7 +241,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         consts[dest as usize] = Data::Bool(parent > child);
                     }
                     _ => {
-                        error!(format_args!(
+                        error_b!(format_args!(
                             "UNSUPPORTED OPERATION: {:?} > {:?}",
                             first_elem, second_elem
                         ));
@@ -247,7 +257,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         consts[dest as usize] = Data::Bool(parent >= child);
                     }
                     _ => {
-                        error!(format_args!(
+                        error_b!(format_args!(
                             "UNSUPPORTED OPERATION: {:?} >= {:?}",
                             first_elem, second_elem
                         ));
@@ -262,7 +272,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         consts[dest as usize] = Data::Bool(parent < child);
                     }
                     _ => {
-                        error!(format_args!(
+                        error_b!(format_args!(
                             "UNSUPPORTED OPERATION: {:?} < {:?}",
                             first_elem, second_elem
                         ));
@@ -278,7 +288,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         consts[dest as usize] = Data::Bool(parent <= child);
                     }
                     _ => {
-                        error!(format_args!(
+                        error_b!(format_args!(
                             "UNSUPPORTED OPERATION: {:?} <= {:?}",
                             first_elem, second_elem
                         ));
@@ -294,7 +304,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         consts[dest as usize] = Data::Bool(parent && child);
                     }
                     _ => {
-                        error!(format_args!(
+                        error_b!(format_args!(
                             "UNSUPPORTED OPERATION: {:?} && {:?}",
                             first_elem, second_elem
                         ));
@@ -310,7 +320,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                         consts[dest as usize] = Data::Bool(parent || child)
                     }
                     _ => {
-                        error!(format_args!(
+                        error_b!(format_args!(
                             "UNSUPPORTED OPERATION: {:?} || {:?}",
                             first_elem, second_elem
                         ));
@@ -333,7 +343,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 }
             }
             Instr::Null => {
-                error!("NULL INSTRUCTION");
+                error_b!("NULL INSTRUCTION");
             }
         }
         i += 1;
@@ -430,7 +440,7 @@ impl std::fmt::Display for Opcode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", match self {
             Opcode::Null => {
-                error!("Null operation");
+                error_b!("Null operation");
             }
             Opcode::Mul => "*",
             Opcode::Div => "/",
@@ -616,6 +626,7 @@ fn get_id(
     variables: &mut Vec<(String, u16)>,
     consts: &mut Vec<Data>,
     instr: &mut Vec<Instr>,
+    line: &Expr,
 ) -> u16 {
     match x {
         Expr::Num(num) => {
@@ -631,10 +642,11 @@ fn get_id(
             (consts.len() - 1) as u16
         }
         Expr::Var(name) => {
-            if let Some((_, id)) = variables.iter().find(|(x, _)| &name == x) {
+            if let Some((_, id)) = variables.iter().find(|(var, _)| name == *var) {
                 *id
             } else {
                 error!(
+                    line,
                     format_args!("Unknown variable {}", name.red()),
                     format_args!("Add 'let {name} = 0;'")
                 );
@@ -669,6 +681,7 @@ fn parser_to_instr_set(
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
+        let ctx = x.clone();
         match x {
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
@@ -676,7 +689,7 @@ fn parser_to_instr_set(
             Expr::Condition(x, y, z, w) => {
                 let condition = parser_to_instr_set(vec![*x.clone()], variables, consts);
                 if !returns_bool(*condition.last().unwrap()) {
-                    error!(format_args!("{:?} is not a bool", *x));
+                    error!(ctx, format_args!("{} is not a bool", *x));
                 }
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
@@ -775,7 +788,7 @@ fn parser_to_instr_set(
                             arg,
                             Expr::Num(_) | Expr::String(_) | Expr::Bool(_) | Expr::Var(_)
                         ) {
-                            let id = get_id(arg, variables, consts, &mut output);
+                            let id = get_id(arg, variables, consts, &mut output, &ctx);
                             output.push(Instr::Print(id));
                         } else {
                             let condition = parser_to_instr_set(vec![arg], variables, consts);
@@ -793,11 +806,11 @@ fn parser_to_instr_set(
                         );
                     }
                     let arg = args.first().unwrap();
-                    let id = get_id(arg.clone(), variables, consts, &mut output);
+                    let id = get_id(arg.clone(), variables, consts, &mut output, &ctx);
                     output.push(Instr::Abs(id, id));
                 }
                 unknown => {
-                    error!(format_args!("Unknown function {}", unknown.red()));
+                    error!(ctx, format_args!("Unknown function {}", unknown.red()));
                 }
             },
             Expr::Op(left, right) => {
@@ -853,8 +866,8 @@ fn parser_to_instr_set(
                             let last = item_stack.pop().unwrap();
                             let first = item_stack.pop().unwrap();
 
-                            let first_v = get_id(first, variables, consts, &mut output);
-                            let second_v = get_id(last, variables, consts, &mut output);
+                            let first_v = get_id(first, variables, consts, &mut output, &ctx);
+                            let second_v = get_id(last, variables, consts, &mut output, &ctx);
                             let x = first_v;
                             let y = second_v;
                             consts.push(Data::Null);
@@ -865,7 +878,7 @@ fn parser_to_instr_set(
                             let old_id = get_tgt_id(*final_stack.last().unwrap());
                             let new = item_stack.pop().unwrap();
 
-                            let new_v = get_id(new, variables, consts, &mut output);
+                            let new_v = get_id(new, variables, consts, &mut output, &ctx);
                             consts.push(Data::Null);
                             let x = old_id;
                             let y = new_v;
@@ -880,7 +893,7 @@ fn parser_to_instr_set(
                 output.extend(final_stack);
             }
             other => {
-                error!(format_args!("Not implemented {other:?}"));
+                error!(ctx, format_args!("Not implemented {other:?}"));
             }
         }
     }

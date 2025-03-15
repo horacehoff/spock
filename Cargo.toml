@@ -8,6 +8,7 @@ internment = { version = "0.8.6" }
 colored = "3.0.0"
 concat-string = "1.0.1"
 lalrpop-util = { version = "0.22.1", features = ["lexer"] }
+inline_colorization = "0.1.6"
 
 [build-dependencies]
 lalrpop = "0.22.1"
