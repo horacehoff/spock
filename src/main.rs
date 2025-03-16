@@ -1,5 +1,6 @@
 use colored::Colorize;
 use concat_string::concat_string;
+use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
 use std::cmp::PartialEq;
@@ -7,7 +8,6 @@ use std::fmt::Formatter;
 use std::fs;
 use std::ops::Neg;
 use std::time::Instant;
-use inline_colorization::*;
 
 macro_rules! error {
     ($x: expr, $y: expr) => {
@@ -27,7 +27,8 @@ macro_rules! error {
 macro_rules! error_b {
     ($x: expr) => {
         eprintln!(
-            "--------------\n{color_red}SPOCK ERROR:{color_reset}\n{}\n--------------", $x
+            "--------------\n{color_red}SPOCK ERROR:{color_reset}\n{}\n--------------",
+            $x
         );
         std::process::exit(1);
     };
@@ -379,11 +380,10 @@ macro_rules! format_lines {
         } else {
             format!("{}\n", $line)
         }
-    }
+    };
 }
 
 impl std::fmt::Display for Expr {
-
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Expr::Num(x) => write!(f, "{x}"),
@@ -429,7 +429,14 @@ impl std::fmt::Display for Expr {
                 write!(f, "let {x} = {y}")
             }
             Expr::FunctionCall(x, y) => {
-                write!(f, "{x}({})", y.iter().map(|w| format!("{w}")).collect::<Vec<String>>().join(","))
+                write!(
+                    f,
+                    "{x}({})",
+                    y.iter()
+                        .map(|w| format!("{w}"))
+                        .collect::<Vec<String>>()
+                        .join(",")
+                )
             }
             _ => write!(f, "{self:?}"),
         }
@@ -704,6 +711,9 @@ fn parser_to_instr_set(
                 // TODO
             }
             Expr::WhileBlock(x, y) => {
+                if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
+                    error!(ctx, format_args!("{} is not a bool", *x));
+                }
                 let condition = parser_to_instr_set(vec![*x.clone()], variables, consts);
                 if !returns_bool(*condition.last().unwrap()) {
                     error!(ctx, format_args!("{} is not a bool", *x));
