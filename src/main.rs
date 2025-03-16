@@ -112,13 +112,13 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
                     i -= size as usize;
-                    continue;
+                } else {
+                    i += size as usize;
                 }
-                i += size as usize;
                 continue;
             }
             Instr::Cmp(cond_id, size) => {
-                if consts[cond_id as usize] == Data::Bool(false) {
+                if let Data::Bool(false) = consts[cond_id as usize] {
                     i += size as usize;
                     continue;
                 }
@@ -147,185 +147,150 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                match (first_elem, second_elem) {
-                    (Data::Number(parent), Data::Number(child)) => {
-                        consts[dest as usize] = Data::Number(parent * child);
-                    }
-                    _ => {
-                        error_b!(format_args!(
-                            "UNSUPPORTED OPERATION: {:?} * {:?}",
-                            first_elem, second_elem
-                        ));
-                    }
+                if let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) {
+                    consts[dest as usize] = Data::Number(parent * child);
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} * {:?}",
+                        first_elem, second_elem
+                    ));
                 }
             }
             Instr::Div(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                match (first_elem, second_elem) {
-                    (Data::Number(parent), Data::Number(child)) => {
-                        consts[dest as usize] = Data::Number(parent / child);
-                    }
-                    _ => {
-                        error_b!(format_args!(
-                            "UNSUPPORTED OPERATION: {:?} / {:?}",
-                            first_elem, second_elem
-                        ));
-                    }
+                if let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) {
+                    consts[dest as usize] = Data::Number(parent / child);
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} / {:?}",
+                        first_elem, second_elem
+                    ));
                 }
             }
             Instr::Sub(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                match (first_elem, second_elem) {
-                    (Data::Number(parent), Data::Number(child)) => {
-                        consts[dest as usize] = Data::Number(parent - child);
-                    }
-                    _ => {
-                        error_b!(format_args!(
-                            "UNSUPPORTED OPERATION: {:?} - {:?}",
-                            first_elem, second_elem
-                        ));
-                    }
+                if let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) {
+                    consts[dest as usize] = Data::Number(parent - child);
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} - {:?}",
+                        first_elem, second_elem
+                    ));
                 }
             }
             Instr::Mod(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                match (first_elem, second_elem) {
-                    (Data::Number(parent), Data::Number(child)) => {
-                        consts[dest as usize] = Data::Number(parent % child);
-                    }
-                    _ => {
-                        error_b!(format_args!(
-                            "UNSUPPORTED OPERATION: {:?} % {:?}",
-                            first_elem, second_elem
-                        ));
-                    }
+                if let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) {
+                    consts[dest as usize] = Data::Number(parent % child);
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} % {:?}",
+                        first_elem, second_elem
+                    ));
                 }
             }
             Instr::Pow(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                match (first_elem, second_elem) {
-                    (Data::Number(parent), Data::Number(child)) => {
-                        consts[dest as usize] = Data::Number(parent.powf(child));
-                    }
-                    _ => {
-                        error_b!(format_args!(
-                            "UNSUPPORTED OPERATION: {:?} ^ {:?}",
-                            first_elem, second_elem
-                        ));
-                    }
+                if let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) {
+                    consts[dest as usize] = Data::Number(parent.powf(child));
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} ^ {:?}",
+                        first_elem, second_elem
+                    ));
                 }
             }
             Instr::Eq(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-                consts[dest as usize] = Data::Bool(first_elem == second_elem);
+                let val = consts[o1 as usize] == consts[o2 as usize];
+                consts[dest as usize] = Data::Bool(val);
             }
             Instr::NotEq(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-                consts[dest as usize] = Data::Bool(first_elem != second_elem);
+                let val = consts[o1 as usize] != consts[o2 as usize];
+                consts[dest as usize] = Data::Bool(val);
             }
             Instr::Sup(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                match (first_elem, second_elem) {
-                    (Data::Number(parent), Data::Number(child)) => {
-                        consts[dest as usize] = Data::Bool(parent > child);
-                    }
-                    _ => {
-                        error_b!(format_args!(
-                            "UNSUPPORTED OPERATION: {:?} > {:?}",
-                            first_elem, second_elem
-                        ));
-                    }
+                if let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) {
+                    consts[dest as usize] = Data::Bool(parent > child);
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} > {:?}",
+                        first_elem, second_elem
+                    ));
                 }
             }
             Instr::SupEq(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                match (first_elem, second_elem) {
-                    (Data::Number(parent), Data::Number(child)) => {
-                        consts[dest as usize] = Data::Bool(parent >= child);
-                    }
-                    _ => {
-                        error_b!(format_args!(
-                            "UNSUPPORTED OPERATION: {:?} >= {:?}",
-                            first_elem, second_elem
-                        ));
-                    }
+                if let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) {
+                    consts[dest as usize] = Data::Bool(parent >= child);
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} >= {:?}",
+                        first_elem, second_elem
+                    ));
                 }
             }
             Instr::Inf(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
-                match (first_elem, second_elem) {
-                    (Data::Number(parent), Data::Number(child)) => {
-                        consts[dest as usize] = Data::Bool(parent < child);
-                    }
-                    _ => {
-                        error_b!(format_args!(
-                            "UNSUPPORTED OPERATION: {:?} < {:?}",
-                            first_elem, second_elem
-                        ));
-                    }
+                if let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) {
+                    consts[dest as usize] = Data::Bool(parent < child);
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} < {:?}",
+                        first_elem, second_elem
+                    ));
                 }
             }
             Instr::InfEq(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                match (first_elem, second_elem) {
-                    (Data::Number(parent), Data::Number(child)) => {
-                        consts[dest as usize] = Data::Bool(parent <= child);
-                    }
-                    _ => {
-                        error_b!(format_args!(
-                            "UNSUPPORTED OPERATION: {:?} <= {:?}",
-                            first_elem, second_elem
-                        ));
-                    }
+                if let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) {
+                    consts[dest as usize] = Data::Bool(parent <= child);
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} <= {:?}",
+                        first_elem, second_elem
+                    ));
                 }
             }
             Instr::BoolAnd(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                match (first_elem, second_elem) {
-                    (Data::Bool(parent), Data::Bool(child)) => {
-                        consts[dest as usize] = Data::Bool(parent && child);
-                    }
-                    _ => {
-                        error_b!(format_args!(
-                            "UNSUPPORTED OPERATION: {:?} && {:?}",
-                            first_elem, second_elem
-                        ));
-                    }
+                if let (Data::Bool(parent), Data::Bool(child)) = (first_elem, second_elem) {
+                    consts[dest as usize] = Data::Bool(parent && child);
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} && {:?}",
+                        first_elem, second_elem
+                    ));
                 }
             }
             Instr::BoolOr(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                match (first_elem, second_elem) {
-                    (Data::Bool(parent), Data::Bool(child)) => {
-                        consts[dest as usize] = Data::Bool(parent || child)
-                    }
-                    _ => {
-                        error_b!(format_args!(
-                            "UNSUPPORTED OPERATION: {:?} || {:?}",
-                            first_elem, second_elem
-                        ));
-                    }
+                if let (Data::Bool(parent), Data::Bool(child)) = (first_elem, second_elem) {
+                    consts[dest as usize] = Data::Bool(parent || child);
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} || {:?}",
+                        first_elem, second_elem
+                    ));
                 }
             }
             Instr::Mov(tgt, dest) => {
@@ -694,6 +659,9 @@ fn parser_to_instr_set(
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
             Expr::Condition(x, y, z, w) => {
+                if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
+                    error!(ctx, format_args!("{} is not a bool", *x));
+                }
                 let condition = parser_to_instr_set(vec![*x.clone()], variables, consts);
                 if !returns_bool(*condition.last().unwrap()) {
                     error!(ctx, format_args!("{} is not a bool", *x));
@@ -831,7 +799,7 @@ fn parser_to_instr_set(
                 }
             },
             Expr::Op(left, right) => {
-                println!("{}", Expr::Op(left.clone(), right.clone()));
+                // println!("{}", Expr::Op(left.clone(), right.clone()));
                 fn remove_priority(
                     x: Expr,
                     variables: &mut Vec<(String, u16)>,
