@@ -5,7 +5,6 @@ use internment::Intern;
 use lalrpop_util::lalrpop_mod;
 use std::cmp::PartialEq;
 use std::fmt::Formatter;
-use std::fs;
 use std::hint::unreachable_unchecked;
 use std::time::Instant;
 
@@ -396,9 +395,6 @@ impl std::fmt::Display for Expr {
 impl std::fmt::Display for Opcode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", match self {
-            Opcode::Null => {
-                error_b!("Null operation");
-            }
             Opcode::Mul => "*",
             Opcode::Div => "/",
             Opcode::Add => "+",
@@ -414,6 +410,7 @@ impl std::fmt::Display for Opcode {
             Opcode::BoolAnd => "&&",
             Opcode::BoolOr => "||",
             Opcode::Neg => "-",
+            Opcode::Null => unsafe { unreachable_unchecked() },
         })
     }
 }
@@ -880,7 +877,7 @@ fn main() {
     let now = Instant::now();
 
     print!("READ FILE");
-    let contents = fs::read_to_string("test.spock").unwrap();
+    let contents = std::fs::read_to_string("test.spock").unwrap();
     print!("PARSE");
     let parsed = grammar::CodeParser::new().parse(&contents).unwrap();
     print!("{parsed:?}");
