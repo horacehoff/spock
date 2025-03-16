@@ -6,7 +6,7 @@ use lalrpop_util::lalrpop_mod;
 use std::cmp::PartialEq;
 use std::fmt::Formatter;
 use std::fs;
-use std::ops::Neg;
+use std::hint::unreachable_unchecked;
 use std::time::Instant;
 
 macro_rules! error {
@@ -48,25 +48,6 @@ pub enum Data {
     Bool(bool),
     String(Intern<String>),
     Null,
-}
-
-impl Neg for Data {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        match self {
-            Data::Number(x) => Data::Number(-x),
-            Data::Bool(_) => {
-                error_b!("Cannot reverse booleans");
-            }
-            Data::String(_) => {
-                error_b!("Cannot reverse strings");
-            }
-            Data::Null => {
-                error_b!("Tried to reverse null");
-            }
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -245,6 +226,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
             Instr::Inf(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
+
                 if let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) {
                     consts[dest as usize] = Data::Bool(parent < child);
                 } else {
@@ -297,7 +279,12 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 consts[dest as usize] = consts[tgt as usize];
             }
             Instr::Neg(tgt, dest) => {
-                consts[dest as usize] = -consts[tgt as usize];
+                let tgt = consts[tgt as usize];
+                if let Data::Number(x) = tgt {
+                    consts[dest as usize] = Data::Number(-x);
+                } else {
+                    error_b!(format_args!("UNSUPPORTED OPERATION: -{tgt:?}"));
+                }
             }
             Instr::Print(target) => {
                 let elem = consts[target as usize];
@@ -308,9 +295,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     consts[dest as usize] = Data::Number(x.abs());
                 }
             }
-            Instr::Null => {
-                error_b!("NULL INSTRUCTION");
-            }
+            Instr::Null => unsafe { unreachable_unchecked() },
         }
         i += 1;
     }
