@@ -753,18 +753,8 @@ fn parser_to_instr_set(
             Expr::FunctionCall(x, args) => match x.as_str() {
                 "print" => {
                     for arg in args {
-                        if matches!(
-                            arg,
-                            Expr::Num(_) | Expr::String(_) | Expr::Bool(_) | Expr::Var(_)
-                        ) {
-                            let id = get_id(arg, variables, consts, &mut output, &ctx);
-                            output.push(Instr::Print(id));
-                        } else {
-                            let condition = parser_to_instr_set(vec![arg], variables, consts);
-                            let last = get_tgt_id(*condition.last().unwrap());
-                            output.extend(condition);
-                            output.push(Instr::Print(last));
-                        }
+                        let id = get_id(arg, variables, consts, &mut output, &ctx);
+                        output.push(Instr::Print(id));
                     }
                 }
                 "abs" => {
@@ -772,11 +762,10 @@ fn parser_to_instr_set(
                         error!(
                             ctx,
                             "Function 'abs' only expects one argument",
-                            format_args!("Replace with 'abs({})'", args.first().unwrap())
+                            format_args!("Replace with 'abs({})'", args[0])
                         );
                     }
-                    let arg = args.first().unwrap();
-                    let id = get_id(arg.clone(), variables, consts, &mut output, &ctx);
+                    let id = get_id(args[0].clone(), variables, consts, &mut output, &ctx);
                     output.push(Instr::Abs(id, id));
                 }
                 unknown => {
