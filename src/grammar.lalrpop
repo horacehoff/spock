@@ -4,6 +4,13 @@ use crate::{Expr, Opcode};
 
 grammar;
 
+
+pub Function:Expr = {
+    "fn" <o1: Var> "(" <o2: (Var ",")*>  ")" "{" <o3:Code> "}" => {
+        return Expr::FunctionDecl(o1, o2, o3);
+    }
+}
+
 ElseIfBlock:Expr = {
     "else" "if" <o1: Expression> "{" <o2:Code> "}" => Expr::ElseIfBlock(Box::from(o1), o2)
 }

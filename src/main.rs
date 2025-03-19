@@ -321,6 +321,9 @@ pub enum Expr {
     FunctionCall(String, Box<[Expr]>),
     LPAREN,
     RPAREN,
+
+
+    FunctionDecl(String, Box<[String]>, Box<[Expr]>)
 }
 
 macro_rules! format_lines {
@@ -679,7 +682,6 @@ fn parser_to_instr_set(
                 output.push(Instr::Jmp(len, true));
             }
             Expr::VarDeclare(x, y) => {
-                // to replace with get_id
                 let val = *y;
                 if let Expr::Num(data) = val {
                     consts.push(Data::Number(data));
@@ -712,7 +714,6 @@ fn parser_to_instr_set(
                 }
             }
             Expr::VarAssign(x, y) => {
-                // to replace with get_id
                 let id = variables
                     .iter()
                     .find(|(w, _)| w == &x)
@@ -868,8 +869,9 @@ fn main() {
     print!("READ FILE");
     let contents = std::fs::read_to_string("test.spock").unwrap();
     print!("PARSE");
-    let parsed = grammar::CodeParser::new().parse(&contents).unwrap();
+    let parsed = grammar::FunctionParser::new().parse(&contents).unwrap();
     print!("{parsed:?}");
+    return;
 
     let mut variables: Vec<(String, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
