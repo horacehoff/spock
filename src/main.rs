@@ -633,6 +633,10 @@ fn returns_bool(instruction: Instr) -> bool {
     )
 }
 
+fn offset_id(instr: &mut Instr, x: u32) {
+
+}
+
 fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
@@ -772,11 +776,19 @@ fn parser_to_instr_set(
                     output.push(Instr::Abs(id, id));
                 }
                 function => {
-                    if let Some(func) = functions.iter().find(|(a,_,_)| a == function) {
-                        println!("Called! {func:?}")
+                    let fn_code:Vec<Expr>;
+                    if let Some((name, _, code)) = functions.iter().find(|(a,_,_)| a == function) {
+                        // assume not inside loop + no args for now
+                        fn_code = code.to_vec();
+                        println!("Called! {name:?}");
                     } else {
                         error!(ctx, format_args!("Unknown function {}", function.red()));
                     }
+                    let mut variables: Vec<(String, u16)> = Vec::new();
+                    let mut fn_consts: Vec<Data> = Vec::new();
+                    let instructions = parser_to_instr_set(fn_code, &mut variables, &mut fn_consts, functions);
+                    consts.extend(fn_consts);
+                    output.extend(instructions);
                 }
             },
             Expr::FunctionDecl(x,y,z) => {
