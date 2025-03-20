@@ -633,8 +633,100 @@ fn returns_bool(instruction: Instr) -> bool {
     )
 }
 
-fn offset_id(instr: &mut Instr, x: u32) {
-
+fn offset_id(instr: &mut Vec<Instr>, amount: u16) {
+    for x in instr.iter_mut() {
+        match x {
+            Instr::Null => {}
+            Instr::Print(id) => *id += amount,
+            Instr::Jmp(id, _) => *id += amount,
+            Instr::Cmp(a, b) => {
+                *a += amount;
+                *b += amount;
+            }
+            Instr::Mov(a, b) => {
+                *a += amount;
+                *b += amount;
+            }
+            Instr::Add(a, b, c) => {
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::Mul(a, b, c) => {
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::Sub(a, b, c) => {
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::Div(a, b, c) => {
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::Mod(a, b, c) => {
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::Pow(a, b, c) =>{
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::Eq(a, b, c) => {
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::NotEq(a, b, c) => {
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::Sup(a, b, c) => {
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::SupEq(a, b, c) => {
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::Inf(a, b, c) => {
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::InfEq(a, b, c) => {
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::BoolAnd(a, b, c) =>{
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::BoolOr(a, b, c) => {
+                *a += amount;
+                *b += amount;
+                *c += amount;
+            }
+            Instr::Neg(a, b) => {
+                *a += amount;
+                *b += amount;
+            }
+            Instr::Abs(a, b) => {
+                *a += amount;
+                *b += amount;
+            }
+        }
+    }
 }
 
 fn parser_to_instr_set(
@@ -786,7 +878,8 @@ fn parser_to_instr_set(
                     }
                     let mut variables: Vec<(String, u16)> = Vec::new();
                     let mut fn_consts: Vec<Data> = Vec::new();
-                    let instructions = parser_to_instr_set(fn_code, &mut variables, &mut fn_consts, functions);
+                    let mut instructions = parser_to_instr_set(fn_code, &mut variables, &mut fn_consts, functions);
+                    offset_id(&mut instructions, consts.len() as u16);
                     consts.extend(fn_consts);
                     output.extend(instructions);
                 }
