@@ -15,7 +15,7 @@ pub Function:Expr = {
         if let Some(fn_args) = o2 {
             let args = fn_args;
             final_args.push(args.0);
-            if args.1.len() > 0 {
+            if !args.1.is_empty() {
                 final_args.extend(args.1.iter().map(|(_,b)|b.clone()).collect::<Vec<String>>())
             }
         }

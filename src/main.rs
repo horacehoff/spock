@@ -874,7 +874,7 @@ fn main() {
     let parsed:Vec<Expr> = grammar::FileParser::new().parse(&contents).unwrap();
     if !parsed.iter().any(|a| {
         if let Expr::FunctionDecl(name, _, _) = a {
-            if name == "main" {true} else {false}
+            name == "main"
         } else {
             false
         }
