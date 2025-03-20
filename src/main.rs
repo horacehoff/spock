@@ -639,91 +639,27 @@ fn offset_id(instr: &mut Vec<Instr>, amount: u16) {
             Instr::Null => {}
             Instr::Print(id) => *id += amount,
             Instr::Jmp(id, _) => *id += amount,
-            Instr::Cmp(a, b) => {
+            Instr::Cmp(a, b) | Instr::Mov(a, b) | Instr::Neg(a, b) | Instr::Abs(a, b) => {
                 *a += amount;
                 *b += amount;
             }
-            Instr::Mov(a, b) => {
-                *a += amount;
-                *b += amount;
-            }
-            Instr::Add(a, b, c) => {
+            Instr::Add(a, b, c)
+            | Instr::Mul(a, b, c)
+            | Instr::Sub(a, b, c)
+            | Instr::Div(a, b, c)
+            | Instr::Mod(a, b, c)
+            | Instr::Pow(a, b, c)
+            | Instr::Eq(a, b, c)
+            | Instr::NotEq(a, b, c)
+            | Instr::Sup(a, b, c)
+            | Instr::SupEq(a, b, c)
+            | Instr::Inf(a, b, c)
+            | Instr::InfEq(a, b, c)
+            | Instr::BoolAnd(a, b, c)
+            | Instr::BoolOr(a, b, c)  => {
                 *a += amount;
                 *b += amount;
                 *c += amount;
-            }
-            Instr::Mul(a, b, c) => {
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            }
-            Instr::Sub(a, b, c) => {
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            }
-            Instr::Div(a, b, c) => {
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            }
-            Instr::Mod(a, b, c) => {
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            }
-            Instr::Pow(a, b, c) =>{
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            }
-            Instr::Eq(a, b, c) => {
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            }
-            Instr::NotEq(a, b, c) => {
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            }
-            Instr::Sup(a, b, c) => {
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            }
-            Instr::SupEq(a, b, c) => {
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            }
-            Instr::Inf(a, b, c) => {
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            }
-            Instr::InfEq(a, b, c) => {
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            }
-            Instr::BoolAnd(a, b, c) =>{
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            }
-            Instr::BoolOr(a, b, c) => {
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            }
-            Instr::Neg(a, b) => {
-                *a += amount;
-                *b += amount;
-            }
-            Instr::Abs(a, b) => {
-                *a += amount;
-                *b += amount;
             }
         }
     }
