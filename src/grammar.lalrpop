@@ -7,7 +7,7 @@ grammar;
 
 pub Function:Expr = {
     "fn" <o1: Var> "(" <o2: (Var ",")*>  ")" "{" <o3:Code> "}" => {
-        return Expr::FunctionDecl(o1, o2, o3);
+        return Expr::FunctionDecl(o1, Box::from(o2.iter().map(|(x,y)|x.clone()).collect::<Vec<String>>()), o3);
     }
 }
 

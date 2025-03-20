@@ -871,17 +871,16 @@ fn main() {
     print!("PARSE");
     let parsed = grammar::FunctionParser::new().parse(&contents).unwrap();
     print!("{parsed:?}");
-    return;
 
-    let mut variables: Vec<(String, u16)> = Vec::new();
-    let mut consts: Vec<Data> = Vec::new();
-    let instructions = parser_to_instr_set(parsed.into_vec(), &mut variables, &mut consts);
-    print!("INSTR OUT {instructions:?}");
-    print!("CONSTS ARE {consts:?}");
-    print!("VARS ARE {variables:?}");
-    println!("Parsed in {:.2?}", now.elapsed());
-
-    let now = Instant::now();
+    // let mut variables: Vec<(String, u16)> = Vec::new();
+    // let mut consts: Vec<Data> = Vec::new();
+    // let instructions = parser_to_instr_set(parsed.into_vec(), &mut variables, &mut consts);
+    // print!("INSTR OUT {instructions:?}");
+    // print!("CONSTS ARE {consts:?}");
+    // print!("VARS ARE {variables:?}");
+    // println!("Parsed in {:.2?}", now.elapsed());
+    // 
+    // let now = Instant::now();
     // let instructions: Vec<Instr> = vec![
     //     Instr::Inf(0, 3, 6),
     //     Instr::Cmp(6, 7),
@@ -906,7 +905,7 @@ fn main() {
     //     Data::Bool(false),       // -> 6
     //     Data::Bool(false),       // -> 7
     // ];
-    execute(&instructions, &mut consts);
-    print!("CONSTS are {consts:?}");
-    println!("EXEC TIME {:.2?}", now.elapsed());
+    // execute(&instructions, &mut consts);
+    // print!("CONSTS are {consts:?}");
+    // println!("EXEC TIME {:.2?}", now.elapsed());
 }
