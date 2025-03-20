@@ -2,6 +2,7 @@ fn main () {
 let count = 0;
 let limit = 1000000;
 let result = 1;
+test();
 while count < limit {
     result = result * 2;
     if result > 1000000 {
@@ -10,4 +11,8 @@ while count < limit {
     count = count + 1;
 }
 print(result);
+}
+
+fn test () {
+    print("hello");
 }
