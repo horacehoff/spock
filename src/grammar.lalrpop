@@ -5,6 +5,10 @@ use crate::{Expr, Opcode};
 grammar;
 
 
+pub File:Vec<Expr> = {
+    <o: Function*> => o,
+}
+
 pub Function:Expr = {
     "fn" <o1: Var> "(" <o2: (Var ("," Var)*)?>  ")" "{" <o3:Code> "}" => {
         let mut final_args:Vec<String> = Vec::new();

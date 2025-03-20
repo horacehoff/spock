@@ -1,4 +1,4 @@
-fn main (a,b) {
+fn main () {
 let count = 0;
 let limit = 1000000;
 let result = 1;

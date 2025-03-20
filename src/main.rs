@@ -858,6 +858,8 @@ fn parser_to_instr_set(
     output
 }
 
+
+
 // Live long and prosper
 fn main() {
     // dbg!(size_of::<Instr>());
@@ -869,7 +871,19 @@ fn main() {
     print!("READ FILE");
     let contents = std::fs::read_to_string("test.spock").unwrap();
     print!("PARSE");
-    let parsed = grammar::FunctionParser::new().parse(&contents).unwrap();
+    let parsed:Vec<Expr> = grammar::FileParser::new().parse(&contents).unwrap();
+    if !parsed.iter().any(|a| {
+        if let Expr::FunctionDecl(name, _, _) = a {
+            if name == "main" {true} else {false}
+        } else {
+            false
+        }
+    }) {
+        error!("No main function", contents);
+
+    }
+
+
     print!("{parsed:?}");
 
     // let mut variables: Vec<(String, u16)> = Vec::new();
@@ -878,8 +892,8 @@ fn main() {
     // print!("INSTR OUT {instructions:?}");
     // print!("CONSTS ARE {consts:?}");
     // print!("VARS ARE {variables:?}");
-    // println!("Parsed in {:.2?}", now.elapsed());
-    // 
+    println!("Parsed in {:.2?}", now.elapsed());
+    //
     // let now = Instant::now();
     // let instructions: Vec<Instr> = vec![
     //     Instr::Inf(0, 3, 6),
