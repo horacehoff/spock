@@ -66,9 +66,9 @@ Expression: Expr = {
 
 Operation: Expr = {
     "-" <t: Term> => {
-    if let Expr::Num(x) = *t {
-        return Expr::Num(-x);
-    }
+        if let Expr::Num(x) = *t {
+            return Expr::Num(-x);
+        }
         return Expr::Op(Box::from(Expr::Num(0.0)), Box::from(vec![(Opcode::Neg, t)]));
     },
     <o1: Term> <o3: (<Op> <Term>)+> => {
