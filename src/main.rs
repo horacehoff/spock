@@ -84,9 +84,6 @@ pub enum Instr {
 
     // Funcs
     Abs(u16, u16),
-
-
-    CallFctn(u16)
 }
 
 fn execute(instructions: &[Instr], consts: &mut [Data]) {
@@ -298,9 +295,6 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 if let Data::Number(x) = consts[tgt as usize] {
                     consts[dest as usize] = Data::Number(x.abs());
                 }
-            }
-            Instr::CallFctn(id) => {
-                println!("Called {id}")
             }
             Instr::Null => unsafe { unreachable_unchecked() },
         }
@@ -666,7 +660,7 @@ fn offset_id(instr: &mut [Instr], amount: u16) {
                 *b += amount;
                 *c += amount;
             }
-            Instr::Null | Instr::CallFctn(_) => unreachable!()
+            Instr::Null => unreachable!()
         }
     }
 }
