@@ -84,6 +84,9 @@ pub enum Instr {
 
     // Funcs
     Abs(u16, u16),
+
+
+    CallFctn(u16)
 }
 
 fn execute(instructions: &[Instr], consts: &mut [Data]) {
@@ -295,6 +298,9 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 if let Data::Number(x) = consts[tgt as usize] {
                     consts[dest as usize] = Data::Number(x.abs());
                 }
+            }
+            Instr::CallFctn(id) => {
+                println!("Called {id}")
             }
             Instr::Null => unsafe { unreachable_unchecked() },
         }
@@ -586,7 +592,7 @@ fn get_id(
     consts: &mut Vec<Data>,
     instr: &mut Vec<Instr>,
     line: &Expr,
-    functions: &mut Vec<(String,Box<[String]>,Box<[Expr]>,bool)>
+    functions: &mut Vec<(String,Box<[String]>,Box<[Expr]>,Option<u16>)>
 ) -> u16 {
     match x {
         Expr::Num(num) => {
@@ -660,7 +666,7 @@ fn offset_id(instr: &mut [Instr], amount: u16) {
                 *b += amount;
                 *c += amount;
             }
-            Instr::Null => unreachable!()
+            Instr::Null | Instr::CallFctn(_) => unreachable!()
         }
     }
 }
@@ -713,7 +719,7 @@ fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
     consts: &mut Vec<Data>,
-    functions: &mut Vec<(String,Box<[String]>,Box<[Expr]>, bool)>
+    functions: &mut Vec<(String,Box<[String]>,Box<[Expr]>, Option<u16>)>
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
@@ -849,31 +855,29 @@ fn parser_to_instr_set(
                 }
                 function => {
                     let fn_code:Vec<Expr>;
-                    let mut is_recursive = false;
+                    let mut is_recursive = None;
                     if let Some((_, _, code,recursion)) = functions.iter().find(|(a,_,_,_)| a == function) {
                         fn_code = code.to_vec();
                         is_recursive = *recursion;
                     } else {
                         error!(ctx, format_args!("Unknown function {}", function.red()));
                     }
-                    if !is_recursive {
+                    if let Some(id) = is_recursive {
+                        output.push(Instr::CallFctn(id));
+                    } else {
                         let mut variables: Vec<(String, u16)> = Vec::new();
                         let mut fn_consts: Vec<Data> = Vec::new();
                         let mut instructions = parser_to_instr_set(fn_code, &mut variables, &mut fn_consts, functions);
                         offset_id(&mut instructions, consts.len() as u16);
                         consts.extend(fn_consts);
                         output.extend(instructions);
-                    } else {
-                        // do it the other way
-                        error!(ctx, "Recursion");
-
                     }
                 }
             },
-            Expr::FunctionDecl(x,y,z) => {
-                let recursion = check_recursion(z.iter().as_slice(), &x);
-                functions.push((x,y,z,recursion));
-            }
+            // Expr::FunctionDecl(x,y,z) => {
+            //     let recursion = check_recursion(z.iter().as_slice(), &x);
+            //     functions.push((x,y,z,recursion));
+            // }
             Expr::Op(left, right) => {
                 fn remove_priority(
                     x: Expr,
@@ -988,9 +992,16 @@ fn main() {
         error!("No main function", contents);
     }
 
-    let mut functions:Vec<(String,Box<[String]>,Box<[Expr]>,bool)> = functions.iter().map(|w| {
+    let mut functions:Vec<(String,Box<[String]>,Box<[Expr]>,Option<u16>)> = functions.iter().map(|w| {
         if let Expr::FunctionDecl(x,y,z) = w {
-            (x.to_string(),y.clone(),z.clone(),check_recursion(z.iter().as_slice(), x))
+            let id:Option<u16> = {
+                if check_recursion(z.iter().as_slice(), x) {
+                    Some((functions.len() + 1) as u16)
+                } else {
+                    None
+                }
+            };
+            (x.to_string(),y.clone(),z.clone(),id)
         } else {
             error!("Function expected", contents);
         }
