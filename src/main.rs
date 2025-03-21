@@ -907,41 +907,17 @@ fn parser_to_instr_set(
                     let mut instructions: Vec<Instr> = Vec::new();
 
                     for (i, x) in exp_args.iter().enumerate() {
-                        let match_value = args.get(i).unwrap();
-                        if let Expr::Num(num) = match_value {
-                            consts.push(Data::Number(*num));
-                            fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
-                        } else if let Expr::String(val) = match_value {
-                            consts.push(Data::String(Intern::from(val.to_string())));
-                            fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
-                        } else if let Expr::Bool(val) = match_value {
-                            consts.push(Data::Bool(*val));
-                            fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
-                        } else if let Expr::Var(name) = match_value {
-                            if let Some((_, var_id)) = variables.iter().find(|(w, _)| name == w) {
-                                consts.push(Data::Null);
-                                instructions.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
-                                fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
-                            } else {
-                                error!(
-                                    ctx,
-                                    format_args!("Unknown variable {}", name.red()),
-                                    format_args!("Add 'let {name} = 0;'")
-                                );
-                            }
-                        } else {
-                            let mut value = parser_to_instr_set(
-                                vec![match_value.clone()],
-                                variables,
-                                consts,
-                                functions,
-                                &None,
-                            );
-                            consts.push(Data::Null);
-                            move_to_id(&mut value, (consts.len() - 1) as u16);
-                            output.extend(value);
-                            fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
-                        }
+                        let len = consts.len() as u16;
+                        let mut value = parser_to_instr_set(
+                            vec![args.get(i).unwrap().clone()],
+                            variables,
+                            consts,
+                            functions,
+                            &None,
+                        );
+                        move_to_id(&mut value, len);
+                        output.extend(value);
+                        fn_variables.push((x.to_string(), len));
                     }
                     let vars = fn_variables.clone();
                     instructions.extend(parser_to_instr_set(
