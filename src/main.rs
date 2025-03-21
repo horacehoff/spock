@@ -685,8 +685,7 @@ fn check_recursion(instructions: &[Expr], fn_name: &str) -> bool {
                 }
             }
             Expr::Priority(x) => is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive),
-            Expr::VarDeclare(_, x) => is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive),
-            Expr::VarAssign(_, x) => {}
+            Expr::VarDeclare(_, x) | Expr::VarAssign(_, x) => is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive),
             Expr::Condition(x, y, z, w) => {
                 is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
                 is_recursive = stay_true(check_recursion(y.iter().as_slice(), fn_name), is_recursive);
@@ -695,11 +694,8 @@ fn check_recursion(instructions: &[Expr], fn_name: &str) -> bool {
                     is_recursive = stay_true(check_recursion(opt.iter().as_slice(), fn_name), is_recursive);
                 }
             }
-            Expr::ElseIfBlock(x, y) => {
-                is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
-                is_recursive = stay_true(check_recursion(y.iter().as_slice(), fn_name), is_recursive);
-            }
-            Expr::WhileBlock(x, y) => {
+            Expr::ElseIfBlock(x, y)
+            | Expr::WhileBlock(x, y) => {
                 is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
                 is_recursive = stay_true(check_recursion(y.iter().as_slice(), fn_name), is_recursive);
             }
@@ -708,8 +704,7 @@ fn check_recursion(instructions: &[Expr], fn_name: &str) -> bool {
                     is_recursive = true;
                 }
             }
-            Expr::FunctionDecl(_, _, _) => {}
-            _ => {}
+            _ => continue
         }
     }
     is_recursive
@@ -860,15 +855,17 @@ fn parser_to_instr_set(
                     } else {
                         error!(ctx, format_args!("Unknown function {}", function.red()));
                     }
-                    if check_recursion(&fn_code, function) {
-                        error!(ctx, format_args!("Recursion detected in function: {}", function.red()));
+                    if !check_recursion(&fn_code, function) {
+                        let mut variables: Vec<(String, u16)> = Vec::new();
+                        let mut fn_consts: Vec<Data> = Vec::new();
+                        let mut instructions = parser_to_instr_set(fn_code, &mut variables, &mut fn_consts, functions);
+                        offset_id(&mut instructions, consts.len() as u16);
+                        consts.extend(fn_consts);
+                        output.extend(instructions);
+                    } else {
+                        // do it the other way
+
                     }
-                    let mut variables: Vec<(String, u16)> = Vec::new();
-                    let mut fn_consts: Vec<Data> = Vec::new();
-                    let mut instructions = parser_to_instr_set(fn_code, &mut variables, &mut fn_consts, functions);
-                    offset_id(&mut instructions, consts.len() as u16);
-                    consts.extend(fn_consts);
-                    output.extend(instructions);
                 }
             },
             Expr::FunctionDecl(x,y,z) => {
