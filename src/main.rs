@@ -6,6 +6,7 @@ use lalrpop_util::lalrpop_mod;
 use std::cmp::PartialEq;
 use std::fmt::Formatter;
 use std::hint::unreachable_unchecked;
+use std::slice;
 use std::time::Instant;
 use likely_stable::if_likely;
 
@@ -665,6 +666,55 @@ fn offset_id(instr: &mut Vec<Instr>, amount: u16) {
     }
 }
 
+fn stay_true(x: bool, var: bool) -> bool {
+    if var {
+        true
+    } else {
+        x
+    }
+}
+
+fn check_recursion(instructions: &[Expr], fn_name: &str) -> bool {
+    let mut is_recursive = false;
+    for x in instructions {
+        match x {
+            Expr::Op(x, y) => {
+                is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
+                for w in y {
+                    is_recursive = stay_true(check_recursion(slice::from_ref(&w.1), fn_name), is_recursive);
+                }
+            }
+            Expr::Priority(x) => is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive),
+            Expr::VarDeclare(_, x) => is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive),
+            Expr::VarAssign(_, x) => {}
+            Expr::Condition(x, y, z, w) => {
+                is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
+                is_recursive = stay_true(check_recursion(y.iter().as_slice(), fn_name), is_recursive);
+                is_recursive = stay_true(check_recursion(z.iter().as_slice(), fn_name), is_recursive);
+                if let Some(opt) = w {
+                    is_recursive = stay_true(check_recursion(opt.iter().as_slice(), fn_name), is_recursive);
+                }
+            }
+            Expr::ElseIfBlock(x, y) => {
+                is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
+                is_recursive = stay_true(check_recursion(y.iter().as_slice(), fn_name), is_recursive);
+            }
+            Expr::WhileBlock(x, y) => {
+                is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
+                is_recursive = stay_true(check_recursion(y.iter().as_slice(), fn_name), is_recursive);
+            }
+            Expr::FunctionCall(x, _) => {
+                if x == fn_name {
+                    is_recursive = true;
+                }
+            }
+            Expr::FunctionDecl(_, _, _) => {}
+            _ => {}
+        }
+    }
+    is_recursive
+}
+
 fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
@@ -806,11 +856,12 @@ fn parser_to_instr_set(
                 function => {
                     let fn_code:Vec<Expr>;
                     if let Some((name, _, code)) = functions.iter().find(|(a,_,_)| a == function) {
-                        // assume not inside loop + no args for now
                         fn_code = code.to_vec();
-                        println!("Called! {name:?}");
                     } else {
                         error!(ctx, format_args!("Unknown function {}", function.red()));
+                    }
+                    if check_recursion(&fn_code, function) {
+                        error!(ctx, format_args!("Recursion detected in function: {}", function.red()));
                     }
                     let mut variables: Vec<(String, u16)> = Vec::new();
                     let mut fn_consts: Vec<Data> = Vec::new();

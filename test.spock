@@ -15,4 +15,9 @@ print(result);
 
 fn test () {
     print("hello");
+    test();
+}
+
+fn cool () {
+    print("awesome!");
 }
