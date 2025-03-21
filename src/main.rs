@@ -977,26 +977,29 @@ fn main() {
 
     let contents = std::fs::read_to_string("test.spock").unwrap();
     let mut functions:Vec<Expr> = grammar::FileParser::new().parse(&contents).unwrap();
-    let main_function:Vec<Expr>;
-    if let Some(fctn) = functions.iter().position(|a| {
-        if let Expr::FunctionDecl(name, _, _) = a {
-            name == "main"
+    let main_function:Vec<Expr> = {
+        if let Some(fctn) = functions.iter().position(|a| {
+            if let Expr::FunctionDecl(name, _, _) = a {
+                name == "main"
+            } else {
+                false
+            }
+        }) {
+            if let Expr::FunctionDecl(_,_,code) = functions.swap_remove(fctn) {
+                code.to_vec()
+            } else {
+                error!(contents, "No main function");
+            }
         } else {
-            false
+            error!(contents, "No main function");
         }
-    }) {
-        if let Expr::FunctionDecl(_,_,code) = functions.swap_remove(fctn) {
-            main_function = code.to_vec();
-        } else {main_function = Vec::new()}
-    } else {
-        error!("No main function", contents);
-    }
-
+    };
+    
     let mut functions:Vec<(String,Box<[String]>,Box<[Expr]>)> = functions.iter().map(|w| {
         if let Expr::FunctionDecl(x,y,z) = w {
             (x.to_string(),y.clone(),z.clone())
         } else {
-            error!("Function expected", contents);
+            error!(contents, "Function expected");
         }
     }).collect();
 
