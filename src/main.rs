@@ -586,7 +586,7 @@ fn get_id(
     consts: &mut Vec<Data>,
     instr: &mut Vec<Instr>,
     line: &Expr,
-    functions: &mut Vec<(String,Box<[String]>,Box<[Expr]>)>
+    functions: &mut Vec<(String,Box<[String]>,Box<[Expr]>,bool)>
 ) -> u16 {
     match x {
         Expr::Num(num) => {
@@ -634,12 +634,10 @@ fn returns_bool(instruction: Instr) -> bool {
     )
 }
 
-fn offset_id(instr: &mut Vec<Instr>, amount: u16) {
+fn offset_id(instr: &mut [Instr], amount: u16) {
     for x in instr.iter_mut() {
         match x {
-            Instr::Null => {}
-            Instr::Print(id) => *id += amount,
-            Instr::Jmp(id, _) => *id += amount,
+            Instr::Print(id) |  Instr::Jmp(id, _) => *id += amount,
             Instr::Cmp(a, b) | Instr::Mov(a, b) | Instr::Neg(a, b) | Instr::Abs(a, b) => {
                 *a += amount;
                 *b += amount;
@@ -662,6 +660,7 @@ fn offset_id(instr: &mut Vec<Instr>, amount: u16) {
                 *b += amount;
                 *c += amount;
             }
+            Instr::Null => unreachable!()
         }
     }
 }
@@ -714,7 +713,7 @@ fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
     consts: &mut Vec<Data>,
-    functions: &mut Vec<(String,Box<[String]>,Box<[Expr]>)>
+    functions: &mut Vec<(String,Box<[String]>,Box<[Expr]>, bool)>
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
@@ -850,12 +849,14 @@ fn parser_to_instr_set(
                 }
                 function => {
                     let fn_code:Vec<Expr>;
-                    if let Some((name, _, code)) = functions.iter().find(|(a,_,_)| a == function) {
+                    let mut is_recursive = false;
+                    if let Some((_, _, code,recursion)) = functions.iter().find(|(a,_,_,_)| a == function) {
                         fn_code = code.to_vec();
+                        is_recursive = *recursion;
                     } else {
                         error!(ctx, format_args!("Unknown function {}", function.red()));
                     }
-                    if !check_recursion(&fn_code, function) {
+                    if !is_recursive {
                         let mut variables: Vec<(String, u16)> = Vec::new();
                         let mut fn_consts: Vec<Data> = Vec::new();
                         let mut instructions = parser_to_instr_set(fn_code, &mut variables, &mut fn_consts, functions);
@@ -864,12 +865,14 @@ fn parser_to_instr_set(
                         output.extend(instructions);
                     } else {
                         // do it the other way
+                        error!(ctx, "Recursion");
 
                     }
                 }
             },
             Expr::FunctionDecl(x,y,z) => {
-                functions.push((x,y,z));
+                let recursion = check_recursion(z.iter().as_slice(), &x);
+                functions.push((x,y,z,recursion));
             }
             Expr::Op(left, right) => {
                 fn remove_priority(
@@ -985,9 +988,9 @@ fn main() {
         error!("No main function", contents);
     }
 
-    let mut functions:Vec<(String,Box<[String]>,Box<[Expr]>)> = functions.iter().map(|w| {
+    let mut functions:Vec<(String,Box<[String]>,Box<[Expr]>,bool)> = functions.iter().map(|w| {
         if let Expr::FunctionDecl(x,y,z) = w {
-            (x.to_string(),y.clone(),z.clone())
+            (x.to_string(),y.clone(),z.clone(),check_recursion(z.iter().as_slice(), x))
         } else {
             error!("Function expected", contents);
         }
