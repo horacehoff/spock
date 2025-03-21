@@ -665,49 +665,49 @@ fn offset_id(instr: &mut [Instr], amount: u16) {
     }
 }
 
-fn stay_true(x: bool, var: bool) -> bool {
-    if var {
-        true
-    } else {
-        x
-    }
-}
-
-fn check_recursion(instructions: &[Expr], fn_name: &str) -> bool {
-    let mut is_recursive = false;
-    for x in instructions {
-        match x {
-            Expr::Op(x, y) => {
-                is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
-                for w in y {
-                    is_recursive = stay_true(check_recursion(slice::from_ref(&w.1), fn_name), is_recursive);
-                }
-            }
-            Expr::Priority(x) => is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive),
-            Expr::VarDeclare(_, x) | Expr::VarAssign(_, x) => is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive),
-            Expr::Condition(x, y, z, w) => {
-                is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
-                is_recursive = stay_true(check_recursion(y.iter().as_slice(), fn_name), is_recursive);
-                is_recursive = stay_true(check_recursion(z.iter().as_slice(), fn_name), is_recursive);
-                if let Some(opt) = w {
-                    is_recursive = stay_true(check_recursion(opt.iter().as_slice(), fn_name), is_recursive);
-                }
-            }
-            Expr::ElseIfBlock(x, y)
-            | Expr::WhileBlock(x, y) => {
-                is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
-                is_recursive = stay_true(check_recursion(y.iter().as_slice(), fn_name), is_recursive);
-            }
-            Expr::FunctionCall(x, _) => {
-                if x == fn_name {
-                    is_recursive = true;
-                }
-            }
-            _ => continue
-        }
-    }
-    is_recursive
-}
+// fn stay_true(x: bool, var: bool) -> bool {
+//     if var {
+//         true
+//     } else {
+//         x
+//     }
+// }
+//
+// fn check_recursion(instructions: &[Expr], fn_name: &str) -> bool {
+//     let mut is_recursive = false;
+//     for x in instructions {
+//         match x {
+//             Expr::Op(x, y) => {
+//                 is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
+//                 for w in y {
+//                     is_recursive = stay_true(check_recursion(slice::from_ref(&w.1), fn_name), is_recursive);
+//                 }
+//             }
+//             Expr::Priority(x) => is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive),
+//             Expr::VarDeclare(_, x) | Expr::VarAssign(_, x) => is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive),
+//             Expr::Condition(x, y, z, w) => {
+//                 is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
+//                 is_recursive = stay_true(check_recursion(y.iter().as_slice(), fn_name), is_recursive);
+//                 is_recursive = stay_true(check_recursion(z.iter().as_slice(), fn_name), is_recursive);
+//                 if let Some(opt) = w {
+//                     is_recursive = stay_true(check_recursion(opt.iter().as_slice(), fn_name), is_recursive);
+//                 }
+//             }
+//             Expr::ElseIfBlock(x, y)
+//             | Expr::WhileBlock(x, y) => {
+//                 is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
+//                 is_recursive = stay_true(check_recursion(y.iter().as_slice(), fn_name), is_recursive);
+//             }
+//             Expr::FunctionCall(x, _) => {
+//                 if x == fn_name {
+//                     is_recursive = true;
+//                 }
+//             }
+//             _ => continue
+//         }
+//     }
+//     is_recursive
+// }
 
 fn parser_to_instr_set(
     input: Vec<Expr>,
@@ -849,39 +849,35 @@ fn parser_to_instr_set(
                     output.push(Instr::Abs(id, id));
                 }
                 function => {
-                    let fn_code:Vec<Expr>;
-                    if let Some((_, _, code)) = functions.iter().find(|(a,_,_)| a == function) {
-                        fn_code = code.to_vec();
-                    } else {
-                        error!(ctx, format_args!("Unknown function {}", function.red()));
-                    }
+                    let fn_code:Vec<Expr> = {
+                        if let Some((_, _, code)) = functions.iter().find(|(a,_,_)| a == function) {
+                            code.to_vec()
+                        } else {
+                            error!(ctx, format_args!("Unknown function {}", function.red()));
+                        }
+                    };
 
                     if let Some((name, loc)) = is_processing_function {
                         if name == function {
-                            // in recursive
+                            // recursive function, go back to function def and move on
                             output.push(Instr::Jmp((output.len() as u16) - loc, true));
-                        } else {
-                            let mut variables: Vec<(String, u16)> = Vec::new();
-                            let mut fn_consts: Vec<Data> = Vec::new();
-                            let mut instructions = parser_to_instr_set(fn_code, &mut variables, &mut fn_consts, functions,&Some((function.to_string(), output.len() as u16)));
-                            offset_id(&mut instructions, consts.len() as u16);
-                            consts.extend(fn_consts);
-                            output.extend(instructions);
+                            continue;
                         }
-                    } else {
-                        let mut variables: Vec<(String, u16)> = Vec::new();
-                        let mut fn_consts: Vec<Data> = Vec::new();
-                        let mut instructions = parser_to_instr_set(fn_code, &mut variables, &mut fn_consts, functions,&Some((function.to_string(), output.len() as u16)));
-                        offset_id(&mut instructions, consts.len() as u16);
-                        consts.extend(fn_consts);
-                        output.extend(instructions);
                     }
+
+                    let mut variables: Vec<(String, u16)> = Vec::new();
+                    let mut fn_consts: Vec<Data> = Vec::new();
+
+                    let mut instructions = parser_to_instr_set(fn_code, &mut variables, &mut fn_consts, functions,&Some((function.to_string(), output.len() as u16)));
+                    offset_id(&mut instructions, consts.len() as u16);
+                    consts.extend(fn_consts);
+                    output.extend(instructions);
+
                 }
             },
-            // Expr::FunctionDecl(x,y,z) => {
-            //     let recursion = check_recursion(z.iter().as_slice(), &x);
-            //     functions.push((x,y,z,recursion));
-            // }
+            Expr::FunctionDecl(x,y,z) => {
+                functions.push((x,y,z));
+            }
             Expr::Op(left, right) => {
                 fn remove_priority(
                     x: Expr,
@@ -973,7 +969,7 @@ fn parser_to_instr_set(
 
 // Live long and prosper
 fn main() {
-    // dbg!(size_of::<Instr>());
+    dbg!(size_of::<Instr>());
     // dbg!(size_of::<Data>());
     // dbg!(size_of::<Expr>());
 
