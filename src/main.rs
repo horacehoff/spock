@@ -806,32 +806,10 @@ fn parser_to_instr_set(
                         );
                     })
                     .1;
-                let val = *y;
-                if let Expr::Num(data) = val {
-                    consts.push(Data::Number(data));
-                    output.push(Instr::Mov((consts.len() - 1) as u16, id));
-                } else if let Expr::String(data) = val {
-                    consts.push(Data::String(Intern::from(data)));
-                    output.push(Instr::Mov((consts.len() - 1) as u16, id));
-                } else if let Expr::Bool(data) = val {
-                    consts.push(Data::Bool(data));
-                    output.push(Instr::Mov((consts.len() - 1) as u16, id));
-                } else if let Expr::Var(name) = val {
-                    if let Some((_, var_id)) = variables.iter().find(|(x, _)| &name == x) {
-                        output.push(Instr::Mov(*var_id, id));
-                    } else {
-                        error!(
-                            ctx,
-                            format_args!("Unknown variable {}", name.red()),
-                            format_args!("Add 'let {name} = 0;'")
-                        );
-                    }
-                } else {
-                    let mut value =
-                        parser_to_instr_set(vec![val], variables, consts, functions, &None);
-                    move_to_id(&mut value, id);
-                    output.extend(value);
-                }
+
+                let mut value = parser_to_instr_set(vec![*y], variables, consts, functions, &None);
+                move_to_id(&mut value, id);
+                output.extend(value);
             }
             Expr::FunctionCall(x, args) => match x.as_str() {
                 "print" => {
