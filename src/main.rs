@@ -849,9 +849,9 @@ fn parser_to_instr_set(
                     output.push(Instr::Abs(id, id));
                 }
                 function => {
-                    let fn_code:Vec<Expr> = {
-                        if let Some((_, _, code)) = functions.iter().find(|(a,_,_)| a == function) {
-                            code.to_vec()
+                    let (fn_code, exp_args):(Vec<Expr>,Box<[String]>) = {
+                        if let Some((_, exp_args, code)) = functions.iter().find(|(a,_,_)| a == function) {
+                            (code.to_vec(), exp_args.clone())
                         } else {
                             error!(ctx, format_args!("Unknown function {}", function.red()));
                         }
@@ -865,12 +865,40 @@ fn parser_to_instr_set(
                         }
                     }
 
-                    let mut variables: Vec<(String, u16)> = Vec::new();
-                    let mut fn_consts: Vec<Data> = Vec::new();
 
-                    let mut instructions = parser_to_instr_set(fn_code, &mut variables, &mut fn_consts, functions,&Some((function.to_string(), output.len() as u16)));
-                    offset_id(&mut instructions, consts.len() as u16);
-                    consts.extend(fn_consts);
+                    let mut fn_variables: Vec<(String, u16)> = Vec::new();
+                    let mut instructions:Vec<Instr> = Vec::new();
+
+                    for (i,x) in exp_args.iter().enumerate() {
+                        let match_value = args.get(i).unwrap();
+                        if let Expr::Num(num) = match_value {
+                            consts.push(Data::Number(*num));
+                            fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
+                        } else if let Expr::String(val) = match_value {
+                            consts.push(Data::String(Intern::from(val.to_string())));
+                            fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
+                        } else if let Expr::Bool(val) = match_value {
+                            consts.push(Data::Bool(*val));
+                            fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
+                        }  else if let Expr::Var(name) = match_value {
+                            if let Some((_, var_id)) = variables.iter().find(|(w, _)| name == w) {
+                                consts.push(Data::Null);
+                                instructions.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
+                                fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
+                            } else {
+                                error!(
+                                    ctx,
+                                    format_args!("Unknown variable {}", name.red()),
+                                    format_args!("Add 'let {name} = 0;'")
+                                );
+                            }
+                        }
+                        else {
+                            fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
+                        }
+                    }
+
+                    instructions.extend(parser_to_instr_set(fn_code, &mut fn_variables, consts, functions,&Some((function.to_string(), output.len() as u16))));
                     output.extend(instructions);
 
                 }
@@ -994,7 +1022,7 @@ fn main() {
             error!(contents, "No main function");
         }
     };
-    
+
     let mut functions:Vec<(String,Box<[String]>,Box<[Expr]>)> = functions.iter().map(|w| {
         if let Expr::FunctionDecl(x,y,z) = w {
             (x.to_string(),y.clone(),z.clone())
