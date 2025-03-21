@@ -894,6 +894,10 @@ fn parser_to_instr_set(
                             }
                         }
                         else {
+                            let mut value = parser_to_instr_set(vec![match_value.clone()], variables, consts, functions,&None);
+                            consts.push(Data::Null);
+                            move_to_id(&mut value, (consts.len() - 1) as u16);
+                            output.extend(value);
                             fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
                         }
                     }

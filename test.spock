@@ -1,6 +1,5 @@
 fn main () {
-    let x = "Per Aspera Ad Astra!";
-    test(x);
+    test(1+1+abs(-50));
 }
 
 fn test (a) {
