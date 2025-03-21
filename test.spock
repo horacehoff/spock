@@ -1,7 +1,9 @@
 fn main () {
-    test(1+1+abs(-50));
+    let x = 50;
+    test(x);
 }
 
 fn test (a) {
     print(a);
+    test(a+10);
 }

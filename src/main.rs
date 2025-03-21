@@ -714,7 +714,7 @@ fn parser_to_instr_set(
     variables: &mut Vec<(String, u16)>,
     consts: &mut Vec<Data>,
     functions: &mut Vec<(String, Box<[String]>, Box<[Expr]>)>,
-    is_processing_function: &Option<(String, u16)>,
+    is_processing_function: &Option<(String, u16, Vec<(String, u16)>)>,
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
@@ -857,9 +857,37 @@ fn parser_to_instr_set(
                         }
                     };
 
-                    if let Some((name, loc)) = is_processing_function {
+                    if let Some((name, loc,func_args)) = is_processing_function {
                         if name == function {
                             // recursive function, go back to function def and move on
+                            for (i,x) in exp_args.iter().enumerate() {
+                                let match_value = args.get(i).unwrap();
+                                if let Expr::Num(num) = match_value {
+                                    consts[func_args[i].1 as usize] = Data::Number(*num);
+                                } else if let Expr::String(str) = match_value {
+                                    consts[func_args[i].1 as usize] = Data::String(Intern::from(str.to_string()));
+                                } else if let Expr::Bool(bool) = match_value {
+                                    consts[func_args[i].1 as usize] = Data::Bool(*bool);
+                                } else if let Expr::Var(name) = match_value {
+                                    if let Some((_, var_id)) = variables.iter().find(|(w, _)| name == w) {
+                                        output.push(Instr::Mov(*var_id, (func_args[i].1 as usize) as u16));
+                                        // fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
+                                    } else {
+                                        error!(
+                                            ctx,
+                                            format_args!("Unknown variable {}", name.red()),
+                                            format_args!("Add 'let {name} = 0;'")
+                                        );
+                                    }
+                                } else {
+                                    let mut value = parser_to_instr_set(vec![match_value.clone()], variables, consts, functions,&None);
+                                    move_to_id(&mut value, func_args[i].1 as usize as u16);
+                                    output.extend(value);
+                                }
+                            }
+
+
+
                             output.push(Instr::Jmp((output.len() as u16) - loc, true));
                             continue;
                         }
@@ -880,7 +908,7 @@ fn parser_to_instr_set(
                         } else if let Expr::Bool(val) = match_value {
                             consts.push(Data::Bool(*val));
                             fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
-                        }  else if let Expr::Var(name) = match_value {
+                        } else if let Expr::Var(name) = match_value {
                             if let Some((_, var_id)) = variables.iter().find(|(w, _)| name == w) {
                                 consts.push(Data::Null);
                                 instructions.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
@@ -901,8 +929,8 @@ fn parser_to_instr_set(
                             fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
                         }
                     }
-
-                    instructions.extend(parser_to_instr_set(fn_code, &mut fn_variables, consts, functions,&Some((function.to_string(), output.len() as u16))));
+                    let vars = fn_variables.clone();
+                    instructions.extend(parser_to_instr_set(fn_code, &mut fn_variables, consts, functions,&Some((function.to_string(), output.len() as u16, vars))));
                     output.extend(instructions);
 
                 }
