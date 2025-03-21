@@ -3,12 +3,11 @@ use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
+use likely_stable::if_likely;
 use std::cmp::PartialEq;
 use std::fmt::Formatter;
 use std::hint::unreachable_unchecked;
-use std::slice;
 use std::time::Instant;
-use likely_stable::if_likely;
 
 macro_rules! error {
     ($x: expr, $y: expr) => {
@@ -129,7 +128,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                if_likely!{let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
                     consts[dest as usize] = Data::Number(parent * child);
                 } else {
                     error_b!(format_args!(
@@ -142,7 +141,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                if_likely!{let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
                     consts[dest as usize] = Data::Number(parent / child);
                 } else {
                     error_b!(format_args!(
@@ -155,7 +154,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                if_likely!{let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
                     consts[dest as usize] = Data::Number(parent - child);
                 } else {
                     error_b!(format_args!(
@@ -168,7 +167,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                if_likely!{let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
                     consts[dest as usize] = Data::Number(parent % child);
                 } else {
                     error_b!(format_args!(
@@ -181,7 +180,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                if_likely!{let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
                     consts[dest as usize] = Data::Number(parent.powf(child));
                 } else {
                     error_b!(format_args!(
@@ -202,7 +201,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                if_likely!{let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
                     consts[dest as usize] = Data::Bool(parent > child);
                 } else {
                     error_b!(format_args!(
@@ -215,7 +214,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                if_likely!{let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
                     consts[dest as usize] = Data::Bool(parent >= child);
                 } else {
                     error_b!(format_args!(
@@ -228,7 +227,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                if_likely!{let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
                     consts[dest as usize] = Data::Bool(parent < child);
                 } else {
                     error_b!(format_args!(
@@ -241,7 +240,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                if_likely!{let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
                     consts[dest as usize] = Data::Bool(parent <= child);
                 } else {
                     error_b!(format_args!(
@@ -254,7 +253,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                if_likely!{let (Data::Bool(parent), Data::Bool(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (first_elem, second_elem) => {
                     consts[dest as usize] = Data::Bool(parent && child);
                 } else {
                     error_b!(format_args!(
@@ -267,7 +266,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
-                if_likely!{let (Data::Bool(parent), Data::Bool(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (first_elem, second_elem) => {
                     consts[dest as usize] = Data::Bool(parent || child);
                 } else {
                     error_b!(format_args!(
@@ -281,7 +280,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
             }
             Instr::Neg(tgt, dest) => {
                 let tgt = consts[tgt as usize];
-                if_likely!{let Data::Number(x) = tgt => {
+                if_likely! {let Data::Number(x) = tgt => {
                     consts[dest as usize] = Data::Number(-x);
                 } else {
                     error_b!(format_args!("UNSUPPORTED OPERATION: -{tgt:?}"));
@@ -323,8 +322,7 @@ pub enum Expr {
     LPAREN,
     RPAREN,
 
-
-    FunctionDecl(String, Box<[String]>, Box<[Expr]>)
+    FunctionDecl(String, Box<[String]>, Box<[Expr]>),
 }
 
 macro_rules! format_lines {
@@ -586,7 +584,7 @@ fn get_id(
     consts: &mut Vec<Data>,
     instr: &mut Vec<Instr>,
     line: &Expr,
-    functions: &mut Vec<(String,Box<[String]>,Box<[Expr]>)>
+    functions: &mut Vec<(String, Box<[String]>, Box<[Expr]>)>,
 ) -> u16 {
     match x {
         Expr::Num(num) => {
@@ -613,7 +611,7 @@ fn get_id(
             }
         }
         _ => {
-            let out = parser_to_instr_set(vec![x], variables, consts,functions,&None);
+            let out = parser_to_instr_set(vec![x], variables, consts, functions, &None);
             instr.append(&mut out.clone());
             get_tgt_id(*out.last().unwrap())
         }
@@ -637,7 +635,7 @@ fn returns_bool(instruction: Instr) -> bool {
 fn offset_id(instr: &mut [Instr], amount: u16) {
     for x in instr.iter_mut() {
         match x {
-            Instr::Print(id) |  Instr::Jmp(id, _) => *id += amount,
+            Instr::Print(id) | Instr::Jmp(id, _) => *id += amount,
             Instr::Cmp(a, b) | Instr::Mov(a, b) | Instr::Neg(a, b) | Instr::Abs(a, b) => {
                 *a += amount;
                 *b += amount;
@@ -655,12 +653,12 @@ fn offset_id(instr: &mut [Instr], amount: u16) {
             | Instr::Inf(a, b, c)
             | Instr::InfEq(a, b, c)
             | Instr::BoolAnd(a, b, c)
-            | Instr::BoolOr(a, b, c)  => {
+            | Instr::BoolOr(a, b, c) => {
                 *a += amount;
                 *b += amount;
                 *c += amount;
             }
-            Instr::Null => unreachable!()
+            Instr::Null => unreachable!(),
         }
     }
 }
@@ -709,6 +707,18 @@ fn offset_id(instr: &mut [Instr], amount: u16) {
 //     is_recursive
 // }
 
+fn expr_to_data(input: Expr) -> Data {
+    if let Expr::Num(data) = input {
+        Data::Number(data)
+    } else if let Expr::String(data) = input {
+        Data::String(Intern::from(data))
+    } else if let Expr::Bool(data) = input {
+        Data::Bool(data)
+    } else {
+        Data::Null
+    }
+}
+
 fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
@@ -723,18 +733,33 @@ fn parser_to_instr_set(
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
+            Expr::Var(name) => {
+                consts.push(Data::Null);
+                variables.push((name.to_string(), (consts.len() - 1) as u16));
+                if let Some((_, var_id)) = variables.iter().find(|(x, _)| &name == x) {
+                    output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
+                } else {
+                    error!(
+                        ctx,
+                        format_args!("Unknown variable {}", name.red()),
+                        format_args!("Add 'let {name} = 0;'")
+                    );
+                }
+            }
             Expr::Condition(x, y, z, w) => {
                 if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
-                let condition = parser_to_instr_set(vec![*x.clone()], variables, consts,functions,&None);
+                let condition =
+                    parser_to_instr_set(vec![*x.clone()], variables, consts, functions, &None);
                 if !returns_bool(*condition.last().unwrap()) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
                 let mut priv_vars = variables.clone();
-                let cond_code = parser_to_instr_set(y.into_vec(), &mut priv_vars, consts,functions,&None);
+                let cond_code =
+                    parser_to_instr_set(y.into_vec(), &mut priv_vars, consts, functions, &None);
                 let len = cond_code.len() + 1;
                 output.push(Instr::Cmp(condition_id, len as u16));
                 output.extend(cond_code);
@@ -747,50 +772,27 @@ fn parser_to_instr_set(
                 if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
-                let condition = parser_to_instr_set(vec![*x.clone()], variables, consts,functions,&None);
+                let condition =
+                    parser_to_instr_set(vec![*x.clone()], variables, consts, functions, &None);
                 if !returns_bool(*condition.last().unwrap()) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
                 let mut priv_vars = variables.clone();
-                let cond_code = parser_to_instr_set(y.into_vec(), &mut priv_vars, consts,functions,&None);
+                let cond_code =
+                    parser_to_instr_set(y.into_vec(), &mut priv_vars, consts, functions, &None);
                 let len = (cond_code.len() + 2) as u16;
                 output.push(Instr::Cmp(condition_id, len));
                 output.extend(cond_code);
                 output.push(Instr::Jmp(len, true));
             }
             Expr::VarDeclare(x, y) => {
-                let val = *y;
-                if let Expr::Num(data) = val {
-                    consts.push(Data::Number(data));
-                    variables.push((x, (consts.len() - 1) as u16));
-                } else if let Expr::String(data) = val {
-                    consts.push(Data::String(Intern::from(data)));
-                    variables.push((x, (consts.len() - 1) as u16));
-                } else if let Expr::Bool(data) = val {
-                    consts.push(Data::Bool(data));
-                    variables.push((x, (consts.len() - 1) as u16));
-                } else if let Expr::Var(name) = val {
-                    consts.push(Data::Null);
-                    variables.push((x, (consts.len() - 1) as u16));
-                    if let Some((_, var_id)) = variables.iter().find(|(x, _)| &name == x) {
-                        output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
-                    } else {
-                        error!(
-                            ctx,
-                            format_args!("Unknown variable {}", name.red()),
-                            format_args!("Add 'let {name} = 0;'")
-                        );
-                    }
-                } else {
-                    consts.push(Data::Null);
-                    let len = (consts.len() - 1) as u16;
-                    variables.push((x, len));
-                    let mut val = parser_to_instr_set(vec![val], variables, consts,functions,&None);
-                    move_to_id(&mut val, len);
-                    output.extend(val);
-                }
+                let len = consts.len() as u16;
+                let mut val = parser_to_instr_set(vec![*y], variables, consts, functions, &None);
+                move_to_id(&mut val, len);
+                variables.push((x, len));
+                output.extend(val);
             }
             Expr::VarAssign(x, y) => {
                 let id = variables
@@ -825,7 +827,8 @@ fn parser_to_instr_set(
                         );
                     }
                 } else {
-                    let mut value = parser_to_instr_set(vec![val], variables, consts, functions,&None);
+                    let mut value =
+                        parser_to_instr_set(vec![val], variables, consts, functions, &None);
                     move_to_id(&mut value, id);
                     output.extend(value);
                 }
@@ -833,7 +836,7 @@ fn parser_to_instr_set(
             Expr::FunctionCall(x, args) => match x.as_str() {
                 "print" => {
                     for arg in args {
-                        let id = get_id(arg, variables, consts, &mut output, &ctx,functions);
+                        let id = get_id(arg, variables, consts, &mut output, &ctx, functions);
                         output.push(Instr::Print(id));
                     }
                 }
@@ -845,33 +848,58 @@ fn parser_to_instr_set(
                             format_args!("Replace with 'abs({})'", args[0])
                         );
                     }
-                    let id = get_id(args[0].clone(), variables, consts, &mut output, &ctx, functions);
+                    let id = get_id(
+                        args[0].clone(),
+                        variables,
+                        consts,
+                        &mut output,
+                        &ctx,
+                        functions,
+                    );
                     output.push(Instr::Abs(id, id));
                 }
                 function => {
-                    let (fn_code, exp_args):(Vec<Expr>,Box<[String]>) = {
-                        if let Some((_, exp_args, code)) = functions.iter().find(|(a,_,_)| a == function) {
+                    let (fn_code, exp_args): (Vec<Expr>, Box<[String]>) = {
+                        if let Some((_, exp_args, code)) =
+                            functions.iter().find(|(a, _, _)| a == function)
+                        {
                             (code.to_vec(), exp_args.clone())
                         } else {
                             error!(ctx, format_args!("Unknown function {}", function.red()));
                         }
                     };
+                    if exp_args.len() != args.len() {
+                        error!(
+                            ctx,
+                            format_args!(
+                                "Function {} expected {} arguments but was given {}",
+                                function.red(),
+                                exp_args.len(),
+                                args.len()
+                            )
+                        );
+                    }
 
-                    if let Some((name, loc,func_args)) = is_processing_function {
+                    if let Some((name, loc, func_args)) = is_processing_function {
                         if name == function {
                             // recursive function, go back to function def and move on
-                            for (i,x) in exp_args.iter().enumerate() {
+                            for (i, x) in exp_args.iter().enumerate() {
                                 let match_value = args.get(i).unwrap();
                                 if let Expr::Num(num) = match_value {
                                     consts[func_args[i].1 as usize] = Data::Number(*num);
                                 } else if let Expr::String(str) = match_value {
-                                    consts[func_args[i].1 as usize] = Data::String(Intern::from(str.to_string()));
+                                    consts[func_args[i].1 as usize] =
+                                        Data::String(Intern::from(str.to_string()));
                                 } else if let Expr::Bool(bool) = match_value {
                                     consts[func_args[i].1 as usize] = Data::Bool(*bool);
                                 } else if let Expr::Var(name) = match_value {
-                                    if let Some((_, var_id)) = variables.iter().find(|(w, _)| name == w) {
-                                        output.push(Instr::Mov(*var_id, (func_args[i].1 as usize) as u16));
-                                        // fn_variables.push((x.to_string(), (consts.len() - 1) as u16));
+                                    if let Some((_, var_id)) =
+                                        variables.iter().find(|(w, _)| name == w)
+                                    {
+                                        output.push(Instr::Mov(
+                                            *var_id,
+                                            (func_args[i].1 as usize) as u16,
+                                        ));
                                     } else {
                                         error!(
                                             ctx,
@@ -880,24 +908,27 @@ fn parser_to_instr_set(
                                         );
                                     }
                                 } else {
-                                    let mut value = parser_to_instr_set(vec![match_value.clone()], variables, consts, functions,&None);
+                                    let mut value = parser_to_instr_set(
+                                        vec![match_value.clone()],
+                                        variables,
+                                        consts,
+                                        functions,
+                                        &None,
+                                    );
                                     move_to_id(&mut value, func_args[i].1 as usize as u16);
                                     output.extend(value);
                                 }
                             }
-
-
 
                             output.push(Instr::Jmp((output.len() as u16) - loc, true));
                             continue;
                         }
                     }
 
-
                     let mut fn_variables: Vec<(String, u16)> = Vec::new();
-                    let mut instructions:Vec<Instr> = Vec::new();
+                    let mut instructions: Vec<Instr> = Vec::new();
 
-                    for (i,x) in exp_args.iter().enumerate() {
+                    for (i, x) in exp_args.iter().enumerate() {
                         let match_value = args.get(i).unwrap();
                         if let Expr::Num(num) = match_value {
                             consts.push(Data::Number(*num));
@@ -920,9 +951,14 @@ fn parser_to_instr_set(
                                     format_args!("Add 'let {name} = 0;'")
                                 );
                             }
-                        }
-                        else {
-                            let mut value = parser_to_instr_set(vec![match_value.clone()], variables, consts, functions,&None);
+                        } else {
+                            let mut value = parser_to_instr_set(
+                                vec![match_value.clone()],
+                                variables,
+                                consts,
+                                functions,
+                                &None,
+                            );
                             consts.push(Data::Null);
                             move_to_id(&mut value, (consts.len() - 1) as u16);
                             output.extend(value);
@@ -930,13 +966,18 @@ fn parser_to_instr_set(
                         }
                     }
                     let vars = fn_variables.clone();
-                    instructions.extend(parser_to_instr_set(fn_code, &mut fn_variables, consts, functions,&Some((function.to_string(), output.len() as u16, vars))));
+                    instructions.extend(parser_to_instr_set(
+                        fn_code,
+                        &mut fn_variables,
+                        consts,
+                        functions,
+                        &Some((function.to_string(), output.len() as u16, vars)),
+                    ));
                     output.extend(instructions);
-
                 }
             },
-            Expr::FunctionDecl(x,y,z) => {
-                functions.push((x,y,z));
+            Expr::FunctionDecl(x, y, z) => {
+                functions.push((x, y, z));
             }
             Expr::Op(left, right) => {
                 fn remove_priority(
@@ -990,8 +1031,10 @@ fn parser_to_instr_set(
                             let last = item_stack.pop().unwrap();
                             let first = item_stack.pop().unwrap();
 
-                            let first_v = get_id(first, variables, consts, &mut output, &ctx,functions);
-                            let second_v = get_id(last, variables, consts, &mut output, &ctx,functions);
+                            let first_v =
+                                get_id(first, variables, consts, &mut output, &ctx, functions);
+                            let second_v =
+                                get_id(last, variables, consts, &mut output, &ctx, functions);
                             consts.push(Data::Null);
                             let x = first_v;
                             let y = second_v;
@@ -1001,7 +1044,8 @@ fn parser_to_instr_set(
                             let old_id = get_tgt_id(*final_stack.last().unwrap());
                             let new = item_stack.pop().unwrap();
 
-                            let new_v = get_id(new, variables, consts, &mut output, &ctx,functions);
+                            let new_v =
+                                get_id(new, variables, consts, &mut output, &ctx, functions);
                             consts.push(Data::Null);
                             let x = old_id;
                             let y = new_v;
@@ -1023,10 +1067,6 @@ fn parser_to_instr_set(
     output
 }
 
-
-
-
-
 // Live long and prosper
 fn main() {
     dbg!(size_of::<Instr>());
@@ -1036,8 +1076,8 @@ fn main() {
     let now = Instant::now();
 
     let contents = std::fs::read_to_string("test.spock").unwrap();
-    let mut functions:Vec<Expr> = grammar::FileParser::new().parse(&contents).unwrap();
-    let main_function:Vec<Expr> = {
+    let mut functions: Vec<Expr> = grammar::FileParser::new().parse(&contents).unwrap();
+    let main_function: Vec<Expr> = {
         if let Some(fctn) = functions.iter().position(|a| {
             if let Expr::FunctionDecl(name, _, _) = a {
                 name == "main"
@@ -1045,7 +1085,7 @@ fn main() {
                 false
             }
         }) {
-            if let Expr::FunctionDecl(_,_,code) = functions.swap_remove(fctn) {
+            if let Expr::FunctionDecl(_, _, code) = functions.swap_remove(fctn) {
                 code.to_vec()
             } else {
                 error!(contents, "No main function");
@@ -1055,19 +1095,28 @@ fn main() {
         }
     };
 
-    let mut functions:Vec<(String,Box<[String]>,Box<[Expr]>)> = functions.iter().map(|w| {
-        if let Expr::FunctionDecl(x,y,z) = w {
-            (x.to_string(),y.clone(),z.clone())
-        } else {
-            error!(contents, "Function expected");
-        }
-    }).collect();
+    let mut functions: Vec<(String, Box<[String]>, Box<[Expr]>)> = functions
+        .iter()
+        .map(|w| {
+            if let Expr::FunctionDecl(x, y, z) = w {
+                (x.to_string(), y.clone(), z.clone())
+            } else {
+                error!(contents, "Function expected");
+            }
+        })
+        .collect();
 
     print!("{functions:?}");
 
     let mut variables: Vec<(String, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
-    let instructions = parser_to_instr_set(main_function, &mut variables, &mut consts, &mut functions,&None);
+    let instructions = parser_to_instr_set(
+        main_function,
+        &mut variables,
+        &mut consts,
+        &mut functions,
+        &None,
+    );
     print!("INSTR OUT {instructions:?}");
     print!("CONSTS ARE {consts:?}");
     print!("VARS ARE {variables:?}");
