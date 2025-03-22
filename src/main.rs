@@ -332,7 +332,7 @@ pub enum Expr {
 
     FunctionDecl(String, Box<[String]>, Box<[Expr]>),
 
-    ReturnVal(Box<Expr>)
+    ReturnVal(Box<Expr>),
 }
 
 macro_rules! format_lines {
@@ -713,8 +713,7 @@ fn offset_id(instr: &mut [Instr], amount: u16) {
                 *a += amount;
                 *b += amount;
                 *c += amount;
-            }
-            // Instr::Null => unreachable!(),
+            } // Instr::Null => unreachable!(),
         }
     }
 }
@@ -755,19 +754,28 @@ fn parser_to_instr_set(
                 }
             }
             Expr::Condition(x, y, z, w) => {
-                println!("IM THE BAD GUY");
                 let mut condition_blocks: Vec<(Vec<Instr>, Vec<Instr>)> = Vec::new();
                 if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
-                let condition =
-                    parser_to_instr_set(vec![*x.clone()], variables, consts, functions, None);
+                let condition = parser_to_instr_set(
+                    vec![*x.clone()],
+                    variables,
+                    consts,
+                    functions,
+                    is_processing_function,
+                );
                 if !returns_bool(*condition.last().unwrap()) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
                 let mut priv_vars = variables.clone();
-                let cond_code =
-                    parser_to_instr_set(y.into_vec(), &mut priv_vars, consts, functions, None);
+                let cond_code = parser_to_instr_set(
+                    y.into_vec(),
+                    &mut priv_vars,
+                    consts,
+                    functions,
+                    is_processing_function,
+                );
 
                 condition_blocks.push((condition, cond_code));
 
@@ -781,7 +789,7 @@ fn parser_to_instr_set(
                             variables,
                             consts,
                             functions,
-                            None
+                            is_processing_function,
                         );
                         if !returns_bool(*condition.last().unwrap()) {
                             error!(ctx, format_args!("{} is not a bool", *x));
@@ -792,7 +800,7 @@ fn parser_to_instr_set(
                             &mut priv_vars,
                             consts,
                             functions,
-                            None
+                            is_processing_function,
                         );
                         condition_blocks.push((condition, cond_code));
                     }
@@ -804,7 +812,7 @@ fn parser_to_instr_set(
                         &mut priv_vars,
                         consts,
                         functions,
-                        None
+                        is_processing_function,
                     );
                     condition_blocks.push((Vec::new(), cond_code));
                 }
@@ -842,16 +850,26 @@ fn parser_to_instr_set(
                 if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
-                let condition =
-                    parser_to_instr_set(vec![*x.clone()], variables, consts, functions, None);
+                let condition = parser_to_instr_set(
+                    vec![*x.clone()],
+                    variables,
+                    consts,
+                    functions,
+                    is_processing_function,
+                );
                 if !returns_bool(*condition.last().unwrap()) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
                 let mut priv_vars = variables.clone();
-                let cond_code =
-                    parser_to_instr_set(y.into_vec(), &mut priv_vars, consts, functions, None);
+                let cond_code = parser_to_instr_set(
+                    y.into_vec(),
+                    &mut priv_vars,
+                    consts,
+                    functions,
+                    is_processing_function,
+                );
                 let len = (cond_code.len() + 2) as u16;
                 output.push(Instr::Cmp(condition_id, len));
                 output.extend(cond_code);
@@ -859,7 +877,13 @@ fn parser_to_instr_set(
             }
             Expr::VarDeclare(x, y) => {
                 let len = consts.len() as u16;
-                let mut val = parser_to_instr_set(vec![*y], variables, consts, functions, None);
+                let mut val = parser_to_instr_set(
+                    vec![*y],
+                    variables,
+                    consts,
+                    functions,
+                    is_processing_function,
+                );
                 move_to_id(&mut val, len);
                 variables.push((x, len));
                 output.extend(val);
@@ -877,7 +901,13 @@ fn parser_to_instr_set(
                     })
                     .1;
 
-                let mut value = parser_to_instr_set(vec![*y], variables, consts, functions, None);
+                let mut value = parser_to_instr_set(
+                    vec![*y],
+                    variables,
+                    consts,
+                    functions,
+                    is_processing_function,
+                );
                 move_to_id(&mut value, id);
                 output.extend(value);
             }
@@ -906,6 +936,25 @@ fn parser_to_instr_set(
                     );
                     output.push(Instr::Abs(id, id));
                 }
+                "num" => {
+                    if args.len() > 1 {
+                        error!(
+                            ctx,
+                            "Function 'num' only expects one argument",
+                            format_args!("Replace with 'num({})'", args[0])
+                        );
+                    }
+                    let id = get_id(
+                        args[0].clone(),
+                        variables,
+                        consts,
+                        &mut output,
+                        &ctx,
+                        functions,
+                    );
+                    consts[id as usize] =
+                        Data::String(Intern::from(format!("{}", consts[id as usize])));
+                }
                 function => {
                     let (fn_code, exp_args): (Vec<Expr>, Box<[String]>) = {
                         if let Some((_, exp_args, code)) =
@@ -930,8 +979,8 @@ fn parser_to_instr_set(
 
                     if let Some((name, loc, func_args, return_id)) = is_processing_function {
                         if name == function {
-                            println!("YES ITS RECURSIVE");
                             // recursive function, go back to function def and move on
+                            // "return" doesn't work with recursive functions for now
                             for (i, _) in exp_args.iter().enumerate() {
                                 let arg = args.get(i).unwrap();
                                 let val = expr_to_data(arg.clone());
@@ -947,6 +996,7 @@ fn parser_to_instr_set(
                                         is_processing_function,
                                     );
                                     move_to_id(&mut value, func_args[i].1);
+                                    println!("VAL{value:?}");
                                     output.extend(value);
                                 }
                             }
@@ -966,7 +1016,7 @@ fn parser_to_instr_set(
                             variables,
                             consts,
                             functions,
-                            None
+                            is_processing_function,
                         );
                         move_to_id(&mut value, len);
                         output.extend(value);
@@ -979,17 +1029,26 @@ fn parser_to_instr_set(
                         &mut fn_variables,
                         consts,
                         functions,
-                        Some(&(function.to_string(), output.len() as u16, vars, Some((consts.len() - 1) as u16))),
+                        Some(&(
+                            function.to_string(),
+                            output.len() as u16,
+                            vars,
+                            Some((consts.len() - 1) as u16),
+                        )),
                     ));
                     output.extend(instructions);
                 }
             },
             Expr::ReturnVal(val) => {
-                println!("IM THE CULPRIT");
                 if let Some(x) = is_processing_function {
                     if let Some(ret_id) = x.3 {
-                        println!("RECURSIVE?1");
-                        let mut val = parser_to_instr_set(vec![*val], variables, consts, functions, None);
+                        let mut val = parser_to_instr_set(
+                            vec![*val],
+                            variables,
+                            consts,
+                            functions,
+                            is_processing_function,
+                        );
                         if val.is_empty() {
                             output.push(Instr::Mov((consts.len() - 1) as u16, ret_id))
                         } else {
@@ -998,6 +1057,7 @@ fn parser_to_instr_set(
                         }
                     }
                 }
+                // error_b!("WTF");
             }
             Expr::FunctionDecl(x, y, z) => {
                 if functions.iter().any(|(name, _, _)| name == &x) {
@@ -1006,7 +1066,6 @@ fn parser_to_instr_set(
                 functions.push((x, y, z));
             }
             Expr::Op(left, right) => {
-                println!("RECURSIVE?2");
                 println!("{left:?} {right:?}");
                 fn remove_priority(
                     x: Expr,
@@ -1061,7 +1120,6 @@ fn parser_to_instr_set(
                             let first = item_stack.pop().unwrap();
                             print!("1.NEW IS {first}");
 
-
                             let first_v =
                                 get_id(first, variables, consts, &mut output, &ctx, functions);
                             let second_v =
@@ -1075,7 +1133,7 @@ fn parser_to_instr_set(
 
                             handle_ops!(final_stack, x, y, z as u16, op, consts);
                         } else {
-                            print!("2.OLD IS {:?}",final_stack.last().unwrap());
+                            print!("2.OLD IS {:?}", final_stack.last().unwrap());
                             let old_id = get_tgt_id(*final_stack.last().unwrap());
                             let new = item_stack.pop().unwrap();
                             print!("2.NEW IS {new}");
@@ -1098,7 +1156,13 @@ fn parser_to_instr_set(
                 output.extend(final_stack);
             }
             Expr::Priority(x) => {
-                output.extend(parser_to_instr_set(vec![*x], variables, consts, functions, None));
+                output.extend(parser_to_instr_set(
+                    vec![*x],
+                    variables,
+                    consts,
+                    functions,
+                    is_processing_function,
+                ));
             }
             other => {
                 error!(ctx, format_args!("Not implemented {other:?}"));
