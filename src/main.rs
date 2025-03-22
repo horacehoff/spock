@@ -609,7 +609,10 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::BoolAnd(_, _, y)
         | Instr::BoolOr(_, _, y)
         | Instr::Neg(_, y)
-        | Instr::Abs(_, y) => y,
+        | Instr::Abs(_, y)
+        | Instr::Num(_, y)
+        | Instr::Bool(_, y)
+        | Instr::Str(_, y) => y,
         _ => unreachable!(),
     }
 }
