@@ -1,11 +1,17 @@
 fn main () {
-    let count = 6;
-    if count +10 {
-        print("1");
-    } else if count > 5 {
-        print("2");
-    } else {
-        print("Hello, else...");
-    }
-    print("42");
+let n = 40;
+let a=0;
+let b=1;
+let c=0;
+let i=0;
+print("Fibonacci sequence:");
+print(a);
+print(b);
+while i < n {
+    c = a+b;
+   print(c);
+   a = b;
+   b = c;
+   i=i+1;
+}
 }

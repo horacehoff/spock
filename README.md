@@ -2,7 +2,8 @@
 A work-in-progress programming language written in Rust for the best performance possible, whose syntax takes inspiration from Rust and Python. Basically, its goal is to provide a faster alternative to Python, and one that's closer to low-level languages, while still being accessible to a wide audience.
 
 Key info:
-- ~5-10x faster than Python in most cases
+
+- ~5-10x faster than Python in most cases, can go as far as 1000x faster
 
 ## Instruction Set
 
