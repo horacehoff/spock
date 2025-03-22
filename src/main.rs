@@ -1021,6 +1021,9 @@ fn parser_to_instr_set(
                 }
                 output.extend(final_stack);
             }
+            Expr::Priority(x) => {
+                return parser_to_instr_set(vec![*x], variables, consts, functions, None);
+            }
             other => {
                 error!(ctx, format_args!("Not implemented {other:?}"));
             }
