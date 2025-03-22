@@ -64,7 +64,6 @@ impl std::fmt::Display for Data {
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Instr {
-    Null,
     Print(u16),
 
     // LOGIC
@@ -306,7 +305,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     consts[dest as usize] = Data::Number(x.abs());
                 }
             }
-            Instr::Null => unsafe { unreachable_unchecked() },
+            // Instr::Null => unsafe { unreachable_unchecked() },
         }
         i += 1;
     }
@@ -314,7 +313,6 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
-    Null,
     Num(f64),
     Bool(bool),
     Op(Box<Expr>, Box<[(Opcode, Box<Expr>)]>),
@@ -715,7 +713,7 @@ fn offset_id(instr: &mut [Instr], amount: u16) {
                 *b += amount;
                 *c += amount;
             }
-            Instr::Null => unreachable!(),
+            // Instr::Null => unreachable!(),
         }
     }
 }
