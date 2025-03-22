@@ -663,6 +663,15 @@ fn offset_id(instr: &mut [Instr], amount: u16) {
     }
 }
 
+fn expr_to_data(input: Expr) -> Data {
+    match input {
+        Expr::Num(num) => Data::Number(num),
+        Expr::Bool(bool) => Data::Bool(bool),
+        Expr::String(str) => Data::String(Intern::from(str)),
+        _ => Data::Null,
+    }
+}
+
 fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
@@ -691,6 +700,7 @@ fn parser_to_instr_set(
                 }
             }
             Expr::Condition(x, y, z, w) => {
+                let mut condition_blocks: Vec<(Vec<Instr>, Vec<Instr>)> = Vec::new();
                 if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
@@ -699,17 +709,66 @@ fn parser_to_instr_set(
                 if !returns_bool(*condition.last().unwrap()) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
-                output.extend(condition);
-                let condition_id = get_tgt_id(*output.last().unwrap());
                 let mut priv_vars = variables.clone();
                 let cond_code =
                     parser_to_instr_set(y.into_vec(), &mut priv_vars, consts, functions, None);
-                let len = cond_code.len() + 1;
-                output.push(Instr::Cmp(condition_id, len as u16));
-                output.extend(cond_code);
+
+                condition_blocks.push((condition, cond_code));
+
+                for condition in z {
+                    if let Expr::ElseIfBlock(condition, code) = condition {
+                        if matches!(*condition, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
+                            error!(ctx, format_args!("{} is not a bool", *condition));
+                        }
+                        let condition = parser_to_instr_set(
+                            vec![*condition],
+                            variables,
+                            consts,
+                            functions,
+                            None,
+                        );
+                        if !returns_bool(*condition.last().unwrap()) {
+                            error!(ctx, format_args!("{} is not a bool", *x));
+                        }
+                        let mut priv_vars = variables.clone();
+                        let cond_code = parser_to_instr_set(
+                            code.into_vec(),
+                            &mut priv_vars,
+                            consts,
+                            functions,
+                            None,
+                        );
+                        condition_blocks.push((condition, cond_code));
+                    }
+                }
+                let else_block: Vec<Expr> = if let Some(code) = w {
+                    code.to_vec()
+                } else {
+                    Vec::new()
+                };
+
+                if else_block.is_empty() {
+                    for (i, x) in condition_blocks.iter().enumerate() {
+                        output.extend(x.0.clone());
+                        let condition_id = get_tgt_id(*output.last().unwrap());
+                        let jump_size = condition_blocks
+                            .iter()
+                            .skip(i + 1)
+                            .map(|x| (x.0.len() + x.1.len() + 2) as u16)
+                            .sum::<u16>();
+                        if jump_size == 0 {
+                            output.push(Instr::Cmp(condition_id, (x.1.len() + 1) as u16));
+                            output.extend(x.1.clone());
+                        } else {
+                            output.push(Instr::Cmp(condition_id, (x.1.len() + 2) as u16));
+                            output.extend(x.1.clone());
+                            output.push(Instr::Jmp(jump_size, false));
+                        }
+                    }
+                }
 
                 print!("{consts:?}");
-                print!("CONDITION IS {condition_id:?}");
+                // print!("CONDITION IS {condition_id:?}");
                 // TODO
             }
             Expr::WhileBlock(x, y) => {
@@ -806,23 +865,19 @@ fn parser_to_instr_set(
                         if name == function {
                             // recursive function, go back to function def and move on
                             for (i, _) in exp_args.iter().enumerate() {
-                                let match_value = args.get(i).unwrap();
-                                if let Expr::Num(num) = match_value {
-                                    consts[func_args[i].1 as usize] = Data::Number(*num);
-                                } else if let Expr::String(str) = match_value {
-                                    consts[func_args[i].1 as usize] =
-                                        Data::String(Intern::from(str.to_string()));
-                                } else if let Expr::Bool(bool) = match_value {
-                                    consts[func_args[i].1 as usize] = Data::Bool(*bool);
+                                let arg = args.get(i).unwrap();
+                                let val = expr_to_data(arg.clone());
+                                if val != Data::Null {
+                                    consts[func_args[i].1 as usize] = val;
                                 } else {
                                     let mut value = parser_to_instr_set(
-                                        vec![match_value.clone()],
+                                        vec![arg.clone()],
                                         variables,
                                         consts,
                                         functions,
                                         None,
                                     );
-                                    move_to_id(&mut value, func_args[i].1 as usize as u16);
+                                    move_to_id(&mut value, func_args[i].1);
                                     output.extend(value);
                                 }
                             }
