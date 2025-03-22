@@ -93,6 +93,9 @@ pub enum Instr {
 
     // Funcs
     Abs(u16, u16),
+    Num(u16, u16),
+    Str(u16, u16),
+    Bool(u16, u16),
 }
 
 fn execute(instructions: &[Instr], consts: &mut [Data]) {
@@ -303,6 +306,35 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
             Instr::Abs(tgt, dest) => {
                 if let Data::Number(x) = consts[tgt as usize] {
                     consts[dest as usize] = Data::Number(x.abs());
+                }
+            }
+            Instr::Num(tgt, dest) => {
+                let base = consts[tgt as usize];
+                match base {
+                    Data::String(str) => {
+                        consts[dest as usize] =
+                            Data::Number(str.parse::<f64>().unwrap_or_else(|_| {
+                                error_b!(format_args!("CANNOT CONVERT {str} TO NUMBER"));
+                            }))
+                    }
+                    Data::Number(_) => {}
+                    other => {
+                        error_b!(format_args!("CANNOT CONVERT {other} TO NUMBER"));
+                    }
+                }
+            }
+            Instr::Str(tgt, dest) => {
+                consts[dest as usize] =
+                    Data::String(Intern::from(format!("{}", consts[tgt as usize])));
+            }
+            Instr::Bool(tgt, dest) => {
+                let base = consts[tgt as usize];
+                if let Data::String(str) = base {
+                    consts[dest as usize] = Data::Bool(str.parse::<bool>().unwrap_or_else(|_| {
+                        error_b!(format_args!("CANNOT CONVERT {str} TO BOOL"));
+                    }));
+                } else {
+                    error_b!(format_args!("CANNOT CONVERT {base} TO BOOL"));
                 }
             }
         }
@@ -604,7 +636,10 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::BoolOr(_, _, z)
         | Instr::Mov(_, z)
         | Instr::Neg(_, z)
-        | Instr::Abs(_, z) => *z = tgt_id,
+        | Instr::Abs(_, z)
+        | Instr::Bool(_, z)
+        | Instr::Num(_, z)
+        | Instr::Str(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
 }
@@ -692,7 +727,13 @@ fn offset_id(instr: &mut [Instr], amount: u16) {
     for x in instr.iter_mut() {
         match x {
             Instr::Print(id) | Instr::Jmp(id, _) => *id += amount,
-            Instr::Cmp(a, b) | Instr::Mov(a, b) | Instr::Neg(a, b) | Instr::Abs(a, b) => {
+            Instr::Cmp(a, b)
+            | Instr::Mov(a, b)
+            | Instr::Neg(a, b)
+            | Instr::Abs(a, b)
+            | Instr::Str(a, b)
+            | Instr::Num(a, b)
+            | Instr::Bool(a, b) => {
                 *a += amount;
                 *b += amount;
             }
@@ -952,8 +993,43 @@ fn parser_to_instr_set(
                         &ctx,
                         functions,
                     );
-                    consts[id as usize] =
-                        Data::String(Intern::from(format!("{}", consts[id as usize])));
+                    output.push(Instr::Num(id, id));
+                }
+                "str" => {
+                    if args.len() > 1 {
+                        error!(
+                            ctx,
+                            "Function 'str' only expects one argument",
+                            format_args!("Replace with 'str({})'", args[0])
+                        );
+                    }
+                    let id = get_id(
+                        args[0].clone(),
+                        variables,
+                        consts,
+                        &mut output,
+                        &ctx,
+                        functions,
+                    );
+                    output.push(Instr::Str(id, id));
+                }
+                "bool" => {
+                    if args.len() > 1 {
+                        error!(
+                            ctx,
+                            "Function 'bool' only expects one argument",
+                            format_args!("Replace with 'bool({})'", args[0])
+                        );
+                    }
+                    let id = get_id(
+                        args[0].clone(),
+                        variables,
+                        consts,
+                        &mut output,
+                        &ctx,
+                        functions,
+                    );
+                    output.push(Instr::Bool(id, id));
                 }
                 function => {
                     let (fn_code, exp_args): (Vec<Expr>, Box<[String]>) = {

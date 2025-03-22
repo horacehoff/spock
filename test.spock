@@ -1,12 +1,5 @@
 fn main () {
-    test(0);
-}
-
-fn test (i) {
-    if i > 10 {
-        print("YEEESSS");
-        return i;
-    } else {
-        test(i+1);
-    }
+    let x = 10+20;
+    x = str(x);
+    print(x);
 }
