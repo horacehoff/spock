@@ -78,19 +78,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "compute"
-version = "0.1.0"
-dependencies = [
- "colored",
- "concat-string",
- "inline_colorization",
- "internment",
- "lalrpop",
- "lalrpop-util",
- "likely_stable",
-]
-
-[[package]]
 name = "concat-string"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -461,6 +448,19 @@ name = "smallvec"
 version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
+
+[[package]]
+name = "spock"
+version = "0.1.0"
+dependencies = [
+ "colored",
+ "concat-string",
+ "inline_colorization",
+ "internment",
+ "lalrpop",
+ "lalrpop-util",
+ "likely_stable",
+]
 
 [[package]]
 name = "string_cache"

@@ -49,7 +49,12 @@ Statement: Expr = {
 Line: Expr = {
     <a: VarDeclare> ";" => a,
     <a: VarAssign> ";" => a,
+    <a: ReturnLn> ";" => a,
     <a: Expression> ";" => a,
+}
+
+ReturnLn: Expr = {
+    "return" <e: Expression> => Expr::ReturnVal(Box::from(e))
 }
 
 VarDeclare: Expr = {

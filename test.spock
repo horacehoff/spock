@@ -1,17 +1,8 @@
 fn main () {
-let n = 40;
-let a=0;
-let b=1;
-let c=0;
-let i=0;
-print("Fibonacci sequence:");
-print(a);
-print(b);
-while i < n-2 {
-    c = a+b;
-   print(c);
-   a = b;
-   b = c;
-   i=i+1;
+    test();
 }
+
+fn test () {
+    print("this is test!");
+    return 5+17;
 }
