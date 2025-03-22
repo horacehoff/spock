@@ -611,7 +611,7 @@ fn get_id(
             }
         }
         _ => {
-            let out = parser_to_instr_set(vec![x], variables, consts, functions, &None);
+            let out = parser_to_instr_set(vec![x], variables, consts, functions, None);
             instr.append(&mut out.clone());
             get_tgt_id(*out.last().unwrap())
         }
@@ -663,68 +663,12 @@ fn offset_id(instr: &mut [Instr], amount: u16) {
     }
 }
 
-// fn stay_true(x: bool, var: bool) -> bool {
-//     if var {
-//         true
-//     } else {
-//         x
-//     }
-// }
-//
-// fn check_recursion(instructions: &[Expr], fn_name: &str) -> bool {
-//     let mut is_recursive = false;
-//     for x in instructions {
-//         match x {
-//             Expr::Op(x, y) => {
-//                 is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
-//                 for w in y {
-//                     is_recursive = stay_true(check_recursion(slice::from_ref(&w.1), fn_name), is_recursive);
-//                 }
-//             }
-//             Expr::Priority(x) => is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive),
-//             Expr::VarDeclare(_, x) | Expr::VarAssign(_, x) => is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive),
-//             Expr::Condition(x, y, z, w) => {
-//                 is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
-//                 is_recursive = stay_true(check_recursion(y.iter().as_slice(), fn_name), is_recursive);
-//                 is_recursive = stay_true(check_recursion(z.iter().as_slice(), fn_name), is_recursive);
-//                 if let Some(opt) = w {
-//                     is_recursive = stay_true(check_recursion(opt.iter().as_slice(), fn_name), is_recursive);
-//                 }
-//             }
-//             Expr::ElseIfBlock(x, y)
-//             | Expr::WhileBlock(x, y) => {
-//                 is_recursive = stay_true(check_recursion(slice::from_ref(x), fn_name), is_recursive);
-//                 is_recursive = stay_true(check_recursion(y.iter().as_slice(), fn_name), is_recursive);
-//             }
-//             Expr::FunctionCall(x, _) => {
-//                 if x == fn_name {
-//                     is_recursive = true;
-//                 }
-//             }
-//             _ => continue
-//         }
-//     }
-//     is_recursive
-// }
-
-fn expr_to_data(input: Expr) -> Data {
-    if let Expr::Num(data) = input {
-        Data::Number(data)
-    } else if let Expr::String(data) = input {
-        Data::String(Intern::from(data))
-    } else if let Expr::Bool(data) = input {
-        Data::Bool(data)
-    } else {
-        Data::Null
-    }
-}
-
 fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
     consts: &mut Vec<Data>,
     functions: &mut Vec<(String, Box<[String]>, Box<[Expr]>)>,
-    is_processing_function: &Option<(String, u16, Vec<(String, u16)>)>,
+    is_processing_function: Option<&(String, u16, Vec<(String, u16)>)>,
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
@@ -751,7 +695,7 @@ fn parser_to_instr_set(
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
                 let condition =
-                    parser_to_instr_set(vec![*x.clone()], variables, consts, functions, &None);
+                    parser_to_instr_set(vec![*x.clone()], variables, consts, functions, None);
                 if !returns_bool(*condition.last().unwrap()) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
@@ -759,7 +703,7 @@ fn parser_to_instr_set(
                 let condition_id = get_tgt_id(*output.last().unwrap());
                 let mut priv_vars = variables.clone();
                 let cond_code =
-                    parser_to_instr_set(y.into_vec(), &mut priv_vars, consts, functions, &None);
+                    parser_to_instr_set(y.into_vec(), &mut priv_vars, consts, functions, None);
                 let len = cond_code.len() + 1;
                 output.push(Instr::Cmp(condition_id, len as u16));
                 output.extend(cond_code);
@@ -773,7 +717,7 @@ fn parser_to_instr_set(
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
                 let condition =
-                    parser_to_instr_set(vec![*x.clone()], variables, consts, functions, &None);
+                    parser_to_instr_set(vec![*x.clone()], variables, consts, functions, None);
                 if !returns_bool(*condition.last().unwrap()) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
@@ -781,7 +725,7 @@ fn parser_to_instr_set(
                 let condition_id = get_tgt_id(*output.last().unwrap());
                 let mut priv_vars = variables.clone();
                 let cond_code =
-                    parser_to_instr_set(y.into_vec(), &mut priv_vars, consts, functions, &None);
+                    parser_to_instr_set(y.into_vec(), &mut priv_vars, consts, functions, None);
                 let len = (cond_code.len() + 2) as u16;
                 output.push(Instr::Cmp(condition_id, len));
                 output.extend(cond_code);
@@ -789,7 +733,7 @@ fn parser_to_instr_set(
             }
             Expr::VarDeclare(x, y) => {
                 let len = consts.len() as u16;
-                let mut val = parser_to_instr_set(vec![*y], variables, consts, functions, &None);
+                let mut val = parser_to_instr_set(vec![*y], variables, consts, functions, None);
                 move_to_id(&mut val, len);
                 variables.push((x, len));
                 output.extend(val);
@@ -807,7 +751,7 @@ fn parser_to_instr_set(
                     })
                     .1;
 
-                let mut value = parser_to_instr_set(vec![*y], variables, consts, functions, &None);
+                let mut value = parser_to_instr_set(vec![*y], variables, consts, functions, None);
                 move_to_id(&mut value, id);
                 output.extend(value);
             }
@@ -861,7 +805,7 @@ fn parser_to_instr_set(
                     if let Some((name, loc, func_args)) = is_processing_function {
                         if name == function {
                             // recursive function, go back to function def and move on
-                            for (i, x) in exp_args.iter().enumerate() {
+                            for (i, _) in exp_args.iter().enumerate() {
                                 let match_value = args.get(i).unwrap();
                                 if let Expr::Num(num) = match_value {
                                     consts[func_args[i].1 as usize] = Data::Number(*num);
@@ -870,28 +814,13 @@ fn parser_to_instr_set(
                                         Data::String(Intern::from(str.to_string()));
                                 } else if let Expr::Bool(bool) = match_value {
                                     consts[func_args[i].1 as usize] = Data::Bool(*bool);
-                                } else if let Expr::Var(name) = match_value {
-                                    if let Some((_, var_id)) =
-                                        variables.iter().find(|(w, _)| name == w)
-                                    {
-                                        output.push(Instr::Mov(
-                                            *var_id,
-                                            (func_args[i].1 as usize) as u16,
-                                        ));
-                                    } else {
-                                        error!(
-                                            ctx,
-                                            format_args!("Unknown variable {}", name.red()),
-                                            format_args!("Add 'let {name} = 0;'")
-                                        );
-                                    }
                                 } else {
                                     let mut value = parser_to_instr_set(
                                         vec![match_value.clone()],
                                         variables,
                                         consts,
                                         functions,
-                                        &None,
+                                        None,
                                     );
                                     move_to_id(&mut value, func_args[i].1 as usize as u16);
                                     output.extend(value);
@@ -913,7 +842,7 @@ fn parser_to_instr_set(
                             variables,
                             consts,
                             functions,
-                            &None,
+                            None,
                         );
                         move_to_id(&mut value, len);
                         output.extend(value);
@@ -925,7 +854,7 @@ fn parser_to_instr_set(
                         &mut fn_variables,
                         consts,
                         functions,
-                        &Some((function.to_string(), output.len() as u16, vars)),
+                        Some(&(function.to_string(), output.len() as u16, vars)),
                     ));
                     output.extend(instructions);
                 }
@@ -1069,7 +998,7 @@ fn main() {
         &mut variables,
         &mut consts,
         &mut functions,
-        &None,
+        None,
     );
     print!("INSTR OUT {instructions:?}");
     print!("CONSTS ARE {consts:?}");
