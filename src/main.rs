@@ -305,7 +305,6 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     consts[dest as usize] = Data::Number(x.abs());
                 }
             }
-            // Instr::Null => unsafe { unreachable_unchecked() },
         }
         i += 1;
     }
