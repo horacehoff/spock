@@ -42,6 +42,7 @@ pub Code: Box<[Expr]> = {
 Statement: Expr = {
     ConditionalBlock => <>,
     WhileBlock => <>,
+    Function => <>,
     Line => <>
 }
 

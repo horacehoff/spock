@@ -364,6 +364,17 @@ impl std::fmt::Display for Expr {
                         .join("")
                 )
             }
+            Expr::FunctionDecl(x, y, z) => {
+                write!(
+                    f,
+                    "fn {x}({}) {{\n{}}}",
+                    y.to_vec().join(","),
+                    z.iter()
+                        .map(|x| format_lines!(x))
+                        .collect::<Vec<String>>()
+                        .join("")
+                )
+            }
             Expr::WhileBlock(x, y) => {
                 write!(
                     f,
@@ -926,6 +937,9 @@ fn parser_to_instr_set(
                 }
             },
             Expr::FunctionDecl(x, y, z) => {
+                if functions.iter().any(|(name, _, _)| name == &x) {
+                    error!(ctx, format_args!("Function {} is already defined", x.red()));
+                }
                 functions.push((x, y, z));
             }
             Expr::Op(left, right) => {
