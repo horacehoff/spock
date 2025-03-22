@@ -741,35 +741,46 @@ fn parser_to_instr_set(
                         condition_blocks.push((condition, cond_code));
                     }
                 }
-                let else_block: Vec<Expr> = if let Some(code) = w {
-                    code.to_vec()
-                } else {
-                    Vec::new()
-                };
-
-                if else_block.is_empty() {
-                    for (i, x) in condition_blocks.iter().enumerate() {
-                        output.extend(x.0.clone());
-                        let condition_id = get_tgt_id(*output.last().unwrap());
-                        let jump_size = condition_blocks
-                            .iter()
-                            .skip(i + 1)
-                            .map(|x| (x.0.len() + x.1.len() + 2) as u16)
-                            .sum::<u16>();
-                        if jump_size == 0 {
-                            output.push(Instr::Cmp(condition_id, (x.1.len() + 1) as u16));
-                            output.extend(x.1.clone());
-                        } else {
-                            output.push(Instr::Cmp(condition_id, (x.1.len() + 2) as u16));
-                            output.extend(x.1.clone());
-                            output.push(Instr::Jmp(jump_size, false));
-                        }
+                if let Some(code) = w {
+                    let mut priv_vars = variables.clone();
+                    let cond_code = parser_to_instr_set(
+                        code.into_vec(),
+                        &mut priv_vars,
+                        consts,
+                        functions,
+                        None,
+                    );
+                    condition_blocks.push((Vec::new(), cond_code));
+                }
+                for (i, x) in condition_blocks.iter().enumerate() {
+                    if x.0.is_empty() {
+                        output.extend(x.1.clone());
+                        break;
+                    }
+                    output.extend(x.0.clone());
+                    let condition_id = get_tgt_id(*output.last().unwrap());
+                    let jump_size = condition_blocks
+                        .iter()
+                        .skip(i + 1)
+                        .map(|x| {
+                            if x.0.is_empty() {
+                                (x.1.len() + 1) as u16
+                            } else {
+                                (x.0.len() + x.1.len() + 2) as u16
+                            }
+                        })
+                        .sum::<u16>();
+                    if jump_size == 0 {
+                        output.push(Instr::Cmp(condition_id, (x.1.len() + 1) as u16));
+                        output.extend(x.1.clone());
+                    } else {
+                        output.push(Instr::Cmp(condition_id, (x.1.len() + 2) as u16));
+                        output.extend(x.1.clone());
+                        output.push(Instr::Jmp(jump_size, false));
                     }
                 }
 
                 print!("{consts:?}");
-                // print!("CONDITION IS {condition_id:?}");
-                // TODO
             }
             Expr::WhileBlock(x, y) => {
                 if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {

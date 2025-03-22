@@ -1,7 +1,11 @@
 fn main () {
-    let count = 8;
-    if count > 5 {
+    let count = 6;
+    if count > 10 {
         print("1");
+    } else if count > 5 {
+        print("2");
+    } else {
+        print("Hello, else...");
     }
-    print("Hiiii!");
+    print("42");
 }
