@@ -7,7 +7,7 @@ let i=0;
 print("Fibonacci sequence:");
 print(a);
 print(b);
-while i < n {
+while i < n-2 {
     c = a+b;
    print(c);
    a = b;

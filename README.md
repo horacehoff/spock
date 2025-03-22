@@ -3,7 +3,7 @@ A work-in-progress programming language written in Rust for the best performance
 
 Key info:
 
-- ~5-10x faster than Python in most cases, can go as far as 1000x faster
+- ~5-10x faster than Python in most cases, can go as far as 1281x faster
 
 ## Instruction Set
 
