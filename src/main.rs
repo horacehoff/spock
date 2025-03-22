@@ -1037,7 +1037,10 @@ fn parser_to_instr_set(
                     if let Expr::Opcode(op) = x {
                         if final_stack.is_empty() {
                             let last = item_stack.pop().unwrap();
+                            print!("1.OLD IS {last}");
                             let first = item_stack.pop().unwrap();
+                            print!("1.NEW IS {first}");
+
 
                             let first_v =
                                 get_id(first, variables, consts, &mut output, &ctx, functions);
@@ -1047,23 +1050,31 @@ fn parser_to_instr_set(
                             let x = first_v;
                             let y = second_v;
                             let z = consts.len() - 1;
+
+                            print!("1.{x} {y} {z}");
+
                             handle_ops!(final_stack, x, y, z as u16, op, consts);
                         } else {
+                            print!("2.OLD IS {:?}",final_stack.last().unwrap());
                             let old_id = get_tgt_id(*final_stack.last().unwrap());
                             let new = item_stack.pop().unwrap();
-
+                            print!("2.NEW IS {new}");
                             let new_v =
                                 get_id(new, variables, consts, &mut output, &ctx, functions);
                             consts.push(Data::Null);
-                            let x = old_id;
-                            let y = new_v;
+                            let x = new_v;
+                            let y = old_id;
                             let z = consts.len() - 1;
                             handle_ops!(final_stack, x, y, z as u16, op, consts);
+                            print!("2.{x} {y} {z}");
                         }
                     } else {
                         item_stack.push(x);
                     }
                 }
+                print!("CONSTS {consts:?}");
+                print!("VARS {variables:?}");
+                print!("FINAL STACK {final_stack:?}");
                 output.extend(final_stack);
             }
             Expr::Priority(x) => {
