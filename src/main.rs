@@ -357,11 +357,44 @@ impl std::fmt::Display for Expr {
             Expr::Condition(x, y, z, w) => {
                 write!(
                     f,
-                    "if {x} {{\n{}}}",
+                    "if {x} {{\n{}}} {} {}",
                     y.iter()
                         .map(|x| format_lines!(x))
                         .collect::<Vec<String>>()
-                        .join("")
+                        .join(""),
+                    if z.is_empty() {
+                        String::new()
+                    } else {
+                        format!(
+                            "{}",
+                            z.iter()
+                                .map(|w| if let Expr::ElseIfBlock(x, y) = w {
+                                    format!(
+                                        "else if {x} {{\n{}}}",
+                                        y.iter()
+                                            .map(|x| format_lines!(x))
+                                            .collect::<Vec<String>>()
+                                            .join("")
+                                    )
+                                } else {
+                                    String::new()
+                                })
+                                .collect::<Vec<String>>()
+                                .join("")
+                        )
+                    },
+                    if let Some(else_block) = w {
+                        format!(
+                            "else {{\n{}}}",
+                            else_block
+                                .iter()
+                                .map(|x| format_lines!(x))
+                                .collect::<Vec<String>>()
+                                .join("")
+                        )
+                    } else {
+                        String::new()
+                    }
                 )
             }
             Expr::FunctionDecl(x, y, z) => {
@@ -594,7 +627,7 @@ fn get_id(
     variables: &mut Vec<(String, u16)>,
     consts: &mut Vec<Data>,
     instr: &mut Vec<Instr>,
-    line: &Expr,
+    line: &String,
     functions: &mut Vec<(String, Box<[String]>, Box<[Expr]>)>,
 ) -> u16 {
     match x {
@@ -692,14 +725,13 @@ fn parser_to_instr_set(
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
-        let ctx = x.clone();
+        let ctx = format!("{x}");
         match x {
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
             Expr::Var(name) => {
                 consts.push(Data::Null);
-                variables.push((name.to_string(), (consts.len() - 1) as u16));
                 if let Some((_, var_id)) = variables.iter().find(|(x, _)| &name == x) {
                     output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
                 } else {
