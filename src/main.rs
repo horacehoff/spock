@@ -50,6 +50,17 @@ pub enum Data {
     Null,
 }
 
+impl std::fmt::Display for Data {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Data::Number(num) => write!(f, "{num}"),
+            Data::Bool(bool) => write!(f, "{bool}"),
+            Data::String(str) => write!(f, "{str}"),
+            Data::Null => write!(f, "NULL"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Instr {
@@ -630,6 +641,7 @@ fn get_id(
     line: &String,
     functions: &mut Vec<(String, Box<[String]>, Box<[Expr]>)>,
 ) -> u16 {
+    print!("GETTING ID OF {x:?}");
     match x {
         Expr::Num(num) => {
             consts.push(Data::Number(num));
@@ -655,6 +667,7 @@ fn get_id(
             }
         }
         _ => {
+            print!("PARSING {x}");
             let out = parser_to_instr_set(vec![x], variables, consts, functions, None);
             instr.append(&mut out.clone());
             get_tgt_id(*out.last().unwrap())
