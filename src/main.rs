@@ -771,6 +771,50 @@ fn expr_to_data(input: Expr) -> Data {
     }
 }
 
+macro_rules! check_args {
+    ($args:expr, $expected_args_len:expr, $fn_name:expr, $ctx: expr) => {
+        if $args.len() > $expected_args_len {
+            error!(
+                $ctx,
+                format_args!(
+                    "Function '{}' only expects {} argument{}",
+                    $fn_name,
+                    $expected_args_len,
+                    if $expected_args_len > 1 { "s" } else { "" }
+                ),
+                format_args!(
+                    "Replace with '{}({})'",
+                    $fn_name,
+                    $args[0..$expected_args_len]
+                        .iter()
+                        .map(|x| format!("{x}"))
+                        .collect::<Vec<String>>()
+                        .join(",")
+                )
+            );
+        } else if $args.len() < $expected_args_len {
+            error!(
+                $ctx,
+                format_args!(
+                    "Function '{}' expects {} argument{}",
+                    $fn_name,
+                    $expected_args_len,
+                    if $expected_args_len > 1 { "s" } else { "" }
+                ),
+                format_args!(
+                    "Add {} additional argument{}",
+                    $expected_args_len - $args.len(),
+                    if $expected_args_len - $args.len() > 1 {
+                        "s"
+                    } else {
+                        ""
+                    }
+                )
+            );
+        }
+    };
+}
+
 fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
@@ -862,7 +906,6 @@ fn parser_to_instr_set(
                     );
                     condition_blocks.push((Vec::new(), cond_code));
                 }
-                let mut i = 0;
 
                 let jumps: Vec<u16> = (0..condition_blocks.len())
                     .map(|i| {
@@ -880,7 +923,7 @@ fn parser_to_instr_set(
                     })
                     .collect();
 
-                for (x, y) in condition_blocks {
+                for (i, (x, y)) in condition_blocks.into_iter().enumerate() {
                     if x.is_empty() {
                         output.extend(y);
                         break;
@@ -896,7 +939,6 @@ fn parser_to_instr_set(
                         output.extend(y);
                         output.push(Instr::Jmp(jump_size, false));
                     }
-                    i += 1;
                 }
 
                 print!("{consts:?}");
@@ -974,13 +1016,7 @@ fn parser_to_instr_set(
                     }
                 }
                 "abs" => {
-                    if args.len() > 1 {
-                        error!(
-                            ctx,
-                            "Function 'abs' only expects one argument",
-                            format_args!("Replace with 'abs({})'", args[0])
-                        );
-                    }
+                    check_args!(args, 1, "abs", ctx);
                     let id = get_id(
                         args[0].clone(),
                         variables,
@@ -992,13 +1028,7 @@ fn parser_to_instr_set(
                     output.push(Instr::Abs(id, id));
                 }
                 "num" => {
-                    if args.len() > 1 {
-                        error!(
-                            ctx,
-                            "Function 'num' only expects one argument",
-                            format_args!("Replace with 'num({})'", args[0])
-                        );
-                    }
+                    check_args!(args, 1, "num", ctx);
                     let id = get_id(
                         args[0].clone(),
                         variables,
@@ -1010,13 +1040,7 @@ fn parser_to_instr_set(
                     output.push(Instr::Num(id, id));
                 }
                 "str" => {
-                    if args.len() > 1 {
-                        error!(
-                            ctx,
-                            "Function 'str' only expects one argument",
-                            format_args!("Replace with 'str({})'", args[0])
-                        );
-                    }
+                    check_args!(args, 1, "str", ctx);
                     let id = get_id(
                         args[0].clone(),
                         variables,
@@ -1028,13 +1052,7 @@ fn parser_to_instr_set(
                     output.push(Instr::Str(id, id));
                 }
                 "bool" => {
-                    if args.len() > 1 {
-                        error!(
-                            ctx,
-                            "Function 'bool' only expects one argument",
-                            format_args!("Replace with 'bool({})'", args[0])
-                        );
-                    }
+                    check_args!(args, 1, "bool", ctx);
                     let id = get_id(
                         args[0].clone(),
                         variables,
@@ -1055,17 +1073,7 @@ fn parser_to_instr_set(
                             error!(ctx, format_args!("Unknown function {}", function.red()));
                         }
                     };
-                    if exp_args.len() != args.len() {
-                        error!(
-                            ctx,
-                            format_args!(
-                                "Function {} expected {} arguments but was given {}",
-                                function.red(),
-                                exp_args.len(),
-                                args.len()
-                            )
-                        );
-                    }
+                    check_args!(args, exp_args.len(), function, ctx);
 
                     if let Some((name, loc, func_args, return_id)) = is_processing_function {
                         if name == function {
@@ -1265,7 +1273,7 @@ fn parser_to_instr_set(
 
 fn print_instructions(instructions: &[Instr]) {
     for (i, instr) in instructions.iter().enumerate() {
-        println!("{} {}", i + 1, match instr.clone() {
+        println!("{} {}", i + 1, match instr {
             Instr::Print(x) => format!("PRINT {x}"),
             Instr::Jmp(x, y) => format!("JMP {x} {y}"),
             Instr::Cmp(x, y) => format!("CMP {x} {y}"),
