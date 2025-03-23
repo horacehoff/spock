@@ -317,7 +317,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                                 error_b!(format_args!("CANNOT CONVERT {str} TO NUMBER"));
                             }))
                     }
-                    Data::Number(_) => {}
+                    Data::Number(_) => consts[dest as usize] = base,
                     other => {
                         error_b!(format_args!("CANNOT CONVERT {other} TO NUMBER"));
                     }
