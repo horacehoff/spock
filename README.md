@@ -3,7 +3,8 @@ A work-in-progress programming language written in Rust for the best performance
 
 Key info:
 
-- ~5-10x faster than Python in most cases, can go as far as 1281x faster
+- ~5-10x faster than Python in most cases, can go as far as :
+  - Fibonacci function: ~14000x faster(first run) or ~2000x faster (later runs)
 
 ## Instruction Set
 
@@ -24,6 +25,36 @@ becomes...
 1 INF 0 1 2
 2 CMP 2 2
 3 PRINT 3
+```
+
+---
+
+```
+let n = 40;
+let a=0;
+let b=1;
+let c=0;
+let i=0;
+while i < n {
+   c = a+b;
+   a = b;
+   b = c;
+   i = i+1;
+}
+print(c);
+```
+
+becomes...
+
+```
+1 INF 4 0 5
+2 CMP 5 6
+3 ADD 1 2 3
+4 MOV 2 1
+5 MOV 3 2
+6 ADD 4 9 4
+7 JMP 6 true
+8 PRINT 3
 ```
 
 ## Syntax examples

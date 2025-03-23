@@ -1,5 +1,14 @@
 fn main () {
-    let x = 10+20;
-    x = str(x);
-    print(x);
+let n = 40;
+let a=0;
+let b=1;
+let c=0;
+let i=0;
+while i < n {
+   c = a+b;
+   a = b;
+   b = c;
+   i = i+1;
+}
+print(c);
 }
