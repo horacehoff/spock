@@ -712,7 +712,7 @@ fn get_id(
     }
 }
 
-fn returns_bool(instruction: Instr) -> bool {
+fn returns_bool(instruction: &Instr) -> bool {
     matches!(
         instruction,
         Instr::Eq(_, _, _)
@@ -799,18 +799,19 @@ fn parser_to_instr_set(
             }
             Expr::Condition(x, y, z, w) => {
                 let mut condition_blocks: Vec<(Vec<Instr>, Vec<Instr>)> = Vec::new();
-                if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
-                    error!(ctx, format_args!("{} is not a bool", *x));
+                let val = *x;
+                if matches!(val, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
+                    error!(ctx, format_args!("{} is not a bool", val));
                 }
                 let condition = parser_to_instr_set(
-                    vec![*x.clone()],
+                    vec![val.clone()],
                     variables,
                     consts,
                     functions,
                     is_processing_function,
                 );
-                if !returns_bool(*condition.last().unwrap()) {
-                    error!(ctx, format_args!("{} is not a bool", *x));
+                if !returns_bool(condition.last().unwrap()) {
+                    error!(ctx, format_args!("{} is not a bool", val));
                 }
                 let mut priv_vars = variables.clone();
                 let cond_code = parser_to_instr_set(
@@ -825,18 +826,19 @@ fn parser_to_instr_set(
 
                 for condition in z {
                     if let Expr::ElseIfBlock(condition, code) = condition {
-                        if matches!(*condition, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
-                            error!(ctx, format_args!("{} is not a bool", *condition));
+                        let conserved = *condition;
+                        if matches!(conserved, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
+                            error!(ctx, format_args!("{} is not a bool", conserved));
                         }
                         let condition = parser_to_instr_set(
-                            vec![*condition],
+                            vec![conserved.clone(); 1],
                             variables,
                             consts,
                             functions,
                             is_processing_function,
                         );
-                        if !returns_bool(*condition.last().unwrap()) {
-                            error!(ctx, format_args!("{} is not a bool", *x));
+                        if !returns_bool(condition.last().unwrap()) {
+                            error!(ctx, format_args!("{} is not a bool", conserved));
                         }
                         let mut priv_vars = variables.clone();
                         let cond_code = parser_to_instr_set(
@@ -860,32 +862,41 @@ fn parser_to_instr_set(
                     );
                     condition_blocks.push((Vec::new(), cond_code));
                 }
-                for (i, x) in condition_blocks.iter().enumerate() {
-                    if x.0.is_empty() {
-                        output.extend(x.1.clone());
+                let mut i = 0;
+
+                let jumps: Vec<u16> = (0..condition_blocks.len())
+                    .map(|i| {
+                        condition_blocks
+                            .iter()
+                            .skip(i + 1)
+                            .map(|x| {
+                                if x.0.is_empty() {
+                                    (x.1.len() + 1) as u16
+                                } else {
+                                    (x.0.len() + x.1.len() + 2) as u16
+                                }
+                            })
+                            .sum::<u16>()
+                    })
+                    .collect();
+
+                for (x, y) in condition_blocks {
+                    if x.is_empty() {
+                        output.extend(y);
                         break;
                     }
-                    output.extend(x.0.clone());
+                    output.extend(x);
                     let condition_id = get_tgt_id(*output.last().unwrap());
-                    let jump_size = condition_blocks
-                        .iter()
-                        .skip(i + 1)
-                        .map(|x| {
-                            if x.0.is_empty() {
-                                (x.1.len() + 1) as u16
-                            } else {
-                                (x.0.len() + x.1.len() + 2) as u16
-                            }
-                        })
-                        .sum::<u16>();
+                    let jump_size = jumps[i];
                     if jump_size == 0 {
-                        output.push(Instr::Cmp(condition_id, (x.1.len() + 1) as u16));
-                        output.extend(x.1.clone());
+                        output.push(Instr::Cmp(condition_id, (y.len() + 1) as u16));
+                        output.extend(y);
                     } else {
-                        output.push(Instr::Cmp(condition_id, (x.1.len() + 2) as u16));
-                        output.extend(x.1.clone());
+                        output.push(Instr::Cmp(condition_id, (y.len() + 2) as u16));
+                        output.extend(y);
                         output.push(Instr::Jmp(jump_size, false));
                     }
+                    i += 1;
                 }
 
                 print!("{consts:?}");
@@ -901,7 +912,7 @@ fn parser_to_instr_set(
                     functions,
                     is_processing_function,
                 );
-                if !returns_bool(*condition.last().unwrap()) {
+                if !returns_bool(condition.last().unwrap()) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
                 output.extend(condition);
@@ -1284,7 +1295,7 @@ fn print_instructions(instructions: &[Instr]) {
 
 // Live long and prosper
 fn main() {
-    dbg!(size_of::<Instr>());
+    // dbg!(size_of::<Instr>());
     // dbg!(size_of::<Data>());
     // dbg!(size_of::<Expr>());
 
