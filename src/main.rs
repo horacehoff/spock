@@ -705,9 +705,9 @@ fn get_id(
         }
         _ => {
             print!("PARSING {x}");
-            let out = parser_to_instr_set(vec![x], variables, consts, functions, None);
-            instr.append(&mut out.clone());
-            get_tgt_id(*out.last().unwrap())
+            let mut out = parser_to_instr_set(vec![x], variables, consts, functions, None);
+            instr.append(&mut out);
+            get_tgt_id(*instr.last().unwrap())
         }
     }
 }
@@ -858,7 +858,7 @@ fn parser_to_instr_set(
                             error!(ctx, format_args!("{} is not a bool", conserved));
                         }
                         let condition = parser_to_instr_set(
-                            vec![conserved.clone(); 1],
+                            vec![conserved],
                             variables,
                             consts,
                             functions,
@@ -1087,7 +1087,7 @@ fn parser_to_instr_set(
                     for (i, x) in exp_args.iter().enumerate() {
                         let len = consts.len() as u16;
                         let mut value = parser_to_instr_set(
-                            vec![args.get(i).unwrap().clone()],
+                            vec![args[i].clone()],
                             variables,
                             consts,
                             functions,
@@ -1150,7 +1150,7 @@ fn parser_to_instr_set(
                     match x {
                         Expr::Op(_, _) => process_op(x, variables, consts),
                         Expr::Priority(x) => {
-                            let mut output: Vec<Expr> = vec![];
+                            let mut output: Vec<Expr> = Vec::new();
                             output.push(Expr::LPAREN);
                             output.extend(remove_priority(*x, variables, consts));
                             output.push(Expr::RPAREN);
@@ -1164,11 +1164,11 @@ fn parser_to_instr_set(
                     variables: &mut Vec<(String, u16)>,
                     consts: &mut Vec<Data>,
                 ) -> Vec<Expr> {
-                    let mut operation: Vec<Expr> = vec![];
-                    if let Expr::Op(left, mut right) = op {
+                    let mut operation: Vec<Expr> = Vec::new();
+                    if let Expr::Op(left, right) = op {
                         operation.extend(remove_priority(*left, variables, consts));
-                        for x in &mut right {
-                            let val = *x.1.clone();
+                        for x in right {
+                            let val = *x.1;
                             operation.extend(remove_priority(Expr::Opcode(x.0), variables, consts));
                             if matches!(val, Expr::Op(_, _)) {
                                 operation.extend(process_op(val, variables, consts));
