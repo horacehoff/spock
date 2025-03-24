@@ -8,6 +8,7 @@ use std::cmp::PartialEq;
 use std::fmt::Formatter;
 use std::hint::unreachable_unchecked;
 use std::time::Instant;
+use cached::proc_macro::io_cached;
 
 macro_rules! error {
     ($x: expr, $y: expr) => {
@@ -763,6 +764,8 @@ macro_rules! check_args {
     };
 }
 
+
+
 fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
@@ -1241,15 +1244,8 @@ fn print_instructions(instructions: &[Instr]) {
     }
 }
 
-// Live long and prosper
-fn main() {
-    // dbg!(size_of::<Instr>());
-    // dbg!(size_of::<Data>());
-    // dbg!(size_of::<Expr>());
 
-    let now = Instant::now();
-
-    let contents = std::fs::read_to_string("test.spock").unwrap();
+fn parse(contents: String) -> (Vec<Instr>, Vec<Data>) {
     let mut functions: Vec<Expr> = grammar::FileParser::new().parse(&contents).unwrap();
     let main_function: Vec<Expr> = {
         if let Some(fctn) = functions.iter().position(|a| {
@@ -1291,16 +1287,21 @@ fn main() {
         &mut functions,
         None,
     );
-    print!("INSTR OUT {instructions:?}");
-    print!("CONSTS ARE {consts:?}");
-    print!("VARS ARE {variables:?}");
-    println!("Parsed in {:.2?}", now.elapsed());
+    print!("CONSTS are {consts:?}");
     #[cfg(debug_assertions)]
     {
         print_instructions(&instructions);
     }
+    (instructions, consts)
+}
+
+// Live long and prosper
+fn main() {
+    let contents = std::fs::read_to_string("test.spock").unwrap();
+    let (instructions, mut consts) = parse(contents);
+
+
     let now = Instant::now();
     execute(&instructions, &mut consts);
-    print!("CONSTS are {consts:?}");
     println!("EXEC TIME {:.2?}", now.elapsed());
 }
