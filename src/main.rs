@@ -712,20 +712,6 @@ fn get_id(
     }
 }
 
-fn returns_bool(instruction: &Instr) -> bool {
-    matches!(
-        instruction,
-        Instr::Eq(_, _, _)
-            | Instr::NotEq(_, _, _)
-            | Instr::Sup(_, _, _)
-            | Instr::SupEq(_, _, _)
-            | Instr::Inf(_, _, _)
-            | Instr::InfEq(_, _, _)
-            | Instr::BoolOr(_, _, _)
-            | Instr::BoolAnd(_, _, _)
-    )
-}
-
 fn offset_id(instr: &mut [Instr], amount: u16) {
     for x in instr.iter_mut() {
         match x {
@@ -824,7 +810,7 @@ fn parser_to_instr_set(
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
-        let ctx = format!("{x}");
+        let ctx = x.to_string();
         match x {
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
@@ -848,15 +834,12 @@ fn parser_to_instr_set(
                     error!(ctx, format_args!("{} is not a bool", val));
                 }
                 let condition = parser_to_instr_set(
-                    vec![val.clone()],
+                    vec![val],
                     variables,
                     consts,
                     functions,
                     is_processing_function,
                 );
-                if !returns_bool(condition.last().unwrap()) {
-                    error!(ctx, format_args!("{} is not a bool", val));
-                }
                 let mut priv_vars = variables.clone();
                 let cond_code = parser_to_instr_set(
                     y.into_vec(),
@@ -881,9 +864,6 @@ fn parser_to_instr_set(
                             functions,
                             is_processing_function,
                         );
-                        if !returns_bool(condition.last().unwrap()) {
-                            error!(ctx, format_args!("{} is not a bool", conserved));
-                        }
                         let mut priv_vars = variables.clone();
                         let cond_code = parser_to_instr_set(
                             code.into_vec(),
@@ -948,15 +928,12 @@ fn parser_to_instr_set(
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
                 let condition = parser_to_instr_set(
-                    vec![*x.clone()],
+                    vec![*x],
                     variables,
                     consts,
                     functions,
                     is_processing_function,
                 );
-                if !returns_bool(condition.last().unwrap()) {
-                    error!(ctx, format_args!("{} is not a bool", *x));
-                }
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
                 let mut priv_vars = variables.clone();
