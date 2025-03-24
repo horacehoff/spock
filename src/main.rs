@@ -407,9 +407,7 @@ impl std::fmt::Display for Expr {
                     if z.is_empty() {
                         String::new()
                     } else {
-                        format!(
-                            "{}",
-                            z.iter()
+                        z.iter()
                                 .map(|w| if let Expr::ElseIfBlock(x, y) = w {
                                     format!(
                                         "else if {x} {{\n{}}}",
@@ -423,7 +421,7 @@ impl std::fmt::Display for Expr {
                                 })
                                 .collect::<Vec<String>>()
                                 .join("")
-                        )
+
                     },
                     if let Some(else_block) = w {
                         format!(
@@ -708,42 +706,6 @@ fn get_id(
             let mut out = parser_to_instr_set(vec![x], variables, consts, functions, None);
             instr.append(&mut out);
             get_tgt_id(*instr.last().unwrap())
-        }
-    }
-}
-
-fn offset_id(instr: &mut [Instr], amount: u16) {
-    for x in instr.iter_mut() {
-        match x {
-            Instr::Print(id) | Instr::Jmp(id, _) => *id += amount,
-            Instr::Cmp(a, b)
-            | Instr::Mov(a, b)
-            | Instr::Neg(a, b)
-            | Instr::Abs(a, b)
-            | Instr::Str(a, b)
-            | Instr::Num(a, b)
-            | Instr::Bool(a, b) => {
-                *a += amount;
-                *b += amount;
-            }
-            Instr::Add(a, b, c)
-            | Instr::Mul(a, b, c)
-            | Instr::Sub(a, b, c)
-            | Instr::Div(a, b, c)
-            | Instr::Mod(a, b, c)
-            | Instr::Pow(a, b, c)
-            | Instr::Eq(a, b, c)
-            | Instr::NotEq(a, b, c)
-            | Instr::Sup(a, b, c)
-            | Instr::SupEq(a, b, c)
-            | Instr::Inf(a, b, c)
-            | Instr::InfEq(a, b, c)
-            | Instr::BoolAnd(a, b, c)
-            | Instr::BoolOr(a, b, c) => {
-                *a += amount;
-                *b += amount;
-                *c += amount;
-            } // Instr::Null => unreachable!(),
         }
     }
 }
@@ -1062,7 +1024,7 @@ fn parser_to_instr_set(
                                 if val != Data::Null {
                                     consts[func_args[i].1 as usize] = val;
                                 } else {
-                                    println!("{arg}");
+                                    print!("{arg}");
                                     let mut value = parser_to_instr_set(
                                         vec![arg.clone()],
                                         variables,
@@ -1071,7 +1033,7 @@ fn parser_to_instr_set(
                                         is_processing_function,
                                     );
                                     move_to_id(&mut value, func_args[i].1);
-                                    println!("VAL{value:?}");
+                                    print!("VAL{value:?}");
                                     output.extend(value);
                                 }
                             }
@@ -1125,7 +1087,7 @@ fn parser_to_instr_set(
                             is_processing_function,
                         );
                         if val.is_empty() {
-                            output.push(Instr::Mov((consts.len() - 1) as u16, ret_id))
+                            output.push(Instr::Mov((consts.len() - 1) as u16, ret_id));
                         } else {
                             move_to_id(&mut val, ret_id);
                             output.extend(val);
@@ -1141,7 +1103,6 @@ fn parser_to_instr_set(
                 functions.push((x, y, z));
             }
             Expr::Op(left, right) => {
-                print!("{left:?} {right:?}");
                 fn remove_priority(
                     x: Expr,
                     variables: &mut Vec<(String, u16)>,
@@ -1180,6 +1141,8 @@ fn parser_to_instr_set(
                     operation
                 }
 
+
+                print!("{left:?} {right:?}");
                 let temp_op: Vec<Expr> = process_op(Expr::Op(left, right), variables, consts);
                 print!("TEMPOP {temp_op:?}");
                 let op = op_to_rpn(temp_op);
@@ -1334,7 +1297,7 @@ fn main() {
     println!("Parsed in {:.2?}", now.elapsed());
     #[cfg(debug_assertions)]
     {
-        print_instructions(&instructions)
+        print_instructions(&instructions);
     }
     let now = Instant::now();
     execute(&instructions, &mut consts);
