@@ -498,14 +498,12 @@ impl std::fmt::Display for Opcode {
             Opcode::BoolAnd => "&&",
             Opcode::BoolOr => "||",
             Opcode::Neg => "-",
-            Opcode::Null => unsafe { unreachable_unchecked() },
         })
     }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Opcode {
-    Null,
     Mul,
     Div,
     Add,
@@ -535,7 +533,6 @@ fn get_precedence(operator: &Expr) -> u8 {
             Opcode::Add | Opcode::Sub | Opcode::Neg => 5,
             Opcode::Mul | Opcode::Div | Opcode::Mod => 6,
             Opcode::Pow => 7,
-            Opcode::Null => unreachable!(),
         }
     } else {
         unreachable!()
@@ -664,7 +661,6 @@ macro_rules! handle_ops {
             Opcode::BoolAnd => $final_stack.push(Instr::BoolAnd($x, $y, $z)),
             Opcode::BoolOr => $final_stack.push(Instr::BoolOr($x, $y, $z)),
             Opcode::Neg => $final_stack.push(Instr::Neg($y, $z)),
-            Opcode::Null => unreachable!(),
         }
     };
 }
