@@ -6,9 +6,7 @@ use lalrpop_util::lalrpop_mod;
 use likely_stable::if_likely;
 use std::cmp::PartialEq;
 use std::fmt::Formatter;
-use std::hint::unreachable_unchecked;
 use std::time::Instant;
-use cached::proc_macro::io_cached;
 
 macro_rules! error {
     ($x: expr, $y: expr) => {
@@ -413,7 +411,8 @@ impl std::fmt::Display for Expr {
                         String::new()
                     } else {
                         z.iter()
-                                .map(|w| if let Expr::ElseIfBlock(x, y) = w {
+                            .map(|w| {
+                                if let Expr::ElseIfBlock(x, y) = w {
                                     format!(
                                         "else if {x} {{\n{}}}",
                                         y.iter()
@@ -423,10 +422,10 @@ impl std::fmt::Display for Expr {
                                     )
                                 } else {
                                     String::new()
-                                })
-                                .collect::<Vec<String>>()
-                                .join("")
-
+                                }
+                            })
+                            .collect::<Vec<String>>()
+                            .join("")
                     },
                     if let Some(else_block) = w {
                         format!(
@@ -617,12 +616,44 @@ fn get_tgt_id(x: Instr) -> u16 {
     }
 }
 
+fn get_last_matching_index(x: &[Instr]) -> usize {
+    let mut index = 0;
+    x.iter().enumerate().for_each(|(i, w)| {
+        if matches!(
+            w,
+            Instr::Add(_, _, _)
+                | Instr::Mul(_, _, _)
+                | Instr::Sub(_, _, _)
+                | Instr::Div(_, _, _)
+                | Instr::Mod(_, _, _)
+                | Instr::Pow(_, _, _)
+                | Instr::Eq(_, _, _)
+                | Instr::NotEq(_, _, _)
+                | Instr::Sup(_, _, _)
+                | Instr::SupEq(_, _, _)
+                | Instr::Inf(_, _, _)
+                | Instr::InfEq(_, _, _)
+                | Instr::BoolAnd(_, _, _)
+                | Instr::BoolOr(_, _, _)
+                | Instr::Mov(_, _)
+                | Instr::Neg(_, _)
+                | Instr::Abs(_, _)
+                | Instr::Bool(_, _)
+                | Instr::Num(_, _)
+                | Instr::Str(_, _)
+        ) {
+            index = i;
+        }
+    });
+    index
+}
+
 fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     if x.is_empty() {
         return;
     }
     print!("MOVING TO ID {tgt_id} => {x:?}");
-    match x.last_mut().unwrap() {
+    match x.get_mut(get_last_matching_index(x)).unwrap() {
         Instr::Add(_, _, z)
         | Instr::Mul(_, _, z)
         | Instr::Sub(_, _, z)
@@ -763,8 +794,6 @@ macro_rules! check_args {
         }
     };
 }
-
-
 
 fn parser_to_instr_set(
     input: Vec<Expr>,
@@ -1090,20 +1119,19 @@ fn parser_to_instr_set(
                                 functions,
                                 is_processing_function,
                             );
-                            println!("VAL IS {val:?}");
                             if val.is_empty() {
                                 output.push(Instr::Mov((consts.len() - 1) as u16, ret_id));
                             } else {
-                                println!("MOVING TO ID {val:?}");
                                 move_to_id(&mut val, ret_id);
                                 output.extend(val);
                             }
-                            let go_to = x.1;
-                            output.push(Instr::GoTo(go_to));
+                            let a = output.len();
+                            let b = x.1 as usize;
+                            output.push(Instr::Jmp((a - b) as u16, (a as isize - b as isize) < 0));
                         }
                     }
                 } else {
-                    output.push(Instr::Jmp(65535,false));
+                    output.push(Instr::Jmp(65535, false));
                 }
             }
             Expr::FunctionDecl(x, y, z) => {
@@ -1150,7 +1178,6 @@ fn parser_to_instr_set(
                     }
                     operation
                 }
-
 
                 print!("{left:?} {right:?}");
                 let temp_op: Vec<Expr> = process_op(Expr::Op(left, right), variables, consts);
@@ -1252,7 +1279,6 @@ fn print_instructions(instructions: &[Instr]) {
     }
 }
 
-
 fn parse(contents: String) -> (Vec<Instr>, Vec<Data>) {
     let mut functions: Vec<Expr> = grammar::FileParser::new().parse(&contents).unwrap();
     let main_function: Vec<Expr> = {
@@ -1307,7 +1333,6 @@ fn parse(contents: String) -> (Vec<Instr>, Vec<Data>) {
 fn main() {
     let contents = std::fs::read_to_string("test.spock").unwrap();
     let (instructions, mut consts) = parse(contents);
-
 
     let now = Instant::now();
     execute(&instructions, &mut consts);
