@@ -74,6 +74,7 @@ pub enum Instr {
     Cmp(u16, u16),
     // CopyArg(u16, u16),
     Mov(u16, u16),
+    GoTo(u16),
 
     // OPS
     Add(u16, u16, u16),
@@ -117,6 +118,9 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     i += size as usize;
                     continue;
                 }
+            }
+            Instr::GoTo(index) => {
+                i = index as usize;
             }
             Instr::Add(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
@@ -617,7 +621,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     if x.is_empty() {
         return;
     }
-    print!("MOVING TO ID => {x:?}");
+    print!("MOVING TO ID {tgt_id} => {x:?}");
     match x.last_mut().unwrap() {
         Instr::Add(_, _, z)
         | Instr::Mul(_, _, z)
@@ -1086,15 +1090,17 @@ fn parser_to_instr_set(
                                 functions,
                                 is_processing_function,
                             );
+                            println!("VAL IS {val:?}");
                             if val.is_empty() {
                                 output.push(Instr::Mov((consts.len() - 1) as u16, ret_id));
                             } else {
+                                println!("MOVING TO ID {val:?}");
                                 move_to_id(&mut val, ret_id);
                                 output.extend(val);
                             }
+                            let go_to = x.1;
+                            output.push(Instr::GoTo(go_to));
                         }
-                    } else {
-                        output.push(Instr::Jmp(65535,false));
                     }
                 } else {
                     output.push(Instr::Jmp(65535,false));
@@ -1221,6 +1227,7 @@ fn print_instructions(instructions: &[Instr]) {
             Instr::Print(x) => format!("PRINT {x}"),
             Instr::Jmp(x, y) => format!("JMP {x} {y}"),
             Instr::Cmp(x, y) => format!("CMP {x} {y}"),
+            Instr::GoTo(x) => format!("GOTO {x}"),
             Instr::Mov(x, y) => format!("MOV {x} {y}"),
             Instr::Add(x, y, z) => format!("ADD {x} {y} {z}"),
             Instr::Mul(x, y, z) => format!("MUL {x} {y} {z}"),

@@ -9,6 +9,12 @@ while count < limit {
     }
     count = count + 1;
 }
-return;
+let x = test();
 print(result);
+}
+
+fn test ()  {
+    print("Hi");
+    return 5;
+    print("hoy");
 }
