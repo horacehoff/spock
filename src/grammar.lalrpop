@@ -54,7 +54,7 @@ Line: Expr = {
 }
 
 ReturnLn: Expr = {
-    "return" <e: Expression> => Expr::ReturnVal(Box::from(e))
+    "return" <e: Expression?> => Expr::ReturnVal(Box::from(e))
 }
 
 VarDeclare: Expr = {

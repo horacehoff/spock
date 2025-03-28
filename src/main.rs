@@ -365,7 +365,7 @@ pub enum Expr {
 
     FunctionDecl(String, Box<[String]>, Box<[Expr]>),
 
-    ReturnVal(Box<Expr>),
+    ReturnVal(Box<Option<Expr>>),
 }
 
 macro_rules! format_lines {
@@ -1077,23 +1077,28 @@ fn parser_to_instr_set(
             },
             Expr::ReturnVal(val) => {
                 if let Some(x) = is_processing_function {
-                    if let Some(ret_id) = x.3 {
-                        let mut val = parser_to_instr_set(
-                            vec![*val],
-                            variables,
-                            consts,
-                            functions,
-                            is_processing_function,
-                        );
-                        if val.is_empty() {
-                            output.push(Instr::Mov((consts.len() - 1) as u16, ret_id));
-                        } else {
-                            move_to_id(&mut val, ret_id);
-                            output.extend(val);
+                    if let Some(return_value) = *val {
+                        if let Some(ret_id) = x.3 {
+                            let mut val = parser_to_instr_set(
+                                vec![return_value],
+                                variables,
+                                consts,
+                                functions,
+                                is_processing_function,
+                            );
+                            if val.is_empty() {
+                                output.push(Instr::Mov((consts.len() - 1) as u16, ret_id));
+                            } else {
+                                move_to_id(&mut val, ret_id);
+                                output.extend(val);
+                            }
                         }
+                    } else {
+                        output.push(Instr::Jmp(65535,false));
                     }
+                } else {
+                    output.push(Instr::Jmp(65535,false));
                 }
-                // error_b!("WTF");
             }
             Expr::FunctionDecl(x, y, z) => {
                 if functions.iter().any(|(name, _, _)| name == &x) {
