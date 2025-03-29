@@ -2,11 +2,12 @@ use colored::Colorize;
 use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
-use lalrpop_util::lalrpop_mod;
+use lalrpop_util::{lalrpop_mod, ErrorRecovery, ParseError};
 use likely_stable::if_likely;
 use std::cmp::PartialEq;
 use std::fmt::Formatter;
 use std::time::Instant;
+use lalrpop_util::lexer::Token;
 
 macro_rules! error {
     ($x: expr, $y: expr) => {
@@ -27,6 +28,16 @@ macro_rules! error_b {
     ($x: expr) => {
         eprintln!(
             "--------------\n{color_red}SPOCK ERROR:{color_reset}\n{}\n--------------",
+            $x
+        );
+        std::process::exit(1);
+    };
+}
+
+macro_rules! parsing_error {
+    ($x: expr) => {
+        eprintln!(
+            "--------------\n{color_red}SPOCK PARSING ERROR:{color_reset}\n{}\n--------------",
             $x
         );
         std::process::exit(1);
@@ -1321,6 +1332,29 @@ fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>) {
     (instructions, consts)
 }
 
+fn format_parser_error<'a, L,T: std::fmt::Debug,E>(x: ParseError<L,T,E>, ctx:&str) -> String where Token<'a>: From<T> {
+    match x {
+        ParseError::InvalidToken { .. } => {
+            unreachable!("InvalidTokenError")
+        },
+        ParseError::UnrecognizedEof { .. } => {
+            unreachable!("InvalidTokenError")
+        },
+        ParseError::UnrecognizedToken { token,expected } => {
+            format!("PARSING: {ctx}\nExpected token {} but got '{}'", expected.iter().map(|x| x.trim_matches('"')).collect::<Vec<&str>>().join( " / ").blue(), {
+                let tok:Token= token.1.into();
+                tok.1
+            }.blue())
+        }
+        ParseError::ExtraToken { .. } => {
+            unreachable!("InvalidTokenError")
+        },
+        ParseError::User { .. } => {
+            unreachable!("InvalidTokenError")
+        },
+    }
+}
+
 // Live long and prosper
 fn main() {
     let mut contents = std::fs::read_to_string("test.spock").unwrap();
@@ -1338,7 +1372,9 @@ fn main() {
             }
         }
         Some(line)
-    }).collect();
+    }).collect::<Vec<&str>>().join("\r\n");
+    println!("{contents:?}");
+
     let (instructions, mut consts) = parse(&contents);
 
     let now = Instant::now();

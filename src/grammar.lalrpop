@@ -1,5 +1,7 @@
 use std::str::FromStr;
 use crate::{Expr, Opcode};
+use inline_colorization::*;
+use crate::format_parser_error;
 
 
 grammar;
@@ -70,7 +72,10 @@ ReturnLn: Expr = {
 }
 
 VarDeclare: Expr = {
-    "let" <v: Var> "=" <e: Expression> => Expr::VarDeclare(v, Box::from(e))
+    "let" <v: Var> "=" <e: Expression> => Expr::VarDeclare(v, Box::from(e)),
+    ! => {
+        parsing_error!(format_parser_error(<>.error, "Variable Declaration"));
+    }
 }
 
 VarAssign: Expr = {
@@ -88,7 +93,7 @@ OpVarAssign: Expr = {
 
 Expression: Expr = {
     <o:Operation> => o,
-    <t: Term> => *t,
+    <t: Term> => *t
 }
 
 Operation: Expr = {

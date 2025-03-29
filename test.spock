@@ -1,7 +1,7 @@
 fn main() {
 let count = 0;
 let limit = 1000000;
-let result = 1; // that's a test!
+let result = 1++5;
 while count < limit {
     result *= 2;
     if result > 1000000 {
