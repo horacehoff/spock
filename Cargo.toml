@@ -10,7 +10,7 @@ concat-string = "1.0.1"
 lalrpop-util = { version = "0.22.1", features = ["lexer"] }
 inline_colorization = "0.1.6"
 likely_stable = "0.1.3"
-cached = "0.55.1"
+#cached = "0.55.1"
 
 [build-dependencies]
 lalrpop = "0.22.1"
