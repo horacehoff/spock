@@ -616,10 +616,13 @@ fn get_tgt_id(x: Instr) -> u16 {
     }
 }
 
-fn get_last_matching_index(x: &[Instr]) -> usize {
-    let mut index = 0;
-    x.iter().enumerate().for_each(|(i, w)| {
-        if matches!(
+fn move_to_id(x: &mut [Instr], tgt_id: u16) {
+    if x.is_empty() {
+        return;
+    }
+    print!("MOVING TO ID {tgt_id} => {x:?}");
+    match x.get_mut(x.iter()
+        .rposition(|w| matches!(
             w,
             Instr::Add(_, _, _)
                 | Instr::Mul(_, _, _)
@@ -641,19 +644,8 @@ fn get_last_matching_index(x: &[Instr]) -> usize {
                 | Instr::Bool(_, _)
                 | Instr::Num(_, _)
                 | Instr::Str(_, _)
-        ) {
-            index = i;
-        }
-    });
-    index
-}
-
-fn move_to_id(x: &mut [Instr], tgt_id: u16) {
-    if x.is_empty() {
-        return;
-    }
-    print!("MOVING TO ID {tgt_id} => {x:?}");
-    match x.get_mut(get_last_matching_index(x)).unwrap() {
+        ))
+        .unwrap_or(x.len() - 1)).unwrap() {
         Instr::Add(_, _, z)
         | Instr::Mul(_, _, z)
         | Instr::Sub(_, _, z)
