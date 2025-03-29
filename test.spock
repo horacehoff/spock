@@ -1,4 +1,4 @@
-fn main () {
+fn main() {
 let count = 0;
 let limit = 1000000;
 let result = 1;
@@ -14,7 +14,7 @@ print(result);
 print(x);
 }
 
-fn test ()  {
+fn test()  {
     print("Hi");
     return 5;
     print("hoy");

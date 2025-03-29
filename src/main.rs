@@ -727,8 +727,7 @@ fn get_id(
         }
         _ => {
             print!("PARSING {x}");
-            let mut out = parser_to_instr_set(vec![x], variables, consts, functions, None);
-            instr.append(&mut out);
+            instr.append(&mut parser_to_instr_set(vec![x], variables, consts, functions, None));
             get_tgt_id(*instr.last().unwrap())
         }
     }
@@ -1271,12 +1270,13 @@ fn print_instructions(instructions: &[Instr]) {
     }
 }
 
-fn parse(contents: String) -> (Vec<Instr>, Vec<Data>) {
+fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>) {
     let mut functions: Vec<Expr> = grammar::FileParser::new().parse(&contents).unwrap();
+    println!("funcs {functions:?}");
     let main_function: Vec<Expr> = {
         if let Some(fctn) = functions.iter().position(|a| {
             if let Expr::FunctionDecl(name, _, _) = a {
-                name == "main"
+                name.trim_end_matches('(') == "main"
             } else {
                 false
             }
@@ -1295,7 +1295,7 @@ fn parse(contents: String) -> (Vec<Instr>, Vec<Data>) {
         .iter()
         .map(|w| {
             if let Expr::FunctionDecl(x, y, z) = w {
-                (x.to_string(), y.clone(), z.clone())
+                (x.trim_end_matches('(').to_string(), y.clone(), z.clone())
             } else {
                 error!(contents, "Function expected");
             }
@@ -1324,7 +1324,7 @@ fn parse(contents: String) -> (Vec<Instr>, Vec<Data>) {
 // Live long and prosper
 fn main() {
     let contents = std::fs::read_to_string("test.spock").unwrap();
-    let (instructions, mut consts) = parse(contents);
+    let (instructions, mut consts) = parse(&contents);
 
     let now = Instant::now();
     execute(&instructions, &mut consts);
