@@ -1324,34 +1324,21 @@ fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>) {
 // Live long and prosper
 fn main() {
     let mut contents = std::fs::read_to_string("test.spock").unwrap();
-    contents = contents.split('\n').filter(|line| !line.starts_with("//")).map(|x| {
-        if !x.contains("//") {
-            x
-        } else {
-            let mut return_val = x;
-            let mut str = false;
-            let mut comment = false;
-
-            for (i,c) in x.chars().enumerate() {
+    contents = contents.lines().filter_map(|mut line| {
+        if line.starts_with("//") {
+            return None;
+        } else if let Some(idx) = line.find("//") {
+            let mut in_str = false;
+            for c in line.chars().take(idx + 2) {
                 if c == '"' {
-                    str = !str;
-                } else if c == '/' && !str {
-                    if comment {
-                        if return_val.ends_with("\r") {
-                            return_val = &return_val[0..(i - 2)]
-                        } else {
-                            return_val = &return_val[0..i]
-                        }
-                        break;
-                    } else {
-                        comment = true;
-                    }
+                    in_str = !in_str;
+                } else if !in_str && c == '/' {
+                    line = &line[..idx];
                 }
             }
-            return_val
         }
+        Some(line)
     }).collect();
-    println!("{contents:?}");
     let (instructions, mut consts) = parse(&contents);
 
     let now = Instant::now();
