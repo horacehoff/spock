@@ -1283,7 +1283,7 @@ fn print_instructions(instructions: &[Instr]) {
 
 fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>) {
     let mut functions: Vec<Expr> = grammar::FileParser::new().parse(&contents).unwrap();
-    println!("funcs {functions:?}");
+    print!("funcs {functions:?}");
     let main_function: Vec<Expr> = {
         if let Some(fctn) = functions.iter().position(|a| {
             if let Expr::FunctionDecl(name, _, _) = a {
@@ -1332,13 +1332,13 @@ fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>) {
     (instructions, consts)
 }
 
-fn format_parser_error<'a, L,T: std::fmt::Debug,E>(x: ParseError<L,T,E>, ctx:&str) -> String where Token<'a>: From<T> {
+fn format_parser_error<'a, L,T,E>(x: ParseError<L,T,E>, ctx:&str) -> String where Token<'a>: From<T> {
     match x {
         ParseError::InvalidToken { .. } => {
             unreachable!("InvalidTokenError")
         },
         ParseError::UnrecognizedEof { .. } => {
-            unreachable!("InvalidTokenError")
+            unreachable!("UnrecognizedEofError")
         },
         ParseError::UnrecognizedToken { token,expected } => {
             format!("PARSING: {ctx}\nExpected token {} but got '{}'", expected.iter().map(|x| x.trim_matches('"')).collect::<Vec<&str>>().join( " / ").blue(), {
@@ -1347,10 +1347,10 @@ fn format_parser_error<'a, L,T: std::fmt::Debug,E>(x: ParseError<L,T,E>, ctx:&st
             }.blue())
         }
         ParseError::ExtraToken { .. } => {
-            unreachable!("InvalidTokenError")
+            unreachable!("ExtraTokenError")
         },
         ParseError::User { .. } => {
-            unreachable!("InvalidTokenError")
+            unreachable!("UserError")
         },
     }
 }
@@ -1373,7 +1373,7 @@ fn main() {
         }
         Some(line)
     }).collect::<Vec<&str>>().join("\r\n");
-    println!("{contents:?}");
+    print!("{contents:?}");
 
     let (instructions, mut consts) = parse(&contents);
 
