@@ -8,7 +8,7 @@ grammar;
 
 
 pub File:Vec<Expr> = {
-    <o: Function*> => o,
+    <o: Function*> => o
 }
 
 pub Function:Expr = {
@@ -73,9 +73,9 @@ ReturnLn: Expr = {
 
 VarDeclare: Expr = {
     "let" <v: Var> "=" <e: Expression> => Expr::VarDeclare(v, Box::from(e)),
-    ! => {
-        parsing_error!(format_parser_error(<>.error, "Variable Declaration"));
-    }
+    //! => {
+    //    parsing_error!(format_parser_error(<>.error, "Variable Declaration"));
+  //  }
 }
 
 VarAssign: Expr = {
@@ -93,7 +93,16 @@ OpVarAssign: Expr = {
 
 Expression: Expr = {
     <o:Operation> => o,
-    <t: Term> => *t
+    <t: Term> <f: ("." FunctionCall)+ > => {
+        let mut func_calls = Vec::new();
+        for x in f.iter().map(|x| x.1.clone()) {
+            if let Expr::FunctionCall(x,y) = x {
+                func_calls.push((x,y))
+            }
+        }
+        Expr::ObjFunctionCall(t, Box::from(func_calls))
+    },
+    <t: Term> => *t,
 }
 
 Operation: Expr = {
@@ -114,6 +123,7 @@ Term: Box<Expr> = {
     <b: Bool> => Box::new(Expr::Bool(b)),
     <s: String> => Box::new(Expr::String(s)),
     <v: Var> => Box::new(Expr::Var(v)),
+
     <f: FunctionCall> => Box::new(<>),
 };
 

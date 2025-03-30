@@ -2,12 +2,12 @@ use colored::Colorize;
 use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
-use lalrpop_util::{lalrpop_mod, ErrorRecovery, ParseError};
+use lalrpop_util::lexer::Token;
+use lalrpop_util::{ParseError, lalrpop_mod};
 use likely_stable::if_likely;
 use std::cmp::PartialEq;
 use std::fmt::Formatter;
 use std::time::Instant;
-use lalrpop_util::lexer::Token;
 
 macro_rules! error {
     ($x: expr, $y: expr) => {
@@ -373,6 +373,7 @@ pub enum Expr {
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
     WhileBlock(Box<Expr>, Box<[Expr]>),
     FunctionCall(String, Box<[Expr]>),
+    ObjFunctionCall(Box<Expr>, Box<[(String, Box<[Expr]>)]>),
     LPAREN,
     RPAREN,
 
@@ -632,31 +633,38 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         return;
     }
     print!("MOVING TO ID {tgt_id} => {x:?}");
-    match x.get_mut(x.iter()
-        .rposition(|w| matches!(
-            w,
-            Instr::Add(_, _, _)
-                | Instr::Mul(_, _, _)
-                | Instr::Sub(_, _, _)
-                | Instr::Div(_, _, _)
-                | Instr::Mod(_, _, _)
-                | Instr::Pow(_, _, _)
-                | Instr::Eq(_, _, _)
-                | Instr::NotEq(_, _, _)
-                | Instr::Sup(_, _, _)
-                | Instr::SupEq(_, _, _)
-                | Instr::Inf(_, _, _)
-                | Instr::InfEq(_, _, _)
-                | Instr::BoolAnd(_, _, _)
-                | Instr::BoolOr(_, _, _)
-                | Instr::Mov(_, _)
-                | Instr::Neg(_, _)
-                | Instr::Abs(_, _)
-                | Instr::Bool(_, _)
-                | Instr::Num(_, _)
-                | Instr::Str(_, _)
-        ))
-        .unwrap_or(x.len() - 1)).unwrap() {
+    match x
+        .get_mut(
+            x.iter()
+                .rposition(|w| {
+                    matches!(
+                        w,
+                        Instr::Add(_, _, _)
+                            | Instr::Mul(_, _, _)
+                            | Instr::Sub(_, _, _)
+                            | Instr::Div(_, _, _)
+                            | Instr::Mod(_, _, _)
+                            | Instr::Pow(_, _, _)
+                            | Instr::Eq(_, _, _)
+                            | Instr::NotEq(_, _, _)
+                            | Instr::Sup(_, _, _)
+                            | Instr::SupEq(_, _, _)
+                            | Instr::Inf(_, _, _)
+                            | Instr::InfEq(_, _, _)
+                            | Instr::BoolAnd(_, _, _)
+                            | Instr::BoolOr(_, _, _)
+                            | Instr::Mov(_, _)
+                            | Instr::Neg(_, _)
+                            | Instr::Abs(_, _)
+                            | Instr::Bool(_, _)
+                            | Instr::Num(_, _)
+                            | Instr::Str(_, _)
+                    )
+                })
+                .unwrap_or(x.len() - 1),
+        )
+        .unwrap()
+    {
         Instr::Add(_, _, z)
         | Instr::Mul(_, _, z)
         | Instr::Sub(_, _, z)
@@ -738,7 +746,13 @@ fn get_id(
         }
         _ => {
             print!("PARSING {x}");
-            instr.append(&mut parser_to_instr_set(vec![x], variables, consts, functions, None));
+            instr.append(&mut parser_to_instr_set(
+                vec![x],
+                variables,
+                consts,
+                functions,
+                None,
+            ));
             get_tgt_id(*instr.last().unwrap())
         }
     }
@@ -1136,6 +1150,17 @@ fn parser_to_instr_set(
                     output.push(Instr::Jmp(65535, false));
                 }
             }
+            Expr::ObjFunctionCall(obj, funcs) => {
+                let obj = *obj;
+                for func in funcs {
+                    match func.0.as_str() {
+                        "uppercase" => {}
+                        other => {
+                            error!(ctx, format_args!("Unknown function {}", other.red()));
+                        }
+                    }
+                }
+            }
             Expr::FunctionDecl(x, y, z) => {
                 if functions.iter().any(|(name, _, _)| name == &x) {
                     error!(ctx, format_args!("Function {} is already defined", x.red()));
@@ -1332,47 +1357,64 @@ fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>) {
     (instructions, consts)
 }
 
-fn format_parser_error<'a, L,T,E>(x: ParseError<L,T,E>, ctx:&str) -> String where Token<'a>: From<T> {
+fn format_parser_error<'a, L, T, E>(x: ParseError<L, T, E>, ctx: &str) -> String
+where
+    Token<'a>: From<T>,
+{
     match x {
         ParseError::InvalidToken { .. } => {
             unreachable!("InvalidTokenError")
-        },
+        }
         ParseError::UnrecognizedEof { .. } => {
             unreachable!("UnrecognizedEofError")
-        },
-        ParseError::UnrecognizedToken { token,expected } => {
-            format!("PARSING: {ctx}\nExpected token {} but got '{}'", expected.iter().map(|x| x.trim_matches('"')).collect::<Vec<&str>>().join( " / ").blue(), {
-                let tok:Token= token.1.into();
-                tok.1
-            }.blue())
+        }
+        ParseError::UnrecognizedToken { token, expected } => {
+            format!(
+                "PARSING: {ctx}\nExpected token {} but got '{}'",
+                expected
+                    .iter()
+                    .map(|x| x.trim_matches('"'))
+                    .collect::<Vec<&str>>()
+                    .join(" / ")
+                    .blue(),
+                {
+                    let tok: Token = token.1.into();
+                    tok.1
+                }
+                .blue()
+            )
         }
         ParseError::ExtraToken { .. } => {
             unreachable!("ExtraTokenError")
-        },
+        }
         ParseError::User { .. } => {
             unreachable!("UserError")
-        },
+        }
     }
 }
 
 // Live long and prosper
 fn main() {
     let mut contents = std::fs::read_to_string("test.spock").unwrap();
-    contents = contents.lines().filter_map(|mut line| {
-        if line.starts_with("//") {
-            return None;
-        } else if let Some(idx) = line.find("//") {
-            let mut in_str = false;
-            for c in line.chars().take(idx + 2) {
-                if c == '"' {
-                    in_str = !in_str;
-                } else if !in_str && c == '/' {
-                    line = &line[..idx];
+    contents = contents
+        .lines()
+        .filter_map(|mut line| {
+            if line.starts_with("//") {
+                return None;
+            } else if let Some(idx) = line.find("//") {
+                let mut in_str = false;
+                for c in line.chars().take(idx + 2) {
+                    if c == '"' {
+                        in_str = !in_str;
+                    } else if !in_str && c == '/' {
+                        line = &line[..idx];
+                    }
                 }
             }
-        }
-        Some(line)
-    }).collect::<Vec<&str>>().join("\r\n");
+            Some(line)
+        })
+        .collect::<Vec<&str>>()
+        .join("\r\n");
     print!("{contents:?}");
 
     let (instructions, mut consts) = parse(&contents);
