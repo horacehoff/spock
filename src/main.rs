@@ -323,6 +323,12 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                             consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
                         }
                     }
+                    // LOWERCASE
+                    1 => {
+                        if let Data::String(str) = consts[tgt as usize] {
+                            consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
+                        }
+                    }
                     _ => unreachable!(),
                 }
             }
@@ -1133,6 +1139,11 @@ fn parser_to_instr_set(
                         let f_id = consts.len() as u16;
                         let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
                         output.push(Instr::ApplyFunc(0, id, f_id));
+                    }
+                    "lowercase" => {
+                        let f_id = consts.len() as u16;
+                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
+                        output.push(Instr::ApplyFunc(1, id, f_id));
                     }
                     other => {
                         error!(ctx, format_args!("Unknown function {}", other.red()));
