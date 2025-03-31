@@ -2,7 +2,6 @@ fn main() {
 let count = 0;
 let limit = 1000000;
 let result = 1;
-result = result.abs();
 while count < limit {
     let x = 0;
     result *= 2;
@@ -12,6 +11,7 @@ while count < limit {
     count += 1;
 }
 print(result);
+print("hi".uppercase());
 }
 
 fn test()  {

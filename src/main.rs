@@ -315,7 +315,17 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     error_b!(format_args!("CANNOT CONVERT {base} TO BOOL"));
                 }
             }
-            Instr::ApplyFunc(fctn_id, tgt, dest) => {}
+            Instr::ApplyFunc(fctn_id, dest, tgt) => {
+                match fctn_id {
+                    // UPPERCASE
+                    0 => {
+                        if let Data::String(str) = consts[tgt as usize] {
+                            consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
         }
         i += 1;
     }
@@ -588,6 +598,7 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::Abs(_, y)
         | Instr::Num(_, y)
         | Instr::Bool(_, y)
+        | Instr::ApplyFunc(_, _, y)
         | Instr::Str(_, y) => y,
         _ => unreachable!(),
     }
@@ -1116,15 +1127,18 @@ fn parser_to_instr_set(
                 }
             }
             Expr::ObjFunctionCall(obj, funcs) => {
-                let obj = *obj;
-                for func in funcs {
-                    match func.0.as_str() {
-                        "uppercase" => {}
-                        other => {
-                            error!(ctx, format_args!("Unknown function {}", other.red()));
-                        }
+                // for func in funcs {
+                match funcs[0].0.as_str() {
+                    "uppercase" => {
+                        let f_id = consts.len() as u16;
+                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
+                        output.push(Instr::ApplyFunc(0, id, f_id));
+                    }
+                    other => {
+                        error!(ctx, format_args!("Unknown function {}", other.red()));
                     }
                 }
+                // }
             }
             Expr::FunctionDecl(x, y, z) => {
                 if functions.iter().any(|(name, _, _)| name == &x) {
@@ -1267,6 +1281,7 @@ fn print_instructions(instructions: &[Instr]) {
             Instr::Num(x, y) => format!("NUM {x} {y}"),
             Instr::Str(x, y) => format!("STR {x} {y}"),
             Instr::Bool(x, y) => format!("BOOL {x} {y}"),
+            Instr::ApplyFunc(x, y, z) => format!("APPLY_FUNCTION {x} {y} {z}"),
         });
     }
 }
