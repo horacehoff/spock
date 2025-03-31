@@ -9,47 +9,7 @@ use std::cmp::PartialEq;
 use std::fmt::Formatter;
 use std::time::Instant;
 
-macro_rules! error {
-    ($x: expr, $y: expr) => {
-        eprintln!(
-            "--------------\n{color_red}SPOCK ERROR:{color_reset}\n{color_bright_red}CONTEXT:{color_reset}\n{style_bold}{}{style_reset}\n{color_bright_red}ERROR:{color_reset}\n{}\n--------------", $x, $y
-        );
-        std::process::exit(1);
-    };
-    ($x: expr, $y: expr, $z: expr) => {
-        eprintln!(
-            "--------------\n{color_red}SPOCK ERROR:{color_reset}\n{color_bright_red}CONTEXT:{color_reset}\n{style_bold}{}{style_reset}\n{color_bright_red}ERROR:{color_reset}\n{}\n{color_bright_red}POSSIBLE FIX:{color_reset}\n{}\n--------------", $x, $y, $z
-        );
-        std::process::exit(1);
-    }
-}
-
-macro_rules! error_b {
-    ($x: expr) => {
-        eprintln!(
-            "--------------\n{color_red}SPOCK ERROR:{color_reset}\n{}\n--------------",
-            $x
-        );
-        std::process::exit(1);
-    };
-}
-
-macro_rules! parsing_error {
-    ($x: expr) => {
-        eprintln!(
-            "--------------\n{color_red}SPOCK PARSING ERROR:{color_reset}\n{}\n--------------",
-            $x
-        );
-        std::process::exit(1);
-    };
-}
-
-macro_rules! print {
-    ($($x:tt)*) => {
-        #[cfg(debug_assertions)]
-        println!("\x1b[33m[LOG] {}\x1b[0m", format!($($x)*))
-    }
-}
+mod util;
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
@@ -107,7 +67,11 @@ pub enum Instr {
     Num(u16, u16),
     Str(u16, u16),
     Bool(u16, u16),
+
+    ApplyFunc(u16, u16, u16),
 }
+
+// 0 => uppercase
 
 fn execute(instructions: &[Instr], consts: &mut [Data]) {
     let len = instructions.len();
@@ -351,6 +315,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     error_b!(format_args!("CANNOT CONVERT {base} TO BOOL"));
                 }
             }
+            Instr::ApplyFunc(fctn_id, tgt, dest) => {}
         }
         i += 1;
     }
@@ -1395,6 +1360,7 @@ where
 
 // Live long and prosper
 fn main() {
+    dbg!(size_of::<Instr>());
     let mut contents = std::fs::read_to_string("test.spock").unwrap();
     contents = contents
         .lines()
