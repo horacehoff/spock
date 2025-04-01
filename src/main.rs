@@ -68,7 +68,7 @@ pub enum Instr {
     Str(u16, u16),
     Bool(u16, u16),
 
-    ApplyFunc(u16, u16, u16),
+    ApplyFunc(u8, u16, u16, u16),
 }
 
 // 0 => uppercase
@@ -315,7 +315,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     error_b!(format_args!("CANNOT CONVERT {base} TO BOOL"));
                 }
             }
-            Instr::ApplyFunc(fctn_id, dest, tgt) => {
+            Instr::ApplyFunc(fctn_id, dest, tgt, arg) => {
                 match fctn_id {
                     // UPPERCASE
                     0 => {
@@ -327,6 +327,24 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     1 => {
                         if let Data::String(str) = consts[tgt as usize] {
                             consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
+                        }
+                    }
+                    // LEN
+                    2 => {
+                        if let Data::String(str) = consts[tgt as usize] {
+                            consts[dest as usize] = Data::Number(str.chars().count() as f64)
+                        }
+                    }
+                    3 => {
+                        if let Data::String(str) = consts[tgt as usize] {
+                            if let Data::String(arg) = consts[arg as usize] {
+                                consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
+                            } else {
+                                error_b!(format_args!(
+                                    "{} is not a String",
+                                    consts[arg as usize].to_string().red()
+                                ));
+                            }
                         }
                     }
                     _ => unreachable!(),
@@ -604,7 +622,7 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::Abs(_, y)
         | Instr::Num(_, y)
         | Instr::Bool(_, y)
-        | Instr::ApplyFunc(_, _, y)
+        | Instr::ApplyFunc(_, _, y, _)
         | Instr::Str(_, y) => y,
         _ => unreachable!(),
     }
@@ -666,6 +684,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Abs(_, z)
         | Instr::Bool(_, z)
         | Instr::Num(_, z)
+        | Instr::ApplyFunc(_, _, z, _)
         | Instr::Str(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
@@ -1134,16 +1153,36 @@ fn parser_to_instr_set(
             }
             Expr::ObjFunctionCall(obj, funcs) => {
                 // for func in funcs {
-                match funcs[0].0.as_str() {
+                match funcs[0].clone().0.as_str() {
                     "uppercase" => {
                         let f_id = consts.len() as u16;
                         let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
-                        output.push(Instr::ApplyFunc(0, id, f_id));
+                        output.push(Instr::ApplyFunc(0, id, f_id, 0));
                     }
                     "lowercase" => {
                         let f_id = consts.len() as u16;
                         let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
-                        output.push(Instr::ApplyFunc(1, id, f_id));
+                        output.push(Instr::ApplyFunc(1, id, f_id, 0));
+                    }
+                    "len" => {
+                        let f_id = consts.len() as u16;
+                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
+                        output.push(Instr::ApplyFunc(2, id, f_id, 0));
+                    }
+                    "contains" => {
+                        let f_id = consts.len() as u16;
+                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
+
+                        let arg_id = get_id(
+                            funcs.first().unwrap().1.first().unwrap().clone(),
+                            variables,
+                            consts,
+                            &mut output,
+                            &ctx,
+                            functions,
+                        );
+
+                        output.push(Instr::ApplyFunc(3, id, f_id, arg_id));
                     }
                     other => {
                         error!(ctx, format_args!("Unknown function {}", other.red()));
@@ -1292,7 +1331,7 @@ fn print_instructions(instructions: &[Instr]) {
             Instr::Num(x, y) => format!("NUM {x} {y}"),
             Instr::Str(x, y) => format!("STR {x} {y}"),
             Instr::Bool(x, y) => format!("BOOL {x} {y}"),
-            Instr::ApplyFunc(x, y, z) => format!("APPLY_FUNCTION {x} {y} {z}"),
+            Instr::ApplyFunc(x, y, z, _) => format!("APPLY_FUNCTION {x} {y} {z}"),
         });
     }
 }
