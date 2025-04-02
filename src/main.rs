@@ -71,7 +71,35 @@ pub enum Instr {
     ApplyFunc(u8, u16, u16, u16),
 }
 
-// 0 => uppercase
+fn uppercase(tgt: u16, dest: u16, arg: u16, consts: &mut [Data]) {
+    if let Data::String(str) = consts[tgt as usize] {
+        consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
+    }
+}
+fn lowercase(tgt: u16, dest: u16, arg: u16, consts: &mut [Data]) {
+    if let Data::String(str) = consts[tgt as usize] {
+        consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
+    }
+}
+fn len(tgt: u16, dest: u16, arg: u16, consts: &mut [Data]) {
+    if let Data::String(str) = consts[tgt as usize] {
+        consts[dest as usize] = Data::Number(str.chars().count() as f64)
+    }
+}
+fn contains(tgt: u16, dest: u16, arg: u16, consts: &mut [Data]) {
+    if let Data::String(str) = consts[tgt as usize] {
+        if let Data::String(arg) = consts[arg as usize] {
+            consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
+        } else {
+            error_b!(format_args!(
+                "{} is not a String",
+                consts[arg as usize].to_string().red()
+            ));
+        }
+    }
+}
+
+static FUNCS: [fn(u16, u16, u16, &mut [Data]); 4] = [uppercase, lowercase, len, contains];
 
 fn execute(instructions: &[Instr], consts: &mut [Data]) {
     let len = instructions.len();
@@ -316,37 +344,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                 }
             }
             Instr::ApplyFunc(fctn_id, tgt, dest, arg) => {
-                // UPPERCASE
-                if fctn_id == 0 {
-                    if let Data::String(str) = consts[tgt as usize] {
-                        consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
-                    }
-                }
-                // LOWERCASE
-                else if fctn_id == 1 {
-                    if let Data::String(str) = consts[tgt as usize] {
-                        consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
-                    }
-                }
-                // LEN
-                else if fctn_id == 2 {
-                    if let Data::String(str) = consts[tgt as usize] {
-                        consts[dest as usize] = Data::Number(str.chars().count() as f64)
-                    }
-                } else if fctn_id == 3 {
-                    if let Data::String(str) = consts[tgt as usize] {
-                        if let Data::String(arg) = consts[arg as usize] {
-                            consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
-                        } else {
-                            error_b!(format_args!(
-                                "{} is not a String",
-                                consts[arg as usize].to_string().red()
-                            ));
-                        }
-                    }
-                } else {
-                    unreachable!()
-                }
+                FUNCS[fctn_id as usize](tgt, dest, arg, consts);
             }
         }
         i += 1;
