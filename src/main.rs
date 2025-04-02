@@ -315,7 +315,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     error_b!(format_args!("CANNOT CONVERT {base} TO BOOL"));
                 }
             }
-            Instr::ApplyFunc(fctn_id, dest, tgt, arg) => {
+            Instr::ApplyFunc(fctn_id, tgt, dest, arg) => {
                 match fctn_id {
                     // UPPERCASE
                     0 => {

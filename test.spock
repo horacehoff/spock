@@ -12,7 +12,7 @@ while count < limit {
 }
 print(result);
 let x = "Hi";
-print(x.contains("H"));
+print(x.contains("_"));
 }
 
 fn test()  {
