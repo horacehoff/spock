@@ -99,7 +99,7 @@ fn contains(tgt: u16, dest: u16, arg: u16, consts: &mut [Data]) {
     }
 }
 
-static FUNCS: [fn(u16, u16, u16, &mut [Data]); 4] = [uppercase, lowercase, len, contains];
+const FUNCS: [fn(u16, u16, u16, &mut [Data]); 4] = [uppercase, lowercase, len, contains];
 
 fn execute(instructions: &[Instr], consts: &mut [Data]) {
     let len = instructions.len();
