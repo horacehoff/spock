@@ -34,4 +34,10 @@ fn contains(tgt: u16, dest: u16, arg: u16, consts: &mut [Data]) {
     }
 }
 
-pub const FUNCS: [fn(u16, u16, u16, &mut [Data]); 4] = [uppercase, lowercase, len, contains];
+fn trim(tgt: u16, dest: u16, arg: u16, consts: &mut [Data]) {
+    if let Data::String(str) = consts[tgt as usize] {
+        consts[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
+    }
+}
+
+pub const FUNCS: [fn(u16, u16, u16, &mut [Data]); 5] = [uppercase, lowercase, len, contains, trim];

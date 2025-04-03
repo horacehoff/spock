@@ -3,6 +3,7 @@ use colored::Colorize;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
 use crate::{error, Data, Instr, Opcode};
+use crate::util::print_instructions;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
@@ -309,7 +310,7 @@ macro_rules! check_args {
     };
 }
 
-pub fn parser_to_instr_set(
+fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
     consts: &mut Vec<Data>,
@@ -325,7 +326,7 @@ pub fn parser_to_instr_set(
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
             Expr::Var(name) => {
                 consts.push(Data::Null);
-                if let Some((_, var_id)) = variables.iter().find(|(x, _)| &name == x) {
+                if let Some((_, var_id)) = variables.iter().rev().find(|(x, _)| &name == x) {
                     output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
                 } else {
                     error!(
@@ -653,23 +654,27 @@ pub fn parser_to_instr_set(
                 match funcs[0].clone().0.as_str() {
                     "uppercase" => {
                         let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
                         let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
                         output.push(Instr::ApplyFunc(0, id, f_id, 0));
                     }
                     "lowercase" => {
                         let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
                         let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
                         output.push(Instr::ApplyFunc(1, id, f_id, 0));
                     }
                     "len" => {
                         let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
                         let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
                         output.push(Instr::ApplyFunc(2, id, f_id, 0));
                     }
                     "contains" => {
                         let f_id = consts.len() as u16;
-                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
+                        consts.push(Data::Null);
 
+                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
                         let arg_id = get_id(
                             funcs.first().unwrap().1.first().unwrap().clone(),
                             variables,
@@ -678,8 +683,15 @@ pub fn parser_to_instr_set(
                             &ctx,
                             functions,
                         );
-
                         output.push(Instr::ApplyFunc(3, id, f_id, arg_id));
+                    }
+                    "trim" => {
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+
+
+                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
+                        output.push(Instr::ApplyFunc(4, id, f_id, 0));
                     }
                     other => {
                         error!(ctx, format_args!("Unknown function {}", other.red()));
@@ -799,4 +811,56 @@ pub fn parser_to_instr_set(
     }
 
     output
+}
+
+
+pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>) {
+    let mut functions: Vec<Expr> = grammar::FileParser::new().parse(&contents).unwrap();
+    crate::print!("funcs {functions:?}");
+    let main_function: Vec<Expr> = {
+        if let Some(fctn) = functions.iter().position(|a| {
+            if let Expr::FunctionDecl(name, _, _) = a {
+                name.trim_end_matches('(') == "main"
+            } else {
+                false
+            }
+        }) {
+            if let Expr::FunctionDecl(_, _, code) = functions.swap_remove(fctn) {
+                code.to_vec()
+            } else {
+                error!(contents, "No main function");
+            }
+        } else {
+            error!(contents, "No main function");
+        }
+    };
+
+    let mut functions: Vec<(String, Box<[String]>, Box<[Expr]>)> = functions
+        .iter()
+        .map(|w| {
+            if let Expr::FunctionDecl(x, y, z) = w {
+                (x.trim_end_matches('(').to_string(), y.clone(), z.clone())
+            } else {
+                error!(contents, "Function expected");
+            }
+        })
+        .collect();
+
+    crate::print!("{functions:?}");
+
+    let mut variables: Vec<(String, u16)> = Vec::new();
+    let mut consts: Vec<Data> = Vec::new();
+    let instructions = parser_to_instr_set(
+        main_function,
+        &mut variables,
+        &mut consts,
+        &mut functions,
+        None,
+    );
+    crate::print!("CONSTS are {consts:?}");
+    #[cfg(debug_assertions)]
+    {
+        print_instructions(&instructions);
+    }
+    (instructions, consts)
 }

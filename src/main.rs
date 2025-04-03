@@ -6,8 +6,7 @@ use std::cmp::PartialEq;
 use std::f64::consts::E;
 use std::time::Instant;
 use builtin_funcs::FUNCS;
-use crate::parser::{grammar, parser_to_instr_set, Expr};
-use crate::util::print_instructions;
+use crate::parser::{parse};
 
 mod util;
 mod builtin_funcs;
@@ -306,9 +305,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     error_b!(format_args!("CANNOT CONVERT {base} TO BOOL"));
                 }
             }
-            Instr::ApplyFunc(fctn_id, tgt, dest, arg) => {
-                FUNCS[fctn_id as usize](tgt, dest, arg, consts);
-            }
+            Instr::ApplyFunc(fctn_id, tgt, dest, arg) => FUNCS[fctn_id as usize](tgt, dest, arg, consts),
         }
         i += 1;
     }
@@ -337,59 +334,6 @@ pub enum Opcode {
 
 
 
-
-
-
-fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>) {
-    let mut functions: Vec<Expr> = grammar::FileParser::new().parse(&contents).unwrap();
-    print!("funcs {functions:?}");
-    let main_function: Vec<Expr> = {
-        if let Some(fctn) = functions.iter().position(|a| {
-            if let Expr::FunctionDecl(name, _, _) = a {
-                name.trim_end_matches('(') == "main"
-            } else {
-                false
-            }
-        }) {
-            if let Expr::FunctionDecl(_, _, code) = functions.swap_remove(fctn) {
-                code.to_vec()
-            } else {
-                error!(contents, "No main function");
-            }
-        } else {
-            error!(contents, "No main function");
-        }
-    };
-
-    let mut functions: Vec<(String, Box<[String]>, Box<[Expr]>)> = functions
-        .iter()
-        .map(|w| {
-            if let Expr::FunctionDecl(x, y, z) = w {
-                (x.trim_end_matches('(').to_string(), y.clone(), z.clone())
-            } else {
-                error!(contents, "Function expected");
-            }
-        })
-        .collect();
-
-    print!("{functions:?}");
-
-    let mut variables: Vec<(String, u16)> = Vec::new();
-    let mut consts: Vec<Data> = Vec::new();
-    let instructions = parser_to_instr_set(
-        main_function,
-        &mut variables,
-        &mut consts,
-        &mut functions,
-        None,
-    );
-    print!("CONSTS are {consts:?}");
-    #[cfg(debug_assertions)]
-    {
-        print_instructions(&instructions);
-    }
-    (instructions, consts)
-}
 
 
 
