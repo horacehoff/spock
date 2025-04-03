@@ -3,13 +3,16 @@ use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lexer::Token;
-use lalrpop_util::{ParseError, lalrpop_mod};
+use lalrpop_util::{lalrpop_mod, ParseError};
 use likely_stable::if_likely;
 use std::cmp::PartialEq;
+use std::f64::consts::E;
 use std::fmt::Formatter;
 use std::time::Instant;
+use builtin_funcs::FUNCS;
 
 mod util;
+mod builtin_funcs;
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
@@ -70,36 +73,6 @@ pub enum Instr {
 
     ApplyFunc(u8, u16, u16, u16),
 }
-
-fn uppercase(tgt: u16, dest: u16, arg: u16, consts: &mut [Data]) {
-    if let Data::String(str) = consts[tgt as usize] {
-        consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
-    }
-}
-fn lowercase(tgt: u16, dest: u16, arg: u16, consts: &mut [Data]) {
-    if let Data::String(str) = consts[tgt as usize] {
-        consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
-    }
-}
-fn len(tgt: u16, dest: u16, arg: u16, consts: &mut [Data]) {
-    if let Data::String(str) = consts[tgt as usize] {
-        consts[dest as usize] = Data::Number(str.chars().count() as f64)
-    }
-}
-fn contains(tgt: u16, dest: u16, arg: u16, consts: &mut [Data]) {
-    if let Data::String(str) = consts[tgt as usize] {
-        if let Data::String(arg) = consts[arg as usize] {
-            consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
-        } else {
-            error_b!(format_args!(
-                "{} is not a String",
-                consts[arg as usize].to_string().red()
-            ));
-        }
-    }
-}
-
-const FUNCS: [fn(u16, u16, u16, &mut [Data]); 4] = [uppercase, lowercase, len, contains];
 
 fn execute(instructions: &[Instr], consts: &mut [Data]) {
     let len = instructions.len();
@@ -1421,6 +1394,14 @@ where
 
 // Live long and prosper
 fn main() {
+
+    let mut n:f64 = 1.0;
+    let mut u = 1.0/2.0*E - 1.0/2.0;
+    while n < 21.0 {
+        u = 1.0 / 2.0 * E - (n+1.0)/2.0*u;
+        n += 2.0;
+    }
+    println!("{u}");  
     dbg!(size_of::<Instr>());
     let mut contents = std::fs::read_to_string("test.spock").unwrap();
     contents = contents
