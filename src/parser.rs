@@ -2,7 +2,33 @@ use inline_colorization::*;
 use colored::Colorize;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
-use crate::{error, Data, Expr, Instr, Opcode};
+use crate::{error, Data, Instr, Opcode};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Expr {
+    Num(f64),
+    Bool(bool),
+    Op(Box<Expr>, Box<[(Opcode, Box<Expr>)]>),
+    Opcode(Opcode),
+    Priority(Box<Expr>),
+    String(String),
+    Var(String),
+    // Group(Box<[Expr]>),
+    VarDeclare(String, Box<Expr>),
+    VarAssign(String, Box<Expr>),
+    // condition - code -- else_if_blocks(condition array) - else_block
+    Condition(Box<Expr>, Box<[Expr]>, Box<[Expr]>, Option<Box<[Expr]>>),
+    ElseIfBlock(Box<Expr>, Box<[Expr]>),
+    WhileBlock(Box<Expr>, Box<[Expr]>),
+    FunctionCall(String, Box<[Expr]>),
+    ObjFunctionCall(Box<Expr>, Box<[(String, Box<[Expr]>)]>),
+    LPAREN,
+    RPAREN,
+
+    FunctionDecl(String, Box<[String]>, Box<[Expr]>),
+
+    ReturnVal(Box<Option<Expr>>),
+}
 
 
 lalrpop_mod!(pub grammar);

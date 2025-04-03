@@ -1,5 +1,9 @@
 use std::fmt::Formatter;
-use crate::{format_lines, Data, Expr, Opcode};
+use colored::Colorize;
+use lalrpop_util::lexer::Token;
+use lalrpop_util::ParseError;
+use crate::{format_lines, Data, Opcode};
+use crate::parser::Expr;
 
 impl std::fmt::Display for Data {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -134,5 +138,41 @@ impl std::fmt::Display for Opcode {
             Opcode::BoolOr => "||",
             Opcode::Neg => "-",
         })
+    }
+}
+
+pub fn format_parser_error<'a, L, T, E>(x: ParseError<L, T, E>, ctx: &str) -> String
+where
+    Token<'a>: From<T>,
+{
+    match x {
+        ParseError::InvalidToken { .. } => {
+            unreachable!("InvalidTokenError")
+        }
+        ParseError::UnrecognizedEof { .. } => {
+            unreachable!("UnrecognizedEofError")
+        }
+        ParseError::UnrecognizedToken { token, expected } => {
+            format!(
+                "PARSING: {ctx}\nExpected token {} but got '{}'",
+                expected
+                    .iter()
+                    .map(|x| x.trim_matches('"'))
+                    .collect::<Vec<&str>>()
+                    .join(" / ")
+                    .blue(),
+                {
+                    let tok: Token = token.1.into();
+                    tok.1
+                }
+                    .blue()
+            )
+        }
+        ParseError::ExtraToken { .. } => {
+            unreachable!("ExtraTokenError")
+        }
+        ParseError::User { .. } => {
+            unreachable!("UserError")
+        }
     }
 }
