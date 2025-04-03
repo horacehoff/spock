@@ -307,10 +307,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data], func_args_count : usize)
                 }
             }
             Instr::StoreFuncArg(id) => func_args.push(id),
-            Instr::ApplyFunc(fctn_id, tgt, dest) => {
-                FUNCS[fctn_id as usize](tgt, dest, consts, &mut func_args);
-                func_args.clear();
-            },
+            Instr::ApplyFunc(fctn_id, tgt, dest) => FUNCS[fctn_id as usize](tgt, dest, consts, &mut func_args),
         }
         i += 1;
     }
