@@ -66,7 +66,6 @@ pub fn print_instructions(instructions: &[Instr]) {
             Instr::Print(x) => format!("PRINT {x}"),
             Instr::Jmp(x, y) => format!("JMP {x} {y}"),
             Instr::Cmp(x, y) => format!("CMP {x} {y}"),
-            Instr::GoTo(x) => format!("GOTO {x}"),
             Instr::Mov(x, y) => format!("MOV {x} {y}"),
             Instr::Add(x, y, z) => format!("ADD {x} {y} {z}"),
             Instr::Mul(x, y, z) => format!("MUL {x} {y} {z}"),

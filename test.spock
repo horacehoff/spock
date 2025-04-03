@@ -2,6 +2,7 @@ fn main() {
 let count = 0;
 let limit = 1000000;
 let result = 1;
+test(50);
 while count < limit {
     let x = 0;
     result *= 2;
@@ -11,12 +12,13 @@ while count < limit {
     count += 1;
 }
 print(result);
-let x = "Hi";
-print(x.contains("_"));
+let x = "      Hi";
+print(x.trim());
+print(x);
 }
 
-fn test()  {
-    print("Hi");
+fn test(x)  {
+    print(x);
     return 5;
     print("hoy");
 }

@@ -35,7 +35,6 @@ pub enum Instr {
     Cmp(u16, u16),
     // CopyArg(u16, u16),
     Mov(u16, u16),
-    GoTo(u16),
 
     // OPS
     Add(u16, u16, u16),
@@ -81,9 +80,6 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     i += size as usize;
                     continue;
                 }
-            }
-            Instr::GoTo(index) => {
-                i = index as usize;
             }
             Instr::Add(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
