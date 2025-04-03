@@ -43,3 +43,16 @@ macro_rules! print {
         println!("\x1b[33m[LOG] {}\x1b[0m", format!($($x)*))
     }
 }
+
+
+
+#[macro_export]
+macro_rules! format_lines {
+    ($line: expr) => {
+        if format!("{}", $line).chars().last().unwrap() != '}' {
+            format!("{};\n", $line)
+        } else {
+            format!("{}\n", $line)
+        }
+    };
+}
