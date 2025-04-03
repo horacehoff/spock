@@ -64,8 +64,8 @@ pub enum Instr {
     ApplyFunc(u8, u16, u16),
 }
 
-fn execute(instructions: &[Instr], consts: &mut [Data]) {
-    let mut func_args:Vec<u16> = Vec::new();
+fn execute(instructions: &[Instr], consts: &mut [Data], func_args_count : usize) {
+    let mut func_args:Vec<u16> = Vec::with_capacity(func_args_count);
 
 
     let len = instructions.len();
@@ -344,15 +344,6 @@ pub enum Opcode {
 
 // Live long and prosper
 fn main() {
-
-    let mut n:f64 = 1.0;
-    let mut u = 1.0/2.0*E - 1.0/2.0;
-    while n < 21.0 {
-        u = 1.0 / 2.0 * E - (n+1.0)/2.0*u;
-        n += 2.0;
-    }
-    println!("{u}");  
-    dbg!(size_of::<Instr>());
     let mut contents = std::fs::read_to_string("test.spock").unwrap();
     contents = contents
         .lines()
@@ -378,6 +369,17 @@ fn main() {
     let (instructions, mut consts) = parse(&contents);
 
     let now = Instant::now();
-    execute(&instructions, &mut consts);
+
+
+    let mut func_args_count = 0;
+    instructions.iter().for_each(|x| {
+        if matches!(x, Instr::StoreFuncArg(_)) {
+            func_args_count += 1;
+        } else if matches!(x, Instr::ApplyFunc(_, _, _)) {
+            func_args_count = 0;
+        }
+    });
+
+    execute(&instructions, &mut consts, func_args_count);
     println!("EXEC TIME {:.2?}", now.elapsed());
 }
