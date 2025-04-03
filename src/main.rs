@@ -61,6 +61,7 @@ pub enum Instr {
     Bool(u16, u16),
 
     ApplyFunc(u8, u16, u16, u16,u16),
+    
 }
 
 fn execute(instructions: &[Instr], consts: &mut [Data]) {
