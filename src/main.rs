@@ -4,6 +4,7 @@ use internment::Intern;
 use likely_stable::if_likely;
 use std::cmp::PartialEq;
 use std::f64::consts::E;
+use std::ops::Range;
 use std::time::Instant;
 use builtin_funcs::FUNCS;
 use crate::parser::{parse};
@@ -59,7 +60,7 @@ pub enum Instr {
     Str(u16, u16),
     Bool(u16, u16),
 
-    ApplyFunc(u8, u16, u16, u16),
+    ApplyFunc(u8, u16, u16, u16,u16),
 }
 
 fn execute(instructions: &[Instr], consts: &mut [Data]) {
@@ -301,7 +302,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     error_b!(format_args!("CANNOT CONVERT {base} TO BOOL"));
                 }
             }
-            Instr::ApplyFunc(fctn_id, tgt, dest, arg) => FUNCS[fctn_id as usize](tgt, dest, arg, consts),
+            Instr::ApplyFunc(fctn_id, tgt, dest, arg_start, arg_end) => FUNCS[fctn_id as usize](tgt, dest, arg_start, arg_end, consts),
         }
         i += 1;
     }
