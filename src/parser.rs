@@ -120,7 +120,7 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::Abs(_, y)
         | Instr::Num(_, y)
         | Instr::Bool(_, y)
-        | Instr::ApplyFunc(_, _, y, _,_)
+        | Instr::ApplyFunc(_, _, y)
         | Instr::Str(_, y) => y,
         _ => unreachable!(),
     }
@@ -182,7 +182,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Abs(_, z)
         | Instr::Bool(_, z)
         | Instr::Num(_, z)
-        | Instr::ApplyFunc(_, _, z, _,_)
+        | Instr::ApplyFunc(_, _, z)
         | Instr::Str(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
@@ -656,19 +656,19 @@ fn parser_to_instr_set(
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
-                        output.push(Instr::ApplyFunc(0, id, f_id, 0, 0));
+                        output.push(Instr::ApplyFunc(0, id, f_id));
                     }
                     "lowercase" => {
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
-                        output.push(Instr::ApplyFunc(1, id, f_id, 0, 0));
+                        output.push(Instr::ApplyFunc(1, id, f_id));
                     }
                     "len" => {
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
-                        output.push(Instr::ApplyFunc(2, id, f_id, 0, 0));
+                        output.push(Instr::ApplyFunc(2, id, f_id));
                     }
                     "contains" => {
                         let f_id = consts.len() as u16;
@@ -683,7 +683,8 @@ fn parser_to_instr_set(
                             &ctx,
                             functions,
                         );
-                        output.push(Instr::ApplyFunc(3, id, f_id, arg_id, arg_id+1));
+                        output.push(Instr::StoreFuncArg(arg_id));
+                        output.push(Instr::ApplyFunc(3, id, f_id));
                     }
                     "trim" => {
                         let f_id = consts.len() as u16;
@@ -691,7 +692,7 @@ fn parser_to_instr_set(
 
 
                         let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
-                        output.push(Instr::ApplyFunc(4, id, f_id, 0, 0));
+                        output.push(Instr::ApplyFunc(4, id, f_id));
                     }
                     other => {
                         error!(ctx, format_args!("Unknown function {}", other.red()));

@@ -86,7 +86,8 @@ pub fn print_instructions(instructions: &[Instr]) {
             Instr::Num(x, y) => format!("NUM {x} {y}"),
             Instr::Str(x, y) => format!("STR {x} {y}"),
             Instr::Bool(x, y) => format!("BOOL {x} {y}"),
-            Instr::ApplyFunc(x, y, z, w, _) => format!("APPLY_FUNCTION {x} {y} {z} {w}"),
+            Instr::ApplyFunc(x, y, z) => format!("APPLY_FUNCTION {x} {y} {z}"),
+            Instr::StoreFuncArg(x) => format!("STORE_ARG {x}"),
         });
     }
 }

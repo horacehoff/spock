@@ -60,11 +60,14 @@ pub enum Instr {
     Str(u16, u16),
     Bool(u16, u16),
 
-    ApplyFunc(u8, u16, u16, u16,u16),
-    
+    StoreFuncArg(u16),
+    ApplyFunc(u8, u16, u16),
 }
 
 fn execute(instructions: &[Instr], consts: &mut [Data]) {
+    let mut func_args:Vec<u16> = Vec::new();
+
+
     let len = instructions.len();
     let mut i: usize = 0;
     while i < len {
@@ -303,7 +306,11 @@ fn execute(instructions: &[Instr], consts: &mut [Data]) {
                     error_b!(format_args!("CANNOT CONVERT {base} TO BOOL"));
                 }
             }
-            Instr::ApplyFunc(fctn_id, tgt, dest, arg_start, arg_end) => FUNCS[fctn_id as usize](tgt, dest, arg_start, arg_end, consts),
+            Instr::StoreFuncArg(id) => func_args.push(id),
+            Instr::ApplyFunc(fctn_id, tgt, dest) => {
+                FUNCS[fctn_id as usize](tgt, dest, consts, &mut func_args);
+                func_args.clear();
+            },
         }
         i += 1;
     }

@@ -13,7 +13,7 @@ while count < limit {
 }
 print(result);
 let x = "      Hi";
-print(x.trim());
+print(x.contains("_"));
 print(x);
 }
 
