@@ -44,7 +44,7 @@ fn trim(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
 fn trim_sequence(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
     if let Data::String(str) = consts[tgt as usize] {
         let arg = args.swap_remove(0);
-        if let Data::String(arg) = &consts[arg as usize] {
+        if let Data::String(arg) = consts[arg as usize] {
             let chars: Vec<char> = arg.chars().collect();
             consts[dest as usize] =
                 Data::String(Intern::from(str.trim_matches(&chars[..]).to_string()));

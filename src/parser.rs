@@ -648,70 +648,71 @@ fn parser_to_instr_set(
                 }
             }
             Expr::ObjFunctionCall(obj, funcs) => {
-                // for func in funcs {
-                match funcs[0].clone().0.as_str() {
-                    "uppercase" => {
-                        let f_id = consts.len() as u16;
-                        consts.push(Data::Null);
-                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
-                        output.push(Instr::ApplyFunc(0, id, f_id));
-                    }
-                    "lowercase" => {
-                        let f_id = consts.len() as u16;
-                        consts.push(Data::Null);
-                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
-                        output.push(Instr::ApplyFunc(1, id, f_id));
-                    }
-                    "len" => {
-                        let f_id = consts.len() as u16;
-                        consts.push(Data::Null);
-                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
-                        output.push(Instr::ApplyFunc(2, id, f_id));
-                    }
-                    "contains" => {
-                        let f_id = consts.len() as u16;
-                        consts.push(Data::Null);
+                let mut id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
+                for func in funcs {
+                    // let obj = func.1;
+                    match func.0.as_str() {
+                        "uppercase" => {
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+                            output.push(Instr::ApplyFunc(0, id, f_id));
+                            id = f_id;
+                        }
+                        "lowercase" => {
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+                            output.push(Instr::ApplyFunc(1, id, f_id));
+                            id = f_id;
+                        }
+                        "len" => {
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+                            output.push(Instr::ApplyFunc(2, id, f_id));
+                            id = f_id;
+                        }
+                        "contains" => {
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
 
-                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
-                        let arg_id = get_id(
-                            funcs.first().unwrap().1.first().unwrap().clone(),
-                            variables,
-                            consts,
-                            &mut output,
-                            &ctx,
-                            functions,
-                        );
-                        output.push(Instr::StoreFuncArg(arg_id));
-                        output.push(Instr::ApplyFunc(3, id, f_id));
-                    }
-                    "trim" => {
-                        let f_id = consts.len() as u16;
-                        consts.push(Data::Null);
+                            let arg_id = get_id(
+                                func.1.first().unwrap().clone(),
+                                variables,
+                                consts,
+                                &mut output,
+                                &ctx,
+                                functions,
+                            );
+                            output.push(Instr::StoreFuncArg(arg_id));
+                            output.push(Instr::ApplyFunc(3, id, f_id));
+                            id = f_id;
+                        }
+                        "trim" => {
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+                            output.push(Instr::ApplyFunc(4, id, f_id));
+                            id = f_id;
+                        }
+                        "trim_sequence" => {
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
 
-                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
-                        output.push(Instr::ApplyFunc(4, id, f_id));
-                    }
-                    "trim_sequence" => {
-                        let f_id = consts.len() as u16;
-                        consts.push(Data::Null);
-
-                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
-                        let arg_id = get_id(
-                            funcs.first().unwrap().1.first().unwrap().clone(),
-                            variables,
-                            consts,
-                            &mut output,
-                            &ctx,
-                            functions,
-                        );
-                        output.push(Instr::StoreFuncArg(arg_id));
-                        output.push(Instr::ApplyFunc(5, id, f_id));
-                    }
-                    other => {
-                        error!(ctx, format_args!("Unknown function {}", other.red()));
+                            let arg_id = get_id(
+                                func.1.first().unwrap().clone(),
+                                variables,
+                                consts,
+                                &mut output,
+                                &ctx,
+                                functions,
+                            );
+                            output.push(Instr::StoreFuncArg(arg_id));
+                            output.push(Instr::ApplyFunc(5, id, f_id));
+                            id = f_id;
+                        }
+                        other => {
+                            error!(ctx, format_args!("Unknown function {}", other.red()));
+                        }
                     }
                 }
-                // }
             }
             Expr::FunctionDecl(x, y, z) => {
                 if functions.iter().any(|(name, _, _)| name == &x) {
