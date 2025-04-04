@@ -5,6 +5,7 @@ use inline_colorization::*;
 use internment::Intern;
 use likely_stable::if_likely;
 use std::cmp::PartialEq;
+use std::io::Write;
 use std::time::Instant;
 
 mod builtin_funcs;
@@ -278,10 +279,11 @@ fn execute(instructions: &[Instr], consts: &mut [Data], func_args_count: usize) 
                 let base = consts[tgt as usize];
                 match base {
                     Data::String(str) => {
-                        consts[dest as usize] =
-                            Data::Number(str.parse::<f64>().unwrap_or_else(|_| {
-                                error_b!(format_args!("CANNOT CONVERT '{str}' TO NUMBER"));
-                            }));
+                        // consts[dest as usize] =
+                        //     Data::Number(str.parse::<f64>().unwrap_or_else(|_| {
+                        //         error_b!(format_args!("CANNOT CONVERT '{str}' TO NUMBER"));
+                        //     }));
+                        consts[dest as usize] = Data::Number(str.parse::<f64>().unwrap());
                     }
                     Data::Number(_) => consts[dest as usize] = base,
                     other => {
@@ -306,10 +308,11 @@ fn execute(instructions: &[Instr], consts: &mut [Data], func_args_count: usize) 
             Instr::Input(msg, dest) => {
                 let base = consts[msg as usize];
                 if let Data::String(str) = base {
-                    let mut line = String::new();
                     println!("{str}");
+                    std::io::stdout().flush().unwrap();
+                    let mut line = String::new();
                     std::io::stdin().read_line(&mut line).unwrap();
-                    consts[dest as usize] = Data::String(Intern::from(line));
+                    consts[dest as usize] = Data::String(Intern::from(line.trim().to_string()));
                 } else {
                     error_b!(format_args!(
                         "{color_red}{}{color_reset} is not a string",

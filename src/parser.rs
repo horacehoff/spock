@@ -563,7 +563,8 @@ fn parser_to_instr_set(
                         &ctx,
                         functions,
                     );
-                    output.push(Instr::Abs(id, id));
+                    consts.push(Data::Null);
+                    output.push(Instr::Abs(id, (consts.len() - 1) as u16));
                 }
                 "num" => {
                     check_args!(args, 1, "num", ctx);
@@ -575,7 +576,8 @@ fn parser_to_instr_set(
                         &ctx,
                         functions,
                     );
-                    output.push(Instr::Num(id, id));
+                    consts.push(Data::Null);
+                    output.push(Instr::Num(id, (consts.len() - 1) as u16));
                 }
                 "str" => {
                     check_args!(args, 1, "str", ctx);
@@ -587,7 +589,8 @@ fn parser_to_instr_set(
                         &ctx,
                         functions,
                     );
-                    output.push(Instr::Str(id, id));
+                    consts.push(Data::Null);
+                    output.push(Instr::Str(id, (consts.len() - 1) as u16));
                 }
                 "bool" => {
                     check_args!(args, 1, "bool", ctx);
@@ -599,7 +602,8 @@ fn parser_to_instr_set(
                         &ctx,
                         functions,
                     );
-                    output.push(Instr::Bool(id, id));
+                    consts.push(Data::Null);
+                    output.push(Instr::Bool(id, (consts.len() - 1) as u16));
                 }
                 "input" => {
                     check_args_range!(args, 0, 1, "input", ctx);
