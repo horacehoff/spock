@@ -12,9 +12,7 @@ while count < limit {
     count += 1;
 }
 print(result);
-let x = "12Hi12";
-print(x.trim_sequence_left("12"));
-print(x);
+print(input("hello"));
 }
 
 fn test(x)  {

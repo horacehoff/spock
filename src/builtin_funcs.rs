@@ -121,7 +121,21 @@ fn trim_sequence_right(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<
     }
 }
 
-pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>); 12] = [
+fn rindex(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
+    if let Data::String(str) = consts[tgt as usize] {
+        let arg = args.swap_remove(0);
+        if let Data::String(arg) = consts[arg as usize] {
+            consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap() as f64);
+        } else {
+            error_b!(format_args!(
+                "{} is not a String",
+                consts[arg as usize].to_string().red()
+            ));
+        }
+    }
+}
+
+pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>); 13] = [
     uppercase,
     lowercase,
     len,
@@ -134,4 +148,5 @@ pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>); 12] = [
     trim_right,
     trim_sequence_left,
     trim_sequence_right,
+    rindex,
 ];

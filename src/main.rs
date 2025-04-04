@@ -56,6 +56,7 @@ pub enum Instr {
     Num(u16, u16),
     Str(u16, u16),
     Bool(u16, u16),
+    Input(u16, u16),
 
     StoreFuncArg(u16),
     ApplyFunc(u8, u16, u16),
@@ -302,9 +303,23 @@ fn execute(instructions: &[Instr], consts: &mut [Data], func_args_count: usize) 
                     error_b!(format_args!("CANNOT CONVERT {base} TO BOOL"));
                 }
             }
+            Instr::Input(msg, dest) => {
+                let base = consts[msg as usize];
+                if let Data::String(str) = base {
+                    let mut line = String::new();
+                    println!("{str}");
+                    std::io::stdin().read_line(&mut line).unwrap();
+                    consts[dest as usize] = Data::String(Intern::from(line));
+                } else {
+                    error_b!(format_args!(
+                        "{color_red}{}{color_reset} is not a string",
+                        base
+                    ));
+                }
+            }
             Instr::StoreFuncArg(id) => func_args.push(id),
             Instr::ApplyFunc(fctn_id, tgt, dest) => {
-                FUNCS[fctn_id as usize](tgt, dest, consts, &mut func_args)
+                FUNCS[fctn_id as usize](tgt, dest, consts, &mut func_args);
             }
         }
         i += 1;
@@ -359,7 +374,7 @@ fn main() {
     let now = Instant::now();
 
     let mut func_args_count = 0;
-    for x in instructions.iter() {
+    for x in &instructions {
         if matches!(x, Instr::StoreFuncArg(_)) {
             func_args_count += 1;
         } else if matches!(x, Instr::ApplyFunc(_, _, _)) {

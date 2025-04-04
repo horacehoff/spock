@@ -119,6 +119,7 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::Num(_, y)
         | Instr::Bool(_, y)
         | Instr::ApplyFunc(_, _, y)
+        | Instr::Input(_, y)
         | Instr::Str(_, y) => y,
         _ => unreachable!(),
     }
@@ -317,6 +318,50 @@ macro_rules! check_args {
     };
 }
 
+macro_rules! check_args_range {
+    ($args:expr, $min_args_len:expr,$max_args_len:expr, $fn_name:expr, $ctx: expr) => {
+        if $args.len() < $min_args_len {
+            error!(
+                $ctx,
+                format_args!(
+                    "Function '{}' expects at least {} argument{}",
+                    $fn_name,
+                    $min_args_len,
+                    if $min_args_len > 1 { "s" } else { "" }
+                ),
+                format_args!(
+                    "Add {} additional argument{}",
+                    $min_args_len - $args.len(),
+                    if $min_args_len - $args.len() > 1 {
+                        "s"
+                    } else {
+                        ""
+                    }
+                )
+            );
+        } else if $args.len() > $max_args_len {
+            error!(
+                $ctx,
+                format_args!(
+                    "Function '{}' expects at most {} argument{}",
+                    $fn_name,
+                    $max_args_len,
+                    if $max_args_len > 1 { "s" } else { "" }
+                ),
+                format_args!(
+                    "Remove {} argument{}",
+                    $args.len() - $max_args_len,
+                    if $args.len() - $max_args_len > 1 {
+                        "s"
+                    } else {
+                        ""
+                    }
+                )
+            );
+        }
+    };
+}
+
 fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
@@ -437,7 +482,7 @@ fn parser_to_instr_set(
                     }
                 }
 
-                crate::print!("{consts:?}");
+                print!("{consts:?}");
             }
             Expr::WhileBlock(x, y) => {
                 if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
@@ -555,6 +600,26 @@ fn parser_to_instr_set(
                         functions,
                     );
                     output.push(Instr::Bool(id, id));
+                }
+                "input" => {
+                    check_args_range!(args, 0, 1, "input", ctx);
+                    if args.len() != 0 {
+                        let id = get_id(
+                            args[0].clone(),
+                            variables,
+                            consts,
+                            &mut output,
+                            &ctx,
+                            functions,
+                        );
+                        consts.push(Data::Null);
+                        output.push(Instr::Input(id, (consts.len() - 1) as u16));
+                    } else {
+                        consts.push(Data::String(Intern::from("".to_string())));
+                        let id = (consts.len() - 1) as u16;
+                        consts.push(Data::Null);
+                        output.push(Instr::Input(id, (consts.len() - 1) as u16));
+                    }
                 }
                 function => {
                     let (fn_code, exp_args): (Vec<Expr>, Box<[String]>) = {
@@ -763,6 +828,15 @@ fn parser_to_instr_set(
 
                             add_args!(args, variables, consts, output, ctx, functions);
                             output.push(Instr::ApplyFunc(11, id, f_id));
+                            id = f_id;
+                        }
+                        "rindex" => {
+                            check_args!(args, 1, "rindex", ctx);
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+
+                            add_args!(args, variables, consts, output, ctx, functions);
+                            output.push(Instr::ApplyFunc(12, id, f_id));
                             id = f_id;
                         }
                         other => {

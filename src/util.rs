@@ -46,8 +46,6 @@ macro_rules! print {
     }
 }
 
-
-
 #[macro_export]
 macro_rules! format_lines {
     ($line: expr) => {
@@ -58,7 +56,6 @@ macro_rules! format_lines {
         }
     };
 }
-
 
 pub fn print_instructions(instructions: &[Instr]) {
     for (i, instr) in instructions.iter().enumerate() {
@@ -86,6 +83,7 @@ pub fn print_instructions(instructions: &[Instr]) {
             Instr::Num(x, y) => format!("NUM {x} {y}"),
             Instr::Str(x, y) => format!("STR {x} {y}"),
             Instr::Bool(x, y) => format!("BOOL {x} {y}"),
+            Instr::Input(x, y) => format!("INPUT {x} {y}"),
             Instr::ApplyFunc(x, y, z) => format!("APPLY_FUNCTION {x} {y} {z}"),
             Instr::StoreFuncArg(x) => format!("STORE_ARG {x}"),
         });
