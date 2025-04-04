@@ -1,9 +1,9 @@
-use inline_colorization::*;
+use crate::util::print_instructions;
+use crate::{Data, Instr, Opcode, error};
 use colored::Colorize;
+use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
-use crate::{error, Data, Instr, Opcode};
-use crate::util::print_instructions;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
@@ -31,9 +31,7 @@ pub enum Expr {
     ReturnVal(Box<Option<Expr>>),
 }
 
-
 lalrpop_mod!(pub grammar);
-
 
 fn get_precedence(operator: &Expr) -> u8 {
     if let Expr::Opcode(op) = operator {
@@ -71,8 +69,8 @@ pub fn op_to_rpn(operation_input: Vec<Expr>) -> Vec<Expr> {
             while !op_stack.is_empty()
                 && op_stack.last().unwrap() != &Expr::LPAREN
                 && (get_precedence(op_stack.last().unwrap()) > get_precedence(&x)
-                || (get_precedence(op_stack.last().unwrap()) == get_precedence(&x)
-                && is_left_associative(&x)))
+                    || (get_precedence(op_stack.last().unwrap()) == get_precedence(&x)
+                        && is_left_associative(&x)))
             {
                 return_vector.push(op_stack.pop().unwrap());
             }
@@ -690,9 +688,24 @@ fn parser_to_instr_set(
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
 
-
                         let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
                         output.push(Instr::ApplyFunc(4, id, f_id));
+                    }
+                    "trim_sequence" => {
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+
+                        let id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
+                        let arg_id = get_id(
+                            funcs.first().unwrap().1.first().unwrap().clone(),
+                            variables,
+                            consts,
+                            &mut output,
+                            &ctx,
+                            functions,
+                        );
+                        output.push(Instr::StoreFuncArg(arg_id));
+                        output.push(Instr::ApplyFunc(5, id, f_id));
                     }
                     other => {
                         error!(ctx, format_args!("Unknown function {}", other.red()));
@@ -813,7 +826,6 @@ fn parser_to_instr_set(
 
     output
 }
-
 
 pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>) {
     let mut functions: Vec<Expr> = grammar::FileParser::new().parse(&contents).unwrap();

@@ -1,7 +1,7 @@
-use inline_colorization::*;
+use crate::{Data, error_b};
 use colored::Colorize;
+use inline_colorization::*;
 use internment::Intern;
-use crate::{error_b, Data};
 
 fn uppercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     if let Data::String(str) = consts[tgt as usize] {
@@ -9,7 +9,7 @@ fn uppercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     }
 }
 
-fn lowercase(tgt: u16, dest: u16,  consts: &mut [Data], _: &mut Vec<u16>) {
+fn lowercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     if let Data::String(str) = consts[tgt as usize] {
         consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
     }
@@ -41,4 +41,22 @@ fn trim(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     }
 }
 
-pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>); 5] = [uppercase, lowercase, len, contains, trim];
+fn trim_sequence(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
+    if let Data::String(str) = consts[tgt as usize] {
+        let arg = args.remove(0);
+        if let Data::String(arg) = consts[arg as usize] {
+            consts[dest as usize] = Data::String(Intern::from(
+                str.trim_matches(&*arg.chars().collect::<Vec<char>>())
+                    .to_string(),
+            ));
+        } else {
+            error_b!(format_args!(
+                "{} is not a String",
+                consts[arg as usize].to_string().red()
+            ));
+        }
+    }
+}
+
+pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>); 6] =
+    [uppercase, lowercase, len, contains, trim, trim_sequence];

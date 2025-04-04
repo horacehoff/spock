@@ -12,8 +12,8 @@ while count < limit {
     count += 1;
 }
 print(result);
-let x = "      Hi";
-print(x.contains("_"));
+let x = "12Hi12";
+print(x.trim_sequence("12"));
 print(x);
 }
 
