@@ -270,8 +270,9 @@ macro_rules! check_args {
             error!(
                 $ctx,
                 format_args!(
-                    "Function '{}' only expects {} argument{}",
+                    "Function '{}'{} expects {} argument{}",
                     $fn_name,
+                    if $expected_args_len != 0 { " only" } else { "" },
                     $expected_args_len,
                     if $expected_args_len > 1 { "s" } else { "" }
                 ),
@@ -650,32 +651,36 @@ fn parser_to_instr_set(
             Expr::ObjFunctionCall(obj, funcs) => {
                 let mut id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
                 for func in funcs {
-                    // let obj = func.1;
+                    let args = func.1;
                     match func.0.as_str() {
                         "uppercase" => {
+                            check_args!(args, 0, "uppercase", ctx);
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
                             output.push(Instr::ApplyFunc(0, id, f_id));
                             id = f_id;
                         }
                         "lowercase" => {
+                            check_args!(args, 0, "lowercase", ctx);
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
                             output.push(Instr::ApplyFunc(1, id, f_id));
                             id = f_id;
                         }
                         "len" => {
+                            check_args!(args, 0, "len", ctx);
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
                             output.push(Instr::ApplyFunc(2, id, f_id));
                             id = f_id;
                         }
                         "contains" => {
+                            check_args!(args, 1, "contains", ctx);
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
                             let arg_id = get_id(
-                                func.1.first().unwrap().clone(),
+                                args[0].clone(),
                                 variables,
                                 consts,
                                 &mut output,
@@ -687,17 +692,19 @@ fn parser_to_instr_set(
                             id = f_id;
                         }
                         "trim" => {
+                            check_args!(args, 0, "trim", ctx);
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
                             output.push(Instr::ApplyFunc(4, id, f_id));
                             id = f_id;
                         }
                         "trim_sequence" => {
+                            check_args!(args, 1, "trim_sequence", ctx);
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
                             let arg_id = get_id(
-                                func.1.first().unwrap().clone(),
+                                args[0].clone(),
                                 variables,
                                 consts,
                                 &mut output,
