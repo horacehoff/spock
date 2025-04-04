@@ -23,7 +23,7 @@ fn len(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
 
 fn contains(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
     if let Data::String(str) = consts[tgt as usize] {
-        let arg = args.remove(0);
+        let arg = args.swap_remove(0);
         if let Data::String(arg) = consts[arg as usize] {
             consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
         } else {
@@ -43,12 +43,11 @@ fn trim(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
 
 fn trim_sequence(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
     if let Data::String(str) = consts[tgt as usize] {
-        let arg = args.remove(0);
-        if let Data::String(arg) = consts[arg as usize] {
-            consts[dest as usize] = Data::String(Intern::from(
-                str.trim_matches(&*arg.chars().collect::<Vec<char>>())
-                    .to_string(),
-            ));
+        let arg = args.swap_remove(0);
+        if let Data::String(arg) = &consts[arg as usize] {
+            let chars: Vec<char> = arg.chars().collect();
+            consts[dest as usize] =
+                Data::String(Intern::from(str.trim_matches(&chars[..]).to_string()));
         } else {
             error_b!(format_args!(
                 "{} is not a String",

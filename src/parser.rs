@@ -828,7 +828,7 @@ fn parser_to_instr_set(
 }
 
 pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>) {
-    let mut functions: Vec<Expr> = grammar::FileParser::new().parse(&contents).unwrap();
+    let mut functions: Vec<Expr> = grammar::FileParser::new().parse(contents).unwrap();
     crate::print!("funcs {functions:?}");
     let main_function: Vec<Expr> = {
         if let Some(fctn) = functions.iter().position(|a| {

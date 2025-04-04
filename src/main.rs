@@ -1,18 +1,16 @@
+use crate::parser::parse;
+use builtin_funcs::FUNCS;
 use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
 use likely_stable::if_likely;
 use std::cmp::PartialEq;
-use std::f64::consts::E;
-use std::ops::Range;
 use std::time::Instant;
-use builtin_funcs::FUNCS;
-use crate::parser::{parse};
 
-mod util;
 mod builtin_funcs;
 mod display;
 mod parser;
+mod util;
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
@@ -22,7 +20,6 @@ pub enum Data {
     String(Intern<String>),
     Null,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
@@ -64,9 +61,8 @@ pub enum Instr {
     ApplyFunc(u8, u16, u16),
 }
 
-fn execute(instructions: &[Instr], consts: &mut [Data], func_args_count : usize) {
-    let mut func_args:Vec<u16> = Vec::with_capacity(func_args_count);
-
+fn execute(instructions: &[Instr], consts: &mut [Data], func_args_count: usize) {
+    let mut func_args: Vec<u16> = Vec::with_capacity(func_args_count);
 
     let len = instructions.len();
     let mut i: usize = 0;
@@ -284,7 +280,7 @@ fn execute(instructions: &[Instr], consts: &mut [Data], func_args_count : usize)
                         consts[dest as usize] =
                             Data::Number(str.parse::<f64>().unwrap_or_else(|_| {
                                 error_b!(format_args!("CANNOT CONVERT '{str}' TO NUMBER"));
-                            }))
+                            }));
                     }
                     Data::Number(_) => consts[dest as usize] = base,
                     other => {
@@ -307,13 +303,13 @@ fn execute(instructions: &[Instr], consts: &mut [Data], func_args_count : usize)
                 }
             }
             Instr::StoreFuncArg(id) => func_args.push(id),
-            Instr::ApplyFunc(fctn_id, tgt, dest) => FUNCS[fctn_id as usize](tgt, dest, consts, &mut func_args),
+            Instr::ApplyFunc(fctn_id, tgt, dest) => {
+                FUNCS[fctn_id as usize](tgt, dest, consts, &mut func_args)
+            }
         }
         i += 1;
     }
 }
-
-
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Opcode {
@@ -333,11 +329,6 @@ pub enum Opcode {
     BoolOr,
     Neg,
 }
-
-
-
-
-
 
 // Live long and prosper
 fn main() {
@@ -367,15 +358,14 @@ fn main() {
 
     let now = Instant::now();
 
-
     let mut func_args_count = 0;
-    instructions.iter().for_each(|x| {
+    for x in instructions.iter() {
         if matches!(x, Instr::StoreFuncArg(_)) {
             func_args_count += 1;
         } else if matches!(x, Instr::ApplyFunc(_, _, _)) {
             func_args_count = 0;
         }
-    });
+    }
 
     execute(&instructions, &mut consts, func_args_count);
     println!("EXEC TIME {:.2?}", now.elapsed());
