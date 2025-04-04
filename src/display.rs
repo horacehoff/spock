@@ -1,9 +1,9 @@
-use std::fmt::Formatter;
-use colored::Colorize;
-use lalrpop_util::lexer::Token;
-use lalrpop_util::ParseError;
-use crate::{format_lines, Data, Opcode};
 use crate::parser::Expr;
+use crate::{Data, Opcode, format_lines};
+use colored::Colorize;
+use lalrpop_util::ParseError;
+use lalrpop_util::lexer::Token;
+use std::fmt::Formatter;
 
 impl std::fmt::Display for Data {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -114,6 +114,23 @@ impl std::fmt::Display for Expr {
                         .join(",")
                 )
             }
+            Expr::ObjFunctionCall(x, y) => {
+                write!(
+                    f,
+                    "{x}{}",
+                    y.iter()
+                        .map(|x| format!(
+                            ".{}({})",
+                            x.0,
+                            x.1.iter()
+                                .map(|w| format!("{w}"))
+                                .collect::<Vec<String>>()
+                                .join(",")
+                        ))
+                        .collect::<Vec<String>>()
+                        .join("")
+                )
+            }
             _ => write!(f, "{self:?}"),
         }
     }
@@ -165,7 +182,7 @@ where
                     let tok: Token = token.1.into();
                     tok.1
                 }
-                    .blue()
+                .blue()
             )
         }
         ParseError::ExtraToken { .. } => {

@@ -13,7 +13,7 @@ while count < limit {
 }
 print(result);
 let x = "12Hi12";
-print(x.trim_sequence("12").lowercase());
+print(x.trim_sequence("12").trim_sequence("H"));
 print(x);
 }
 

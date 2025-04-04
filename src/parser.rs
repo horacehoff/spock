@@ -274,14 +274,18 @@ macro_rules! check_args {
                     $fn_name,
                     if $expected_args_len != 0 { " only" } else { "" },
                     $expected_args_len,
-                    if $expected_args_len > 1 { "s" } else { "" }
+                    if $expected_args_len > 1 || $expected_args_len == 0 {
+                        "s"
+                    } else {
+                        ""
+                    }
                 ),
                 format_args!(
                     "Replace with '{}({})'",
                     $fn_name,
                     $args[0..$expected_args_len]
                         .iter()
-                        .map(|x| format!("{x}"))
+                        .map(ToString::to_string)
                         .collect::<Vec<String>>()
                         .join(",")
                 )
@@ -293,7 +297,11 @@ macro_rules! check_args {
                     "Function '{}' expects {} argument{}",
                     $fn_name,
                     $expected_args_len,
-                    if $expected_args_len > 1 { "s" } else { "" }
+                    if $expected_args_len > 1 || $expected_args_len == 0 {
+                        "s"
+                    } else {
+                        ""
+                    }
                 ),
                 format_args!(
                     "Add {} additional argument{}",
