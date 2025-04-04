@@ -660,19 +660,12 @@ fn parser_to_instr_set(
                 macro_rules! add_args {
                     ($args: expr, $variables: expr, $consts: expr, $output: expr, $ctx: expr, $functions: expr) => {
                         for arg in $args {
-                                let arg_id = get_id(
-                                    arg,
-                                    $variables,
-                                    $consts,
-                                    &mut $output,
-                                    &$ctx,
-                                    $functions,
-                                );
-                                $output.push(Instr::StoreFuncArg(arg_id));
-                            }
+                            let arg_id =
+                                get_id(arg, $variables, $consts, &mut $output, &$ctx, $functions);
+                            $output.push(Instr::StoreFuncArg(arg_id));
+                        }
                     };
                 }
-
 
                 let mut id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
                 for func in funcs {
@@ -731,6 +724,45 @@ fn parser_to_instr_set(
 
                             add_args!(args, variables, consts, output, ctx, functions);
                             output.push(Instr::ApplyFunc(6, id, f_id));
+                            id = f_id;
+                        }
+                        "is_num" => {
+                            check_args!(args, 0, "is_num", ctx);
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+                            output.push(Instr::ApplyFunc(7, id, f_id));
+                            id = f_id;
+                        }
+                        "trim_left" => {
+                            check_args!(args, 0, "trim_left", ctx);
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+                            output.push(Instr::ApplyFunc(8, id, f_id));
+                            id = f_id;
+                        }
+                        "trim_right" => {
+                            check_args!(args, 0, "trim_right", ctx);
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+                            output.push(Instr::ApplyFunc(9, id, f_id));
+                            id = f_id;
+                        }
+                        "trim_sequence_left" => {
+                            check_args!(args, 1, "trim_sequence_left", ctx);
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+
+                            add_args!(args, variables, consts, output, ctx, functions);
+                            output.push(Instr::ApplyFunc(10, id, f_id));
+                            id = f_id;
+                        }
+                        "trim_sequence_right" => {
+                            check_args!(args, 1, "trim_sequence_right", ctx);
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+
+                            add_args!(args, variables, consts, output, ctx, functions);
+                            output.push(Instr::ApplyFunc(11, id, f_id));
                             id = f_id;
                         }
                         other => {

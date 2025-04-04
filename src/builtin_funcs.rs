@@ -61,8 +61,7 @@ fn index(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
     if let Data::String(str) = consts[tgt as usize] {
         let arg = args.swap_remove(0);
         if let Data::String(arg) = consts[arg as usize] {
-            consts[dest as usize] =
-                Data::Number(str.find(arg.as_str()).unwrap() as f64);
+            consts[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap() as f64);
         } else {
             error_b!(format_args!(
                 "{} is not a String",
@@ -72,5 +71,67 @@ fn index(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
     }
 }
 
-pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>); 7] =
-    [uppercase, lowercase, len, contains, trim, trim_sequence,index];
+fn is_num(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
+    if let Data::String(str) = consts[tgt as usize] {
+        consts[dest as usize] = Data::Bool(str.parse::<f64>().is_ok())
+    }
+}
+
+fn trim_left(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
+    if let Data::String(str) = consts[tgt as usize] {
+        consts[dest as usize] = Data::String(Intern::from(str.trim_start().to_string()))
+    }
+}
+
+fn trim_right(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
+    if let Data::String(str) = consts[tgt as usize] {
+        consts[dest as usize] = Data::String(Intern::from(str.trim_end().to_string()))
+    }
+}
+
+fn trim_sequence_left(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
+    if let Data::String(str) = consts[tgt as usize] {
+        let arg = args.swap_remove(0);
+        if let Data::String(arg) = consts[arg as usize] {
+            let chars: Vec<char> = arg.chars().collect();
+            consts[dest as usize] =
+                Data::String(Intern::from(str.trim_start_matches(&chars[..]).to_string()));
+        } else {
+            error_b!(format_args!(
+                "{} is not a String",
+                consts[arg as usize].to_string().red()
+            ));
+        }
+    }
+}
+
+fn trim_sequence_right(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
+    if let Data::String(str) = consts[tgt as usize] {
+        let arg = args.swap_remove(0);
+        if let Data::String(arg) = consts[arg as usize] {
+            let chars: Vec<char> = arg.chars().collect();
+            consts[dest as usize] =
+                Data::String(Intern::from(str.trim_end_matches(&chars[..]).to_string()));
+        } else {
+            error_b!(format_args!(
+                "{} is not a String",
+                consts[arg as usize].to_string().red()
+            ));
+        }
+    }
+}
+
+pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>); 12] = [
+    uppercase,
+    lowercase,
+    len,
+    contains,
+    trim,
+    trim_sequence,
+    index,
+    is_num,
+    trim_left,
+    trim_right,
+    trim_sequence_left,
+    trim_sequence_right,
+];

@@ -13,7 +13,7 @@ while count < limit {
 }
 print(result);
 let x = "12Hi12";
-print(x.index("i"));
+print(x.trim_sequence_left("12"));
 print(x);
 }
 
