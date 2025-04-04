@@ -657,6 +657,23 @@ fn parser_to_instr_set(
                 }
             }
             Expr::ObjFunctionCall(obj, funcs) => {
+                macro_rules! add_args {
+                    ($args: expr, $variables: expr, $consts: expr, $output: expr, $ctx: expr, $functions: expr) => {
+                        for arg in $args {
+                                let arg_id = get_id(
+                                    arg,
+                                    $variables,
+                                    $consts,
+                                    &mut $output,
+                                    &$ctx,
+                                    $functions,
+                                );
+                                $output.push(Instr::StoreFuncArg(arg_id));
+                            }
+                    };
+                }
+
+
                 let mut id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
                 for func in funcs {
                     let args = func.1;
@@ -687,15 +704,7 @@ fn parser_to_instr_set(
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
-                            let arg_id = get_id(
-                                args[0].clone(),
-                                variables,
-                                consts,
-                                &mut output,
-                                &ctx,
-                                functions,
-                            );
-                            output.push(Instr::StoreFuncArg(arg_id));
+                            add_args!(args, variables, consts, output, ctx, functions);
                             output.push(Instr::ApplyFunc(3, id, f_id));
                             id = f_id;
                         }
@@ -711,16 +720,17 @@ fn parser_to_instr_set(
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
-                            let arg_id = get_id(
-                                args[0].clone(),
-                                variables,
-                                consts,
-                                &mut output,
-                                &ctx,
-                                functions,
-                            );
-                            output.push(Instr::StoreFuncArg(arg_id));
+                            add_args!(args, variables, consts, output, ctx, functions);
                             output.push(Instr::ApplyFunc(5, id, f_id));
+                            id = f_id;
+                        }
+                        "index" => {
+                            check_args!(args, 1, "index", ctx);
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+
+                            add_args!(args, variables, consts, output, ctx, functions);
+                            output.push(Instr::ApplyFunc(6, id, f_id));
                             id = f_id;
                         }
                         other => {
