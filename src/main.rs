@@ -385,7 +385,6 @@ fn main() {
             func_args_count = 0;
         }
     }
-
     execute(&instructions, &mut consts, func_args_count);
     println!("EXEC TIME {:.2?}", now.elapsed());
 }

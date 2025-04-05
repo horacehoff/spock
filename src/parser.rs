@@ -218,6 +218,7 @@ fn get_id(
     instr: &mut Vec<Instr>,
     line: &String,
     functions: &mut Vec<Function>,
+    arrays: &mut Vec<Array>
 ) -> u16 {
     print!("GETTING ID OF {x:?}");
     match x {
@@ -245,13 +246,14 @@ fn get_id(
             }
         }
         _ => {
-            crate::print!("PARSING {x}");
+            print!("PARSING {x}");
             instr.append(&mut parser_to_instr_set(
                 vec![x],
                 variables,
                 consts,
                 functions,
                 None,
+                arrays
             ));
             get_tgt_id(*instr.last().unwrap())
         }
@@ -269,6 +271,7 @@ fn expr_to_data(input: Expr) -> Data {
 
 type Function = (String, Box<[String]>, Box<[Expr]>);
 type FunctionState = (String, u16, Vec<(String, u16)>, Option<u16>);
+type Array = Vec<u16>;
 
 fn parser_to_instr_set(
     input: Vec<Expr>,
@@ -276,6 +279,7 @@ fn parser_to_instr_set(
     consts: &mut Vec<Data>,
     functions: &mut Vec<Function>,
     is_processing_function: Option<&FunctionState>,
+    arrays: &mut Vec<Array>
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
@@ -285,23 +289,25 @@ fn parser_to_instr_set(
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
             Expr::Array(elems) => {
-                let mut array_elements: Vec<(Vec<Instr>, Vec<Data>)> = Vec::new();
+                let mut items:Vec<u16> = Vec::new();
                 for elem in elems {
-                    let mut new_consts: Vec<Data> = Vec::new();
-                    array_elements.push((
-                        parser_to_instr_set(
-                            vec![elem],
-                            variables,
-                            &mut new_consts,
-                            functions,
-                            is_processing_function,
-                        ),
-                        new_consts,
-                    ));
-                }
+                    let mut w = parser_to_instr_set(
+                        vec![elem],
+                        variables,
+                        consts,
+                        functions,
+                        is_processing_function,
+                        arrays
+                    );
+                    println!("REQ MOV ITEM {w:?} TO {}", (consts.len() - 1));
+                    move_to_id(&mut w, (consts.len() - 1) as u16);
+                    items.push((consts.len() - 1) as u16);
+                    output.extend(w);
 
-                let mut i = 0;
-                for (data, val) in array_elements {}
+                }
+                arrays.push(items);
+                println!("{arrays:?}");
+                println!("{consts:?}")
             }
             Expr::Var(name) => {
                 consts.push(Data::Null);
@@ -327,6 +333,7 @@ fn parser_to_instr_set(
                     consts,
                     functions,
                     is_processing_function,
+                    arrays
                 );
                 let mut priv_vars = variables.clone();
                 let cond_code = parser_to_instr_set(
@@ -335,6 +342,7 @@ fn parser_to_instr_set(
                     consts,
                     functions,
                     is_processing_function,
+                    arrays
                 );
 
                 condition_blocks.push((condition, cond_code));
@@ -351,6 +359,7 @@ fn parser_to_instr_set(
                             consts,
                             functions,
                             is_processing_function,
+                            arrays
                         );
                         let mut priv_vars = variables.clone();
                         let cond_code = parser_to_instr_set(
@@ -359,6 +368,7 @@ fn parser_to_instr_set(
                             consts,
                             functions,
                             is_processing_function,
+                            arrays
                         );
                         condition_blocks.push((condition, cond_code));
                     }
@@ -371,6 +381,7 @@ fn parser_to_instr_set(
                         consts,
                         functions,
                         is_processing_function,
+                        arrays
                     );
                     condition_blocks.push((Vec::new(), cond_code));
                 }
@@ -421,6 +432,7 @@ fn parser_to_instr_set(
                     consts,
                     functions,
                     is_processing_function,
+                    arrays
                 );
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
@@ -431,6 +443,7 @@ fn parser_to_instr_set(
                     consts,
                     functions,
                     is_processing_function,
+                    arrays
                 );
                 let len = (cond_code.len() + 2) as u16;
                 output.push(Instr::Cmp(condition_id, len));
@@ -445,6 +458,7 @@ fn parser_to_instr_set(
                     consts,
                     functions,
                     is_processing_function,
+                    arrays
                 );
                 move_to_id(&mut val, len);
                 variables.push((x, len));
@@ -469,6 +483,7 @@ fn parser_to_instr_set(
                     consts,
                     functions,
                     is_processing_function,
+                    arrays
                 );
                 move_to_id(&mut value, id);
                 output.extend(value);
@@ -476,7 +491,8 @@ fn parser_to_instr_set(
             Expr::FunctionCall(x, args) => match x.as_str() {
                 "print" => {
                     for arg in args {
-                        let id = get_id(arg, variables, consts, &mut output, &ctx, functions);
+                        let id = get_id(arg, variables, consts, &mut output, &ctx, functions,
+                                        arrays);
                         output.push(Instr::Print(id));
                     }
                 }
@@ -489,6 +505,7 @@ fn parser_to_instr_set(
                         &mut output,
                         &ctx,
                         functions,
+                        arrays
                     );
                     consts.push(Data::Null);
                     output.push(Instr::Abs(id, (consts.len() - 1) as u16));
@@ -502,6 +519,7 @@ fn parser_to_instr_set(
                         &mut output,
                         &ctx,
                         functions,
+                        arrays
                     );
                     consts.push(Data::Null);
                     output.push(Instr::Num(id, (consts.len() - 1) as u16));
@@ -515,6 +533,7 @@ fn parser_to_instr_set(
                         &mut output,
                         &ctx,
                         functions,
+                        arrays
                     );
                     consts.push(Data::Null);
                     output.push(Instr::Str(id, (consts.len() - 1) as u16));
@@ -528,6 +547,7 @@ fn parser_to_instr_set(
                         &mut output,
                         &ctx,
                         functions,
+                        arrays
                     );
                     consts.push(Data::Null);
                     output.push(Instr::Bool(id, (consts.len() - 1) as u16));
@@ -542,6 +562,7 @@ fn parser_to_instr_set(
                             &mut output,
                             &ctx,
                             functions,
+                            arrays
                         );
                         consts.push(Data::Null);
                         output.push(Instr::Input(id, (consts.len() - 1) as u16));
@@ -574,16 +595,17 @@ fn parser_to_instr_set(
                                 if val != Data::Null {
                                     consts[func_args[i].1 as usize] = val;
                                 } else {
-                                    crate::print!("{arg}");
+                                    print!("{arg}");
                                     let mut value = parser_to_instr_set(
                                         vec![arg.clone()],
                                         variables,
                                         consts,
                                         functions,
                                         is_processing_function,
+                                        arrays
                                     );
                                     move_to_id(&mut value, func_args[i].1);
-                                    crate::print!("VAL{value:?}");
+                                    print!("VAL{value:?}");
                                     output.extend(value);
                                 }
                             }
@@ -604,6 +626,7 @@ fn parser_to_instr_set(
                             consts,
                             functions,
                             is_processing_function,
+                            arrays
                         );
                         move_to_id(&mut value, len);
                         output.extend(value);
@@ -622,6 +645,7 @@ fn parser_to_instr_set(
                             vars,
                             Some((consts.len() - 1) as u16),
                         )),
+                        arrays
                     ));
                     output.extend(instructions);
                 }
@@ -636,6 +660,7 @@ fn parser_to_instr_set(
                                 consts,
                                 functions,
                                 is_processing_function,
+                                arrays
                             );
                             if val.is_empty() {
                                 output.push(Instr::Mov((consts.len() - 1) as u16, ret_id));
@@ -654,16 +679,17 @@ fn parser_to_instr_set(
             }
             Expr::ObjFunctionCall(obj, funcs) => {
                 macro_rules! add_args {
-                    ($args: expr, $variables: expr, $consts: expr, $output: expr, $ctx: expr, $functions: expr) => {
+                    ($args: expr, $variables: expr, $consts: expr, $output: expr, $ctx: expr, $functions: expr, $arrays: expr) => {
                         for arg in $args {
                             let arg_id =
-                                get_id(arg, $variables, $consts, &mut $output, &$ctx, $functions);
+                                get_id(arg, $variables, $consts, &mut $output, &$ctx, $functions, $arrays);
                             $output.push(Instr::StoreFuncArg(arg_id));
                         }
                     };
                 }
 
-                let mut id = get_id(*obj, variables, consts, &mut output, &ctx, functions);
+                let mut id = get_id(*obj, variables, consts, &mut output, &ctx, functions,
+                                    arrays);
                 for func in funcs {
                     let args = func.1;
                     match func.0.as_str() {
@@ -693,7 +719,7 @@ fn parser_to_instr_set(
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
-                            add_args!(args, variables, consts, output, ctx, functions);
+                            add_args!(args, variables, consts, output, ctx, functions, arrays);
                             output.push(Instr::ApplyFunc(3, id, f_id));
                             id = f_id;
                         }
@@ -709,7 +735,7 @@ fn parser_to_instr_set(
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
-                            add_args!(args, variables, consts, output, ctx, functions);
+                            add_args!(args, variables, consts, output, ctx, functions, arrays);
                             output.push(Instr::ApplyFunc(5, id, f_id));
                             id = f_id;
                         }
@@ -718,7 +744,7 @@ fn parser_to_instr_set(
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
-                            add_args!(args, variables, consts, output, ctx, functions);
+                            add_args!(args, variables, consts, output, ctx, functions, arrays);
                             output.push(Instr::ApplyFunc(6, id, f_id));
                             id = f_id;
                         }
@@ -748,7 +774,7 @@ fn parser_to_instr_set(
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
-                            add_args!(args, variables, consts, output, ctx, functions);
+                            add_args!(args, variables, consts, output, ctx, functions, arrays);
                             output.push(Instr::ApplyFunc(10, id, f_id));
                             id = f_id;
                         }
@@ -757,7 +783,7 @@ fn parser_to_instr_set(
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
-                            add_args!(args, variables, consts, output, ctx, functions);
+                            add_args!(args, variables, consts, output, ctx, functions, arrays);
                             output.push(Instr::ApplyFunc(11, id, f_id));
                             id = f_id;
                         }
@@ -766,7 +792,7 @@ fn parser_to_instr_set(
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
-                            add_args!(args, variables, consts, output, ctx, functions);
+                            add_args!(args, variables, consts, output, ctx, functions, arrays);
                             output.push(Instr::ApplyFunc(12, id, f_id));
                             id = f_id;
                         }
@@ -775,7 +801,7 @@ fn parser_to_instr_set(
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
-                            add_args!(args, variables, consts, output, ctx, functions);
+                            add_args!(args, variables, consts, output, ctx, functions, arrays);
                             output.push(Instr::ApplyFunc(13, id, f_id));
                             id = f_id;
                         }
@@ -847,9 +873,9 @@ fn parser_to_instr_set(
                             crate::print!("1.NEW IS {first}");
 
                             let first_v =
-                                get_id(first, variables, consts, &mut output, &ctx, functions);
+                                get_id(first, variables, consts, &mut output, &ctx, functions, arrays);
                             let second_v =
-                                get_id(last, variables, consts, &mut output, &ctx, functions);
+                                get_id(last, variables, consts, &mut output, &ctx, functions, arrays);
                             consts.push(Data::Null);
                             let x = first_v;
                             let y = second_v;
@@ -864,7 +890,7 @@ fn parser_to_instr_set(
                             let new = item_stack.pop().unwrap();
                             crate::print!("2.NEW IS {new}");
                             let new_v =
-                                get_id(new, variables, consts, &mut output, &ctx, functions);
+                                get_id(new, variables, consts, &mut output, &ctx, functions, arrays);
                             consts.push(Data::Null);
                             let x = new_v;
                             let y = old_id;
@@ -888,6 +914,7 @@ fn parser_to_instr_set(
                     consts,
                     functions,
                     is_processing_function,
+                    arrays
                 ));
             }
             other => {
@@ -935,14 +962,18 @@ pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>) {
 
     let mut variables: Vec<(String, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
+    let mut arrays:Vec<Array> = Vec::new();
     let instructions = parser_to_instr_set(
         main_function,
         &mut variables,
         &mut consts,
         &mut functions,
         None,
+        &mut arrays
     );
-    crate::print!("CONSTS are {consts:?}");
+    // crate::print!("CONSTS are {consts:?}");
+    println!("{consts:?}");
+    println!("{arrays:?}");
     #[cfg(debug_assertions)]
     {
         print_instructions(&instructions);
