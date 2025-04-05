@@ -86,6 +86,7 @@ pub fn print_instructions(instructions: &[Instr]) {
             Instr::Input(x, y) => format!("INPUT {x} {y}"),
             Instr::ApplyFunc(x, y, z) => format!("APPLY_FUNCTION {x} {y} {z}"),
             Instr::StoreFuncArg(x) => format!("STORE_ARG {x}"),
+            x => format!("UNKNOWN {x:?}"),
         });
     }
 }

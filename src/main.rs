@@ -19,8 +19,7 @@ pub enum Data {
     Number(f64),
     Bool(bool),
     String(Intern<String>),
-    ArrayStart,
-    ArrayEnd(u16),
+    Array(u16, u16),
     Null,
 }
 
@@ -63,9 +62,17 @@ pub enum Instr {
 
     StoreFuncArg(u16),
     ApplyFunc(u8, u16, u16),
+
+    ArrayMov(u16, u16),
 }
 
-fn execute(instructions: &[Instr], consts: &mut [Data], func_args_count: usize) {
+fn execute(
+    instructions: &[Instr],
+    consts: &mut [Data],
+    func_args_count: usize,
+    arrays: &mut [Data],
+) {
+    println!("INSTR ARE {instructions:?}");
     let mut func_args: Vec<u16> = Vec::with_capacity(func_args_count);
 
     let len = instructions.len();
@@ -325,6 +332,10 @@ fn execute(instructions: &[Instr], consts: &mut [Data], func_args_count: usize) 
             Instr::ApplyFunc(fctn_id, tgt, dest) => {
                 FUNCS[fctn_id as usize](tgt, dest, consts, &mut func_args);
             }
+            Instr::ArrayMov(tgt, dest) => {
+                arrays[dest as usize] = consts[tgt as usize];
+                println!("{arrays:?}");
+            }
         }
         i += 1;
     }
@@ -373,7 +384,7 @@ fn main() {
         .join("\r\n");
     print!("{contents:?}");
 
-    let (instructions, mut consts) = parse(&contents);
+    let (instructions, mut consts, mut arrays) = parse(&contents);
 
     let now = Instant::now();
 
@@ -385,6 +396,7 @@ fn main() {
             func_args_count = 0;
         }
     }
-    execute(&instructions, &mut consts, func_args_count);
+    execute(&instructions, &mut consts, func_args_count, &mut arrays);
+
     println!("EXEC TIME {:.2?}", now.elapsed());
 }

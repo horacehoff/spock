@@ -1,3 +1,5 @@
 fn main() {
-let test = [1+1,2,3,4];
+let x = 30;
+let test = [12,x+25,4];
+print(test);
 }
