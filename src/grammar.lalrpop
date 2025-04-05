@@ -116,9 +116,17 @@ Term: Box<Expr> = {
     <b: Bool> => Box::new(Expr::Bool(b)),
     <s: String> => Box::new(Expr::String(s)),
     <v: Var> => Box::new(Expr::Var(v)),
+    "[" <t: Expression?> <f: ("," Expression)*> "]" => {
+        let mut terms = Vec::new();
+        if let Some(x) = t {
+            terms.push(x);
+        }
+        terms.extend(f.iter().map(|x| x.1.clone()).collect::<Vec<_>>());
+        Box::new(Expr::Array(terms.into_boxed_slice()))
+    },
     <f: FunctionCall> => Box::new(<>),
     <o: ObjFunctionCall> => Box::new(o),
-    // <o: ObjFunctionCall> => Box::new(<>),
+
 
 };
 
