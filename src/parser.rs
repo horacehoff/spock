@@ -15,6 +15,7 @@ pub enum Expr {
     Priority(Box<Expr>),
     String(String),
     Var(String),
+    Array(Box<[Expr]>),
     VarDeclare(String, Box<Expr>),
     VarAssign(String, Box<Expr>),
     // condition - code -- else_if_blocks(condition array) - else_block
@@ -283,6 +284,25 @@ fn parser_to_instr_set(
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
+            Expr::Array(elems) => {
+                let mut array_elements: Vec<(Vec<Instr>, Vec<Data>)> = Vec::new();
+                for elem in elems {
+                    let mut new_consts: Vec<Data> = Vec::new();
+                    array_elements.push((
+                        parser_to_instr_set(
+                            vec![elem],
+                            variables,
+                            &mut new_consts,
+                            functions,
+                            is_processing_function,
+                        ),
+                        new_consts,
+                    ));
+                }
+
+                let mut i = 0;
+                for (data, val) in array_elements {}
+            }
             Expr::Var(name) => {
                 consts.push(Data::Null);
                 if let Some((_, var_id)) = variables.iter().rev().find(|(x, _)| &name == x) {

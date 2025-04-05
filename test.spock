@@ -1,4 +1,6 @@
 fn main() {
+let test = [1+1,2,3,4];
+print(test);
 let count = 0;
 let limit = 1000000;
 let result = 1;
@@ -12,7 +14,6 @@ while count < limit {
     count += 1;
 }
 print(result);
-print(str(result).uppercase()+"hey");
 }
 
 fn test(x)  {

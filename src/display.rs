@@ -12,6 +12,7 @@ impl std::fmt::Display for Data {
             Data::Bool(bool) => write!(f, "{bool}"),
             Data::String(str) => write!(f, "{str}"),
             Data::Null => write!(f, "NULL"),
+            _ => todo!(),
         }
     }
 }

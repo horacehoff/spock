@@ -19,6 +19,8 @@ pub enum Data {
     Number(f64),
     Bool(bool),
     String(Intern<String>),
+    ArrayStart,
+    ArrayEnd(u16),
     Null,
 }
 
