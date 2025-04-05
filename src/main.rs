@@ -279,11 +279,10 @@ fn execute(instructions: &[Instr], consts: &mut [Data], func_args_count: usize) 
                 let base = consts[tgt as usize];
                 match base {
                     Data::String(str) => {
-                        // consts[dest as usize] =
-                        //     Data::Number(str.parse::<f64>().unwrap_or_else(|_| {
-                        //         error_b!(format_args!("CANNOT CONVERT '{str}' TO NUMBER"));
-                        //     }));
-                        consts[dest as usize] = Data::Number(str.parse::<f64>().unwrap());
+                        consts[dest as usize] =
+                            Data::Number(str.parse::<f64>().unwrap_or_else(|_| {
+                                error_b!(format_args!("CANNOT CONVERT '{str}' TO NUMBER"));
+                            }));
                     }
                     Data::Number(_) => consts[dest as usize] = base,
                     other => {

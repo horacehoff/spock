@@ -98,10 +98,15 @@ fn trim_sequence_left(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u
                 Data::String(Intern::from(str.trim_start_matches(&chars[..]).to_string()));
         } else {
             error_b!(format_args!(
-                "{} is not a String",
+                "{:?} is not a String",
                 consts[arg as usize].to_string().red()
             ));
         }
+    } else {
+        error_b!(format_args!(
+            "{:?} is not a String",
+            consts[tgt as usize].to_string().red()
+        ));
     }
 }
 
@@ -114,10 +119,34 @@ fn trim_sequence_right(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<
                 Data::String(Intern::from(str.trim_end_matches(&chars[..]).to_string()));
         } else {
             error_b!(format_args!(
-                "{} is not a String",
+                "{:?} is not a String",
                 consts[arg as usize].to_string().red()
             ));
         }
+    } else {
+        error_b!(format_args!(
+            "{:?} is not a String",
+            consts[tgt as usize].to_string().red()
+        ));
+    }
+}
+
+fn repeat(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
+    if let Data::String(str) = consts[tgt as usize] {
+        let arg = args.swap_remove(0);
+        if let Data::Number(arg) = consts[arg as usize] {
+            consts[dest as usize] = Data::String(Intern::from(str.repeat(arg as usize)))
+        } else {
+            error_b!(format_args!(
+                "{:?} is not a Number",
+                consts[arg as usize].to_string().red()
+            ));
+        }
+    } else {
+        error_b!(format_args!(
+            "{:?} is not a String",
+            consts[tgt as usize].to_string().red()
+        ));
     }
 }
 

@@ -1,8 +1,8 @@
 fn main() {
 let count = 0;
-let limit = num(input());
+let limit = 1000000;
 let result = 1;
-test(50);
+// test(50);
 while count < limit {
     let x = 0;
     result *= 2;
@@ -12,6 +12,7 @@ while count < limit {
     count += 1;
 }
 print(result);
+print("hello" * 52);
 }
 
 fn test(x)  {

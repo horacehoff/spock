@@ -182,6 +182,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Bool(_, z)
         | Instr::Num(_, z)
         | Instr::ApplyFunc(_, _, z)
+        | Instr::Input(_, z)
         | Instr::Str(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
@@ -841,6 +842,15 @@ fn parser_to_instr_set(
 
                             add_args!(args, variables, consts, output, ctx, functions);
                             output.push(Instr::ApplyFunc(12, id, f_id));
+                            id = f_id;
+                        }
+                        "repeat" => {
+                            check_args!(args, 1, "repeat", ctx);
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+
+                            add_args!(args, variables, consts, output, ctx, functions);
+                            output.push(Instr::ApplyFunc(13, id, f_id));
                             id = f_id;
                         }
                         other => {
