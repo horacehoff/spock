@@ -89,3 +89,102 @@ pub fn print_instructions(instructions: &[Instr]) {
         });
     }
 }
+
+#[macro_export]
+macro_rules! check_args {
+    ($args:expr, $expected_args_len:expr, $fn_name:expr, $ctx: expr) => {
+        if $args.len() > $expected_args_len {
+            error!(
+                $ctx,
+                format_args!(
+                    "Function '{}'{} expects {} argument{}",
+                    $fn_name,
+                    if $expected_args_len != 0 { " only" } else { "" },
+                    $expected_args_len,
+                    if $expected_args_len > 1 || $expected_args_len == 0 {
+                        "s"
+                    } else {
+                        ""
+                    }
+                ),
+                format_args!(
+                    "Replace with '{}({})'",
+                    $fn_name,
+                    $args[0..$expected_args_len]
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<String>>()
+                        .join(",")
+                )
+            );
+        } else if $args.len() < $expected_args_len {
+            error!(
+                $ctx,
+                format_args!(
+                    "Function '{}' expects {} argument{}",
+                    $fn_name,
+                    $expected_args_len,
+                    if $expected_args_len > 1 || $expected_args_len == 0 {
+                        "s"
+                    } else {
+                        ""
+                    }
+                ),
+                format_args!(
+                    "Add {} additional argument{}",
+                    $expected_args_len - $args.len(),
+                    if $expected_args_len - $args.len() > 1 {
+                        "s"
+                    } else {
+                        ""
+                    }
+                )
+            );
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! check_args_range {
+    ($args:expr, $min_args_len:expr,$max_args_len:expr, $fn_name:expr, $ctx: expr) => {
+        if $args.len() < $min_args_len {
+            error!(
+                $ctx,
+                format_args!(
+                    "Function '{}' expects at least {} argument{}",
+                    $fn_name,
+                    $min_args_len,
+                    if $min_args_len > 1 { "s" } else { "" }
+                ),
+                format_args!(
+                    "Add {} additional argument{}",
+                    $min_args_len - $args.len(),
+                    if $min_args_len - $args.len() > 1 {
+                        "s"
+                    } else {
+                        ""
+                    }
+                )
+            );
+        } else if $args.len() > $max_args_len {
+            error!(
+                $ctx,
+                format_args!(
+                    "Function '{}' expects at most {} argument{}",
+                    $fn_name,
+                    $max_args_len,
+                    if $max_args_len > 1 { "s" } else { "" }
+                ),
+                format_args!(
+                    "Remove {} argument{}",
+                    $args.len() - $max_args_len,
+                    if $args.len() - $max_args_len > 1 {
+                        "s"
+                    } else {
+                        ""
+                    }
+                )
+            );
+        }
+    };
+}
