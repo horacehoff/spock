@@ -1,5 +1,5 @@
 fn main() {
-let x = 30;
-let test = [12,x+25,4];
+let test = [1,2];
+test = [4,5];
 print(test);
 }

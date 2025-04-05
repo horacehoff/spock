@@ -495,6 +495,9 @@ fn parser_to_instr_set(
                     arrays,
                 );
                 move_to_id(&mut value, id);
+                if value.is_empty() {
+                    output.push(Instr::Mov((consts.len() - 1) as u16, id));
+                }
                 output.extend(value);
             }
             Expr::FunctionCall(x, args) => match x.as_str() {
