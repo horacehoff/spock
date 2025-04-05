@@ -258,7 +258,11 @@ fn get_id(
                 None,
                 arrays,
             ));
-            get_tgt_id(*instr.last().unwrap())
+            if instr.is_empty() {
+                (consts.len() - 1) as u16
+            } else {
+                get_tgt_id(*instr.last().unwrap())
+            }
         }
     }
 }
@@ -829,6 +833,15 @@ fn parser_to_instr_set(
 
                             add_args!(args, variables, consts, output, ctx, functions, arrays);
                             output.push(Instr::ApplyFunc(13, id, f_id));
+                            id = f_id;
+                        }
+                        "push" => {
+                            check_args!(args, 1, "push", ctx);
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+
+                            add_args!(args, variables, consts, output, ctx, functions, arrays);
+                            output.push(Instr::ApplyFunc(14, id, f_id));
                             id = f_id;
                         }
                         other => {

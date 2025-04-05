@@ -4,7 +4,7 @@ use inline_colorization::*;
 use internment::Intern;
 use likely_stable::if_likely;
 
-fn uppercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
+fn uppercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut Vec<Data>) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
     } else {
@@ -15,7 +15,7 @@ fn uppercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     }}
 }
 
-fn lowercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
+fn lowercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut Vec<Data>) {
     if_likely! {let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
     } else {
@@ -26,7 +26,7 @@ fn lowercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     }}
 }
 
-fn len(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
+fn len(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut Vec<Data>) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::Number(str.chars().count() as f64)
     } else {
@@ -37,7 +37,7 @@ fn len(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     }}
 }
 
-fn contains(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
+fn contains(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &mut Vec<Data>) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
         if_likely!{ let Data::String(arg) = consts[arg as usize] => {
@@ -56,7 +56,7 @@ fn contains(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
     }}
 }
 
-fn trim(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
+fn trim(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut Vec<Data>) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
     } else {
@@ -67,7 +67,7 @@ fn trim(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     }}
 }
 
-fn trim_sequence(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
+fn trim_sequence(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &mut Vec<Data>) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
         if_likely!{ let Data::String(arg) = consts[arg as usize] => {
@@ -88,7 +88,7 @@ fn trim_sequence(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) 
     }}
 }
 
-fn index(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
+fn index(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &mut Vec<Data>) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
         if_likely!{ let Data::String(arg) = consts[arg as usize] => {
@@ -107,19 +107,19 @@ fn index(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
     }}
 }
 
-fn is_num(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
+fn is_num(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut Vec<Data>) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::Bool(str.parse::<f64>().is_ok())
     }}
 }
 
-fn trim_left(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
+fn trim_left(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut Vec<Data>) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim_start().to_string()))
     }}
 }
 
-fn trim_right(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
+fn trim_right(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut Vec<Data>) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim_end().to_string()))
     } else {
@@ -130,7 +130,13 @@ fn trim_right(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     }}
 }
 
-fn trim_sequence_left(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
+fn trim_sequence_left(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    args: &mut Vec<u16>,
+    _: &mut Vec<Data>,
+) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
         if_likely!{ let Data::String(arg) = consts[arg as usize] => {
@@ -151,7 +157,13 @@ fn trim_sequence_left(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u
     }}
 }
 
-fn trim_sequence_right(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
+fn trim_sequence_right(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    args: &mut Vec<u16>,
+    _: &mut Vec<Data>,
+) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
         if_likely!{ let Data::String(arg) = consts[arg as usize] => {
@@ -172,7 +184,7 @@ fn trim_sequence_right(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<
     }}
 }
 
-fn rindex(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
+fn rindex(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &mut Vec<Data>) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
         if_likely!{ let Data::String(arg) = consts[arg as usize] => {
@@ -186,7 +198,7 @@ fn rindex(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
     }}
 }
 
-fn repeat(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
+fn repeat(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &mut Vec<Data>) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
         if_likely!{ let Data::Number(arg) = consts[arg as usize] => {
@@ -205,7 +217,21 @@ fn repeat(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
     }}
 }
 
-pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>); 14] = [
+fn push(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays: &mut Vec<Data>) {
+    if let Data::Array(start, end) = consts[tgt as usize] {
+        let mut arr: Vec<Data> = arrays[start as usize..(end + 1) as usize].to_vec();
+        println!("GOT {arr:?}");
+        arr.push(consts[args.remove(0) as usize]);
+        let a = arrays.len();
+        arrays.extend(arr);
+        let b = arrays.len() - 1;
+        consts[dest as usize] = Data::Array(a as u16, b as u16);
+        println!("ARR {arrays:?}");
+        println!("CONSTS {consts:?}")
+    }
+}
+
+pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut Vec<Data>); 15] = [
     uppercase,
     lowercase,
     len,
@@ -220,4 +246,5 @@ pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>); 14] = [
     trim_sequence_right,
     rindex,
     repeat,
+    push,
 ];

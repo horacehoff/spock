@@ -70,7 +70,7 @@ fn execute(
     instructions: &[Instr],
     consts: &mut [Data],
     func_args_count: usize,
-    arrays: &mut [Data],
+    arrays: &mut Vec<Data>,
 ) {
     println!("INSTR ARE {instructions:?}");
     let mut func_args: Vec<u16> = Vec::with_capacity(func_args_count);
@@ -330,7 +330,7 @@ fn execute(
             }
             Instr::StoreFuncArg(id) => func_args.push(id),
             Instr::ApplyFunc(fctn_id, tgt, dest) => {
-                FUNCS[fctn_id as usize](tgt, dest, consts, &mut func_args);
+                FUNCS[fctn_id as usize](tgt, dest, consts, &mut func_args, arrays);
             }
             Instr::ArrayMov(tgt, dest) => {
                 arrays[dest as usize] = consts[tgt as usize];
