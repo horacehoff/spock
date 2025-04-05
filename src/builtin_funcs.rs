@@ -6,18 +6,33 @@ use internment::Intern;
 fn uppercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     if let Data::String(str) = consts[tgt as usize] {
         consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
+    } else {
+        error_b!(format_args!(
+            "{} is not a String",
+            consts[tgt as usize].to_string().red()
+        ));
     }
 }
 
 fn lowercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     if let Data::String(str) = consts[tgt as usize] {
         consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
+    } else {
+        error_b!(format_args!(
+            "{} is not a String",
+            consts[tgt as usize].to_string().red()
+        ));
     }
 }
 
 fn len(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     if let Data::String(str) = consts[tgt as usize] {
         consts[dest as usize] = Data::Number(str.chars().count() as f64)
+    } else {
+        error_b!(format_args!(
+            "{} is not a String",
+            consts[tgt as usize].to_string().red()
+        ));
     }
 }
 
@@ -32,12 +47,22 @@ fn contains(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
                 consts[arg as usize].to_string().red()
             ));
         }
+    } else {
+        error_b!(format_args!(
+            "{} is not a String",
+            consts[tgt as usize].to_string().red()
+        ));
     }
 }
 
 fn trim(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     if let Data::String(str) = consts[tgt as usize] {
         consts[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
+    } else {
+        error_b!(format_args!(
+            "{} is not a String",
+            consts[tgt as usize].to_string().red()
+        ));
     }
 }
 
@@ -54,6 +79,11 @@ fn trim_sequence(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) 
                 consts[arg as usize].to_string().red()
             ));
         }
+    } else {
+        error_b!(format_args!(
+            "{} is not a String",
+            consts[tgt as usize].to_string().red()
+        ));
     }
 }
 
@@ -68,6 +98,11 @@ fn index(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
                 consts[arg as usize].to_string().red()
             ));
         }
+    } else {
+        error_b!(format_args!(
+            "{} is not a String",
+            consts[tgt as usize].to_string().red()
+        ));
     }
 }
 
@@ -86,6 +121,11 @@ fn trim_left(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
 fn trim_right(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>) {
     if let Data::String(str) = consts[tgt as usize] {
         consts[dest as usize] = Data::String(Intern::from(str.trim_end().to_string()))
+    } else {
+        error_b!(format_args!(
+            "{:?} is not a String",
+            consts[tgt as usize].to_string().red()
+        ));
     }
 }
 
