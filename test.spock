@@ -12,7 +12,7 @@ while count < limit {
     count += 1;
 }
 print(result);
-print("hello" * 52);
+print(str(result).is_num());
 }
 
 fn test(x)  {
