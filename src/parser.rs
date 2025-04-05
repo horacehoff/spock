@@ -1,3 +1,4 @@
+use crate::print;
 use crate::util::print_instructions;
 use crate::{Data, Instr, Opcode, error};
 use colored::Colorize;
@@ -216,9 +217,9 @@ fn get_id(
     consts: &mut Vec<Data>,
     instr: &mut Vec<Instr>,
     line: &String,
-    functions: &mut Vec<(String, Box<[String]>, Box<[Expr]>)>,
+    functions: &mut Vec<Function>,
 ) -> u16 {
-    crate::print!("GETTING ID OF {x:?}");
+    print!("GETTING ID OF {x:?}");
     match x {
         Expr::Num(num) => {
             consts.push(Data::Number(num));
@@ -363,11 +364,13 @@ macro_rules! check_args_range {
     };
 }
 
+type Function = (String, Box<[String]>, Box<[Expr]>);
+
 fn parser_to_instr_set(
     input: Vec<Expr>,
     variables: &mut Vec<(String, u16)>,
     consts: &mut Vec<Data>,
-    functions: &mut Vec<(String, Box<[String]>, Box<[Expr]>)>,
+    functions: &mut Vec<Function>,
     is_processing_function: Option<&(String, u16, Vec<(String, u16)>, Option<u16>)>,
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
@@ -975,7 +978,7 @@ fn parser_to_instr_set(
 
 pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>) {
     let mut functions: Vec<Expr> = grammar::FileParser::new().parse(contents).unwrap();
-    crate::print!("funcs {functions:?}");
+    print!("funcs {functions:?}");
     let main_function: Vec<Expr> = {
         if let Some(fctn) = functions.iter().position(|a| {
             if let Expr::FunctionDecl(name, _, _) = a {
