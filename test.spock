@@ -12,7 +12,7 @@ while count < limit {
     count += 1;
 }
 print(result);
-print(str(result).is_num());
+print(str(result).uppercase()+"hey");
 }
 
 fn test(x)  {

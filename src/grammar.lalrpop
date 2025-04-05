@@ -96,7 +96,6 @@ OpVarAssign: Expr = {
 Expression: Expr = {
     <o:Operation> => o,
     <t: Term> => *t,
-    <o: ObjFunctionCall> => o,
 }
 
 Operation: Expr = {
@@ -118,6 +117,7 @@ Term: Box<Expr> = {
     <s: String> => Box::new(Expr::String(s)),
     <v: Var> => Box::new(Expr::Var(v)),
     <f: FunctionCall> => Box::new(<>),
+    <o: ObjFunctionCall> => Box::new(o),
     // <o: ObjFunctionCall> => Box::new(<>),
 
 };
@@ -136,18 +136,21 @@ FunctionCall: Expr = {
 }
 
 ObjFunctionCall:Expr = {
-    <t: Term> "." <f: FunctionCall> <o: ("." FunctionCall)*> => {
-        if let Expr::FunctionCall(a,b) = f {
-                let mut func_calls = vec![(a,b)];
-                for x in o.iter().map(|x| x.1.clone()) {
-                    if let Expr::FunctionCall(x,y) = x {
-                        func_calls.push((x,y))
-                    }
-                }
-                Expr::ObjFunctionCall(t, Box::from(func_calls))
-        } else {
-            error_b!("");
+    <t: Term> <o1: r#"\.([a-zA-Z_]*)\("#> <o2: Expression?> <o3: ("," Expression)+?> ")" <o: ("." FunctionCall)*> => {
+        let mut args:Vec<Expr> = Vec::new();
+        if let Some(arg) = o2 {
+            args.push(arg);
         }
+        if let Some(add_args) = o3 {
+            args.extend(add_args.iter().map(|(_, x)|x.clone()));
+        }
+        let mut func_calls = vec![(String::from(o1.trim_end_matches('(').trim_start_matches('.')),args.into_boxed_slice())];
+        for x in o.iter().map(|x| x.1.clone()) {
+            if let Expr::FunctionCall(x,y) = x {
+                func_calls.push((x,y))
+            }
+        }
+        Expr::ObjFunctionCall(t, Box::from(func_calls))
     }
 }
 
