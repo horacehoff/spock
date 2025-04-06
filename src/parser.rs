@@ -32,6 +32,7 @@ pub enum Expr {
     ReturnVal(Box<Option<Expr>>),
 
     GetIndex(Box<Expr>, Box<[Expr]>),
+    ArrayModify(Box<Expr>, Box<[Expr]>, Box<Expr>),
 }
 
 lalrpop_mod!(pub grammar);
@@ -458,6 +459,7 @@ fn parser_to_instr_set(
                     output.extend(val);
                 }
             }
+            Expr::ArrayModify(x, y, z) => {}
             Expr::VarAssign(x, y) => {
                 let id = v
                     .iter()

@@ -81,7 +81,14 @@ VarDeclare: Expr = {
 }
 
 VarAssign: Expr = {
-    <v: Var> "=" <e: Expression> => Expr::VarAssign(v, Box::from(e))
+    <v: Var> "=" <e: Expression> => Expr::VarAssign(v, Box::from(e)),
+    <i: IndexAccess> "=" <e: Expression> => {
+        if let Expr::GetIndex(a,b) = i {
+            Expr::ArrayModify(a,b,Box::new(e))
+        } else {
+            unreachable!()
+        }
+    }
 }
 
 OpVarAssign: Expr = {
@@ -93,13 +100,16 @@ OpVarAssign: Expr = {
     <v: Var> "^=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from(Expr::Var(v)), Box::from(vec![(Opcode::Pow, Box::from(e))])))),
 }
 
+IndexAccess: Expr = {
+    <t: Term> <f: ("[" Expression "]")+> => {
+        Expr::GetIndex(t, f.iter().map(|x| x.1.clone()).collect::<Vec<Expr>>().into_boxed_slice())
+    }
+}
+
 Expression: Expr = {
     <o:Operation> => o,
     <t: Term> => *t,
-    <t: Term> <f: ("[" Expression "]")+> => {
-        
-        Expr::GetIndex(t, f.iter().map(|x| x.1.clone()).collect::<Vec<Expr>>().into_boxed_slice())
-    }
+    <i: IndexAccess> => i,
 }
 
 Operation: Expr = {

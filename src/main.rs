@@ -68,6 +68,8 @@ pub enum Instr {
 
     ArrayMov(u16, u16),
     GetIndex(u16, u16, u16),
+    // array - element - index
+    ArrayMod(u16, u16, u16),
 }
 
 fn execute(
@@ -390,6 +392,11 @@ fn execute(
                         }
                     }
                 }
+            }
+            Instr::ArrayMod(array_tgt, elem_tgt, array_idx) => {
+                // let elem = consts[elem_tgt as usize];
+                // let array = consts[array_tgt as usize];
+                arrays[array_idx as usize] = consts[elem_tgt as usize];
             }
         }
         i += 1;

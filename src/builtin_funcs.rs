@@ -1,3 +1,4 @@
+use crate::display::format_data;
 use crate::{Data, error_b};
 use colored::Colorize;
 use inline_colorization::*;
@@ -92,23 +93,28 @@ fn trim_sequence(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, 
     }}
 }
 
-fn index(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &mut Vec<Data>) {
-    if_likely! { let Data::String(str) = consts[tgt as usize] => {
-        let arg = args.swap_remove(0);
-        if_likely!{ let Data::String(arg) = consts[arg as usize] => {
-            consts[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap() as f64);
+fn index(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays: &mut Vec<Data>) {
+    let target = consts[tgt as usize];
+    if let Data::String(str) = target {
+        let arg = consts[args.swap_remove(0) as usize];
+        if_likely! { let Data::String(arg) = arg => {
+            consts[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
+                error_b!(format_args!("Cannot get index of {:?} in \"{}\"", arg.red(), str.blue()));
+            }) as f64);
         } else {
             error_b!(format_args!(
                 "{} is not a String",
-                consts[arg as usize].to_string().red()
+                arg.to_string().red()
             ));
         }}
+    } else if let Data::Array(x, y) = target {
+        let arg = consts[args.swap_remove(0) as usize];
+        consts[dest as usize] = Data::Number(arrays[x as usize..y as usize].iter().position(|x| x == &arg).unwrap_or_else(|| {
+            error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{:?}{color_reset}", arg, format_data(target, arrays)));
+        }) as f64);
     } else {
-        error_b!(format_args!(
-            "{} is not a String",
-            consts[tgt as usize].to_string().red()
-        ));
-    }}
+        error_b!(format_args!("{} is not a String", target.to_string().red()));
+    }
 }
 
 fn is_num(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut Vec<Data>) {
