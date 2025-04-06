@@ -1,4 +1,4 @@
 fn main() {
-let test = [1,2][2];
+let test = "hey"[3];
 print(test);
 }

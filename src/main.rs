@@ -363,7 +363,7 @@ fn execute(
                                 consts[dest as usize] = arr[idx];
                             } else {
                                 error_b!(format_args!(
-                                    "Trying to get index {color_red}{}{color_reset} but array {} has {} elements",
+                                    "Trying to get index {color_red}{}{color_reset} but Array {} has {} elements",
                                     idx,
                                     format_data(target, arrays).blue(),
                                     arr.len()
@@ -371,9 +371,18 @@ fn execute(
                             }
                         }
                         Data::String(str) => {
-                            consts[dest as usize] = Data::String(Intern::from(
-                                str.get(idx..(idx + 1)).unwrap().to_string(),
-                            ));
+                            if likely(str.len() > idx) {
+                                consts[dest as usize] = Data::String(Intern::from(
+                                    str.get(idx..(idx + 1)).unwrap().to_string(),
+                                ));
+                            } else {
+                                error_b!(format_args!(
+                                    "Trying to get index {color_red}{}{color_reset} but String \"{}\" has {} letters",
+                                    idx,
+                                    format_data(target, arrays).blue(),
+                                    str.len()
+                                ));
+                            }
                         }
                         _ => {}
                     }
