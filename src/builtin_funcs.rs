@@ -37,10 +37,11 @@ fn len(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut Vec<D
     }}
 }
 
-fn contains(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &mut Vec<Data>) {
-    if_likely! { let Data::String(str) = consts[tgt as usize] => {
+fn contains(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays: &mut Vec<Data>) {
+    let target = consts[tgt as usize];
+    if let Data::String(str) = target {
         let arg = args.swap_remove(0);
-        if_likely!{ let Data::String(arg) = consts[arg as usize] => {
+        if_likely! { let Data::String(arg) = consts[arg as usize] => {
             consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
         } else {
             error_b!(format_args!(
@@ -48,12 +49,15 @@ fn contains(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &m
                 consts[arg as usize].to_string().red()
             ));
         }}
+    } else if let Data::Array(x, y) = target {
+        let arg = consts[args.swap_remove(0) as usize];
+        consts[dest as usize] = Data::Bool(arrays[x as usize..y as usize].contains(&arg));
     } else {
         error_b!(format_args!(
             "{} is not a String",
             consts[tgt as usize].to_string().red()
         ));
-    }}
+    }
 }
 
 fn trim(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut Vec<Data>) {
@@ -233,14 +237,14 @@ fn repeat(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays:
 fn push(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays: &mut Vec<Data>) {
     if let Data::Array(start, end) = consts[tgt as usize] {
         let mut arr: Vec<Data> = arrays[start as usize..end as usize].to_vec();
-        println!("GOT {arr:?}");
+        print!("GOT {arr:?}");
         arr.push(consts[args.remove(0) as usize]);
         let a = arrays.len();
         arrays.extend(arr);
         let b = arrays.len() - 1;
         consts[dest as usize] = Data::Array(a as u16, b as u16);
-        println!("ARR {arrays:?}");
-        println!("CONSTS {consts:?}")
+        print!("ARR {arrays:?}");
+        print!("CONSTS {consts:?}")
     }
 }
 

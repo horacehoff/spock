@@ -671,10 +671,12 @@ fn parser_to_instr_set(
                         }
                         "contains" => {
                             check_args!(args, 1, "contains", ctx);
+
+                            add_args!(args, v, consts, output, ctx, fns, arrs);
+
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
-                            add_args!(args, v, consts, output, ctx, fns, arrs);
                             output.push(Instr::ApplyFunc(3, id, f_id));
                             id = f_id;
                         }
