@@ -96,6 +96,9 @@ OpVarAssign: Expr = {
 Expression: Expr = {
     <o:Operation> => o,
     <t: Term> => *t,
+    <e: Term> <o: ("[" Expression "]")+> => {
+        Expr::GetIndex(e, o.iter().map(|x| x.1.clone()).collect::<Vec<Expr>>().into_boxed_slice())
+    },
 }
 
 Operation: Expr = {

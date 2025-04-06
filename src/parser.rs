@@ -30,6 +30,8 @@ pub enum Expr {
     FunctionDecl(String, Box<[String]>, Box<[Expr]>),
 
     ReturnVal(Box<Option<Expr>>),
+
+    GetIndex(Box<Expr>, Box<[Expr]>),
 }
 
 lalrpop_mod!(pub grammar);
@@ -187,6 +189,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Num(_, z)
         | Instr::ApplyFunc(_, _, z)
         | Instr::Input(_, z)
+        | Instr::GetIndex(_, _, z)
         | Instr::Str(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
@@ -321,6 +324,31 @@ fn parser_to_instr_set(
                 }
                 let end = arrays.len() - 1;
                 consts.push(Data::Array(start as u16, end as u16));
+            }
+            Expr::GetIndex(target, index) => {
+                let x = parser_to_instr_set(
+                    vec![*target],
+                    variables,
+                    consts,
+                    functions,
+                    is_processing_function,
+                    arrays,
+                );
+                output.extend(x);
+                let id = (consts.len() - 1) as u16;
+                let x = parser_to_instr_set(
+                    index.to_vec(),
+                    variables,
+                    consts,
+                    functions,
+                    is_processing_function,
+                    arrays,
+                );
+                output.extend(x);
+                let f_id = (consts.len() - 1) as u16;
+
+                consts.push(Data::Null);
+                output.push(Instr::GetIndex(id, f_id, (consts.len() - 1) as u16))
             }
             Expr::Var(name) => {
                 consts.push(Data::Null);

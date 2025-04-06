@@ -1,10 +1,11 @@
 use crate::display::format_data;
 use crate::parser::parse;
 use builtin_funcs::FUNCS;
+use colored::Colorize;
 use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
-use likely_stable::if_likely;
+use likely_stable::{if_likely, likely};
 use std::cmp::PartialEq;
 use std::io::Write;
 use std::time::Instant;
@@ -65,6 +66,7 @@ pub enum Instr {
     ApplyFunc(u8, u16, u16),
 
     ArrayMov(u16, u16),
+    GetIndex(u16, u16, u16),
 }
 
 fn execute(
@@ -349,6 +351,33 @@ fn execute(
             Instr::ArrayMov(tgt, dest) => {
                 arrays[dest as usize] = consts[tgt as usize];
                 println!("{arrays:?}");
+            }
+            Instr::GetIndex(tgt, index, dest) => {
+                let target = consts[tgt as usize];
+                if let Data::Number(idx) = consts[index as usize] {
+                    let idx = idx as usize;
+                    match target {
+                        Data::Array(x, y) => {
+                            let arr = &arrays[x as usize..(y + 1) as usize];
+                            if likely(arr.len() > idx) {
+                                consts[dest as usize] = arr[idx];
+                            } else {
+                                error_b!(format_args!(
+                                    "Trying to get index {color_red}{}{color_reset} but array {} has {} elements",
+                                    idx,
+                                    format_data(target, arrays).blue(),
+                                    arr.len()
+                                ));
+                            }
+                        }
+                        Data::String(str) => {
+                            consts[dest as usize] = Data::String(Intern::from(
+                                str.get(idx..(idx + 1)).unwrap().to_string(),
+                            ));
+                        }
+                        _ => {}
+                    }
+                }
             }
         }
         i += 1;
