@@ -335,20 +335,23 @@ fn parser_to_instr_set(
                     arrays,
                 );
                 output.extend(x);
-                let id = (consts.len() - 1) as u16;
-                let x = parser_to_instr_set(
-                    index.to_vec(),
-                    variables,
-                    consts,
-                    functions,
-                    is_processing_function,
-                    arrays,
-                );
-                output.extend(x);
-                let f_id = (consts.len() - 1) as u16;
+                let mut id = (consts.len() - 1) as u16;
+                for elem in index {
+                    let x = parser_to_instr_set(
+                        vec![elem],
+                        variables,
+                        consts,
+                        functions,
+                        is_processing_function,
+                        arrays,
+                    );
+                    output.extend(x);
+                    let f_id = (consts.len() - 1) as u16;
 
-                consts.push(Data::Null);
-                output.push(Instr::GetIndex(id, f_id, (consts.len() - 1) as u16))
+                    consts.push(Data::Null);
+                    output.push(Instr::GetIndex(id, f_id, (consts.len() - 1) as u16));
+                    id = (consts.len() - 1) as u16;
+                }
             }
             Expr::Var(name) => {
                 consts.push(Data::Null);
