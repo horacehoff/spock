@@ -110,8 +110,8 @@ fn execute(
                     }
                     (Data::Array(a, b), Data::Array(x, y)) => {
                         let index_i = arrays.len() as u16;
-                        arrays.extend(arrays[a as usize..(b + 1) as usize].to_vec());
-                        arrays.extend(&arrays[x as usize..(y + 1) as usize].to_vec());
+                        arrays.extend(arrays[a as usize..b as usize].to_vec());
+                        arrays.extend(&arrays[x as usize..y as usize].to_vec());
                         consts[dest as usize] = Data::Array(index_i, (arrays.len() - 1) as u16)
                     }
                     _ => {
@@ -314,7 +314,7 @@ fn execute(
             }
             Instr::Str(tgt, dest) => {
                 consts[dest as usize] =
-                    Data::String(Intern::from(format!("{}", consts[tgt as usize])));
+                    Data::String(Intern::from(format_data(consts[tgt as usize], arrays)));
             }
             Instr::Bool(tgt, dest) => {
                 let base = consts[tgt as usize];
@@ -350,7 +350,7 @@ fn execute(
             }
             Instr::ArrayMov(tgt, dest) => {
                 arrays[dest as usize] = consts[tgt as usize];
-                println!("{arrays:?}");
+                print!("{arrays:?}");
             }
             Instr::GetIndex(tgt, index, dest) => {
                 let target = consts[tgt as usize];
@@ -358,7 +358,7 @@ fn execute(
                     let idx = idx as usize;
                     match target {
                         Data::Array(x, y) => {
-                            let arr = &arrays[x as usize..(y + 1) as usize];
+                            let arr = &arrays[x as usize..y as usize];
                             if likely(arr.len() > idx) {
                                 consts[dest as usize] = arr[idx];
                             } else {

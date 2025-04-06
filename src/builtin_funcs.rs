@@ -212,10 +212,10 @@ fn repeat(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays:
     } else if let Data::Array(x, y) = consts[tgt as usize] {
         let arg = args.swap_remove(0);
         if_likely! { let Data::Number(arg) = consts[arg as usize] => {
-            let arr = arrays[x as usize..(y+1) as usize].repeat(arg as usize);
+            let arr = arrays[x as usize..y as usize].repeat(arg as usize);
             let index_i = arrays.len() as u16;
             arrays.extend(arr);
-            consts[dest as usize] = Data::Array(index_i,(arrays.len() - 1) as u16)
+            consts[dest as usize] = Data::Array(index_i,(arrays.len()) as u16)
         } else {
             error_b!(format_args!(
                 "{:?} is not a Number",
@@ -232,7 +232,7 @@ fn repeat(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays:
 
 fn push(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays: &mut Vec<Data>) {
     if let Data::Array(start, end) = consts[tgt as usize] {
-        let mut arr: Vec<Data> = arrays[start as usize..(end + 1) as usize].to_vec();
+        let mut arr: Vec<Data> = arrays[start as usize..end as usize].to_vec();
         println!("GOT {arr:?}");
         arr.push(consts[args.remove(0) as usize]);
         let a = arrays.len();

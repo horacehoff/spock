@@ -322,7 +322,7 @@ fn parser_to_instr_set(
                         arrays.push(consts.pop().unwrap());
                     }
                 }
-                let end = arrays.len() - 1;
+                let end = arrays.len();
                 consts.push(Data::Array(start as u16, end as u16));
             }
             Expr::GetIndex(target, index) => {

@@ -26,7 +26,7 @@ pub fn format_data(x: Data, arrays: &[Data]) -> String {
         Data::String(str) => str.to_string(),
         Data::Array(a, b) => concat_string!(
             "[",
-            arrays[a as usize..(b + 1) as usize]
+            arrays[a as usize..(b) as usize]
                 .iter()
                 .map(|x| format_data(*x, arrays))
                 .collect::<Vec<_>>()
