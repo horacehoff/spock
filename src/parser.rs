@@ -833,10 +833,11 @@ fn parser_to_instr_set(
                         }
                         "repeat" => {
                             check_args!(args, 1, "repeat", ctx);
+                            add_args!(args, variables, consts, output, ctx, functions, arrays);
+
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
-                            add_args!(args, variables, consts, output, ctx, functions, arrays);
                             output.push(Instr::ApplyFunc(13, id, f_id));
                             id = f_id;
                         }

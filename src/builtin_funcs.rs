@@ -198,11 +198,24 @@ fn rindex(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &mut
     }}
 }
 
-fn repeat(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &mut Vec<Data>) {
-    if_likely! { let Data::String(str) = consts[tgt as usize] => {
+fn repeat(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays: &mut Vec<Data>) {
+    if let Data::String(str) = consts[tgt as usize] {
         let arg = args.swap_remove(0);
-        if_likely!{ let Data::Number(arg) = consts[arg as usize] => {
+        if_likely! { let Data::Number(arg) = consts[arg as usize] => {
             consts[dest as usize] = Data::String(Intern::from(str.repeat(arg as usize)))
+        } else {
+            error_b!(format_args!(
+                "{:?} is not a Number",
+                consts[arg as usize].to_string().red()
+            ));
+        }}
+    } else if let Data::Array(x, y) = consts[tgt as usize] {
+        let arg = args.swap_remove(0);
+        if_likely! { let Data::Number(arg) = consts[arg as usize] => {
+            let arr = arrays[x as usize..(y+1) as usize].repeat(arg as usize);
+            let index_i = arrays.len() as u16;
+            arrays.extend(arr);
+            consts[dest as usize] = Data::Array(index_i,(arrays.len() - 1) as u16)
         } else {
             error_b!(format_args!(
                 "{:?} is not a Number",
@@ -214,7 +227,7 @@ fn repeat(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &mut
             "{:?} is not a String",
             consts[tgt as usize].to_string().red()
         ));
-    }}
+    }
 }
 
 fn push(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays: &mut Vec<Data>) {
