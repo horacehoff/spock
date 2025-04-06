@@ -1,3 +1,4 @@
+use crate::display::format_data;
 use crate::parser::parse;
 use builtin_funcs::FUNCS;
 use concat_string::concat_string;
@@ -105,10 +106,17 @@ fn execute(
                         let result = concat_string!(*parent, *child);
                         consts[dest as usize] = Data::String(Intern::from(result));
                     }
+                    (Data::Array(a, b), Data::Array(x, y)) => {
+                        let index_i = arrays.len() as u16;
+                        arrays.extend(arrays[a as usize..(b + 1) as usize].to_vec());
+                        arrays.extend(&arrays[x as usize..(y + 1) as usize].to_vec());
+                        consts[dest as usize] = Data::Array(index_i, (arrays.len() - 1) as u16)
+                    }
                     _ => {
                         error_b!(format_args!(
-                            "UNSUPPORTED OPERATION: {:?} + {:?}",
-                            first_elem, second_elem
+                            "UNSUPPORTED OPERATION: {} + {}",
+                            format_data(first_elem, arrays),
+                            format_data(second_elem, arrays)
                         ));
                     }
                 }
@@ -122,7 +130,7 @@ fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} * {:?}",
-                        first_elem, second_elem
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
                     ));
                 }}
             }
@@ -135,7 +143,7 @@ fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} / {:?}",
-                        first_elem, second_elem
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
                     ));
                 }}
             }
@@ -148,7 +156,7 @@ fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} - {:?}",
-                        first_elem, second_elem
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
                     ));
                 }}
             }
@@ -161,7 +169,7 @@ fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} % {:?}",
-                        first_elem, second_elem
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
                     ));
                 }}
             }
@@ -174,7 +182,7 @@ fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} ^ {:?}",
-                        first_elem, second_elem
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
                     ));
                 }}
             }
@@ -195,7 +203,7 @@ fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} > {:?}",
-                        first_elem, second_elem
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
                     ));
                 }}
             }
@@ -208,7 +216,7 @@ fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} >= {:?}",
-                        first_elem, second_elem
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
                     ));
                 }}
             }
@@ -221,7 +229,7 @@ fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} < {:?}",
-                        first_elem, second_elem
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
                     ));
                 }}
             }
@@ -234,7 +242,7 @@ fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} <= {:?}",
-                        first_elem, second_elem
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
                     ));
                 }}
             }
@@ -247,7 +255,7 @@ fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} && {:?}",
-                        first_elem, second_elem
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
                     ));
                 }}
             }
@@ -260,7 +268,7 @@ fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} || {:?}",
-                        first_elem, second_elem
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
                     ));
                 }}
             }
@@ -272,12 +280,12 @@ fn execute(
                 if_likely! {let Data::Number(x) = tgt => {
                     consts[dest as usize] = Data::Number(-x);
                 } else {
-                    error_b!(format_args!("UNSUPPORTED OPERATION: -{tgt:?}"));
+                    error_b!(format_args!("UNSUPPORTED OPERATION: -{}", format_data(tgt, arrays)));
                 }}
             }
             Instr::Print(target) => {
                 let elem = consts[target as usize];
-                println!("{elem}");
+                println!("{}", format_data(elem, arrays));
             }
             Instr::Abs(tgt, dest) => {
                 if let Data::Number(x) = consts[tgt as usize] {
@@ -295,7 +303,10 @@ fn execute(
                     }
                     Data::Number(_) => consts[dest as usize] = base,
                     other => {
-                        error_b!(format_args!("CANNOT CONVERT {other} TO NUMBER"));
+                        error_b!(format_args!(
+                            "CANNOT CONVERT {} TO NUMBER",
+                            format_data(other, arrays)
+                        ));
                     }
                 }
             }
@@ -310,7 +321,10 @@ fn execute(
                         error_b!(format_args!("CANNOT CONVERT {str} TO BOOL"));
                     }));
                 } else {
-                    error_b!(format_args!("CANNOT CONVERT {base} TO BOOL"));
+                    error_b!(format_args!(
+                        "CANNOT CONVERT {} TO BOOL",
+                        format_data(base, arrays)
+                    ));
                 }
             }
             Instr::Input(msg, dest) => {
@@ -324,7 +338,7 @@ fn execute(
                 } else {
                     error_b!(format_args!(
                         "{color_red}{}{color_reset} is not a string",
-                        base
+                        format_data(base, arrays)
                     ));
                 }
             }

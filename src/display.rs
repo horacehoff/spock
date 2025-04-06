@@ -1,6 +1,7 @@
 use crate::parser::Expr;
 use crate::{Data, Opcode, format_lines};
 use colored::Colorize;
+use concat_string::concat_string;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
 use std::fmt::Formatter;
@@ -15,6 +16,24 @@ impl std::fmt::Display for Data {
             Data::Array(start, end) => write!(f, "ARRAY FROM {start} to {end}"),
             _ => todo!(),
         }
+    }
+}
+
+pub fn format_data(x: Data, arrays: &[Data]) -> String {
+    match x {
+        Data::Number(num) => num.to_string(),
+        Data::Bool(bool) => bool.to_string(),
+        Data::String(str) => str.to_string(),
+        Data::Array(a, b) => concat_string!(
+            "[",
+            arrays[a as usize..(b + 1) as usize]
+                .iter()
+                .map(|x| format_data(*x, arrays))
+                .collect::<Vec<_>>()
+                .join(","),
+            "]"
+        ),
+        Data::Null => String::from("NULL"),
     }
 }
 
