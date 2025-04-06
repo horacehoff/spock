@@ -1,4 +1,4 @@
-use crate::Instr;
+use crate::{Data, Instr};
 
 #[macro_export]
 macro_rules! error {
@@ -55,6 +55,16 @@ macro_rules! format_lines {
             format!("{}\n", $line)
         }
     };
+}
+
+pub fn get_type(x: Data) -> String {
+    match x {
+        Data::Number(_) => String::from("Number"),
+        Data::Bool(_) => String::from("Bool"),
+        Data::String(_) => String::from("String"),
+        Data::Array(_, _) => String::from("Array"),
+        Data::Null => String::from("NULL"),
+    }
 }
 
 pub fn print_instructions(instructions: &[Instr]) {

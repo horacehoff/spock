@@ -1,5 +1,6 @@
 use crate::display::format_data;
 use crate::parser::parse;
+use crate::util::get_type;
 use builtin_funcs::FUNCS;
 use colored::Colorize;
 use concat_string::concat_string;
@@ -384,7 +385,9 @@ fn execute(
                                 ));
                             }
                         }
-                        _ => {}
+                        other => {
+                            error_b!(format_args!("Cannot index {}", get_type(other).red()));
+                        }
                     }
                 }
             }
