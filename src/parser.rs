@@ -464,7 +464,7 @@ fn parser_to_instr_set(
                 output.push(Instr::Jmp(len, true));
             }
             Expr::VarDeclare(x, y) => {
-                let val = parser_to_instr_set(
+                let mut val = parser_to_instr_set(
                     vec![*y],
                     variables,
                     consts,
@@ -472,10 +472,15 @@ fn parser_to_instr_set(
                     is_processing_function,
                     arrays,
                 );
-                // consts.push(Data::Null);
-                // move_to_id(&mut val, len);
-                variables.push((x, (consts.len() - 1) as u16));
-                output.extend(val);
+                println!("VAL IS {val:?}");
+                if val.is_empty() {
+                    variables.push((x, (consts.len() - 1) as u16));
+                } else {
+                    consts.push(Data::Null);
+                    move_to_id(&mut val, (consts.len() - 1) as u16);
+                    variables.push((x, (consts.len() - 1) as u16));
+                    output.extend(val);
+                }
             }
             Expr::VarAssign(x, y) => {
                 let id = variables
@@ -837,10 +842,12 @@ fn parser_to_instr_set(
                         }
                         "push" => {
                             check_args!(args, 1, "push", ctx);
+
+                            add_args!(args, variables, consts, output, ctx, functions, arrays);
+
                             let f_id = consts.len() as u16;
                             consts.push(Data::Null);
 
-                            add_args!(args, variables, consts, output, ctx, functions, arrays);
                             output.push(Instr::ApplyFunc(14, id, f_id));
                             id = f_id;
                         }

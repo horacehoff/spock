@@ -1,4 +1,4 @@
 fn main() {
-let test = [1,2].push(3);
+let test = [1,2,3].push(35);
 print(test);
 }
