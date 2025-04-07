@@ -478,8 +478,20 @@ fn parser_to_instr_set(
                 let consts_idx = get_id(*x, v, consts, &mut output, &ctx, fns, arrs);
 
                 let mut array_idx = (consts.len() - 1) as u16;
+                let mut i = 0;
                 for elem in z {
-                    array_idx = get_id(elem, v, consts, &mut output, &ctx, fns, arrs);
+                    if i == 0 {
+                        array_idx = get_id(elem, v, consts, &mut output, &ctx, fns, arrs);
+                    } else {
+                        let x = parser_to_instr_set(vec![elem], v, consts, fns, fn_state, arrs);
+                        output.extend(x);
+                        let f_id = (consts.len() - 1) as u16;
+
+                        consts.push(Data::Null);
+                        output.push(Instr::GetIndex(array_idx, f_id, (consts.len() - 1) as u16));
+                        array_idx = (consts.len() - 1) as u16;
+                    }
+                    i += 1;
                 }
 
 

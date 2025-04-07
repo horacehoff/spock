@@ -6,7 +6,7 @@ use colored::Colorize;
 use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
-use likely_stable::{if_likely, likely};
+use likely_stable::{if_likely, likely, unlikely};
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::io::Write;
@@ -356,16 +356,34 @@ fn execute(
             }
             Instr::ArrayMod(tgt, dest, idx) => {
                 if_likely!(let Data::Number(index) = consts[idx as usize] => {
-                    let elem = arrays.get_mut(&dest).unwrap();
-                    if likely(elem.len() > index as usize) {
-                       elem[index as usize] = consts[tgt as usize];
-                        print!("ARRAYS {arrays:?}");
+                    if let Data::String(letter) = consts.get(tgt as usize).unwrap_or(&mut Data::Null).clone() {
+                        if let Data::String(x) = consts.get_mut(dest as usize).unwrap_or(&mut Data::Null) {
+                            if likely(x.len() > index as usize) {
+                                let mut temp = x.to_string();
+                                temp.remove(index as usize);
+                                temp.insert_str(index as usize, &*letter);
+                                *x = Intern::from(temp);
+                            } else {
+                                error_b!(format_args!(
+                                    "Trying to get index {color_red}{}{color_reset} but String \"{}\" has {} characters",
+                                    index,
+                                    x.blue(),
+                                    x.len()
+                                ));
+                            }
+                        }
                     } else {
-                        error_b!(format_args!(
-                            "Trying to get index {color_red}{}{color_reset} but Array has {} elements",
-                            index,
-                            elem.len()
-                        ));
+                        let elem = arrays.get_mut(&dest).unwrap();
+                        if likely(elem.len() > index as usize) {
+                           elem[index as usize] = consts[tgt as usize];
+                            print!("ARRAYS {arrays:?}");
+                        } else {
+                            error_b!(format_args!(
+                                "Trying to get index {color_red}{}{color_reset} but Array has {} elements",
+                                index,
+                                elem.len()
+                            ));
+                        }
                     }
                 } else {
                     error_b!(format_args!("{} is not a valid index", consts[idx as usize]));
