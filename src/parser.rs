@@ -33,7 +33,7 @@ pub enum Expr {
     ReturnVal(Box<Option<Expr>>),
 
     GetIndex(Box<Expr>, Box<[Expr]>),
-    ArrayModify(Box<Expr>, Box<[Expr]>, Box<Expr>),
+    ArrayModify(Box<Expr>, Box<[Expr]>,Box<Expr>),
 }
 
 lalrpop_mod!(pub grammar);
@@ -473,7 +473,18 @@ fn parser_to_instr_set(
                     output.extend(val);
                 }
             }
-            Expr::ArrayModify(x, y, z) => {}
+            Expr::ArrayModify(x, z,w) => {
+                let consts_idx = get_id(*x, v, consts, &mut output, &ctx, fns, arrs);
+
+                let mut array_idx = (consts.len() - 1) as u16;
+                for elem in z {
+                    array_idx = get_id(elem, v, consts, &mut output, &ctx, fns, arrs);
+                }
+
+
+                let f_idx = get_id(*w, v, consts, &mut output, &ctx, fns, arrs);
+                output.push(Instr::ArrayMod(f_idx, consts_idx, array_idx));
+            }
             Expr::VarAssign(x, y) => {
                 let id = v
                     .iter()

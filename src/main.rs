@@ -68,6 +68,8 @@ pub enum Instr {
     ApplyFunc(u8, u16, u16),
 
     ArrayMov(u16, u16, u16),
+    // different than ArrayMov => looks into the consts
+    ArrayMod(u16, u16, u16),
     GetIndex(u16, u16, u16),
 }
 
@@ -352,6 +354,22 @@ fn execute(
             Instr::ArrayMov(tgt, dest, idx) => {
                 arrays.get_mut(&dest).unwrap()[idx as usize] = consts[tgt as usize];
                 print!("ARRAYS {arrays:?}");
+            }
+            Instr::ArrayMod(tgt, dest, idx) => {
+                if let Data::Number(index) = consts[idx as usize] {
+                    let elem = arrays.get_mut(&dest).unwrap();
+                    if likely(elem.len() > index as usize) {
+                       elem[index as usize] = consts[tgt as usize];
+                        print!("ARRAYS {arrays:?}");
+                    } else {
+                        error_b!(format_args!(
+                            "Trying to get index {color_red}{}{color_reset} but Array has {} elements",
+                            index,
+                            elem.len()
+                        ));
+                    }
+
+                }
             }
             Instr::GetIndex(tgt, index, dest) => {
                 let target = consts[tgt as usize];
