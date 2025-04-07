@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::parser::Expr;
 use crate::{Data, Opcode, format_lines};
 use colored::Colorize;
@@ -13,20 +14,20 @@ impl std::fmt::Display for Data {
             Data::Bool(bool) => write!(f, "{bool}"),
             Data::String(str) => write!(f, "{str}"),
             Data::Null => write!(f, "NULL"),
-            Data::Array(start, end) => write!(f, "ARRAY FROM {start} to {end}"),
+            Data::Array(start) => write!(f, "ARRAY{start}"),
             _ => todo!(),
         }
     }
 }
 
-pub fn format_data(x: Data, arrays: &[Data]) -> String {
+pub fn format_data(x: Data, arrays: &HashMap<u16, Vec<Data>>) -> String {
     match x {
         Data::Number(num) => num.to_string(),
         Data::Bool(bool) => bool.to_string(),
         Data::String(str) => str.to_string(),
-        Data::Array(a, b) => concat_string!(
+        Data::Array(a) => concat_string!(
             "[",
-            arrays[a as usize..(b) as usize]
+            arrays[&a]
                 .iter()
                 .map(|x| format_data(*x, arrays))
                 .collect::<Vec<_>>()

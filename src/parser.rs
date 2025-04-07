@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::util::print_instructions;
 use crate::{Data, Instr, Opcode, error};
 use crate::{check_args, check_args_range, print};
@@ -134,7 +135,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     if x.is_empty() {
         return;
     }
-    if let Instr::ArrayMov(_, _) = x.last().unwrap() {
+    if let Instr::ArrayMov(_,_,_) = x.last().unwrap() {
         return;
     }
     print!("MOVING TO ID {tgt_id} => {x:?}");
@@ -226,7 +227,7 @@ fn get_id(
     instr: &mut Vec<Instr>,
     line: &String,
     functions: &mut Vec<Function>,
-    arrays: &mut Vec<Data>,
+    arrays: &mut HashMap<u16, Vec<Data>>,
 ) -> u16 {
     print!("GETTING ID OF {x:?}");
     match x {
@@ -243,7 +244,10 @@ fn get_id(
             (consts.len() - 1) as u16
         }
         Expr::Var(name) => {
+            println!("getting id of var {name:?}");
+            println!("{variables:?}");
             if let Some((_, id)) = variables.iter().find(|(var, _)| name == *var) {
+                println!("returning id {id:?}");
                 *id
             } else {
                 error!(
@@ -281,6 +285,13 @@ fn expr_to_data(input: Expr) -> Data {
     }
 }
 
+fn cannot_move(x: Instr) -> bool {
+    match x {
+        Instr::ArrayMov(_, _, _) => true,
+        _ => false,
+    }
+}
+
 type Function = (String, Box<[String]>, Box<[Expr]>);
 type FunctionState = (String, u16, Vec<(String, u16)>, Option<u16>);
 
@@ -294,7 +305,7 @@ fn parser_to_instr_set(
     fns: &mut Vec<Function>,
     fn_state: Option<&FunctionState>,
     // arrays
-    arrs: &mut Vec<Data>,
+    arrs: &mut HashMap<u16, Vec<Data>>,
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
@@ -304,25 +315,25 @@ fn parser_to_instr_set(
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
             Expr::Array(elems) => {
-                let start = arrs.len();
+                let id = arrs.len() as u16;
+                arrs.insert(id, Vec::new());
                 for elem in elems {
-                    let mut x = parser_to_instr_set(vec![elem], v, consts, fns, fn_state, arrs);
+                    let x = parser_to_instr_set(vec![elem], v, consts, fns, fn_state, arrs);
                     if !x.is_empty() {
-                        consts.push(Data::Null);
-                        move_to_id(&mut x, (consts.len() - 1) as u16);
+                        let c_id = get_tgt_id(*x.last().unwrap());
                         output.extend(x);
-
-                        arrs.push(Data::Null);
+                        arrs.get_mut(&id).unwrap().push(Data::Null);
                         output.push(Instr::ArrayMov(
-                            (consts.len() - 1) as u16,
-                            (arrs.len() - 1) as u16,
+                            c_id,
+                            id,
+                            (arrs[&id].len() - 1) as u16,
                         ))
                     } else {
-                        arrs.push(consts.pop().unwrap());
+                        arrs.get_mut(&id).unwrap().push(consts.pop().unwrap());
                     }
                 }
-                let end = arrs.len();
-                consts.push(Data::Array(start as u16, end as u16));
+                consts.push(Data::Array(id));
+                print!("ARRAYS {arrs:?}")
             }
             Expr::GetIndex(target, index) => {
                 let x = parser_to_instr_set(vec![*target], v, consts, fns, fn_state, arrs);
@@ -451,9 +462,13 @@ fn parser_to_instr_set(
                 let mut val = parser_to_instr_set(vec![*y], v, consts, fns, fn_state, arrs);
                 println!("VAL IS {val:?}");
                 if val.is_empty() {
+                    println!("VAR {x:?} IS EMPTY");
                     v.push((x, (consts.len() - 1) as u16));
                 } else {
-                    consts.push(Data::Null);
+                    // println!("VAR {x:?} ISNT EMPTY");
+                    if !cannot_move(*val.last().unwrap()) {
+                        consts.push(Data::Null);
+                    }
                     move_to_id(&mut val, (consts.len() - 1) as u16);
                     v.push((x, (consts.len() - 1) as u16));
                     output.extend(val);
@@ -894,7 +909,7 @@ fn parser_to_instr_set(
     output
 }
 
-pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, Vec<Data>) {
+pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, HashMap<u16, Vec<Data>>) {
     let mut functions: Vec<Expr> = grammar::FileParser::new().parse(contents).unwrap();
     print!("funcs {functions:?}");
     let main_function: Vec<Expr> = {
@@ -930,7 +945,7 @@ pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, Vec<Data>) {
 
     let mut variables: Vec<(String, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
-    let mut arrays: Vec<Data> = Vec::new();
+    let mut arrays: HashMap<u16, Vec<Data>> = HashMap::new();
     let instructions = parser_to_instr_set(
         main_function,
         &mut variables,

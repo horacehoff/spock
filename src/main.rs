@@ -8,6 +8,7 @@ use inline_colorization::*;
 use internment::Intern;
 use likely_stable::{if_likely, likely};
 use std::cmp::PartialEq;
+use std::collections::HashMap;
 use std::io::Write;
 use std::time::Instant;
 
@@ -22,7 +23,7 @@ pub enum Data {
     Number(f64),
     Bool(bool),
     String(Intern<String>),
-    Array(u16, u16),
+    Array(u16),
     Null,
 }
 
@@ -66,17 +67,15 @@ pub enum Instr {
     StoreFuncArg(u16),
     ApplyFunc(u8, u16, u16),
 
-    ArrayMov(u16, u16),
+    ArrayMov(u16, u16, u16),
     GetIndex(u16, u16, u16),
-    // array - element - index
-    ArrayMod(u16, u16, u16),
 }
 
 fn execute(
     instructions: &[Instr],
     consts: &mut [Data],
     func_args_count: usize,
-    arrays: &mut Vec<Data>,
+    arrays: &mut HashMap<u16, Vec<Data>>,
 ) {
     println!("INSTR ARE {instructions:?}");
     let mut func_args: Vec<u16> = Vec::with_capacity(func_args_count);
@@ -111,11 +110,10 @@ fn execute(
                         let result = concat_string!(*parent, *child);
                         consts[dest as usize] = Data::String(Intern::from(result));
                     }
-                    (Data::Array(a, b), Data::Array(x, y)) => {
-                        let index_i = arrays.len() as u16;
-                        arrays.extend(arrays[a as usize..b as usize].to_vec());
-                        arrays.extend(&arrays[x as usize..y as usize].to_vec());
-                        consts[dest as usize] = Data::Array(index_i, (arrays.len() - 1) as u16)
+                    (Data::Array(a), Data::Array(b)) => {
+                        let id = arrays.len() as u16;
+                        arrays.insert(id, [arrays[&a].clone(), arrays[&b].clone()].concat());
+                        consts[dest as usize] = Data::Array(id);
                     }
                     _ => {
                         error_b!(format_args!(
@@ -351,17 +349,17 @@ fn execute(
             Instr::ApplyFunc(fctn_id, tgt, dest) => {
                 FUNCS[fctn_id as usize](tgt, dest, consts, &mut func_args, arrays);
             }
-            Instr::ArrayMov(tgt, dest) => {
-                arrays[dest as usize] = consts[tgt as usize];
-                print!("{arrays:?}");
+            Instr::ArrayMov(tgt, dest, idx) => {
+                arrays.get_mut(&dest).unwrap()[idx as usize] = consts[tgt as usize];
+                print!("ARRAYS {arrays:?}");
             }
             Instr::GetIndex(tgt, index, dest) => {
                 let target = consts[tgt as usize];
                 if let Data::Number(idx) = consts[index as usize] {
                     let idx = idx as usize;
                     match target {
-                        Data::Array(x, y) => {
-                            let arr = &arrays[x as usize..y as usize];
+                        Data::Array(x) => {
+                            let arr = &arrays[&x];
                             if likely(arr.len() > idx) {
                                 consts[dest as usize] = arr[idx];
                             } else {
@@ -392,11 +390,6 @@ fn execute(
                         }
                     }
                 }
-            }
-            Instr::ArrayMod(array_tgt, elem_tgt, array_idx) => {
-                // let elem = consts[elem_tgt as usize];
-                // let array = consts[array_tgt as usize];
-                arrays[array_idx as usize] = consts[elem_tgt as usize];
             }
         }
         i += 1;

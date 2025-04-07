@@ -62,7 +62,7 @@ pub fn get_type(x: Data) -> String {
         Data::Number(_) => String::from("Number"),
         Data::Bool(_) => String::from("Bool"),
         Data::String(_) => String::from("String"),
-        Data::Array(_, _) => String::from("Array"),
+        Data::Array(_) => String::from("Array"),
         Data::Null => String::from("NULL"),
     }
 }

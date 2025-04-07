@@ -1,5 +1,4 @@
 fn main() {
-let test = [1,4];
-test[1] = 27;
-print(test);
+let test = [4,2];
+print(test.index(2));
 }
