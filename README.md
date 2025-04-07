@@ -88,12 +88,11 @@ print(x[0]);
 
 ## Types
 - `Boolean` (`true`/`false`)
-- `Integer`
+- `Number` (internally an f64)
 - `Array` (`[1, 2, 3, "4", 5.0, true]`)
 - `String`
-- `Float`
 #### Converting types
-- `x` to `Integer`=> `int(x)`
+- `x` to `Number`=> `num(x)`
 - `x` to `Float`=> `float(x)`
 - `x` to `String`=> `str(x)`
 
