@@ -474,6 +474,7 @@ fn parser_to_instr_set(
                 }
             }
             Expr::ArrayModify(x, z,w) => {
+                // WIP
                 let consts_idx = get_id(*x, v, consts, &mut output, &ctx, fns, arrs);
 
                 let mut array_idx = (consts.len() - 1) as u16;

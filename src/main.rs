@@ -353,10 +353,9 @@ fn execute(
             }
             Instr::ArrayMov(tgt, dest, idx) => {
                 arrays.get_mut(&dest).unwrap()[idx as usize] = consts[tgt as usize];
-                print!("ARRAYS {arrays:?}");
             }
             Instr::ArrayMod(tgt, dest, idx) => {
-                if let Data::Number(index) = consts[idx as usize] {
+                if_likely!(let Data::Number(index) = consts[idx as usize] => {
                     let elem = arrays.get_mut(&dest).unwrap();
                     if likely(elem.len() > index as usize) {
                        elem[index as usize] = consts[tgt as usize];
@@ -368,8 +367,9 @@ fn execute(
                             elem.len()
                         ));
                     }
-
-                }
+                } else {
+                    error_b!(format_args!("{} is not a valid index", consts[idx as usize]));
+                })
             }
             Instr::GetIndex(tgt, index, dest) => {
                 let target = consts[tgt as usize];
