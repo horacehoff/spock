@@ -285,10 +285,10 @@ fn expr_to_data(input: Expr) -> Data {
     }
 }
 
-fn cannot_move(x: Instr) -> bool {
+fn can_move(x: Instr) -> bool {
     match x {
-        Instr::ArrayMov(_, _, _) => true,
-        _ => false,
+        Instr::ArrayMov(_, _, _) => false,
+        _ => true,
     }
 }
 
@@ -460,13 +460,12 @@ fn parser_to_instr_set(
             }
             Expr::VarDeclare(x, y) => {
                 let mut val = parser_to_instr_set(vec![*y], v, consts, fns, fn_state, arrs);
-                println!("VAL IS {val:?}");
+                print!("VAL IS {val:?}");
                 if val.is_empty() {
-                    println!("VAR {x:?} IS EMPTY");
+                    print!("VAR {x:?} IS EMPTY");
                     v.push((x, (consts.len() - 1) as u16));
                 } else {
-                    // println!("VAR {x:?} ISNT EMPTY");
-                    if !cannot_move(*val.last().unwrap()) {
+                    if can_move(*val.last().unwrap()) {
                         consts.push(Data::Null);
                     }
                     move_to_id(&mut val, (consts.len() - 1) as u16);
