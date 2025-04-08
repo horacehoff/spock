@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::util::print_instructions;
 use crate::{Data, Instr, Opcode, error};
 use crate::{check_args, check_args_range, print};
@@ -6,6 +5,7 @@ use colored::Colorize;
 use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
@@ -33,7 +33,7 @@ pub enum Expr {
     ReturnVal(Box<Option<Expr>>),
 
     GetIndex(Box<Expr>, Box<[Expr]>),
-    ArrayModify(Box<Expr>, Box<[Expr]>,Box<Expr>),
+    ArrayModify(Box<Expr>, Box<[Expr]>, Box<Expr>),
 }
 
 lalrpop_mod!(pub grammar);
@@ -135,7 +135,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     if x.is_empty() {
         return;
     }
-    if let Instr::ArrayMov(_,_,_) = x.last().unwrap() {
+    if let Instr::ArrayMov(_, _, _) = x.last().unwrap() {
         return;
     }
     print!("MOVING TO ID {tgt_id} => {x:?}");
@@ -323,11 +323,7 @@ fn parser_to_instr_set(
                         let c_id = get_tgt_id(*x.last().unwrap());
                         output.extend(x);
                         arrs.get_mut(&id).unwrap().push(Data::Null);
-                        output.push(Instr::ArrayMov(
-                            c_id,
-                            id,
-                            (arrs[&id].len() - 1) as u16,
-                        ))
+                        output.push(Instr::ArrayMov(c_id, id, (arrs[&id].len() - 1) as u16))
                     } else {
                         arrs.get_mut(&id).unwrap().push(consts.pop().unwrap());
                     }
@@ -473,30 +469,73 @@ fn parser_to_instr_set(
                     output.extend(val);
                 }
             }
-            Expr::ArrayModify(x, z,w) => {
+            Expr::ArrayModify(x, z, w) => {
                 // WIP
-                let consts_idx = get_id(*x, v, consts, &mut output, &ctx, fns, arrs);
+                // let consts_idx = get_id(*x, v, consts, &mut output, &ctx, fns, arrs);
+                //
+                // let mut array_idx = (consts.len() - 1) as u16;
+                // let mut i = 0;
+                // let len = z.len();
+                // for elem in z {
+                //     println!("CONSTS ARE {consts:?}");
+                //         let x = parser_to_instr_set(vec![elem], v, consts, fns, fn_state, arrs);
+                //         output.extend(x);
+                //         let f_id = (consts.len() - 1) as u16;
+                //
+                //         consts.push(Data::Null);
+                //         output.push(Instr::GetIndex(array_idx, f_id, (consts.len() - 1) as u16));
+                //         array_idx = (consts.len() - 1) as u16;
+                // }
+                //
+                //
+                // let f_idx = get_id(*w, v, consts, &mut output, &ctx, fns, arrs);
+                // output.push(Instr::ArrayMod(f_idx, consts_idx, array_idx));
+                println!("X{x:?}Y{z:?}W{w:?}");
+                let x = parser_to_instr_set(vec![*x], v, consts, fns, fn_state, arrs);
+                output.extend(x);
 
-                let mut array_idx = (consts.len() - 1) as u16;
-                let mut i = 0;
-                for elem in z {
-                    if i == 0 {
-                        array_idx = get_id(elem, v, consts, &mut output, &ctx, fns, arrs);
-                    } else {
-                        let x = parser_to_instr_set(vec![elem], v, consts, fns, fn_state, arrs);
-                        output.extend(x);
-                        let f_id = (consts.len() - 1) as u16;
+                let mut id = (consts.len() - 1) as u16;
 
-                        consts.push(Data::Null);
-                        output.push(Instr::GetIndex(array_idx, f_id, (consts.len() - 1) as u16));
-                        array_idx = (consts.len() - 1) as u16;
-                    }
-                    i += 1;
+                for elem in z.iter().rev().skip(1).rev() {
+                    println!("ELM {elem:?}");
+                    let x = parser_to_instr_set(vec![elem.clone()], v, consts, fns, fn_state, arrs);
+                    output.extend(x);
+                    let f_id = (consts.len() - 1) as u16;
+
+                    consts.push(Data::Null);
+                    output.push(Instr::GetIndex(id, f_id, (consts.len() - 1) as u16));
+                    id = (consts.len() - 1) as u16;
                 }
+                println!("ID IS {id:?}");
+                println!("CONSTS IS {consts:?}");
+                println!("LAST Z IS {}", z.last().unwrap());
+                let to_push = Instr::ArrayMod(
+                    id,
+                    1,
+                    get_id(
+                        z.last().unwrap().clone(),
+                        v,
+                        consts,
+                        &mut output,
+                        &ctx,
+                        fns,
+                        arrs,
+                    ),
+                );
+                output.push(to_push);
 
-
-                let f_idx = get_id(*w, v, consts, &mut output, &ctx, fns, arrs);
-                output.push(Instr::ArrayMod(f_idx, consts_idx, array_idx));
+                // let x = parser_to_instr_set(vec![*x], v, consts, fns, fn_state, arrs);
+                // output.extend(x);
+                // let mut id = (consts.len() - 1) as u16;
+                // for elem in z {
+                //     let x = parser_to_instr_set(vec![elem], v, consts, fns, fn_state, arrs);
+                //     output.extend(x);
+                //     let f_id = (consts.len() - 1) as u16;
+                //
+                //     consts.push(Data::Null);
+                //     output.push(Instr::GetIndex(id, f_id, (consts.len() - 1) as u16));
+                //     id = (consts.len() - 1) as u16;
+                // }
             }
             Expr::VarAssign(x, y) => {
                 let id = v

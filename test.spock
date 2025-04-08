@@ -1,5 +1,5 @@
 fn main() {
-let test = "hi";
-test[3] = "o";
+let test = [[1,4,5],2,3];
+test[0][1] = 7;
 print(test);
 }

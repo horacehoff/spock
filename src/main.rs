@@ -6,7 +6,7 @@ use colored::Colorize;
 use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
-use likely_stable::{if_likely, likely, unlikely};
+use likely_stable::{if_likely, likely};
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::io::Write;
@@ -351,9 +351,11 @@ fn execute(
             Instr::ApplyFunc(fctn_id, tgt, dest) => {
                 FUNCS[fctn_id as usize](tgt, dest, consts, &mut func_args, arrays);
             }
+            // takes tgt from consts, moves it to dest-th array at idx-th index
             Instr::ArrayMov(tgt, dest, idx) => {
                 arrays.get_mut(&dest).unwrap()[idx as usize] = consts[tgt as usize];
             }
+            // takes tgt from consts, idx from consts,
             Instr::ArrayMod(tgt, dest, idx) => {
                 if_likely!(let Data::Number(index) = consts[idx as usize] => {
                     if let Data::String(letter) = consts.get(tgt as usize).unwrap_or(&mut Data::Null).clone() {
@@ -373,22 +375,31 @@ fn execute(
                             }
                         }
                     } else {
-                        let elem = arrays.get_mut(&dest).unwrap();
-                        if likely(elem.len() > index as usize) {
-                           elem[index as usize] = consts[tgt as usize];
-                            print!("ARRAYS {arrays:?}");
-                        } else {
-                            error_b!(format_args!(
-                                "Trying to get index {color_red}{}{color_reset} but Array has {} elements",
-                                index,
-                                elem.len()
-                            ));
+                        println!("ONSTST TGT IS {}", consts[tgt as usize]);
+                        if let Data::Array(x) = consts[tgt as usize] {
+                            println!("XXXXX {}",x);
+                            let elem = arrays.get_mut(&x).unwrap();
+                            println!("ELEMEMEM IS  {:?}",elem);
+                            if likely(elem.len() > index as usize) {
+                                println!("CHILD IS  {:?}",elem[index as usize]);
+                                println!("PARENT IS  {:?}",consts[tgt as usize]);
+                               elem[index as usize] = consts[tgt as usize];
+                                print!("ARRAYS {arrays:?}");
+                            } else {
+                                error_b!(format_args!(
+                                    "Trying to get index {color_red}{}{color_reset} but Array has {} elements",
+                                    index,
+                                    elem.len()
+                                ));
+                            }
                         }
+
                     }
                 } else {
                     error_b!(format_args!("{} is not a valid index", consts[idx as usize]));
                 })
             }
+            // takes tgt from  consts, index is index, dest is consts index destination
             Instr::GetIndex(tgt, index, dest) => {
                 let target = consts[tgt as usize];
                 if let Data::Number(idx) = consts[index as usize] {
@@ -398,6 +409,7 @@ fn execute(
                             let arr = &arrays[&x];
                             if likely(arr.len() > idx) {
                                 consts[dest as usize] = arr[idx];
+                                println!("TGETIEHFE {}", consts[dest as usize]);
                             } else {
                                 error_b!(format_args!(
                                     "Trying to get index {color_red}{}{color_reset} but Array {} has {} elements",
