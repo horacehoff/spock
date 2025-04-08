@@ -73,7 +73,7 @@ pub enum Instr {
     GetIndex(u16, u16, u16),
 }
 
-fn execute(
+pub fn execute(
     instructions: &[Instr],
     consts: &mut [Data],
     func_args_count: usize,
@@ -478,4 +478,19 @@ fn main() {
     execute(&instructions, &mut consts, func_args_count, &mut arrays);
 
     println!("EXEC TIME {:.2?}", now.elapsed());
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fibonacci_40() {
+        let instr = vec![Instr::Sub(0,5,6), Instr::Inf(4,6,7), Instr::Cmp(7,6), Instr::Add(1,2,3), Instr::Mov(2,1), Instr::Mov(3,2), Instr::Add(4,11,4), Instr::Jmp(6, true)];
+        let mut consts = vec![Data::Number(40.0), Data::Number(0.0), Data::Number(1.0), Data::Number(0.0), Data::Number(0.0), Data::Number(1.0), Data::Null, Data::Null, Data::Null, Data::Null, Data::Null, Data::Number(1.0), Data::Null];
+        execute(&instr, &mut consts, 0, &mut HashMap::default());
+        assert_eq!(consts[3], Data::Number(102334155.0));
+    }
 }

@@ -15,7 +15,6 @@ impl std::fmt::Display for Data {
             Data::String(str) => write!(f, "{str}"),
             Data::Null => write!(f, "NULL"),
             Data::Array(start) => write!(f, "ARRAY{start}"),
-            _ => todo!(),
         }
     }
 }
