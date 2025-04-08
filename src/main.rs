@@ -357,47 +357,23 @@ fn execute(
             }
             // takes tgt from consts, idx from consts,
             Instr::ArrayMod(tgt, dest, idx) => {
-                if_likely!(let Data::Number(index) = consts[idx as usize] => {
-                    if let Data::String(letter) = consts.get(tgt as usize).unwrap_or(&mut Data::Null).clone() {
-                        if let Data::String(x) = consts.get_mut(dest as usize).unwrap_or(&mut Data::Null) {
-                            if likely(x.len() > index as usize) {
-                                let mut temp = x.to_string();
-                                temp.remove(index as usize);
-                                temp.insert_str(index as usize, &*letter);
-                                *x = Intern::from(temp);
-                            } else {
-                                error_b!(format_args!(
-                                    "Trying to get index {color_red}{}{color_reset} but String \"{}\" has {} characters",
-                                    index,
-                                    x.blue(),
-                                    x.len()
-                                ));
-                            }
+                if let Data::Number(index) = consts[idx as usize] {
+                    let requested_mod = consts[dest as usize];
+                    if let Data::Array(array_id) = consts[tgt as usize] {
+                        arrays.get_mut(&array_id).unwrap()[index as usize] = requested_mod;
+                    } else if let Data::String(str_id) = consts.get_mut(tgt as usize).unwrap() {
+                        // DOESNT WORK RN
+                        if let Data::String(letter) = requested_mod {
+                            println!("STRING IS {str_id}");
+                            println!("LETTER IS {letter}");
+                            println!("INDEX IS {index}");
+                            let mut temp = str_id.to_string();
+                            temp.remove(index as usize);
+                            temp.insert_str(index as usize, &*letter);
+                            *str_id = Intern::from(temp);
                         }
-                    } else {
-                        println!("ONSTST TGT IS {}", consts[tgt as usize]);
-                        if let Data::Array(x) = consts[tgt as usize] {
-                            println!("XXXXX {}",x);
-                            let elem = arrays.get_mut(&x).unwrap();
-                            println!("ELEMEMEM IS  {:?}",elem);
-                            if likely(elem.len() > index as usize) {
-                                println!("CHILD IS  {:?}",elem[index as usize]);
-                                println!("PARENT IS  {:?}",consts[tgt as usize]);
-                               elem[index as usize] = consts[tgt as usize];
-                                print!("ARRAYS {arrays:?}");
-                            } else {
-                                error_b!(format_args!(
-                                    "Trying to get index {color_red}{}{color_reset} but Array has {} elements",
-                                    index,
-                                    elem.len()
-                                ));
-                            }
-                        }
-
                     }
-                } else {
-                    error_b!(format_args!("{} is not a valid index", consts[idx as usize]));
-                })
+                }
             }
             // takes tgt from  consts, index is index, dest is consts index destination
             Instr::GetIndex(tgt, index, dest) => {

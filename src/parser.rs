@@ -470,27 +470,6 @@ fn parser_to_instr_set(
                 }
             }
             Expr::ArrayModify(x, z, w) => {
-                // WIP
-                // let consts_idx = get_id(*x, v, consts, &mut output, &ctx, fns, arrs);
-                //
-                // let mut array_idx = (consts.len() - 1) as u16;
-                // let mut i = 0;
-                // let len = z.len();
-                // for elem in z {
-                //     println!("CONSTS ARE {consts:?}");
-                //         let x = parser_to_instr_set(vec![elem], v, consts, fns, fn_state, arrs);
-                //         output.extend(x);
-                //         let f_id = (consts.len() - 1) as u16;
-                //
-                //         consts.push(Data::Null);
-                //         output.push(Instr::GetIndex(array_idx, f_id, (consts.len() - 1) as u16));
-                //         array_idx = (consts.len() - 1) as u16;
-                // }
-                //
-                //
-                // let f_idx = get_id(*w, v, consts, &mut output, &ctx, fns, arrs);
-                // output.push(Instr::ArrayMod(f_idx, consts_idx, array_idx));
-                println!("X{x:?}Y{z:?}W{w:?}");
                 let x = parser_to_instr_set(vec![*x], v, consts, fns, fn_state, arrs);
                 output.extend(x);
 
@@ -506,36 +485,37 @@ fn parser_to_instr_set(
                     output.push(Instr::GetIndex(id, f_id, (consts.len() - 1) as u16));
                     id = (consts.len() - 1) as u16;
                 }
+
+                let final_id = get_id(
+                    z.last().unwrap().clone(),
+                    v,
+                    consts,
+                    &mut output,
+                    &ctx,
+                    fns,
+                    arrs,
+                );
+
                 println!("ID IS {id:?}");
                 println!("CONSTS IS {consts:?}");
                 println!("LAST Z IS {}", z.last().unwrap());
+
+
+                let elem_id = get_id(
+                    *w,
+                    v,
+                    consts,
+                    &mut output,
+                    &ctx,
+                    fns,
+                    arrs,
+                );
+
+
                 let to_push = Instr::ArrayMod(
-                    id,
-                    1,
-                    get_id(
-                        z.last().unwrap().clone(),
-                        v,
-                        consts,
-                        &mut output,
-                        &ctx,
-                        fns,
-                        arrs,
-                    ),
+                    id, elem_id, final_id
                 );
                 output.push(to_push);
-
-                // let x = parser_to_instr_set(vec![*x], v, consts, fns, fn_state, arrs);
-                // output.extend(x);
-                // let mut id = (consts.len() - 1) as u16;
-                // for elem in z {
-                //     let x = parser_to_instr_set(vec![elem], v, consts, fns, fn_state, arrs);
-                //     output.extend(x);
-                //     let f_id = (consts.len() - 1) as u16;
-                //
-                //     consts.push(Data::Null);
-                //     output.push(Instr::GetIndex(id, f_id, (consts.len() - 1) as u16));
-                //     id = (consts.len() - 1) as u16;
-                // }
             }
             Expr::VarAssign(x, y) => {
                 let id = v
