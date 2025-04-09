@@ -57,4 +57,12 @@ mod tests {
         execute(&instr, &mut consts, 0, &mut HashMap::default());
         assert_eq!(consts[0], Number(9765625.0));
     }
+
+    #[test]
+    fn mul_add_rpn() {
+        let instr = vec![Mul(0, 1, 2), Add(3, 2, 5)];
+        let mut consts = vec![Number(5.0), Number(2.0), Null, Number(2.0), Null, Null];
+        execute(&instr, &mut consts, 0, &mut HashMap::default());
+        assert_eq!(consts[5], Number(12.0));
+    }
 }
