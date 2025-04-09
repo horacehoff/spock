@@ -1,8 +1,6 @@
 fn main() {
 let a = [0,1,2,3,4];
-let i = 0;
-while i < a.len() {
-    print(a[i]);
-    i += 1;
+for x in a {
+print(x);
 }
 }

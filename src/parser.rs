@@ -34,6 +34,8 @@ pub enum Expr {
 
     GetIndex(Box<Expr>, Box<[Expr]>),
     ArrayModify(Box<Expr>, Box<[Expr]>, Box<Expr>),
+
+    ForLoop(String, Box<Expr>, Box<[Expr]>),
 }
 
 lalrpop_mod!(pub grammar);
@@ -454,6 +456,40 @@ fn parser_to_instr_set(
                 output.extend(cond_code);
                 output.push(Instr::Jmp(len, true));
             }
+            Expr::ForLoop(var_name, array, code) => {
+                let mut ultimate_code: Vec<Expr> = Vec::new();
+                let arr_id = String::from("!".repeat(v.len()));
+                ultimate_code.push(Expr::VarDeclare(arr_id.clone(), array));
+                let indx_id = String::from("î".repeat(v.len()));
+                ultimate_code.push(Expr::VarDeclare(indx_id.clone(), Box::new(Expr::Num(0.0))));
+                ultimate_code.push(Expr::VarDeclare(var_name.clone(), Box::new(Expr::Num(0.0))));
+                let mut final_code = Vec::new();
+                final_code.push(Expr::VarAssign(
+                    var_name,
+                    Box::new(Expr::GetIndex(
+                        Box::new(Expr::Var(arr_id.clone())),
+                        Box::from(vec![Expr::Var(indx_id.clone())]),
+                    )),
+                ));
+                final_code.extend(code.to_vec());
+                final_code.push(Expr::VarAssign(
+                    indx_id.clone(),
+                    Box::new(Expr::Op(
+                        Box::new(Expr::Var(indx_id.clone())),
+                        Box::new([(Opcode::Add, Box::from(Expr::Num(1.0)))]),
+                    )),
+                ));
+                ultimate_code.push(Expr::WhileBlock(Box::new(Expr::Op(Box::new(Expr::Var(indx_id)), /* Box<[(Opcode, Box<Expr>)]> */ Box::new([(Opcode::Inf, Box::from(Expr::ObjFunctionCall(Box::new(Expr::Var(arr_id)), Box::new([("len".parse().unwrap(), Box::new([]))])/* Box<[(String, Box<[Expr]>)]> */)))]))), Box::from(final_code)));
+
+                output.extend(parser_to_instr_set(
+                    ultimate_code,
+                    v,
+                    consts,
+                    fns,
+                    fn_state,
+                    arrs,
+                ));
+            }
             Expr::VarDeclare(x, y) => {
                 let mut val = parser_to_instr_set(vec![*y], v, consts, fns, fn_state, arrs);
                 print!("VAL IS {val:?}");
@@ -470,15 +506,7 @@ fn parser_to_instr_set(
                 }
             }
             Expr::ArrayModify(x, z, w) => {
-                let mut id = get_id(
-                    *x,
-                    v,
-                    consts,
-                    &mut output,
-                    &ctx,
-                    fns,
-                    arrs,
-                );
+                let mut id = get_id(*x, v, consts, &mut output, &ctx, fns, arrs);
 
                 for elem in z.iter().rev().skip(1).rev() {
                     println!("ELM {elem:?}");
@@ -505,21 +533,9 @@ fn parser_to_instr_set(
                 println!("CONSTS IS {consts:?}");
                 println!("LAST Z IS {}", z.last().unwrap());
 
+                let elem_id = get_id(*w, v, consts, &mut output, &ctx, fns, arrs);
 
-                let elem_id = get_id(
-                    *w,
-                    v,
-                    consts,
-                    &mut output,
-                    &ctx,
-                    fns,
-                    arrs,
-                );
-
-
-                let to_push = Instr::ArrayMod(
-                    id, elem_id, final_id
-                );
+                let to_push = Instr::ArrayMod(id, elem_id, final_id);
                 output.push(to_push);
             }
             Expr::VarAssign(x, y) => {
