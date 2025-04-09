@@ -359,8 +359,10 @@ pub fn execute(
             Instr::ArrayMod(tgt, dest, idx) => {
                 if let Data::Number(index) = consts[idx as usize] {
                     let requested_mod = consts[dest as usize];
+                    //println!("TGT IS {}",consts[tgt as usize]);
                     if let Data::Array(array_id) = consts[tgt as usize] {
                         let array = arrays.get_mut(&array_id).unwrap();
+                        println!("ARRAY is {array:?}");
                         if likely(array.len() > index as usize) {
                             array[index as usize] = requested_mod;
                         } else {
@@ -389,6 +391,8 @@ pub fn execute(
                         } else {
                             error_b!(format_args!("Cannot replace type {color_blue}Letter{color_reset} by type {color_red}{}{color_reset}", get_type(requested_mod)));
                         }
+                    } else {
+                        error_b!(format_args!("Cannot index type {color_red}{}{color_reset}", get_type(consts[tgt as usize])));
                     }
                 }
             }
