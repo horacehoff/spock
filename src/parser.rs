@@ -479,7 +479,7 @@ fn parser_to_instr_set(
                         Box::new([(Opcode::Add, Box::from(Expr::Num(1.0)))]),
                     )),
                 ));
-                ultimate_code.push(Expr::WhileBlock(Box::new(Expr::Op(Box::new(Expr::Var(indx_id)), /* Box<[(Opcode, Box<Expr>)]> */ Box::new([(Opcode::Inf, Box::from(Expr::ObjFunctionCall(Box::new(Expr::Var(arr_id)), Box::new([("len".parse().unwrap(), Box::new([]))])/* Box<[(String, Box<[Expr]>)]> */)))]))), Box::from(final_code)));
+                ultimate_code.push(Expr::WhileBlock(Box::new(Expr::Op(Box::new(Expr::Var(indx_id)), Box::new([(Opcode::Inf, Box::from(Expr::ObjFunctionCall(Box::new(Expr::Var(arr_id)), Box::new([("len".parse().unwrap(), Box::new([]))]))))]))), Box::from(final_code)));
 
                 output.extend(parser_to_instr_set(
                     ultimate_code,
