@@ -1,14 +1,5 @@
 fn main() {
-let n = 40;
-let a=0;
-let b=1;
-let c=0;
-let i=0;
-while i < n-1 {
-   c = a+b;
-   a = b;
-   b = c;
-   i = i+1;
-}
-print(c);
+let a = [1,[0,1,2],3];
+a[1][2] = "o";
+print(a);
 }
