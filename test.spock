@@ -1,5 +1,8 @@
 fn main() {
-let a = [1,[0,1,2],3];
-a[2][8] = "o";
-print(a);
+let a = 1;
+let i = 0;
+while i < 10 {
+    a *= 5;
+    i += 1;
+}
 }
