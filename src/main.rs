@@ -16,6 +16,7 @@ mod builtin_funcs;
 mod display;
 mod parser;
 mod util;
+mod tests;
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
@@ -377,7 +378,7 @@ pub fn execute(
                             if likely(str_id.len() > index as usize) {
                                 let mut temp = str_id.to_string();
                                 temp.remove(index as usize);
-                                temp.insert_str(index as usize, &*letter);
+                                temp.insert_str(index as usize, &letter);
                                 *str_id = Intern::from(temp);
                             } else {
                                 error_b!(format_args!(
@@ -489,29 +490,24 @@ fn main() {
     let now = Instant::now();
 
     let mut func_args_count = 0;
+    let mut func_args_count_max = 0;
     for x in &instructions {
         if matches!(x, Instr::StoreFuncArg(_)) {
             func_args_count += 1;
-        } else if matches!(x, Instr::ApplyFunc(_, _, _)) {
+        } else if matches!(x, Instr::ApplyFunc(_, _, _)) && func_args_count > func_args_count_max {
+            func_args_count_max = func_args_count;
             func_args_count = 0;
         }
     }
-    execute(&instructions, &mut consts, func_args_count, &mut arrays);
+    println!("INSTR {instructions:?}");
+    println!("CONSTS {consts:?}");
+    println!("ARRAYS {arrays:?}");
+    println!("FUNC_ARGS_COUNT {func_args_count_max:?}");
+    execute(&instructions, &mut consts, func_args_count_max, &mut arrays);
 
     println!("EXEC TIME {:.2?}", now.elapsed());
-}
-
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn fibonacci_40() {
-        let instr = vec![Instr::Sub(0,5,6), Instr::Inf(4,6,7), Instr::Cmp(7,6), Instr::Add(1,2,3), Instr::Mov(2,1), Instr::Mov(3,2), Instr::Add(4,11,4), Instr::Jmp(6, true)];
-        let mut consts = vec![Data::Number(40.0), Data::Number(0.0), Data::Number(1.0), Data::Number(0.0), Data::Number(0.0), Data::Number(1.0), Data::Null, Data::Null, Data::Null, Data::Null, Data::Null, Data::Number(1.0), Data::Null];
-        execute(&instr, &mut consts, 0, &mut HashMap::default());
-        assert_eq!(consts[3], Data::Number(102334155.0));
-    }
+    println!("INSTR {instructions:?}");
+    println!("CONSTS {consts:?}");
+    println!("ARRAYS {arrays:?}");
+    println!("FUNC_ARGS_COUNT {func_args_count_max:?}");
 }
