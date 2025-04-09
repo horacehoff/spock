@@ -470,9 +470,6 @@ fn parser_to_instr_set(
                 }
             }
             Expr::ArrayModify(x, z, w) => {
-                // let x = parser_to_instr_set(vec![*x], v, consts, fns, fn_state, arrs);
-                // output.extend(x);
-
                 let mut id = get_id(
                     *x,
                     v,
@@ -482,7 +479,6 @@ fn parser_to_instr_set(
                     fns,
                     arrs,
                 );
-                // let mut id = (consts.len() - 1) as u16;
 
                 for elem in z.iter().rev().skip(1).rev() {
                     println!("ELM {elem:?}");

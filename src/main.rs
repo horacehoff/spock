@@ -360,17 +360,34 @@ pub fn execute(
                 if let Data::Number(index) = consts[idx as usize] {
                     let requested_mod = consts[dest as usize];
                     if let Data::Array(array_id) = consts[tgt as usize] {
-                        arrays.get_mut(&array_id).unwrap()[index as usize] = requested_mod;
+                        let array = arrays.get_mut(&array_id).unwrap();
+                        if likely(array.len() > index as usize) {
+                            array[index as usize] = requested_mod;
+                        } else {
+                            error_b!(format_args!(
+                                "Trying to get index {color_red}{}{color_reset} but Array has {} elements",
+                                index,
+                                array.len()
+                            ));
+                        }
                     } else if let Data::String(str_id) = consts.get_mut(tgt as usize).unwrap() {
-                        // DOESNT WORK RN
                         if let Data::String(letter) = requested_mod {
-                            println!("STRING IS {str_id}");
-                            println!("LETTER IS {letter}");
-                            println!("INDEX IS {index}");
-                            let mut temp = str_id.to_string();
-                            temp.remove(index as usize);
-                            temp.insert_str(index as usize, &*letter);
-                            *str_id = Intern::from(temp);
+                            if likely(str_id.len() > index as usize) {
+                                let mut temp = str_id.to_string();
+                                temp.remove(index as usize);
+                                temp.insert_str(index as usize, &*letter);
+                                *str_id = Intern::from(temp);
+                            } else {
+                                error_b!(format_args!(
+                                    "Trying to get index {color_red}{}{color_reset} but String \"{}\" has {} characters",
+                                    index,
+                                    str_id.blue(),
+                                    str_id.len()
+                                ));
+                            }
+
+                        } else {
+                            error_b!(format_args!("Cannot replace type {color_blue}Letter{color_reset} by type {color_red}{}{color_reset}", get_type(requested_mod)));
                         }
                     }
                 }
