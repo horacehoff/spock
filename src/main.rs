@@ -15,8 +15,8 @@ use std::time::Instant;
 mod builtin_funcs;
 mod display;
 mod parser;
-mod util;
 mod tests;
+mod util;
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
@@ -388,12 +388,17 @@ pub fn execute(
                                     str_id.len()
                                 ));
                             }
-
                         } else {
-                            error_b!(format_args!("Cannot replace type {color_blue}Letter{color_reset} by type {color_red}{}{color_reset}", get_type(requested_mod)));
+                            error_b!(format_args!(
+                                "Cannot replace type {color_blue}Letter{color_reset} by type {color_red}{}{color_reset}",
+                                get_type(requested_mod)
+                            ));
                         }
                     } else {
-                        error_b!(format_args!("Cannot index type {color_red}{}{color_reset}", get_type(consts[tgt as usize])));
+                        error_b!(format_args!(
+                            "Cannot index type {color_red}{}{color_reset}",
+                            get_type(consts[tgt as usize])
+                        ));
                     }
                 }
             }
@@ -407,7 +412,6 @@ pub fn execute(
                             let arr = &arrays[&x];
                             if likely(arr.len() > idx) {
                                 consts[dest as usize] = arr[idx];
-                                println!("TGETIEHFE {}", consts[dest as usize]);
                             } else {
                                 error_b!(format_args!(
                                     "Trying to get index {color_red}{}{color_reset} but Array {} has {} elements",

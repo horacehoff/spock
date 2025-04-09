@@ -1,12 +1,18 @@
-use std::collections::HashMap;
 use crate::display::format_data;
 use crate::{Data, error_b};
 use colored::Colorize;
 use inline_colorization::*;
 use internment::Intern;
 use likely_stable::if_likely;
+use std::collections::HashMap;
 
-fn uppercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut HashMap<u16, Vec<Data>>) {
+fn uppercase(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    _: &mut Vec<u16>,
+    _: &mut HashMap<u16, Vec<Data>>,
+) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
     } else {
@@ -17,7 +23,13 @@ fn uppercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut
     }}
 }
 
-fn lowercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut HashMap<u16, Vec<Data>>) {
+fn lowercase(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    _: &mut Vec<u16>,
+    _: &mut HashMap<u16, Vec<Data>>,
+) {
     if_likely! {let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
     } else {
@@ -28,18 +40,32 @@ fn lowercase(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut
     }}
 }
 
-fn len(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut HashMap<u16, Vec<Data>>) {
-    if_likely! { let Data::String(str) = consts[tgt as usize] => {
+fn len(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    _: &mut Vec<u16>,
+    arrays: &mut HashMap<u16, Vec<Data>>,
+) {
+    if let Data::String(str) = consts[tgt as usize] {
         consts[dest as usize] = Data::Number(str.chars().count() as f64)
+    } else if let Data::Array(arr) = consts[tgt as usize] {
+        consts[dest as usize] = Data::Number(arrays[&arr].len() as f64)
     } else {
         error_b!(format_args!(
             "{} is not a String",
             consts[tgt as usize].to_string().red()
         ));
-    }}
+    }
 }
 
-fn contains(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays: &mut HashMap<u16, Vec<Data>>) {
+fn contains(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    args: &mut Vec<u16>,
+    arrays: &mut HashMap<u16, Vec<Data>>,
+) {
     let target = consts[tgt as usize];
     if let Data::String(str) = target {
         let arg = args.swap_remove(0);
@@ -62,7 +88,13 @@ fn contains(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, array
     }
 }
 
-fn trim(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut HashMap<u16, Vec<Data>>) {
+fn trim(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    _: &mut Vec<u16>,
+    _: &mut HashMap<u16, Vec<Data>>,
+) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
     } else {
@@ -73,7 +105,13 @@ fn trim(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut Hash
     }}
 }
 
-fn trim_sequence(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &mut HashMap<u16, Vec<Data>>) {
+fn trim_sequence(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    args: &mut Vec<u16>,
+    _: &mut HashMap<u16, Vec<Data>>,
+) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
         if_likely!{ let Data::String(arg) = consts[arg as usize] => {
@@ -94,7 +132,13 @@ fn trim_sequence(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, 
     }}
 }
 
-fn index(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays: &mut HashMap<u16, Vec<Data>>) {
+fn index(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    args: &mut Vec<u16>,
+    arrays: &mut HashMap<u16, Vec<Data>>,
+) {
     let target = consts[tgt as usize];
     if let Data::String(str) = target {
         let arg = consts[args.swap_remove(0) as usize];
@@ -118,19 +162,37 @@ fn index(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays: 
     }
 }
 
-fn is_num(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut HashMap<u16, Vec<Data>>) {
+fn is_num(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    _: &mut Vec<u16>,
+    _: &mut HashMap<u16, Vec<Data>>,
+) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::Bool(str.parse::<f64>().is_ok())
     }}
 }
 
-fn trim_left(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut HashMap<u16, Vec<Data>>) {
+fn trim_left(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    _: &mut Vec<u16>,
+    _: &mut HashMap<u16, Vec<Data>>,
+) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim_start().to_string()))
     }}
 }
 
-fn trim_right(tgt: u16, dest: u16, consts: &mut [Data], _: &mut Vec<u16>, _: &mut HashMap<u16, Vec<Data>>) {
+fn trim_right(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    _: &mut Vec<u16>,
+    _: &mut HashMap<u16, Vec<Data>>,
+) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim_end().to_string()))
     } else {
@@ -195,7 +257,13 @@ fn trim_sequence_right(
     }}
 }
 
-fn rindex(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &mut HashMap<u16, Vec<Data>>) {
+fn rindex(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    args: &mut Vec<u16>,
+    _: &mut HashMap<u16, Vec<Data>>,
+) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
         if_likely!{ let Data::String(arg) = consts[arg as usize] => {
@@ -209,7 +277,13 @@ fn rindex(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, _: &mut
     }}
 }
 
-fn repeat(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays: &mut HashMap<u16, Vec<Data>>) {
+fn repeat(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    args: &mut Vec<u16>,
+    arrays: &mut HashMap<u16, Vec<Data>>,
+) {
     if let Data::String(str) = consts[tgt as usize] {
         let arg = args.swap_remove(0);
         if_likely! { let Data::Number(arg) = consts[arg as usize] => {
@@ -240,9 +314,18 @@ fn repeat(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays:
     }
 }
 
-fn push(tgt: u16, _: u16, consts: &mut [Data], args: &mut Vec<u16>, arrays: &mut HashMap<u16, Vec<Data>>) {
+fn push(
+    tgt: u16,
+    _: u16,
+    consts: &mut [Data],
+    args: &mut Vec<u16>,
+    arrays: &mut HashMap<u16, Vec<Data>>,
+) {
     if let Data::Array(id) = consts[tgt as usize] {
-        arrays.get_mut(&id).unwrap().push(consts[args.remove(0) as usize]);
+        arrays
+            .get_mut(&id)
+            .unwrap()
+            .push(consts[args.remove(0) as usize]);
     }
 }
 
