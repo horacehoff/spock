@@ -27,7 +27,6 @@ pub fn format_data(x: Data, arrays: &FnvHashMap<u16, Vec<Data>>) -> String {
         Data::Array(a) => concat_string!(
             "[",
             arrays[&a]
-                .clone()
                 .iter()
                 .map(|x| format_data(*x, arrays))
                 .collect::<Vec<_>>()
