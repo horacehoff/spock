@@ -1,7 +1,6 @@
 fn main() {
 let a = [0,1,2,3,4];
-let sum = 0;
 for x in a {
-sum += x;
+a.push(x);
 }
 }

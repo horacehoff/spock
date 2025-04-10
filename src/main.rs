@@ -4,11 +4,11 @@ use crate::util::get_type;
 use builtin_funcs::FUNCS;
 use colored::Colorize;
 use concat_string::concat_string;
+use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
 use likely_stable::{if_likely, likely};
 use std::cmp::PartialEq;
-use std::collections::HashMap;
 use std::io::Write;
 use std::time::Instant;
 
@@ -77,10 +77,10 @@ pub enum Instr {
 pub fn execute(
     instructions: &[Instr],
     consts: &mut [Data],
-    func_args_count: usize,
-    arrays: &mut HashMap<u16, Vec<Data>>,
+    func_args: &mut Vec<u16>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
-    let mut func_args: Vec<u16> = Vec::with_capacity(func_args_count);
+    // let mut func_args: Vec<u16> = Vec::with_capacity(func_args_count);
 
     let len = instructions.len();
     let mut i: usize = 0;
@@ -349,7 +349,7 @@ pub fn execute(
             }
             Instr::StoreFuncArg(id) => func_args.push(id),
             Instr::ApplyFunc(fctn_id, tgt, dest) => {
-                FUNCS[fctn_id as usize](tgt, dest, consts, &mut func_args, arrays);
+                FUNCS[fctn_id as usize](tgt, dest, consts, func_args, arrays);
             }
             // takes tgt from consts, moves it to dest-th array at idx-th index
             Instr::ArrayMov(tgt, dest, idx) => {
@@ -506,7 +506,12 @@ fn main() {
     print!("CONSTS {consts:?}");
     print!("ARRAYS {arrays:?}");
     print!("FUNC_ARGS_COUNT {func_args_count_max:?}");
-    execute(&instructions, &mut consts, func_args_count_max, &mut arrays);
+    execute(
+        &instructions,
+        &mut consts,
+        &mut Vec::with_capacity(func_args_count_max),
+        &mut arrays,
+    );
 
     println!("EXEC TIME {:.2?}", now.elapsed());
     print!("INSTR {instructions:?}");

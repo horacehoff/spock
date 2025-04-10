@@ -3,7 +3,7 @@ mod tests {
     use crate::Data::*;
     use crate::Instr::{Add, ApplyFunc, Cmp, GetIndex, Inf, Jmp, Mov, Mul, StoreFuncArg, Sub, Sup};
     use crate::{Data, execute};
-    use std::collections::HashMap;
+    use fnv::FnvHashMap;
 
     #[test]
     fn fibonacci_40() {
@@ -32,7 +32,12 @@ mod tests {
             Number(1.0),
             Null,
         ];
-        execute(&instr, &mut consts, 0, &mut HashMap::default());
+        execute(
+            &instr,
+            &mut consts,
+            &mut Vec::with_capacity(0),
+            &mut FnvHashMap::default(),
+        );
         assert_eq!(consts[3], Number(102334155.0));
     }
 
@@ -63,7 +68,12 @@ mod tests {
             Number(1.0),
             Null,
         ];
-        execute(&instr, &mut consts, 0, &mut HashMap::default());
+        execute(
+            &instr,
+            &mut consts,
+            &mut Vec::with_capacity(0),
+            &mut FnvHashMap::default(),
+        );
         assert_eq!(consts[3], Number(190392490709135.0));
     }
 
@@ -71,9 +81,9 @@ mod tests {
     fn array_push() {
         let instr = vec![StoreFuncArg(1), ApplyFunc(14, 0, 2)];
         let mut consts = vec![Array(0), Number(7.0), Null];
-        let mut arrays: HashMap<u16, Vec<Data>> = HashMap::new();
+        let mut arrays: FnvHashMap<u16, Vec<Data>> = FnvHashMap::default();
         arrays.insert(0, vec![Number(1.0), Number(2.0), Number(3.0)]);
-        execute(&instr, &mut consts, 1, &mut arrays);
+        execute(&instr, &mut consts, &mut Vec::with_capacity(1), &mut arrays);
         assert_eq!(arrays[&0], vec![
             Number(1.0),
             Number(2.0),
@@ -86,9 +96,9 @@ mod tests {
     fn array_index() {
         let instr = vec![StoreFuncArg(2), ApplyFunc(6, 0, 3)];
         let mut consts = vec![Array(0), Null, Number(3.0), Null];
-        let mut arrays: HashMap<u16, Vec<Data>> = HashMap::new();
+        let mut arrays: FnvHashMap<u16, Vec<Data>> = FnvHashMap::default();
         arrays.insert(0, vec![Number(1.0), Number(2.0), Number(3.0)]);
-        execute(&instr, &mut consts, 1, &mut arrays);
+        execute(&instr, &mut consts, &mut Vec::with_capacity(1), &mut arrays);
         assert_eq!(consts[3], Number(2.0));
     }
 
@@ -96,7 +106,12 @@ mod tests {
     fn basic_condition() {
         let instr = vec![Sup(0, 2, 3), Cmp(3, 2), Mov(4, 1)];
         let mut consts = vec![Number(1.0), Bool(false), Number(0.0), Null, Bool(true)];
-        execute(&instr, &mut consts, 0, &mut HashMap::default());
+        execute(
+            &instr,
+            &mut consts,
+            &mut Vec::with_capacity(0),
+            &mut FnvHashMap::default(),
+        );
         assert_eq!(consts[3], Bool(true));
     }
 
@@ -119,7 +134,12 @@ mod tests {
             Number(1.0),
             Null,
         ];
-        execute(&instr, &mut consts, 0, &mut HashMap::default());
+        execute(
+            &instr,
+            &mut consts,
+            &mut Vec::with_capacity(0),
+            &mut FnvHashMap::default(),
+        );
         assert_eq!(consts[0], Number(9765625.0));
     }
 
@@ -127,7 +147,12 @@ mod tests {
     fn mul_add_rpn() {
         let instr = vec![Mul(0, 1, 2), Add(3, 2, 5)];
         let mut consts = vec![Number(5.0), Number(2.0), Null, Number(2.0), Null, Null];
-        execute(&instr, &mut consts, 0, &mut HashMap::default());
+        execute(
+            &instr,
+            &mut consts,
+            &mut Vec::with_capacity(0),
+            &mut FnvHashMap::default(),
+        );
         assert_eq!(consts[5], Number(12.0));
     }
 
@@ -161,14 +186,15 @@ mod tests {
             Number(1.0),
             Null,
         ];
-        let mut arrays: HashMap<u16, Vec<Data>> = HashMap::from([(0, vec![
+        let mut arrays: FnvHashMap<u16, Vec<Data>> = FnvHashMap::default();
+        arrays.insert(0, vec![
             Number(0.0),
             Number(1.0),
             Number(2.0),
             Number(3.0),
             Number(4.0),
-        ])]);
-        execute(&instr, &mut consts, 0, &mut arrays);
+        ]);
+        execute(&instr, &mut consts, &mut Vec::with_capacity(0), &mut arrays);
         assert_eq!(consts[1], Number(10.0))
     }
 }

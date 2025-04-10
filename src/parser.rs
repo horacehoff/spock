@@ -2,10 +2,10 @@ use crate::util::print_instructions;
 use crate::{Data, Instr, Opcode, error};
 use crate::{check_args, check_args_range, print};
 use colored::Colorize;
+use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
@@ -229,7 +229,7 @@ fn get_id(
     instr: &mut Vec<Instr>,
     line: &String,
     functions: &mut Vec<Function>,
-    arrays: &mut HashMap<u16, Vec<Data>>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
 ) -> u16 {
     print!("GETTING ID OF {x:?}");
     match x {
@@ -307,7 +307,7 @@ fn parser_to_instr_set(
     fns: &mut Vec<Function>,
     fn_state: Option<&FunctionState>,
     // arrays
-    arrs: &mut HashMap<u16, Vec<Data>>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
@@ -984,7 +984,7 @@ fn parser_to_instr_set(
     output
 }
 
-pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, HashMap<u16, Vec<Data>>) {
+pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, FnvHashMap<u16, Vec<Data>>) {
     let mut functions: Vec<Expr> = grammar::FileParser::new().parse(contents).unwrap();
     print!("funcs {functions:?}");
     let main_function: Vec<Expr> = {
@@ -1020,7 +1020,7 @@ pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, HashMap<u16, Vec<Data>>)
 
     let mut variables: Vec<(String, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
-    let mut arrays: HashMap<u16, Vec<Data>> = HashMap::new();
+    let mut arrays: FnvHashMap<u16, Vec<Data>> = FnvHashMap::default();
     let instructions = parser_to_instr_set(
         main_function,
         &mut variables,

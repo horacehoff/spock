@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use crate::parser::Expr;
 use crate::{Data, Opcode, format_lines};
 use colored::Colorize;
 use concat_string::concat_string;
+use fnv::FnvHashMap;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
 use std::fmt::Formatter;
@@ -19,7 +19,7 @@ impl std::fmt::Display for Data {
     }
 }
 
-pub fn format_data(x: Data, arrays: &HashMap<u16, Vec<Data>>) -> String {
+pub fn format_data(x: Data, arrays: &FnvHashMap<u16, Vec<Data>>) -> String {
     match x {
         Data::Number(num) => num.to_string(),
         Data::Bool(bool) => bool.to_string(),
@@ -27,6 +27,7 @@ pub fn format_data(x: Data, arrays: &HashMap<u16, Vec<Data>>) -> String {
         Data::Array(a) => concat_string!(
             "[",
             arrays[&a]
+                .clone()
                 .iter()
                 .map(|x| format_data(*x, arrays))
                 .collect::<Vec<_>>()
