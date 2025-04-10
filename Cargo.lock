@@ -461,7 +461,7 @@ version = "0.1.0"
 dependencies = [
  "colored",
  "concat-string",
-    "fnv",
+ "fnv",
  "inline_colorization",
  "internment",
  "lalrpop",

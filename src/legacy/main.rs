@@ -60,14 +60,7 @@ fn pre_match(
                 match element {
                     Instr::Bool(bool) => {
                         str_pool.push(Intern::from(
-                            {
-                                if bool {
-                                    "true"
-                                } else {
-                                    "false"
-                                }
-                            }
-                            .to_string(),
+                            { if bool { "true" } else { "false" } }.to_string(),
                         ));
                         Instr::String((str_pool.len() - 1) as u32)
                     }

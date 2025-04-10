@@ -423,7 +423,7 @@ pub fn execute(
                         Data::String(str) => {
                             if likely(str.len() > idx) {
                                 consts[dest as usize] = Data::String(Intern::from(
-                                    str.get(idx..(idx + 1)).unwrap().to_string(),
+                                    str.get(idx..=idx).unwrap().to_string(),
                                 ));
                             } else {
                                 error_b!(format_args!(

@@ -288,10 +288,7 @@ fn expr_to_data(input: Expr) -> Data {
 }
 
 fn can_move(x: Instr) -> bool {
-    match x {
-        Instr::ArrayMov(_, _, _) => false,
-        _ => true,
-    }
+    !matches!(x, Instr::ArrayMov(_, _, _))
 }
 
 type Function = (String, Box<[String]>, Box<[Expr]>);
@@ -325,13 +322,13 @@ fn parser_to_instr_set(
                         let c_id = get_tgt_id(*x.last().unwrap());
                         output.extend(x);
                         arrs.get_mut(&id).unwrap().push(Data::Null);
-                        output.push(Instr::ArrayMov(c_id, id, (arrs[&id].len() - 1) as u16))
+                        output.push(Instr::ArrayMov(c_id, id, (arrs[&id].len() - 1) as u16));
                     } else {
                         arrs.get_mut(&id).unwrap().push(consts.pop().unwrap());
                     }
                 }
                 consts.push(Data::Array(id));
-                print!("ARRAYS {arrs:?}")
+                print!("ARRAYS {arrs:?}");
             }
             Expr::GetIndex(target, index) => {
                 let x = parser_to_instr_set(vec![*target], v, consts, fns, fn_state, arrs);
@@ -458,9 +455,9 @@ fn parser_to_instr_set(
             }
             Expr::ForLoop(var_name, array, code) => {
                 let mut ultimate_code: Vec<Expr> = Vec::new();
-                let arr_id = String::from("!".repeat(v.len()));
+                let arr_id = "!".repeat(v.len());
                 ultimate_code.push(Expr::VarDeclare(arr_id.clone(), array));
-                let indx_id = String::from("î".repeat(v.len()));
+                let indx_id = "î".repeat(v.len());
                 ultimate_code.push(Expr::VarDeclare(indx_id.clone(), Box::new(Expr::Num(0.0))));
                 let mut final_code = Vec::new();
                 final_code.push(Expr::VarDeclare(
@@ -608,7 +605,7 @@ fn parser_to_instr_set(
                         consts.push(Data::Null);
                         output.push(Instr::Input(id, (consts.len() - 1) as u16));
                     } else {
-                        consts.push(Data::String(Intern::from("".to_string())));
+                        consts.push(Data::String(Intern::from(String::new())));
                         let id = (consts.len() - 1) as u16;
                         consts.push(Data::Null);
                         output.push(Instr::Input(id, (consts.len() - 1) as u16));
