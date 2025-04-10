@@ -462,9 +462,8 @@ fn parser_to_instr_set(
                 ultimate_code.push(Expr::VarDeclare(arr_id.clone(), array));
                 let indx_id = String::from("î".repeat(v.len()));
                 ultimate_code.push(Expr::VarDeclare(indx_id.clone(), Box::new(Expr::Num(0.0))));
-                ultimate_code.push(Expr::VarDeclare(var_name.clone(), Box::new(Expr::Num(0.0))));
                 let mut final_code = Vec::new();
-                final_code.push(Expr::VarAssign(
+                final_code.push(Expr::VarDeclare(
                     var_name,
                     Box::new(Expr::GetIndex(
                         Box::new(Expr::Var(arr_id.clone())),
@@ -493,9 +492,10 @@ fn parser_to_instr_set(
                     Box::from(final_code),
                 ));
 
+                let mut priv_vars = v.clone();
                 output.extend(parser_to_instr_set(
                     ultimate_code,
-                    v,
+                    &mut priv_vars,
                     consts,
                     fns,
                     fn_state,
