@@ -86,6 +86,7 @@ pub fn execute(
     let len = instructions.len();
     let mut i: usize = 0;
     while i < len {
+        println!("INSTRUCTION IS {:?}", instructions[i]);
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {

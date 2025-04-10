@@ -1,4 +1,5 @@
 use crate::display::format_data;
+use crate::util::get_type;
 use crate::{Data, error_b};
 use colored::Colorize;
 use inline_colorization::*;
@@ -47,14 +48,15 @@ fn len(
     _: &mut Vec<u16>,
     arrays: &mut HashMap<u16, Vec<Data>>,
 ) {
-    if let Data::String(str) = consts[tgt as usize] {
+    let tgt = consts[tgt as usize];
+    if let Data::String(str) = tgt {
         consts[dest as usize] = Data::Number(str.chars().count() as f64)
-    } else if let Data::Array(arr) = consts[tgt as usize] {
+    } else if let Data::Array(arr) = tgt {
         consts[dest as usize] = Data::Number(arrays[&arr].len() as f64)
     } else {
         error_b!(format_args!(
-            "{} is not a String",
-            consts[tgt as usize].to_string().red()
+            "Cannot get length of type {color_red}{}{color_reset}",
+            get_type(tgt)
         ));
     }
 }
@@ -158,7 +160,10 @@ fn index(
             error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{:?}{color_reset}", arg, format_data(target, arrays)));
         }) as f64);
     } else {
-        error_b!(format_args!("{} is not a String", target.to_string().red()));
+        error_b!(format_args!(
+            "Cannot index type {color_red}{}{color_reset}",
+            get_type(target)
+        ));
     }
 }
 
