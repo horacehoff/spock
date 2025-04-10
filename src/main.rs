@@ -80,13 +80,11 @@ pub fn execute(
     func_args_count: usize,
     arrays: &mut HashMap<u16, Vec<Data>>,
 ) {
-    println!("INSTR ARE {instructions:?}");
     let mut func_args: Vec<u16> = Vec::with_capacity(func_args_count);
 
     let len = instructions.len();
     let mut i: usize = 0;
     while i < len {
-        println!("INSTRUCTION IS {:?}", instructions[i]);
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
@@ -364,7 +362,7 @@ pub fn execute(
                     //println!("TGT IS {}",consts[tgt as usize]);
                     if let Data::Array(array_id) = consts[tgt as usize] {
                         let array = arrays.get_mut(&array_id).unwrap();
-                        println!("ARRAY is {array:?}");
+                        print!("ARRAY is {array:?}");
                         if likely(array.len() > index as usize) {
                             array[index as usize] = requested_mod;
                         } else {
@@ -504,15 +502,15 @@ fn main() {
             func_args_count = 0;
         }
     }
-    println!("INSTR {instructions:?}");
-    println!("CONSTS {consts:?}");
-    println!("ARRAYS {arrays:?}");
-    println!("FUNC_ARGS_COUNT {func_args_count_max:?}");
+    print!("INSTR {instructions:?}");
+    print!("CONSTS {consts:?}");
+    print!("ARRAYS {arrays:?}");
+    print!("FUNC_ARGS_COUNT {func_args_count_max:?}");
     execute(&instructions, &mut consts, func_args_count_max, &mut arrays);
 
     println!("EXEC TIME {:.2?}", now.elapsed());
-    println!("INSTR {instructions:?}");
-    println!("CONSTS {consts:?}");
-    println!("ARRAYS {arrays:?}");
-    println!("FUNC_ARGS_COUNT {func_args_count_max:?}");
+    print!("INSTR {instructions:?}");
+    print!("CONSTS {consts:?}");
+    print!("ARRAYS {arrays:?}");
+    print!("FUNC_ARGS_COUNT {func_args_count_max:?}");
 }

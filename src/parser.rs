@@ -246,10 +246,10 @@ fn get_id(
             (consts.len() - 1) as u16
         }
         Expr::Var(name) => {
-            println!("getting id of var {name:?}");
-            println!("{variables:?}");
+            print!("getting id of var {name:?}");
+            print!("{variables:?}");
             if let Some((_, id)) = variables.iter().find(|(var, _)| name == *var) {
-                println!("returning id {id:?}");
+                print!("returning id {id:?}");
                 *id
             } else {
                 error!(
@@ -479,7 +479,19 @@ fn parser_to_instr_set(
                         Box::new([(Opcode::Add, Box::from(Expr::Num(1.0)))]),
                     )),
                 ));
-                ultimate_code.push(Expr::WhileBlock(Box::new(Expr::Op(Box::new(Expr::Var(indx_id)), Box::new([(Opcode::Inf, Box::from(Expr::ObjFunctionCall(Box::new(Expr::Var(arr_id)), Box::new([("len".parse().unwrap(), Box::new([]))]))))]))), Box::from(final_code)));
+                ultimate_code.push(Expr::WhileBlock(
+                    Box::new(Expr::Op(
+                        Box::new(Expr::Var(indx_id)),
+                        Box::new([(
+                            Opcode::Inf,
+                            Box::from(Expr::ObjFunctionCall(
+                                Box::new(Expr::Var(arr_id)),
+                                Box::new([("len".parse().unwrap(), Box::new([]))]),
+                            )),
+                        )]),
+                    )),
+                    Box::from(final_code),
+                ));
 
                 output.extend(parser_to_instr_set(
                     ultimate_code,
@@ -509,7 +521,7 @@ fn parser_to_instr_set(
                 let mut id = get_id(*x, v, consts, &mut output, &ctx, fns, arrs);
 
                 for elem in z.iter().rev().skip(1).rev() {
-                    println!("ELM {elem:?}");
+                    print!("ELM {elem:?}");
                     let x = parser_to_instr_set(vec![elem.clone()], v, consts, fns, fn_state, arrs);
                     output.extend(x);
                     let f_id = (consts.len() - 1) as u16;
@@ -529,9 +541,9 @@ fn parser_to_instr_set(
                     arrs,
                 );
 
-                println!("ID IS {id:?}");
-                println!("CONSTS IS {consts:?}");
-                println!("LAST Z IS {}", z.last().unwrap());
+                print!("ID IS {id:?}");
+                print!("CONSTS IS {consts:?}");
+                print!("LAST Z IS {}", z.last().unwrap());
 
                 let elem_id = get_id(*w, v, consts, &mut output, &ctx, fns, arrs);
 
@@ -1018,8 +1030,8 @@ pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, HashMap<u16, Vec<Data>>)
         &mut arrays,
     );
     print!("CONSTS are {consts:?}");
-    println!("{consts:?}");
-    println!("{arrays:?}");
+    print!("{consts:?}");
+    print!("{arrays:?}");
     #[cfg(debug_assertions)]
     {
         print_instructions(&instructions);
