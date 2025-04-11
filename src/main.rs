@@ -80,8 +80,6 @@ pub fn execute(
     func_args: &mut Vec<u16>,
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
-    // let mut func_args: Vec<u16> = Vec::with_capacity(func_args_count);
-
     let len = instructions.len();
     let mut i: usize = 0;
     while i < len {
@@ -101,10 +99,7 @@ pub fn execute(
                 }
             }
             Instr::Add(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                match (first_elem, second_elem) {
+                match (consts[o1 as usize], consts[o2 as usize]) {
                     (Data::Number(parent), Data::Number(child)) => {
                         consts[dest as usize] = Data::Number(parent + child);
                     }
@@ -117,11 +112,11 @@ pub fn execute(
                         arrays.insert(id, [arrays[&a].clone(), arrays[&b].clone()].concat());
                         consts[dest as usize] = Data::Array(id);
                     }
-                    _ => {
+                    (a,b) => {
                         error_b!(format_args!(
                             "UNSUPPORTED OPERATION: {} + {}",
-                            format_data(first_elem, arrays),
-                            format_data(second_elem, arrays)
+                            format_data(a, arrays),
+                            format_data(b, arrays)
                         ));
                     }
                 }
@@ -193,7 +188,7 @@ pub fn execute(
             }
             Instr::Eq(o1, o2, dest) => {
                 let val = consts[o1 as usize] == consts[o2 as usize];
-                consts[dest as usize] = Data::Bool(val);
+                consts[dest as usize] = Data::Bool(consts[o1 as usize] == consts[o2 as usize]);
             }
             Instr::NotEq(o1, o2, dest) => {
                 let val = consts[o1 as usize] != consts[o2 as usize];
