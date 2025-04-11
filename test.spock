@@ -1,6 +1,7 @@
 fn main() {
-let a = [0,1,2,3,4];
+let a = ["a",47,"c"];
 for x in a {
-a.push(x);
+print(x);
 }
+print(a);
 }

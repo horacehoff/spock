@@ -58,7 +58,7 @@ pub enum Instr {
     BoolOr(u16, u16, u16),
     Neg(u16, u16),
 
-    // Funcs
+    // General functions
     Abs(u16, u16),
     Num(u16, u16),
     Str(u16, u16),
@@ -359,7 +359,6 @@ pub fn execute(
             Instr::ArrayMod(tgt, dest, idx) => {
                 if let Data::Number(index) = consts[idx as usize] {
                     let requested_mod = consts[dest as usize];
-                    //println!("TGT IS {}",consts[tgt as usize]);
                     if let Data::Array(array_id) = consts[tgt as usize] {
                         let array = arrays.get_mut(&array_id).unwrap();
                         print!("ARRAY is {array:?}");
@@ -403,9 +402,9 @@ pub fn execute(
             }
             // takes tgt from  consts, index is index, dest is consts index destination
             Instr::GetIndex(tgt, index, dest) => {
-                let target = consts[tgt as usize];
                 if let Data::Number(idx) = consts[index as usize] {
                     let idx = idx as usize;
+                    let target = consts[tgt as usize];
                     match target {
                         Data::Array(x) => {
                             let arr = &arrays[&x];
@@ -422,6 +421,8 @@ pub fn execute(
                         }
                         Data::String(str) => {
                             if likely(str.len() > idx) {
+                                println!("RET_IDX IS {}", Data::String(Intern::from(
+                                    str.get(idx..=idx).unwrap().to_string())));
                                 consts[dest as usize] = Data::String(Intern::from(
                                     str.get(idx..=idx).unwrap().to_string(),
                                 ));
@@ -438,6 +439,8 @@ pub fn execute(
                             error_b!(format_args!("Cannot index {}", get_type(other).red()));
                         }
                     }
+                } else {
+                    error_b!(format_args!("{} is not a valid index", consts[index as usize]));
                 }
             }
         }

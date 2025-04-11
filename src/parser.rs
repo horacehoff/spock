@@ -454,51 +454,43 @@ fn parser_to_instr_set(
                 output.push(Instr::Jmp(len, true));
             }
             Expr::ForLoop(var_name, array, code) => {
-                let arr_id = "!".repeat(v.len());
-                let index_id = "î".repeat(v.len());
+                let array = get_id(*array, v, consts, &mut output, &ctx, fns, arrs);
 
-                let mut for_loop_code: Vec<Expr> = vec![Expr::VarDeclare(arr_id.clone(), array), Expr::VarDeclare(index_id.clone(), Box::new(Expr::Num(0.0)))];
+                consts.push(Data::Null);
+                let array_len_id = (consts.len() - 1) as u16;
+                output.push(Instr::ApplyFunc(2, array, array_len_id));
 
-                let mut while_block_code = vec![
-                    Expr::VarDeclare(
-                        var_name,
-                        Box::new(Expr::GetIndex(
-                            Box::new(Expr::Var(arr_id.clone())),
-                            Box::from(vec![Expr::Var(index_id.clone())]),
-                        )),
-                    ),
-                ];
-                while_block_code.extend(code.to_vec());
-                while_block_code.push(Expr::VarAssign(
-                    index_id.clone(),
-                    Box::new(Expr::Op(
-                        Box::new(Expr::Var(index_id.clone())),
-                        Box::new([(Opcode::Add, Box::from(Expr::Num(1.0)))]),
-                    )),
-                ));
-                for_loop_code.push(Expr::WhileBlock(
-                    Box::new(Expr::Op(
-                        Box::new(Expr::Var(index_id)),
-                        Box::new([(
-                            Opcode::Inf,
-                            Box::from(Expr::ObjFunctionCall(
-                                Box::new(Expr::Var(arr_id)),
-                                Box::new([("len".parse().unwrap(), Box::new([]))]),
-                            )),
-                        )]),
-                    )),
-                    Box::from(while_block_code),
-                ));
 
+                consts.push(Data::Number(0.0));
+                let index_id = (consts.len() - 1) as u16;
+                consts.push(Data::Null);
+                let condition_id = (consts.len() - 1) as u16;
+                output.push(Instr::Inf(index_id, array_len_id, condition_id));
+
+
+
+
+                consts.push(Data::Null);
+                let current_element_id = (consts.len() - 1) as u16;
+                v.push((var_name, current_element_id));
+                let current_element_variable_id = v.len() - 1;
                 let mut priv_vars = v.clone();
-                output.extend(parser_to_instr_set(
-                    for_loop_code,
-                    &mut priv_vars,
-                    consts,
-                    fns,
-                    fn_state,
-                    arrs,
-                ));
+                let cond_code =
+                    parser_to_instr_set(code.into_vec(), &mut priv_vars, consts, fns, fn_state, arrs);
+                v.remove(current_element_variable_id);
+                let len = (cond_code.len() + 4) as u16;
+                output.push(Instr::Cmp(condition_id, len));
+
+
+
+                output.push(Instr::GetIndex(array, index_id, current_element_id));
+                output.extend(cond_code);
+                consts.push(Data::Number(1.0));
+                output.push(Instr::Add(index_id, (consts.len() - 1) as u16, index_id));
+                output.push(Instr::Jmp(len, true));
+
+
+
             }
             Expr::VarDeclare(x, y) => {
                 let mut val = parser_to_instr_set(vec![*y], v, consts, fns, fn_state, arrs);
