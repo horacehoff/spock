@@ -454,30 +454,31 @@ fn parser_to_instr_set(
                 output.push(Instr::Jmp(len, true));
             }
             Expr::ForLoop(var_name, array, code) => {
-                let mut ultimate_code: Vec<Expr> = Vec::new();
                 let arr_id = "!".repeat(v.len());
-                ultimate_code.push(Expr::VarDeclare(arr_id.clone(), array));
-                let indx_id = "î".repeat(v.len());
-                ultimate_code.push(Expr::VarDeclare(indx_id.clone(), Box::new(Expr::Num(0.0))));
-                let mut final_code = Vec::new();
-                final_code.push(Expr::VarDeclare(
-                    var_name,
-                    Box::new(Expr::GetIndex(
-                        Box::new(Expr::Var(arr_id.clone())),
-                        Box::from(vec![Expr::Var(indx_id.clone())]),
-                    )),
-                ));
-                final_code.extend(code.to_vec());
-                final_code.push(Expr::VarAssign(
-                    indx_id.clone(),
+                let index_id = "î".repeat(v.len());
+
+                let mut for_loop_code: Vec<Expr> = vec![Expr::VarDeclare(arr_id.clone(), array), Expr::VarDeclare(index_id.clone(), Box::new(Expr::Num(0.0)))];
+
+                let mut while_block_code = vec![
+                    Expr::VarDeclare(
+                        var_name,
+                        Box::new(Expr::GetIndex(
+                            Box::new(Expr::Var(arr_id.clone())),
+                            Box::from(vec![Expr::Var(index_id.clone())]),
+                        )),
+                    ),
+                ];
+                while_block_code.extend(code.to_vec());
+                while_block_code.push(Expr::VarAssign(
+                    index_id.clone(),
                     Box::new(Expr::Op(
-                        Box::new(Expr::Var(indx_id.clone())),
+                        Box::new(Expr::Var(index_id.clone())),
                         Box::new([(Opcode::Add, Box::from(Expr::Num(1.0)))]),
                     )),
                 ));
-                ultimate_code.push(Expr::WhileBlock(
+                for_loop_code.push(Expr::WhileBlock(
                     Box::new(Expr::Op(
-                        Box::new(Expr::Var(indx_id)),
+                        Box::new(Expr::Var(index_id)),
                         Box::new([(
                             Opcode::Inf,
                             Box::from(Expr::ObjFunctionCall(
@@ -486,12 +487,12 @@ fn parser_to_instr_set(
                             )),
                         )]),
                     )),
-                    Box::from(final_code),
+                    Box::from(while_block_code),
                 ));
 
                 let mut priv_vars = v.clone();
                 output.extend(parser_to_instr_set(
-                    ultimate_code,
+                    for_loop_code,
                     &mut priv_vars,
                     consts,
                     fns,
