@@ -36,6 +36,7 @@ pub enum Expr {
     ArrayModify(Box<Expr>, Box<[Expr]>, Box<Expr>),
 
     ForLoop(String, Box<Expr>, Box<[Expr]>),
+    Import(String),
 }
 
 lalrpop_mod!(pub grammar);
@@ -386,6 +387,9 @@ fn parser_to_instr_set(
     for x in input {
         let ctx = x.to_string();
         match x {
+            Expr::Import(path) => {
+                println!("IMPORT PATH: ");
+            }
             Expr::Num(num) => consts.push(Data::Number(num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),

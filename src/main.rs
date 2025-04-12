@@ -588,8 +588,6 @@ fn main() {
 
     let (instructions, mut consts, mut arrays) = parse(&contents);
 
-    let now = Instant::now();
-
     let mut func_args_count = 0;
     let mut func_args_count_max = 0;
     for x in &instructions {
@@ -604,13 +602,13 @@ fn main() {
     print!("CONSTS {consts:?}");
     print!("ARRAYS {arrays:?}");
     print!("FUNC_ARGS_COUNT {func_args_count_max:?}");
+    let now = Instant::now();
     execute(
         &instructions,
         &mut consts,
         &mut Vec::with_capacity(func_args_count_max),
         &mut arrays,
     );
-
     println!("EXEC TIME {:.2?}", now.elapsed());
     print!("INSTR {instructions:?}");
     print!("CONSTS {consts:?}");

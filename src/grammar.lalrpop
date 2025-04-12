@@ -10,7 +10,7 @@ grammar;
 
 
 pub File:Vec<Expr> = {
-    <o: Function*> => o
+    <o: Function*> => o,
 }
 
 pub Function:Expr = {
@@ -58,6 +58,12 @@ ForLoop:Expr = {
 
 pub Code: Box<[Expr]> = {
     <s: Statement*> => s.into_boxed_slice()
+}
+
+pub Import:Expr = {
+    <path: r"import [a-zA-Z_.\/-]*"> => {
+        Expr::Import(String::from(path.trim_left_matches("import").trim()))
+    }
 }
 
 Statement: Expr = {
