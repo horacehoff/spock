@@ -3,9 +3,8 @@ A work-in-progress programming language written in Rust for the best performance
 
 Key info:
 
-- ~5-10x faster than Python in most cases, can go as far as :
-  - Fibonacci function: ~14000x faster(first run) or ~2000x faster (later runs)
-
+- ~5-10x faster than Python in most cases.
+  Comparisons [here](COMPARISONS.md)
 ## Instruction Set
 
 Spock uses an instruction set with a size of 8 bytes.

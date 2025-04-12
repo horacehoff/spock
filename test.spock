@@ -1,7 +1,7 @@
 fn main() {
-let i = 0;
-while i < 999999999 {
-    i += 1;
+let i = [0,1,2,3];
+for x in i.repeat(30000000) {
+    i.push(x);
 }
-print(i);
+print(i.len());
 }

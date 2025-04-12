@@ -1,4 +1,4 @@
-use crate::util::print_instructions;
+use crate::display::print_instructions;
 use crate::{Data, Instr, Opcode, error};
 use crate::{check_args, check_args_range, print};
 use colored::Colorize;
@@ -6,7 +6,6 @@ use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
-use std::ops::Sub;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {

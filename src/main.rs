@@ -601,6 +601,6 @@ fn main() {
     println!("EXEC TIME {:.2?}", now.elapsed());
     print!("INSTR {instructions:?}");
     print!("CONSTS {consts:?}");
-    print!("ARRAYS {arrays:?}");
+    // print!("ARRAYS {arrays:?}");
     print!("FUNC_ARGS_COUNT {func_args_count_max:?}");
 }
