@@ -1,6 +1,5 @@
-import other.spock;
-
 fn main() {
-    print("Hello World");
-    test();
+for x in [1, 2, 3] {
+  print(x);
+}
 }

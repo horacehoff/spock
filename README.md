@@ -21,9 +21,8 @@ if (x < 200) {
 becomes...
 
 ```
-1 INF 0 1 2
-2 CMP 2 2
-3 PRINT 3
+1 INF_CMP 0 1 2
+2 PRINT 3
 ```
 
 ---
@@ -46,14 +45,13 @@ print(c);
 becomes...
 
 ```
-1 INF 4 0 5
-2 CMP 5 6
-3 ADD 1 2 3
-4 MOV 2 1
-5 MOV 3 2
-6 ADD 4 9 4
-7 JMP 6 true
-8 PRINT 3
+1 INF_CMP 4 0 6
+2 ADD 1 2 3
+3 MOV 2 1
+4 MOV 3 2
+5 ADD 4 9 4
+6 JMP 5 true
+7 PRINT 3
 ```
 
 ## Syntax examples
@@ -73,8 +71,7 @@ while (x < 10) {
 }
 ```
 ```
-// parentheses are optional
-for (x in [1, 2, 3]) {
+for x in [1, 2, 3] {
   for y in "abc" {
     print(x.toStr()+y);
   }
@@ -110,20 +107,10 @@ print(x[0]);
   - `[<first argument>..<second argument>]` if two arguments were provided
   - `[<first argument>..<second argument>]`, with the step defined by the third argument, if three arguments were provided
 
-## Basic macros
-You can define macros outside functions using the following syntax:
-`replace name->value`\
-**Example**:
-```
-replace hello->goodbye
-
-func main() {
-print("hello world");
-}
-```
 
 ## Imports
-You can import functions from other `.spock` files by using the `import` keyword like so:
+You can import functions from other `.spock` files by using the `import` keyword like shown below.
+Please that imports are directly replaced by the file's content, as such error messages will not be able to specify which file the error comes from.
 - `otherfile.spock`:
 ```
 func demo() {
@@ -138,15 +125,4 @@ import path/to/otherfile.spock;
 func main() {
 demo();
 }
-```
-
-## Files
-```
-print(io::open("myfile.txt").read());
-let file = io::open("myfile.txt")
-// overwrite the file's contents
-file.write("new content");
-// append to the end of the file
-file.append("appended content");
-
 ```
