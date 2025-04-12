@@ -38,6 +38,13 @@ pub enum Instr {
     Jmp(u16, bool),
     // condition id -- size
     Cmp(u16, u16),
+    InfCmp(u16, u16, u16),
+    InfEqCmp(u16, u16, u16),
+    SupCmp(u16, u16, u16),
+    SupEqCmp(u16, u16, u16),
+    EqCmp(u16, u16, u16),
+    NotEqCmp(u16, u16, u16),
+
     // CopyArg(u16, u16),
     Mov(u16, u16),
 
@@ -98,29 +105,27 @@ pub fn execute(
                     continue;
                 }
             }
-            Instr::Add(o1, o2, dest) => {
-                match (consts[o1 as usize], consts[o2 as usize]) {
-                    (Data::Number(parent), Data::Number(child)) => {
-                        consts[dest as usize] = Data::Number(parent + child);
-                    }
-                    (Data::String(parent), Data::String(child)) => {
-                        let result = concat_string!(*parent, *child);
-                        consts[dest as usize] = Data::String(Intern::from(result));
-                    }
-                    (Data::Array(a), Data::Array(b)) => {
-                        let id = arrays.len() as u16;
-                        arrays.insert(id, [arrays[&a].clone(), arrays[&b].clone()].concat());
-                        consts[dest as usize] = Data::Array(id);
-                    }
-                    (a,b) => {
-                        error_b!(format_args!(
-                            "UNSUPPORTED OPERATION: {} + {}",
-                            format_data(a, arrays),
-                            format_data(b, arrays)
-                        ));
-                    }
+            Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
+                (Data::Number(parent), Data::Number(child)) => {
+                    consts[dest as usize] = Data::Number(parent + child);
                 }
-            }
+                (Data::String(parent), Data::String(child)) => {
+                    let result = concat_string!(*parent, *child);
+                    consts[dest as usize] = Data::String(Intern::from(result));
+                }
+                (Data::Array(a), Data::Array(b)) => {
+                    let id = arrays.len() as u16;
+                    arrays.insert(id, [arrays[&a].clone(), arrays[&b].clone()].concat());
+                    consts[dest as usize] = Data::Array(id);
+                }
+                (a, b) => {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {} + {}",
+                        format_data(a, arrays),
+                        format_data(b, arrays)
+                    ));
+                }
+            },
             Instr::Mul(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
@@ -187,12 +192,23 @@ pub fn execute(
                 }}
             }
             Instr::Eq(o1, o2, dest) => {
-                let val = consts[o1 as usize] == consts[o2 as usize];
                 consts[dest as usize] = Data::Bool(consts[o1 as usize] == consts[o2 as usize]);
+            }
+            Instr::EqCmp(o1, o2, jump_size) => {
+                if consts[o1 as usize] != consts[o2 as usize] {
+                    i += jump_size as usize;
+                    continue;
+                }
             }
             Instr::NotEq(o1, o2, dest) => {
                 let val = consts[o1 as usize] != consts[o2 as usize];
                 consts[dest as usize] = Data::Bool(val);
+            }
+            Instr::NotEqCmp(o1, o2, jump_size) => {
+                if consts[o1 as usize] == consts[o2 as usize] {
+                    i += jump_size as usize;
+                    continue;
+                }
             }
             Instr::Sup(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
@@ -200,6 +216,22 @@ pub fn execute(
 
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
                     consts[dest as usize] = Data::Bool(parent > child);
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} > {:?}",
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                    ));
+                }}
+            }
+            Instr::SupCmp(o1, o2, jump_size) => {
+                let first_elem = consts[o1 as usize];
+                let second_elem = consts[o2 as usize];
+
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                    if parent <= child {
+                        i += jump_size as usize;
+                        continue;
+                    }
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} > {:?}",
@@ -220,6 +252,22 @@ pub fn execute(
                     ));
                 }}
             }
+            Instr::SupEqCmp(o1, o2, jump_size) => {
+                let first_elem = consts[o1 as usize];
+                let second_elem = consts[o2 as usize];
+
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                    if parent < child {
+                        i += jump_size as usize;
+                        continue;
+                    }
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} >= {:?}",
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                    ));
+                }}
+            }
             Instr::Inf(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
@@ -233,12 +281,44 @@ pub fn execute(
                     ));
                 }}
             }
+            Instr::InfCmp(o1, o2, jump_size) => {
+                let first_elem = consts[o1 as usize];
+                let second_elem = consts[o2 as usize];
+
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                    if parent >= child {
+                    i += jump_size as usize;
+                    continue;
+                }
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} < {:?}",
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                    ));
+                }}
+            }
             Instr::InfEq(o1, o2, dest) => {
                 let first_elem = consts[o1 as usize];
                 let second_elem = consts[o2 as usize];
 
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
                     consts[dest as usize] = Data::Bool(parent <= child);
+                } else {
+                    error_b!(format_args!(
+                        "UNSUPPORTED OPERATION: {:?} <= {:?}",
+                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                    ));
+                }}
+            }
+            Instr::InfEqCmp(o1, o2, jump_size) => {
+                let first_elem = consts[o1 as usize];
+                let second_elem = consts[o2 as usize];
+
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                    if parent > child {
+                        i += jump_size as usize;
+                        continue;
+                    }
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} <= {:?}",
@@ -416,8 +496,12 @@ pub fn execute(
                         }
                         Data::String(str) => {
                             if likely(str.len() > idx) {
-                                println!("RET_IDX IS {}", Data::String(Intern::from(
-                                    str.get(idx..=idx).unwrap().to_string())));
+                                println!(
+                                    "RET_IDX IS {}",
+                                    Data::String(Intern::from(
+                                        str.get(idx..=idx).unwrap().to_string()
+                                    ))
+                                );
                                 consts[dest as usize] = Data::String(Intern::from(
                                     str.get(idx..=idx).unwrap().to_string(),
                                 ));
@@ -435,7 +519,10 @@ pub fn execute(
                         }
                     }
                 } else {
-                    error_b!(format_args!("{} is not a valid index", consts[index as usize]));
+                    error_b!(format_args!(
+                        "{} is not a valid index",
+                        consts[index as usize]
+                    ));
                 }
             }
         }

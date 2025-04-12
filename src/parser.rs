@@ -6,6 +6,7 @@ use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
+use std::ops::Sub;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
@@ -291,6 +292,81 @@ fn can_move(x: Instr) -> bool {
     !matches!(x, Instr::ArrayMov(_, _, _))
 }
 
+fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwards: bool) {
+    match output.last().unwrap().clone() {
+        Instr::Inf(o1, o2, o3) => {
+            if o3 == condition_id {
+                output.remove(output.len() - 1);
+                output.push(Instr::InfCmp(o1, o2, *len));
+                if jmp_backwards {
+                    *len -= 1;
+                }
+            } else {
+                unreachable!("Should not be reached")
+            }
+        }
+        Instr::InfEq(o1, o2, o3) => {
+            if o3 == condition_id {
+                output.remove(output.len() - 1);
+                output.push(Instr::InfEqCmp(o1, o2, *len));
+                if jmp_backwards {
+                    *len -= 1;
+                }
+            } else {
+                unreachable!("Should not be reached")
+            }
+        }
+        Instr::Sup(o1, o2, o3) => {
+            if o3 == condition_id {
+                output.remove(output.len() - 1);
+                output.push(Instr::SupCmp(o1, o2, *len));
+                if jmp_backwards {
+                    *len -= 1;
+                }
+            } else {
+                unreachable!("Should not be reached")
+            }
+        }
+        Instr::SupEq(o1, o2, o3) => {
+            if o3 == condition_id {
+                output.remove(output.len() - 1);
+                output.push(Instr::SupEqCmp(o1, o2, *len));
+                if jmp_backwards {
+                    *len -= 1;
+                }
+            } else {
+                unreachable!("Should not be reached")
+            }
+        }
+        Instr::Eq(o1, o2, o3) => {
+            if o3 == condition_id {
+                output.remove(output.len() - 1);
+                output.push(Instr::EqCmp(o1, o2, *len));
+                if jmp_backwards {
+                    *len -= 1;
+                }
+            } else {
+                unreachable!("Should not be reached")
+            }
+        }
+        Instr::NotEq(o1, o2, o3) => {
+            if o3 == condition_id {
+                output.remove(output.len() - 1);
+                output.push(Instr::NotEqCmp(o1, o2, *len));
+                if jmp_backwards {
+                    *len -= 1;
+                }
+            } else {
+                unreachable!("Should not be reached")
+            }
+        }
+
+        _ => {
+            output.push(Instr::Cmp(condition_id, *len));
+        }
+    }
+}
+
 type Function = (String, Box<[String]>, Box<[Expr]>);
 type FunctionState = (String, u16, Vec<(String, u16)>, Option<u16>);
 
@@ -427,10 +503,20 @@ fn parser_to_instr_set(
                     let condition_id = get_tgt_id(*output.last().unwrap());
                     let jump_size = jumps[i];
                     if jump_size == 0 {
-                        output.push(Instr::Cmp(condition_id, (y.len() + 1) as u16));
+                        add_cmp(
+                            condition_id,
+                            &mut ((y.len() + 1) as u16),
+                            &mut output,
+                            false,
+                        );
                         output.extend(y);
                     } else {
-                        output.push(Instr::Cmp(condition_id, (y.len() + 2) as u16));
+                        add_cmp(
+                            condition_id,
+                            &mut ((y.len() + 2) as u16),
+                            &mut output,
+                            false,
+                        );
                         output.extend(y);
                         output.push(Instr::Jmp(jump_size, false));
                     }
@@ -448,8 +534,8 @@ fn parser_to_instr_set(
                 let mut priv_vars = v.clone();
                 let cond_code =
                     parser_to_instr_set(y.into_vec(), &mut priv_vars, consts, fns, fn_state, arrs);
-                let len = (cond_code.len() + 2) as u16;
-                output.push(Instr::Cmp(condition_id, len));
+                let mut len = (cond_code.len() + 2) as u16;
+                add_cmp(condition_id, &mut len, &mut output, true);
                 output.extend(cond_code);
                 output.push(Instr::Jmp(len, true));
             }
@@ -460,37 +546,34 @@ fn parser_to_instr_set(
                 let array_len_id = (consts.len() - 1) as u16;
                 output.push(Instr::ApplyFunc(2, array, array_len_id));
 
-
                 consts.push(Data::Number(0.0));
                 let index_id = (consts.len() - 1) as u16;
                 consts.push(Data::Null);
                 let condition_id = (consts.len() - 1) as u16;
                 output.push(Instr::Inf(index_id, array_len_id, condition_id));
 
-
-
-
                 consts.push(Data::Null);
                 let current_element_id = (consts.len() - 1) as u16;
                 v.push((var_name, current_element_id));
                 let current_element_variable_id = v.len() - 1;
                 let mut priv_vars = v.clone();
-                let cond_code =
-                    parser_to_instr_set(code.into_vec(), &mut priv_vars, consts, fns, fn_state, arrs);
+                let cond_code = parser_to_instr_set(
+                    code.into_vec(),
+                    &mut priv_vars,
+                    consts,
+                    fns,
+                    fn_state,
+                    arrs,
+                );
                 v.remove(current_element_variable_id);
-                let len = (cond_code.len() + 4) as u16;
-                output.push(Instr::Cmp(condition_id, len));
-
-
+                let mut len = (cond_code.len() + 4) as u16;
+                add_cmp(condition_id, &mut len, &mut output, true);
 
                 output.push(Instr::GetIndex(array, index_id, current_element_id));
                 output.extend(cond_code);
                 consts.push(Data::Number(1.0));
                 output.push(Instr::Add(index_id, (consts.len() - 1) as u16, index_id));
                 output.push(Instr::Jmp(len, true));
-
-
-
             }
             Expr::VarDeclare(x, y) => {
                 let mut val = parser_to_instr_set(vec![*y], v, consts, fns, fn_state, arrs);
