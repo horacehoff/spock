@@ -1,7 +1,7 @@
 fn main() {
-let a = ["a",47,"c"];
-for x in a {
-print(x);
+let i = 0;
+while i < 999999999 {
+    i += 1;
 }
-print(a);
+print(i);
 }
