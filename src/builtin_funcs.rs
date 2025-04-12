@@ -350,7 +350,35 @@ fn sqrt(
     }}
 }
 
-pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>); 16] = [
+fn round(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    _: &mut Vec<u16>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+) {
+    if_likely! {let Data::Number(num) = consts[tgt as usize] => {
+        consts[dest as usize] = Data::Number(num.round())
+    } else {
+        error_b!(format_args!("Cannot round {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
+    }}
+}
+
+fn abs(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    _: &mut Vec<u16>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+) {
+    if_likely! {let Data::Number(num) = consts[tgt as usize] => {
+        consts[dest as usize] = Data::Number(num.abs())
+    } else {
+        error_b!(format_args!("Cannot get absolute value of {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
+    }}
+}
+
+pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>); 18] = [
     uppercase,
     lowercase,
     len,
@@ -367,4 +395,6 @@ pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, 
     repeat,
     push,
     sqrt,
+    round,
+    abs
 ];

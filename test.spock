@@ -1,5 +1,5 @@
 fn main() {
-for x in [1, 2, 3] {
+for x in range(5) {
   print(x);
 }
 }

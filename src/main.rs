@@ -66,7 +66,7 @@ pub enum Instr {
     Neg(u16, u16),
 
     // General functions
-    Abs(u16, u16),
+    Type(u16,u16),
     Num(u16, u16),
     Str(u16, u16),
     Bool(u16, u16),
@@ -369,11 +369,8 @@ pub fn execute(
                 let elem = consts[target as usize];
                 println!("{}", format_data(elem, arrays));
             }
-            Instr::Abs(tgt, dest) => {
-                if let Data::Number(x) = consts[tgt as usize] {
-                    consts[dest as usize] = Data::Number(x.abs());
-                }
-            }
+            Instr::Type(tgt, dest) => {
+                consts[dest as usize] = Data::String(Intern::from(get_type(consts[tgt as usize])));            }
             Instr::Num(tgt, dest) => {
                 let base = consts[tgt as usize];
                 match base {

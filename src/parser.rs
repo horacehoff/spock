@@ -123,7 +123,6 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::BoolAnd(_, _, y)
         | Instr::BoolOr(_, _, y)
         | Instr::Neg(_, y)
-        | Instr::Abs(_, y)
         | Instr::Num(_, y)
         | Instr::Bool(_, y)
         | Instr::ApplyFunc(_, _, y)
@@ -165,10 +164,10 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
                             | Instr::BoolOr(_, _, _)
                             | Instr::Mov(_, _)
                             | Instr::Neg(_, _)
-                            | Instr::Abs(_, _)
                             | Instr::Bool(_, _)
                             | Instr::Num(_, _)
                             | Instr::Str(_, _)
+                        | Instr::Type(_, _)
                     )
                 })
                 .unwrap_or(x.len() - 1),
@@ -191,7 +190,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::BoolOr(_, _, z)
         | Instr::Mov(_, z)
         | Instr::Neg(_, z)
-        | Instr::Abs(_, z)
+        | Instr::Type(_, z)
         | Instr::Bool(_, z)
         | Instr::Num(_, z)
         | Instr::ApplyFunc(_, _, z)
@@ -654,11 +653,11 @@ fn parser_to_instr_set(
                         output.push(Instr::Print(id));
                     }
                 }
-                "abs" => {
-                    check_args!(args, 1, "abs", ctx);
+                "type" => {
+                    check_args!(args, 1, "type", ctx);
                     let id = get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
                     consts.push(Data::Null);
-                    output.push(Instr::Abs(id, (consts.len() - 1) as u16));
+                    output.push(Instr::Type(id, (consts.len() - 1) as u16));
                 }
                 "num" => {
                     check_args!(args, 1, "num", ctx);
@@ -692,11 +691,18 @@ fn parser_to_instr_set(
                     }
                 }
                 "range" => {
-                    check_args!(args, 2, "range", ctx);
-                    let id_x = get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
-                    let id_y = get_id(args[1].clone(), v, consts, &mut output, &ctx, fns, arrs);
-                    consts.push(Data::Null);
-                    output.push(Instr::Range(id_x, id_y, (consts.len() - 1) as u16))
+                    check_args_range!(args, 1,2, "range", ctx);
+                    if args.len() == 1 {
+                        let id_x = get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
+                        consts.push(Data::Number(0.0));
+                        consts.push(Data::Null);
+                        output.push(Instr::Range((consts.len() - 2) as u16, id_x, (consts.len() - 1) as u16))
+                    } else {
+                        let id_x = get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
+                        let id_y = get_id(args[1].clone(), v, consts, &mut output, &ctx, fns, arrs);
+                        consts.push(Data::Null);
+                        output.push(Instr::Range(id_x, id_y, (consts.len() - 1) as u16))
+                    }
                 }
                 function => {
                     let (fn_code, exp_args): (Vec<Expr>, Box<[String]>) = {
@@ -959,7 +965,24 @@ fn parser_to_instr_set(
                             output.push(Instr::ApplyFunc(15, id, f_id));
                             id = f_id;
                         }
+                        "round" => {
+                            check_args!(args, 0, "round", ctx);
 
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+
+                            output.push(Instr::ApplyFunc(16, id, f_id));
+                            id = f_id;
+                        }
+                        "abs" => {
+                            check_args!(args, 0, "abs", ctx);
+
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+
+                            output.push(Instr::ApplyFunc(17, id, f_id));
+                            id = f_id;
+                        }
                         other => {
                             error!(ctx, format_args!("Unknown function {}", other.red()));
                         }

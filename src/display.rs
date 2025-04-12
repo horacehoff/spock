@@ -237,7 +237,6 @@ pub fn print_instructions(instructions: &[Instr]) {
             Instr::BoolAnd(x, y, z) => format!("AND {x} {y} {z}"),
             Instr::BoolOr(x, y, z) => format!("OR {x} {y} {z}"),
             Instr::Neg(x, y) => format!("NEG {x} {y}"),
-            Instr::Abs(x, y) => format!("ABS {x} {y}"),
             Instr::Num(x, y) => format!("NUM {x} {y}"),
             Instr::Str(x, y) => format!("STR {x} {y}"),
             Instr::Bool(x, y) => format!("BOOL {x} {y}"),
@@ -254,6 +253,7 @@ pub fn print_instructions(instructions: &[Instr]) {
             Instr::ArrayMod(x, y, z) => format!("ARRAY_MOD {x} {y} {z}"),
             Instr::GetIndex(x, y, z) => format!("GET_INDEX {x} {y} {z}"),
             Instr::Range(x, y, z) => format!("RANGE {x} {y} {z}"),
+            Instr::Type(x, y) => format!("TYPE {x} {y}"),
         });
     }
 }
