@@ -1,0 +1,3 @@
+fn test() {
+    print("Hello");
+}

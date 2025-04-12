@@ -562,14 +562,12 @@ pub enum Opcode {
     Neg,
 }
 
-// Live long and prosper
-fn main() {
-    let mut contents = std::fs::read_to_string("test.spock").unwrap();
-    contents = contents
+fn clean_contents(inp: String, base_name: String) -> String {
+    inp
         .lines()
         .filter_map(|mut line| {
             if line.starts_with("//") {
-                return None;
+                None
             } else if let Some(idx) = line.find("//") {
                 let mut in_str = false;
                 for c in line.chars().take(idx + 2) {
@@ -579,11 +577,28 @@ fn main() {
                         line = &line[..idx];
                     }
                 }
+                Some(line.to_string())
+            } else if line.starts_with("import") {
+                let import_path = line.trim_start_matches("import").trim_end_matches(";").trim();
+                if import_path != base_name {
+                    let path = clean_contents(std::fs::read_to_string(import_path).unwrap(), base_name.clone());
+                    Some(path)
+                } else {
+                    None
+                }
             }
-            Some(line)
+            else {
+                Some(line.to_string())
+            }
         })
-        .collect::<Vec<&str>>()
-        .join("\r\n");
+        .collect::<Vec<String>>()
+        .join("\r\n")
+}
+
+// Live long and prosper
+fn main() {
+    let mut contents = std::fs::read_to_string("test.spock").unwrap();
+    contents = clean_contents(contents, "test.spock".parse().unwrap());
     print!("{contents:?}");
 
     let (instructions, mut consts, mut arrays) = parse(&contents);
