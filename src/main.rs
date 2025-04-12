@@ -532,7 +532,7 @@ pub fn execute(
                     let Data::Number(x) = consts[min as usize] => {
                         if_likely! {let Data::Number(y) = consts[max as usize] => {
                             let id = arrays.len() as u16;
-                            arrays.insert(id, (x as usize..y as usize).into_iter().map(|x| Data::Number(x as f64)).collect());
+                            arrays.insert(id, (x as u64..y as u64).into_iter().map(|x| Data::Number(x as f64)).collect());
                             consts[dest as usize] = Data::Array(id);
                         }}
                     }
