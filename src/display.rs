@@ -253,6 +253,7 @@ pub fn print_instructions(instructions: &[Instr]) {
             Instr::ArrayMov(x, y, z) => format!("ARRAY_MOV {x} {y} {z}"),
             Instr::ArrayMod(x, y, z) => format!("ARRAY_MOD {x} {y} {z}"),
             Instr::GetIndex(x, y, z) => format!("GET_INDEX {x} {y} {z}"),
+            Instr::Range(x, y, z) => format!("RANGE {x} {y} {z}"),
         });
     }
 }

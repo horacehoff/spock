@@ -128,6 +128,7 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::ApplyFunc(_, _, y)
         | Instr::Input(_, y)
         | Instr::GetIndex(_, _, y)
+        | Instr::Range(_, _, y)
         | Instr::Str(_, y) => y,
         _ => unreachable!(),
     }
@@ -685,6 +686,13 @@ fn parser_to_instr_set(
                         consts.push(Data::Null);
                         output.push(Instr::Input(id, (consts.len() - 1) as u16));
                     }
+                }
+                "range" => {
+                    check_args!(args, 2, "range", ctx);
+                    let id_x = get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
+                    let id_y = get_id(args[1].clone(), v, consts, &mut output, &ctx, fns, arrs);
+                    consts.push(Data::Null);
+                    output.push(Instr::Range(id_x, id_y, (consts.len() - 1) as u16))
                 }
                 function => {
                     let (fn_code, exp_args): (Vec<Expr>, Box<[String]>) = {

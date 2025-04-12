@@ -1,7 +1,3 @@
 fn main() {
-let i = [0,1,2,3];
-for x in i.repeat(30000000) {
-    i.push(x);
-}
-print(i.len());
+print(range(2,5));
 }
