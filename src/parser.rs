@@ -938,6 +938,16 @@ fn parser_to_instr_set(
                             output.push(Instr::ApplyFunc(14, id, f_id));
                             id = f_id;
                         }
+                        "sqrt" => {
+                            check_args!(args, 0, "sqrt", ctx);
+
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+
+                            output.push(Instr::ApplyFunc(15, id, f_id));
+                            id = f_id;
+                        }
+
                         other => {
                             error!(ctx, format_args!("Unknown function {}", other.red()));
                         }

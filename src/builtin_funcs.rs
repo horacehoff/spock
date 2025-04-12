@@ -334,7 +334,19 @@ fn push(
     }
 }
 
-pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>); 15] = [
+fn sqrt(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    _: &mut Vec<u16>,
+    _: &mut FnvHashMap<u16, Vec<Data>>,
+) {
+    if let Data::Number(num) = consts[tgt as usize] {
+        consts[dest as usize] = Data::Number(num.sqrt())
+    }
+}
+
+pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>); 16] = [
     uppercase,
     lowercase,
     len,
@@ -350,4 +362,5 @@ pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, 
     rindex,
     repeat,
     push,
+    sqrt,
 ];
