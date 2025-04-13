@@ -1,4 +1,10 @@
-# Spock
+Spock
+===
+
+> [!WARNING]
+>
+> This language is very experimental, and there may be logic-breaking bugs. Expect breaking changes.
+
 A work-in-progress programming language written in Rust for the best performance possible, whose syntax takes inspiration from Rust and Python. Basically, its goal is to provide a faster alternative to Python, and one that's closer to low-level languages, while still being accessible to a wide audience.
 
 Key info:

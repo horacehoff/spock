@@ -130,6 +130,8 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::Input(_, y)
         | Instr::GetIndex(_, _, y)
         | Instr::Range(_, _, y)
+        | Instr::Type(_, y)
+        | Instr::IoOpen(_,y,_)
         | Instr::Str(_, y) => y,
         _ => unreachable!(),
     }
@@ -174,6 +176,9 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
                             | Instr::Type(_, _)
                             | Instr::Range(_, _, _)
                             | Instr::IoOpen(_, _, _)
+                            | Instr::GetIndex(_, _, _)
+                            | Instr::ApplyFunc(_, _, _)
+                            | Instr::Input(_, _)
                     )
                 })
                 .unwrap_or(x.len() - 1),

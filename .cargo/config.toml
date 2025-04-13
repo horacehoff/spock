@@ -1,0 +1,4 @@
+[build]
+rustflags = ["-Ctarget-cpu=native",
+#    "-Cprofile-use=target/pgo-profiles/profile.profraw","-Cllvm-args=-pgo-warn-missing-function"
+]
