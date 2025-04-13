@@ -20,7 +20,7 @@ print(i)</code></pre></td>
  </tr>
 <tr>
 <td>
-5.5s
+5.5s (7.6x faster)
 </td>
 <td>
 42s
@@ -50,7 +50,7 @@ print(len(i))</code></pre></td>
  </tr>
 <tr>
 <td>
-2.6s
+2.6s (6.7x faster)
 </td>
 <td>
 17.4s
@@ -81,7 +81,7 @@ print(x)</code></pre></td>
  </tr>
 <tr>
 <td>
-0.199s
+0.199s (7x faster)
 </td>
 <td>
 1.4s
