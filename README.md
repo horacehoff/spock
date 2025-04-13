@@ -71,13 +71,6 @@ while (x < 10) {
 }
 ```
 ```
-for x in [1, 2, 3] {
-  for y in "abc" {
-    print(x.toStr()+y);
-  }
-}
-```
-```
 let x = [10, 20, 30, 40];
 print(x[0]);
 ```
@@ -134,7 +127,8 @@ print(x[0]);
 
 ## Imports
 You can import functions from other `.spock` files by using the `import` keyword like shown below.
-Please that imports are directly replaced by the file's content, as such error messages will not be able to specify which file the error comes from.
+Please note that import statements are directly replaced by the file's contents, and as such error messages will not be
+able to specify which file the error comes from.
 - `otherfile.spock`:
 ```
 func demo() {
