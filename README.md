@@ -97,19 +97,40 @@ print(x[0]);
 - `print(<object: String>)` - Prints the given String
 - `input(<message: String>) -> String` - Prompt the user for input (with a prompt if given)
 - `type(<object: Any>) -> String` - Returns the type of the given object
-- `<Number>.abs()` - Returns the absolute value of the given number
-- `<Number>.round()` - Rounds the given number to the nearest integer (Integer type simply returns itself)
-- `<Array/String>.len()` - Returns the length of the given Array (number of elements) or String (number of letters)
-- `<Number>.sqrt()` - Returns the square root of the given number
+- `<Number>.abs() -> Number` - Returns the absolute value of the given number
+- `<Number>.round() -> Number` - Rounds the given number to the nearest integer (Number type simply returns itself)
+- `<Array/String>.len() -> Number` - Returns the length of the given Array (number of elements) or String (number of
+  letters)
+- `<Number>.sqrt() -> Number` - Returns the square root of the given number
 - `the_answer()` - Prints and returns the answer to the Ultimate Question of Life, the Universe, and Everything.
-- `range(<start: Integer>, <end: Integer (OPTIONAL)>)` - Returns an array of integers:
+- `range(<start: Integer>, <end: Integer (OPTIONAL)>) -> Array` - Returns an array of integers:
   - `[0..<first argument>]` if only one argument was provided
   - `[<first argument>..<second argument>]` if two arguments were provided
 - `io::open(<path: String>)` - Checks if the file path exists and returns a File object.
 - `io::delete(<path: String>)` - Deletes the given file path if it exists
 - `<File>.write(<contents: String>, <truncate: Boolean (OPTIONAL ==> DEFAULT = false)>)` - Given a File object, writes
   to the file.
-- `<File>.read()` - Given a File object, returns the contents of the file.
+- `<File>.read() -> String` - Given a File object, returns the contents of the file.
+- `<String>.uppercase() -> String` - Capitalizes all the letters of the given string
+- `<String>.lowercase() -> String` - Lowercases all the letters of the given string
+- `<Array/String>.contains(<object: Any>) -> Boolean` - Checks if the array contains the given element, or checks if the
+  string contains the given substring
+- `<String>.trim() -> String` - Removes the leading and trailing whitespace
+- `<String>.trim_left() -> String` - Removes the leading whitespace
+- `<String>.trim_right() -> String` - Removes the trailing whitespace
+- `<String>.trim_sequence(<substring: String>) -> String` - Removes the given substring from the start and end of the
+  string
+- `<String>.trim_sequence_left(<substring: String>) -> String` - Removes the given substring from the start of the
+  string
+- `<String>.trim_sequence_right(<substring: String>) -> String` - Removes the given substring from the end of the string
+- `<Array/String>.index(<object: Any>) -> Number` - Returns the index in the Array of the given element, or the index in
+  the String of the given substring
+- `<Array/String>.rindex(<object: Any>) -> Number` - Returns the index in the Array of the given element, or the index
+  in the String of the given substring, **starting from the end of the set**
+- `<String>.is_num() -> Boolean` - Returns whether the string is a number or not
+- `<Array/String>.repeat(<n: Number>) -> Array/String` - Returns an Array or a String with the set itself repeated n
+  times.
+- `<Array>.push(<object: Any>)` - Appends the given object to the end of the array
 
 ## Imports
 You can import functions from other `.spock` files by using the `import` keyword like shown below.
