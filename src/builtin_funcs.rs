@@ -378,7 +378,23 @@ fn abs(
     }}
 }
 
-pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>); 18] = [
+fn read(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    _: &mut Vec<u16>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+) {
+    if_likely! {let Data::File(path) = consts[tgt as usize] => {
+        consts[dest as usize] = Data::String(Intern::from(std::fs::read_to_string(path.as_str()).unwrap_or_else(|_| {
+            error_b!(format_args!("Cannot read file {color_red}{path}{color_reset}"));
+        })))
+    } else {
+        error_b!(format_args!("Cannot get absolute value of {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
+    }}
+}
+
+pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>); 19] = [
     uppercase,
     lowercase,
     len,
@@ -396,5 +412,6 @@ pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, 
     push,
     sqrt,
     round,
-    abs
+    abs,
+    read,
 ];

@@ -1062,6 +1062,16 @@ fn parser_to_instr_set(
                             output.push(Instr::ApplyFunc(17, id, f_id));
                             id = f_id;
                         }
+                        // io::read
+                        "read" => {
+                            check_args!(args, 0, "read", ctx);
+
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+
+                            output.push(Instr::ApplyFunc(18, id, f_id));
+                            id = f_id;
+                        }
                         other => {
                             error!(ctx, format_args!("Unknown function {}", other.red()));
                         }

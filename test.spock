@@ -1,4 +1,4 @@
 fn main() {
 let x = io::open("other.spock");
-print(x);
+print(x.read());
 }
