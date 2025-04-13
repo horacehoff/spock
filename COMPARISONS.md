@@ -88,3 +88,44 @@ print(x)</code></pre></td>
 </td>
 </tr>
 </table>
+
+- ## While loop, condition, modulo, multiplication and addition
+
+<table border="0">
+ <tr>
+    <td><b style="font-size:20px">Spock code</b></td>
+    <td><b style="font-size:20px">Python code</b></td>
+ </tr>
+ <tr>
+    <td><pre><code>fn main() {
+let count = 0;
+let limit = 1000000;
+let result = 1;
+while count < limit {
+    result *= 2;
+    if result > 1000000 {
+        result %= 1000000;
+    }
+    count += 1;
+}
+print(result);
+}</code></pre></td>
+    <td><pre><code>count = 0
+limit = 1000000
+result = 1
+while count < limit:
+    result = result * 2;
+    if result > 1000000:
+        result = result % 1000000
+    count += 1
+print(result)</code></pre></td>
+ </tr>
+<tr>
+<td>
+0.021s (5.7x faster)
+</td>
+<td>
+0.120s
+</td>
+</tr>
+</table>
