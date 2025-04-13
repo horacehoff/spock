@@ -173,7 +173,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
                             | Instr::Str(_, _)
                             | Instr::Type(_, _)
                             | Instr::Range(_, _, _)
-                            | Instr::IoOpen(_, _)
+                            | Instr::IoOpen(_, _, _)
                     )
                 })
                 .unwrap_or(x.len() - 1),
@@ -203,7 +203,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Input(_, z)
         | Instr::GetIndex(_, _, z)
         | Instr::Range(_, _, z)
-        | Instr::IoOpen(_, z)
+        | Instr::IoOpen(_, z, _)
         | Instr::Str(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
@@ -854,11 +854,23 @@ fn parser_to_instr_set(
                 } else if *namespace == ["io"] {
                     match x.as_str() {
                         "open" => {
-                            check_args!(args, 1, "open", ctx);
+                            check_args_range!(args, 1, 2, "open", ctx);
                             consts.push(Data::Null);
                             let arg_id =
                                 get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
-                            output.push(Instr::IoOpen(arg_id, (consts.len() - 1) as u16));
+
+                            let second_arg = if args.len() == 1 {
+                                consts.push(Data::Bool(false));
+                                (consts.len() - 1) as u16
+                            } else {
+                                get_id(args[1].clone(), v, consts, &mut output, &ctx, fns, arrs)
+                            };
+
+                            output.push(Instr::IoOpen(
+                                arg_id,
+                                (consts.len() - 1) as u16,
+                                second_arg,
+                            ));
                         }
                         "delete" => {
                             check_args!(args, 1, "delete", ctx);
@@ -1080,6 +1092,23 @@ fn parser_to_instr_set(
                             consts.push(Data::Null);
 
                             output.push(Instr::ApplyFunc(18, id, f_id));
+                            id = f_id;
+                        }
+                        // io::write
+                        "write" => {
+                            check_args_range!(args, 1, 2, "write", ctx);
+
+                            let len = args.len();
+                            add_args!(args, v, consts, output, ctx, fns, arrs);
+                            if len == 1 {
+                                consts.push(Data::Bool(false));
+                                output.push(Instr::StoreFuncArg((consts.len() - 1) as u16));
+                            }
+
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+
+                            output.push(Instr::ApplyFunc(19, id, f_id));
                             id = f_id;
                         }
                         other => {

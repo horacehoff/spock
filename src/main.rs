@@ -7,8 +7,10 @@ use concat_string::concat_string;
 use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
-use likely_stable::{if_likely, likely};
+use likely_stable::{if_likely, likely, unlikely};
 use std::cmp::PartialEq;
+use std::fs;
+use std::fs::File;
 use std::io::Write;
 use std::time::Instant;
 
@@ -74,7 +76,8 @@ pub enum Instr {
     Input(u16, u16),
     // start,end,dest
     Range(u16, u16, u16),
-    IoOpen(u16, u16),
+    // path - dest - create?
+    IoOpen(u16, u16, u16),
     IoDelete(u16),
 
     StoreFuncArg(u16),
@@ -540,16 +543,31 @@ pub fn execute(
                     }
                 }
             }
-            Instr::IoOpen(path, dest) => {
+            Instr::IoOpen(path, dest, create) => {
                 if_likely! {let Data::String(str) = consts[path as usize] => {
-                    consts[dest as usize] = Data::File(str);
+                    if_likely!{let Data::Bool(create) = consts[create as usize] => {
+                        if create {
+                            File::create(str.as_str()).unwrap_or_else(|_| {
+                                error_b!(format_args!("Cannot create file {color_red}{str}{color_reset}"));
+                            });
+                        } else {
+                            if unlikely(!fs::exists(str.as_str()).unwrap_or_else(|_| {
+                                error_b!(format_args!("Cannot check existence of file {color_red}{str}{color_reset}"));
+                            })) {
+                                error_b!(format_args!("File {color_red}{str}{color_reset} does not exist"));
+                            }
+                        }
+                        consts[dest as usize] = Data::File(str);
+                    } else {
+                        error_b!(format_args!("Invalid create option: {color_red}{}{color_reset}", consts[create as usize]));
+                    }}
                 } else {
                     error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", consts[path as usize]));
                 }}
             }
             Instr::IoDelete(path) => {
                 if_likely! {let Data::String(str) = consts[path as usize] => {
-                    std::fs::remove_file(str.as_str()).unwrap_or_else(|_| {
+                    fs::remove_file(str.as_str()).unwrap_or_else(|_| {
                         error_b!(format_args!("Cannot remove file {color_red}{str}{color_reset}"));
                     });
                 } else {

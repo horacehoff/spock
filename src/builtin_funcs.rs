@@ -6,6 +6,8 @@ use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
 use likely_stable::if_likely;
+use std::fs::OpenOptions;
+use std::io::Write;
 
 fn uppercase(
     tgt: u16,
@@ -394,7 +396,32 @@ fn read(
     }}
 }
 
-pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>); 19] = [
+fn write(
+    tgt: u16,
+    _: u16,
+    consts: &mut [Data],
+    args: &mut Vec<u16>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+) {
+    if_likely! {let Data::File(path) = consts[tgt as usize] => {
+        if_likely!{let Data::String(contents) = consts[args.swap_remove(0) as usize] => {
+            if_likely!{let Data::Bool(truncate) = consts[args.swap_remove(0) as usize] => {
+                OpenOptions::new()
+                    .write(true)
+                    .truncate(truncate)
+                    .open(path.as_str()).unwrap_or_else(|_| {
+                        error_b!(format_args!("Cannot open file {color_red}{path}{color_reset}"));
+                    }).write(contents.as_bytes()).unwrap_or_else(|_| {
+                        error_b!(format_args!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
+                });
+            }}
+        }}
+    } else {
+        error_b!(format_args!("Invalid file: {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
+    }}
+}
+
+pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>); 20] = [
     uppercase,
     lowercase,
     len,
@@ -414,4 +441,5 @@ pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, 
     round,
     abs,
     read,
+    write,
 ];
