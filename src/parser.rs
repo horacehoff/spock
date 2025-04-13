@@ -564,13 +564,36 @@ fn parser_to_instr_set(
                 let condition = parser_to_instr_set(vec![*x], v, consts, fns, fn_state, arrs);
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
-                let mut priv_vars = v.clone();
+                let mut temp_vars = v.clone();
+                let consts_before = consts.len() - 1;
+                let temp_vars_before = temp_vars.len() - 1;
                 let cond_code =
-                    parser_to_instr_set(y.into_vec(), &mut priv_vars, consts, fns, fn_state, arrs);
+                    parser_to_instr_set(y.into_vec(), &mut temp_vars, consts, fns, fn_state, arrs);
+                let consts_after = consts.len();
+                let temp_vars_after = temp_vars.len();
+                let modified_temp_vars = (temp_vars_before..temp_vars_after).map(|x|  temp_vars[x].clone()).collect::<Vec<_>>();
+
+
+
                 let mut len = (cond_code.len() + 2) as u16;
                 add_cmp(condition_id, &mut len, &mut output, true);
                 output.extend(cond_code);
+
                 output.push(Instr::Jmp(len, true));
+
+
+                // clean up
+                if consts_before+1 != consts_after {
+                    consts.push(Data::Number(0.0));
+                }
+                (consts_before..consts_after).for_each(|x| {
+                    if modified_temp_vars.iter().any(|w| w.1 == x as u16) {
+                        output.push(Instr::Mov((consts.len() - 1) as u16, x as u16));
+                    }
+                });
+
+
+
             }
             Expr::ForLoop(var_name, array, code) => {
                 let array = get_id(*array, v, consts, &mut output, &ctx, fns, arrs);
@@ -589,16 +612,22 @@ fn parser_to_instr_set(
                 let current_element_id = (consts.len() - 1) as u16;
                 v.push((var_name, current_element_id));
                 let current_element_variable_id = v.len() - 1;
-                let mut priv_vars = v.clone();
+                let mut temp_vars = v.clone();
+                let consts_before = consts.len() - 1;
+                let temp_vars_before = temp_vars.len() - 1;
                 let cond_code = parser_to_instr_set(
                     code.into_vec(),
-                    &mut priv_vars,
+                    &mut temp_vars,
                     consts,
                     fns,
                     fn_state,
                     arrs,
                 );
                 v.remove(current_element_variable_id);
+                temp_vars.remove(current_element_variable_id);
+                let consts_after = consts.len();
+                let temp_vars_after = temp_vars.len();
+                let modified_temp_vars = (temp_vars_before..temp_vars_after).map(|x|  temp_vars[x].clone()).collect::<Vec<_>>();
                 let mut len = (cond_code.len() + 4) as u16;
                 add_cmp(condition_id, &mut len, &mut output, true);
 
@@ -608,7 +637,14 @@ fn parser_to_instr_set(
                 output.push(Instr::Add(index_id, (consts.len() - 1) as u16, index_id));
                 output.push(Instr::Jmp(len, true));
                 consts.push(Data::Number(0.0));
+
+                // clean up
                 output.push(Instr::Mov((consts.len() - 1) as u16, index_id));
+                (consts_before..consts_after).for_each(|x| {
+                    if modified_temp_vars.iter().any(|w| w.1 == x as u16) {
+                        output.push(Instr::Mov((consts.len() - 1) as u16, x as u16));
+                    }
+                });
             }
             Expr::VarDeclare(x, y) => {
                 let mut val = parser_to_instr_set(vec![*y], v, consts, fns, fn_state, arrs);
