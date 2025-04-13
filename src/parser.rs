@@ -607,6 +607,8 @@ fn parser_to_instr_set(
                 consts.push(Data::Number(1.0));
                 output.push(Instr::Add(index_id, (consts.len() - 1) as u16, index_id));
                 output.push(Instr::Jmp(len, true));
+                consts.push(Data::Number(0.0));
+                output.push(Instr::Mov((consts.len() - 1) as u16, index_id));
             }
             Expr::VarDeclare(x, y) => {
                 let mut val = parser_to_instr_set(vec![*y], v, consts, fns, fn_state, arrs);

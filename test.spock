@@ -1,11 +1,8 @@
 fn main() {
-let counter = "";
-for _ in range(30) {
-let path = "test";
-let x = io::open(path,true);
-x.write("THIS IS A TEST");
-counter += x.read();
-io::delete(path);
+for x in [7,8] {
+    for y in [1,2] {
+        print(x);
+        print(y);
+    }
 }
-let len = counter.len();
 }

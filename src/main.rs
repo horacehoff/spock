@@ -102,7 +102,7 @@ pub fn execute(
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
-                    i -= size as usize;
+                    i -= (size) as usize;
                 } else {
                     i += size as usize;
                 }

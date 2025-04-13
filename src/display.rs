@@ -220,6 +220,6 @@ where
 
 pub fn print_instructions(instructions: &[Instr]) {
     for (i, instr) in instructions.iter().enumerate() {
-        println!("{} {:?}", i + 1, instr);
+        println!("{} {:?}", i, instr);
     }
 }
