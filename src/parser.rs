@@ -23,7 +23,8 @@ pub enum Expr {
     Condition(Box<Expr>, Box<[Expr]>, Box<[Expr]>, Option<Box<[Expr]>>),
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
     WhileBlock(Box<Expr>, Box<[Expr]>),
-    FunctionCall(String, Box<[Expr]>),
+    // name - args - optional namespace
+    FunctionCall(String, Box<[Expr]>, Box<[String]>),
     ObjFunctionCall(Box<Expr>, Box<[(String, Box<[Expr]>)]>),
     LPAREN,
     RPAREN,
@@ -167,7 +168,8 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
                             | Instr::Bool(_, _)
                             | Instr::Num(_, _)
                             | Instr::Str(_, _)
-                        | Instr::Type(_, _)
+                            | Instr::Type(_, _)
+                            | Instr::Range(_, _, _)
                     )
                 })
                 .unwrap_or(x.len() - 1),
@@ -196,6 +198,8 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::ApplyFunc(_, _, z)
         | Instr::Input(_, z)
         | Instr::GetIndex(_, _, z)
+        | Instr::Range(_, _, z)
+        | Instr::IoOpen(_, z)
         | Instr::Str(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
@@ -365,6 +369,23 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
             output.push(Instr::Cmp(condition_id, *len));
         }
     }
+}
+
+macro_rules! add_args {
+    ($args: expr, $variables: expr, $consts: expr, $output: expr, $ctx: expr, $functions: expr, $arrays: expr) => {
+        for arg in $args {
+            let arg_id = get_id(
+                arg,
+                $variables,
+                $consts,
+                &mut $output,
+                &$ctx,
+                $functions,
+                $arrays,
+            );
+            $output.push(Instr::StoreFuncArg(arg_id));
+        }
+    };
 }
 
 type Function = (String, Box<[String]>, Box<[Expr]>);
@@ -646,141 +667,216 @@ fn parser_to_instr_set(
                 }
                 output.extend(value);
             }
-            Expr::FunctionCall(x, args) => match x.as_str() {
-                "print" => {
-                    for arg in args {
-                        let id = get_id(arg, v, consts, &mut output, &ctx, fns, arrs);
-                        output.push(Instr::Print(id));
-                    }
-                }
-                "type" => {
-                    check_args!(args, 1, "type", ctx);
-                    let id = get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
-                    consts.push(Data::Null);
-                    output.push(Instr::Type(id, (consts.len() - 1) as u16));
-                }
-                "num" => {
-                    check_args!(args, 1, "num", ctx);
-                    let id = get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
-                    consts.push(Data::Null);
-                    output.push(Instr::Num(id, (consts.len() - 1) as u16));
-                }
-                "str" => {
-                    check_args!(args, 1, "str", ctx);
-                    let id = get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
-                    consts.push(Data::Null);
-                    output.push(Instr::Str(id, (consts.len() - 1) as u16));
-                }
-                "bool" => {
-                    check_args!(args, 1, "bool", ctx);
-                    let id = get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
-                    consts.push(Data::Null);
-                    output.push(Instr::Bool(id, (consts.len() - 1) as u16));
-                }
-                "input" => {
-                    check_args_range!(args, 0, 1, "input", ctx);
-                    if args.len() != 0 {
-                        let id = get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
-                        consts.push(Data::Null);
-                        output.push(Instr::Input(id, (consts.len() - 1) as u16));
-                    } else {
-                        consts.push(Data::String(Intern::from(String::new())));
-                        let id = (consts.len() - 1) as u16;
-                        consts.push(Data::Null);
-                        output.push(Instr::Input(id, (consts.len() - 1) as u16));
-                    }
-                }
-                "range" => {
-                    check_args_range!(args, 1,2, "range", ctx);
-                    if args.len() == 1 {
-                        let id_x = get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
-                        consts.push(Data::Number(0.0));
-                        consts.push(Data::Null);
-                        output.push(Instr::Range((consts.len() - 2) as u16, id_x, (consts.len() - 1) as u16))
-                    } else {
-                        let id_x = get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
-                        let id_y = get_id(args[1].clone(), v, consts, &mut output, &ctx, fns, arrs);
-                        consts.push(Data::Null);
-                        output.push(Instr::Range(id_x, id_y, (consts.len() - 1) as u16))
-                    }
-                }
-                function => {
-                    let (fn_code, exp_args): (Vec<Expr>, Box<[String]>) = {
-                        if let Some((_, exp_args, code)) =
-                            fns.iter().find(|(a, _, _)| a == function)
-                        {
-                            (code.to_vec(), exp_args.clone())
-                        } else {
-                            error!(ctx, format_args!("Unknown function {}", function.red()));
+            Expr::FunctionCall(x, args, namespace) => {
+                if *namespace == ["std"] {
+                    match x.as_str() {
+                        "print" => {
+                            for arg in args {
+                                let id = get_id(arg, v, consts, &mut output, &ctx, fns, arrs);
+                                output.push(Instr::Print(id));
+                            }
                         }
-                    };
-                    check_args!(args, exp_args.len(), function, ctx);
-
-                    if let Some((name, loc, func_args, return_id)) = fn_state {
-                        if name == function {
-                            // recursive function, go back to function def and move on
-                            // "return" doesn't work with recursive functions for now
-                            for (i, _) in exp_args.iter().enumerate() {
-                                let arg = args.get(i).unwrap();
-                                let val = expr_to_data(arg.clone());
-                                if val != Data::Null {
-                                    consts[func_args[i].1 as usize] = val;
+                        "type" => {
+                            check_args!(args, 1, "type", ctx);
+                            let id =
+                                get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
+                            consts.push(Data::Null);
+                            output.push(Instr::Type(id, (consts.len() - 1) as u16));
+                        }
+                        "num" => {
+                            check_args!(args, 1, "num", ctx);
+                            let id =
+                                get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
+                            consts.push(Data::Null);
+                            output.push(Instr::Num(id, (consts.len() - 1) as u16));
+                        }
+                        "str" => {
+                            check_args!(args, 1, "str", ctx);
+                            let id =
+                                get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
+                            consts.push(Data::Null);
+                            output.push(Instr::Str(id, (consts.len() - 1) as u16));
+                        }
+                        "bool" => {
+                            check_args!(args, 1, "bool", ctx);
+                            let id =
+                                get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
+                            consts.push(Data::Null);
+                            output.push(Instr::Bool(id, (consts.len() - 1) as u16));
+                        }
+                        "input" => {
+                            check_args_range!(args, 0, 1, "input", ctx);
+                            if args.len() != 0 {
+                                let id = get_id(
+                                    args[0].clone(),
+                                    v,
+                                    consts,
+                                    &mut output,
+                                    &ctx,
+                                    fns,
+                                    arrs,
+                                );
+                                consts.push(Data::Null);
+                                output.push(Instr::Input(id, (consts.len() - 1) as u16));
+                            } else {
+                                consts.push(Data::String(Intern::from(String::new())));
+                                let id = (consts.len() - 1) as u16;
+                                consts.push(Data::Null);
+                                output.push(Instr::Input(id, (consts.len() - 1) as u16));
+                            }
+                        }
+                        "range" => {
+                            check_args_range!(args, 1, 2, "range", ctx);
+                            if args.len() == 1 {
+                                let id_x = get_id(
+                                    args[0].clone(),
+                                    v,
+                                    consts,
+                                    &mut output,
+                                    &ctx,
+                                    fns,
+                                    arrs,
+                                );
+                                consts.push(Data::Number(0.0));
+                                consts.push(Data::Null);
+                                output.push(Instr::Range(
+                                    (consts.len() - 2) as u16,
+                                    id_x,
+                                    (consts.len() - 1) as u16,
+                                ))
+                            } else {
+                                let id_x = get_id(
+                                    args[0].clone(),
+                                    v,
+                                    consts,
+                                    &mut output,
+                                    &ctx,
+                                    fns,
+                                    arrs,
+                                );
+                                let id_y = get_id(
+                                    args[1].clone(),
+                                    v,
+                                    consts,
+                                    &mut output,
+                                    &ctx,
+                                    fns,
+                                    arrs,
+                                );
+                                consts.push(Data::Null);
+                                output.push(Instr::Range(id_x, id_y, (consts.len() - 1) as u16))
+                            }
+                        }
+                        function => {
+                            let (fn_code, exp_args): (Vec<Expr>, Box<[String]>) = {
+                                if let Some((_, exp_args, code)) =
+                                    fns.iter().find(|(a, _, _)| a == function)
+                                {
+                                    (code.to_vec(), exp_args.clone())
                                 } else {
-                                    print!("{arg}");
-                                    let mut value = parser_to_instr_set(
-                                        vec![arg.clone()],
-                                        v,
-                                        consts,
-                                        fns,
-                                        fn_state,
-                                        arrs,
+                                    error!(
+                                        ctx,
+                                        format_args!("Unknown function {}", function.red())
                                     );
-                                    move_to_id(&mut value, func_args[i].1);
-                                    print!("VAL{value:?}");
-                                    output.extend(value);
+                                }
+                            };
+                            check_args!(args, exp_args.len(), function, ctx);
+
+                            if let Some((name, loc, func_args, return_id)) = fn_state {
+                                if name == function {
+                                    // recursive function, go back to function def and move on
+                                    // "return" doesn't work with recursive functions for now
+                                    for (i, _) in exp_args.iter().enumerate() {
+                                        let arg = args.get(i).unwrap();
+                                        let val = expr_to_data(arg.clone());
+                                        if val != Data::Null {
+                                            consts[func_args[i].1 as usize] = val;
+                                        } else {
+                                            print!("{arg}");
+                                            let mut value = parser_to_instr_set(
+                                                vec![arg.clone()],
+                                                v,
+                                                consts,
+                                                fns,
+                                                fn_state,
+                                                arrs,
+                                            );
+                                            move_to_id(&mut value, func_args[i].1);
+                                            print!("VAL{value:?}");
+                                            output.extend(value);
+                                        }
+                                    }
+
+                                    output.push(Instr::Jmp((output.len() as u16) - loc, true));
+                                    continue;
                                 }
                             }
 
-                            output.push(Instr::Jmp((output.len() as u16) - loc, true));
-                            continue;
+                            let mut fn_variables: Vec<(String, u16)> = Vec::new();
+                            let mut instructions: Vec<Instr> = Vec::new();
+
+                            for (i, x) in exp_args.iter().enumerate() {
+                                let len = consts.len() as u16;
+                                let mut value = parser_to_instr_set(
+                                    vec![args[i].clone()],
+                                    v,
+                                    consts,
+                                    fns,
+                                    fn_state,
+                                    arrs,
+                                );
+                                move_to_id(&mut value, len);
+                                output.extend(value);
+                                fn_variables.push((x.to_string(), len));
+                            }
+                            let vars = fn_variables.clone();
+                            consts.push(Data::Null);
+                            instructions.extend(parser_to_instr_set(
+                                fn_code,
+                                &mut fn_variables,
+                                consts,
+                                fns,
+                                Some(&(
+                                    function.to_string(),
+                                    output.len() as u16,
+                                    vars,
+                                    Some((consts.len() - 1) as u16),
+                                )),
+                                arrs,
+                            ));
+                            output.extend(instructions);
                         }
                     }
-
-                    let mut fn_variables: Vec<(String, u16)> = Vec::new();
-                    let mut instructions: Vec<Instr> = Vec::new();
-
-                    for (i, x) in exp_args.iter().enumerate() {
-                        let len = consts.len() as u16;
-                        let mut value = parser_to_instr_set(
-                            vec![args[i].clone()],
-                            v,
-                            consts,
-                            fns,
-                            fn_state,
-                            arrs,
-                        );
-                        move_to_id(&mut value, len);
-                        output.extend(value);
-                        fn_variables.push((x.to_string(), len));
+                } else if *namespace == ["io"] {
+                    match x.as_str() {
+                        "open" => {
+                            check_args!(args, 1, "open", ctx);
+                            consts.push(Data::Null);
+                            let arg_id =
+                                get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
+                            output.push(Instr::IoOpen(arg_id, (consts.len() - 1) as u16));
+                        }
+                        other => {
+                            error!(
+                                ctx,
+                                format_args!(
+                                    "Unknown function {color_red}{}{color_reset} in namespace {color_red}{}{color_reset}",
+                                    other,
+                                    namespace.join("::")
+                                )
+                            );
+                        }
                     }
-                    let vars = fn_variables.clone();
-                    consts.push(Data::Null);
-                    instructions.extend(parser_to_instr_set(
-                        fn_code,
-                        &mut fn_variables,
-                        consts,
-                        fns,
-                        Some(&(
-                            function.to_string(),
-                            output.len() as u16,
-                            vars,
-                            Some((consts.len() - 1) as u16),
-                        )),
-                        arrs,
-                    ));
-                    output.extend(instructions);
+                } else {
+                    error!(
+                        ctx,
+                        format_args!(
+                            "Unknown namespace {color_red}{}{color_reset}",
+                            namespace.join("::")
+                        )
+                    );
                 }
-            },
+            }
             Expr::ReturnVal(val) => {
                 if let Some(x) = fn_state {
                     if let Some(return_value) = *val {
@@ -809,23 +905,6 @@ fn parser_to_instr_set(
                 }
             }
             Expr::ObjFunctionCall(obj, funcs) => {
-                macro_rules! add_args {
-                    ($args: expr, $variables: expr, $consts: expr, $output: expr, $ctx: expr, $functions: expr, $arrays: expr) => {
-                        for arg in $args {
-                            let arg_id = get_id(
-                                arg,
-                                $variables,
-                                $consts,
-                                &mut $output,
-                                &$ctx,
-                                $functions,
-                                $arrays,
-                            );
-                            $output.push(Instr::StoreFuncArg(arg_id));
-                        }
-                    };
-                }
-
                 let mut id = get_id(*obj, v, consts, &mut output, &ctx, fns, arrs);
                 for func in funcs {
                     let args = func.1;

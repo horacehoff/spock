@@ -15,6 +15,7 @@ impl std::fmt::Display for Data {
             Data::String(str) => write!(f, "{str}"),
             Data::Null => write!(f, "NULL"),
             Data::Array(start) => write!(f, "ARRAY{start}"),
+            Data::File(str) => write!(f, "FILE({str:?})"),
         }
     }
 }
@@ -34,6 +35,7 @@ pub fn format_data(x: Data, arrays: &FnvHashMap<u16, Vec<Data>>) -> String {
             "]"
         ),
         Data::Null => String::from("NULL"),
+        Data::File(path) => String::from(format!("FILE({path:?})")),
     }
 }
 
@@ -125,10 +127,11 @@ impl std::fmt::Display for Expr {
             Expr::VarDeclare(x, y) => {
                 write!(f, "let {x} = {y}")
             }
-            Expr::FunctionCall(x, y) => {
+            Expr::FunctionCall(x, y, z) => {
                 write!(
                     f,
-                    "{x}({})",
+                    "{}::{x}({})",
+                    z.to_vec().join("::"),
                     y.iter()
                         .map(|w| format!("{w}"))
                         .collect::<Vec<String>>()
@@ -254,6 +257,7 @@ pub fn print_instructions(instructions: &[Instr]) {
             Instr::GetIndex(x, y, z) => format!("GET_INDEX {x} {y} {z}"),
             Instr::Range(x, y, z) => format!("RANGE {x} {y} {z}"),
             Instr::Type(x, y) => format!("TYPE {x} {y}"),
+            Instr::IoOpen(x, y) => format!("IO::OPEN {x} {y}"),
         });
     }
 }

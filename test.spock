@@ -1,5 +1,4 @@
 fn main() {
-for x in range(5) {
-  print(x);
-}
+let x = io::open("other.spock");
+print(x);
 }

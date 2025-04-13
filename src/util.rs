@@ -64,6 +64,7 @@ pub fn get_type(x: Data) -> String {
         Data::String(_) => String::from("String"),
         Data::Array(_) => String::from("Array"),
         Data::Null => String::from("NULL"),
+        Data::File(_) => String::from("File"),
     }
 }
 

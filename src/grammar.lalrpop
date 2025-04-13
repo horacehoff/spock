@@ -156,7 +156,7 @@ Term: Box<Expr> = {
 };
 
 FunctionCall: Expr = {
-    <o1: r#"([a-zA-Z_]*)\("#> <o2: Expression?> <o3: ("," Expression)+?> ")" => {
+    <namespace: (Var "::")+?> <o1: r#"([a-zA-Z_]*)\("#> <o2: Expression?> <o3: ("," Expression)+?> ")" => {
         let mut args:Vec<Expr> = Vec::new();
         if let Some(arg) = o2 {
             args.push(arg);
@@ -164,7 +164,13 @@ FunctionCall: Expr = {
         if let Some(add_args) = o3 {
             args.extend(add_args.iter().map(|(_, x)|x.clone()));
         }
-        Expr::FunctionCall(String::from(o1.trim_end_matches('(')), args.into_boxed_slice())
+        Expr::FunctionCall(String::from(o1.trim_end_matches('(')), args.into_boxed_slice(), {
+            if let Some(ns) = namespace {
+                ns.iter().map(|x| x.0.to_string()).collect::<Vec<String>>().into_boxed_slice()
+            } else {
+                Box::from(vec!["std".to_string()])
+            }
+        })
     }
 }
 
@@ -179,7 +185,7 @@ ObjFunctionCall:Expr = {
         }
         let mut func_calls = vec![(String::from(o1.trim_end_matches('(').trim_start_matches('.')),args.into_boxed_slice())];
         for x in o.iter().map(|x| x.1.clone()) {
-            if let Expr::FunctionCall(x,y) = x {
+            if let Expr::FunctionCall(x,y,_) = x {
                 func_calls.push((x,y))
             }
         }

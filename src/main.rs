@@ -26,6 +26,7 @@ pub enum Data {
     String(Intern<String>),
     Array(u16),
     Null,
+    File(Intern<String>),
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -66,13 +67,14 @@ pub enum Instr {
     Neg(u16, u16),
 
     // General functions
-    Type(u16,u16),
+    Type(u16, u16),
     Num(u16, u16),
     Str(u16, u16),
     Bool(u16, u16),
     Input(u16, u16),
     // start,end,dest
     Range(u16, u16, u16),
+    IoOpen(u16, u16),
 
     StoreFuncArg(u16),
     ApplyFunc(u8, u16, u16),
@@ -92,6 +94,7 @@ pub fn execute(
     let len = instructions.len();
     let mut i: usize = 0;
     while i < len {
+        // println!("CURRENT INSTRUCTION {:?}", instructions[i]);
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
@@ -370,7 +373,8 @@ pub fn execute(
                 println!("{}", format_data(elem, arrays));
             }
             Instr::Type(tgt, dest) => {
-                consts[dest as usize] = Data::String(Intern::from(get_type(consts[tgt as usize])));            }
+                consts[dest as usize] = Data::String(Intern::from(get_type(consts[tgt as usize])));
+            }
             Instr::Num(tgt, dest) => {
                 let base = consts[tgt as usize];
                 match base {
@@ -535,6 +539,13 @@ pub fn execute(
                     }
                 }
             }
+            Instr::IoOpen(path, dest) => {
+                if_likely! {let Data::String(str) = consts[path as usize] => {
+                    consts[dest as usize] = Data::File(str);
+                } else {
+                    error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", consts[path as usize]));
+                }}
+            }
         }
         i += 1;
     }
@@ -560,8 +571,7 @@ pub enum Opcode {
 }
 
 fn clean_contents(inp: String, base_name: String) -> String {
-    inp
-        .lines()
+    inp.lines()
         .filter_map(|mut line| {
             if line.starts_with("//") {
                 None
@@ -576,15 +586,20 @@ fn clean_contents(inp: String, base_name: String) -> String {
                 }
                 Some(line.to_string())
             } else if line.starts_with("import") {
-                let import_path = line.trim_start_matches("import").trim_end_matches(";").trim();
+                let import_path = line
+                    .trim_start_matches("import")
+                    .trim_end_matches(";")
+                    .trim();
                 if import_path != base_name {
-                    let path = clean_contents(std::fs::read_to_string(import_path).unwrap(), base_name.clone());
+                    let path = clean_contents(
+                        std::fs::read_to_string(import_path).unwrap(),
+                        base_name.clone(),
+                    );
                     Some(path)
                 } else {
                     None
                 }
-            }
-            else {
+            } else {
                 Some(line.to_string())
             }
         })
