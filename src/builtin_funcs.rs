@@ -424,7 +424,7 @@ fn write(
                     .truncate(truncate)
                     .open(path.as_str()).unwrap_or_else(|_| {
                         error_b!(format_args!("Cannot open file {color_red}{path}{color_reset}"));
-                    }).write(contents.as_bytes()).unwrap_or_else(|_| {
+                    }).write_all(contents.as_bytes()).unwrap_or_else(|_| {
                         error_b!(format_args!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
                 });
             }}

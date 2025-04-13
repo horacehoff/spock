@@ -306,7 +306,7 @@ fn can_move(x: Instr) -> bool {
 }
 
 fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwards: bool) {
-    match output.last().unwrap().clone() {
+    match *output.last().unwrap() {
         Instr::Inf(o1, o2, o3) => {
             if o3 == condition_id {
                 output.remove(output.len() - 1);
@@ -715,7 +715,7 @@ fn parser_to_instr_set(
                         }
                         "input" => {
                             check_args_range!(args, 0, 1, "input", ctx);
-                            if args.len() != 0 {
+                            if !args.is_empty() {
                                 let id = get_id(
                                     args[0].clone(),
                                     v,
@@ -752,7 +752,7 @@ fn parser_to_instr_set(
                                     (consts.len() - 2) as u16,
                                     id_x,
                                     (consts.len() - 1) as u16,
-                                ))
+                                ));
                             } else {
                                 let id_x = get_id(
                                     args[0].clone(),
@@ -773,7 +773,7 @@ fn parser_to_instr_set(
                                     arrs,
                                 );
                                 consts.push(Data::Null);
-                                output.push(Instr::Range(id_x, id_y, (consts.len() - 1) as u16))
+                                output.push(Instr::Range(id_x, id_y, (consts.len() - 1) as u16));
                             }
                         }
                         function => {
