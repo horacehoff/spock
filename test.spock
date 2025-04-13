@@ -1,4 +1,3 @@
 fn main() {
-let x = io::open("other.spock");
-print(x.read());
+let x = io::delete("other.spock");
 }

@@ -258,6 +258,7 @@ pub fn print_instructions(instructions: &[Instr]) {
             Instr::Range(x, y, z) => format!("RANGE {x} {y} {z}"),
             Instr::Type(x, y) => format!("TYPE {x} {y}"),
             Instr::IoOpen(x, y) => format!("IO::OPEN {x} {y}"),
+            Instr::IoDelete(x) => format!("IO::DELETE {x}"),
         });
     }
 }

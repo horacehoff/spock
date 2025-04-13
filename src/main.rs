@@ -75,6 +75,7 @@ pub enum Instr {
     // start,end,dest
     Range(u16, u16, u16),
     IoOpen(u16, u16),
+    IoDelete(u16),
 
     StoreFuncArg(u16),
     ApplyFunc(u8, u16, u16),
@@ -399,7 +400,7 @@ pub fn execute(
             }
             Instr::Bool(tgt, dest) => {
                 let base = consts[tgt as usize];
-                if let Data::String(str) = base {
+                if_likely! {let Data::String(str) = base => {
                     consts[dest as usize] = Data::Bool(str.parse::<bool>().unwrap_or_else(|_| {
                         error_b!(format_args!("CANNOT CONVERT {str} TO BOOL"));
                     }));
@@ -408,11 +409,11 @@ pub fn execute(
                         "CANNOT CONVERT {} TO BOOL",
                         format_data(base, arrays)
                     ));
-                }
+                }}
             }
             Instr::Input(msg, dest) => {
                 let base = consts[msg as usize];
-                if let Data::String(str) = base {
+                if_likely! {let Data::String(str) = base => {
                     println!("{str}");
                     std::io::stdout().flush().unwrap();
                     let mut line = String::new();
@@ -423,7 +424,7 @@ pub fn execute(
                         "{color_red}{}{color_reset} is not a string",
                         format_data(base, arrays)
                     ));
-                }
+                }}
             }
             Instr::StoreFuncArg(id) => func_args.push(id),
             Instr::ApplyFunc(fctn_id, tgt, dest) => {
@@ -435,7 +436,7 @@ pub fn execute(
             }
             // takes tgt from consts, idx from consts,
             Instr::ArrayMod(tgt, dest, idx) => {
-                if let Data::Number(index) = consts[idx as usize] {
+                if_likely! {let Data::Number(index) = consts[idx as usize] => {
                     let requested_mod = consts[dest as usize];
                     if let Data::Array(array_id) = consts[tgt as usize] {
                         let array = arrays.get_mut(&array_id).unwrap();
@@ -476,7 +477,7 @@ pub fn execute(
                             get_type(consts[tgt as usize])
                         ));
                     }
-                }
+                }}
             }
             // takes tgt from  consts, index is index, dest is consts index destination
             Instr::GetIndex(tgt, index, dest) => {
@@ -542,6 +543,15 @@ pub fn execute(
             Instr::IoOpen(path, dest) => {
                 if_likely! {let Data::String(str) = consts[path as usize] => {
                     consts[dest as usize] = Data::File(str);
+                } else {
+                    error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", consts[path as usize]));
+                }}
+            }
+            Instr::IoDelete(path) => {
+                if_likely! {let Data::String(str) = consts[path as usize] => {
+                    std::fs::remove_file(str.as_str()).unwrap_or_else(|_| {
+                        error_b!(format_args!("Cannot remove file {color_red}{str}{color_reset}"));
+                    });
                 } else {
                     error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", consts[path as usize]));
                 }}

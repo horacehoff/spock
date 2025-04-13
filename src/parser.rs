@@ -139,7 +139,10 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     if x.is_empty() {
         return;
     }
-    if let Instr::ArrayMov(_, _, _) = x.last().unwrap() {
+    if matches!(
+        x.last().unwrap(),
+        Instr::ArrayMov(_, _, _) | Instr::IoDelete(_)
+    ) {
         return;
     }
     print!("MOVING TO ID {tgt_id} => {x:?}");
@@ -170,6 +173,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
                             | Instr::Str(_, _)
                             | Instr::Type(_, _)
                             | Instr::Range(_, _, _)
+                            | Instr::IoOpen(_, _)
                     )
                 })
                 .unwrap_or(x.len() - 1),
@@ -855,6 +859,12 @@ fn parser_to_instr_set(
                             let arg_id =
                                 get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
                             output.push(Instr::IoOpen(arg_id, (consts.len() - 1) as u16));
+                        }
+                        "delete" => {
+                            check_args!(args, 1, "delete", ctx);
+                            let arg_id =
+                                get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
+                            output.push(Instr::IoDelete(arg_id));
                         }
                         other => {
                             error!(
