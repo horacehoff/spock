@@ -20,10 +20,11 @@ mod parser;
 mod tests;
 mod util;
 
+pub type num = f64;
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Data {
-    Number(f64),
+    Number(num),
     Bool(bool),
     String(Intern<String>),
     Array(u16),
@@ -384,7 +385,7 @@ pub fn execute(
                 match base {
                     Data::String(str) => {
                         consts[dest as usize] =
-                            Data::Number(str.parse::<f64>().unwrap_or_else(|_| {
+                            Data::Number(str.parse::<num>().unwrap_or_else(|_| {
                                 error_b!(format_args!("CANNOT CONVERT '{str}' TO NUMBER"));
                             }));
                     }
@@ -537,7 +538,7 @@ pub fn execute(
                     let Data::Number(x) = consts[min as usize] => {
                         if_likely! {let Data::Number(y) = consts[max as usize] => {
                             let id = arrays.len() as u16;
-                            arrays.insert(id, (x as u64..y as u64).into_iter().map(|x| Data::Number(x as f64)).collect());
+                            arrays.insert(id, (x as u64..y as u64).into_iter().map(|x| Data::Number(x as num)).collect());
                             consts[dest as usize] = Data::Array(id);
                         }}
                     }
@@ -637,6 +638,8 @@ fn clean_contents(inp: String, base_name: String) -> String {
 
 // Live long and prosper
 fn main() {
+    dbg!(size_of::<Instr>());
+    dbg!(size_of::<Data>());
     let mut contents = std::fs::read_to_string("test.spock").unwrap();
     contents = clean_contents(contents, "test.spock".parse().unwrap());
     print!("{contents:?}");

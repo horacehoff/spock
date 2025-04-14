@@ -8,4 +8,5 @@ counter += x.read();
 io::delete(path);
 }
 let len = counter.len();
+print(len);
 }

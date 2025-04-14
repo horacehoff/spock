@@ -1,5 +1,5 @@
 use crate::display::print_instructions;
-use crate::{Data, Instr, Opcode, error};
+use crate::{Data, Instr, Opcode, error, num};
 use crate::{check_args, check_args_range, print};
 use colored::Colorize;
 use fnv::FnvHashMap;
@@ -243,7 +243,7 @@ fn get_id(
     print!("GETTING ID OF {x:?}");
     match x {
         Expr::Num(num) => {
-            consts.push(Data::Number(num));
+            consts.push(Data::Number(num as num));
             (consts.len() - 1) as u16
         }
         Expr::String(str) => {
@@ -289,7 +289,7 @@ fn get_id(
 
 fn expr_to_data(input: Expr) -> Data {
     match input {
-        Expr::Num(num) => Data::Number(num),
+        Expr::Num(num) => Data::Number(num as num),
         Expr::Bool(bool) => Data::Bool(bool),
         Expr::String(str) => Data::String(Intern::from(str)),
         _ => Data::Null,
@@ -414,7 +414,7 @@ fn parser_to_instr_set(
             Expr::Import(path) => {
                 println!("IMPORT PATH: ");
             }
-            Expr::Num(num) => consts.push(Data::Number(num)),
+            Expr::Num(num) => consts.push(Data::Number(num as num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
             Expr::Array(elems) => {

@@ -1,6 +1,6 @@
 use crate::display::format_data;
 use crate::util::get_type;
-use crate::{Data, error_b};
+use crate::{Data, error_b, num};
 use colored::Colorize;
 use fnv::FnvHashMap;
 use inline_colorization::*;
@@ -52,9 +52,9 @@ fn len(
 ) {
     let tgt = consts[tgt as usize];
     if let Data::String(str) = tgt {
-        consts[dest as usize] = Data::Number(str.chars().count() as f64)
+        consts[dest as usize] = Data::Number(str.chars().count() as num)
     } else if let Data::Array(arr) = tgt {
-        consts[dest as usize] = Data::Number(arrays[&arr].len() as f64)
+        consts[dest as usize] = Data::Number(arrays[&arr].len() as num)
     } else {
         error_b!(format_args!(
             "Cannot get length of type {color_red}{}{color_reset}",
@@ -149,7 +149,7 @@ fn index(
         if_likely! { let Data::String(arg) = arg => {
             consts[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
                 error_b!(format_args!("Cannot get index of {:?} in \"{}\"", arg.red(), str.blue()));
-            }) as f64);
+            }) as num);
         } else {
             error_b!(format_args!(
                 "{} is not a String",
@@ -160,7 +160,7 @@ fn index(
         let arg = consts[args.swap_remove(0) as usize];
         consts[dest as usize] = Data::Number(arrays[&x].iter().position(|x| x == &arg).unwrap_or_else(|| {
             error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{:?}{color_reset}", arg, format_data(target, arrays)));
-        }) as f64);
+        }) as num);
     } else {
         error_b!(format_args!(
             "Cannot index type {color_red}{}{color_reset}",
@@ -274,7 +274,7 @@ fn rindex(
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
         if_likely!{ let Data::String(arg) = consts[arg as usize] => {
-            consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap() as f64);
+            consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap() as num);
         } else {
             error_b!(format_args!(
                 "{} is not a String",
