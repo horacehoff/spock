@@ -276,7 +276,7 @@ fn rindex(
         if_likely! { let Data::String(arg) = arg => {
             consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
                 error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
-            }) as f64);
+            }) as num);
         } else {
             error_b!(format_args!(
                 "{color_red}{}{color_reset} is not a String",
@@ -287,7 +287,7 @@ fn rindex(
         let arg = consts[args.swap_remove(0) as usize];
         consts[dest as usize] = Data::Number(arrays[&x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
             error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{:?}{color_reset}", arg, format_data(target, arrays)));
-        }) as f64);
+        }) as num);
     } else {
         error_b!(format_args!(
             "Cannot index type {color_red}{}{color_reset}",

@@ -64,8 +64,9 @@ end</code></pre></td>
 
 <table border="0">
  <tr>
-    <td><b style="font-size:20px">Spock code</b></td>
-    <td><b style="font-size:20px">Python code</b></td>
+    <td><b style="font-size:20px">Spock</b></td>
+    <td><b style="font-size:20px">Python</b></td>
+    <td><b style="font-size:20px">LuaJIT (-j off)</b></td>
  </tr>
  <tr>
     <td><pre><code>fn main() {
@@ -79,13 +80,21 @@ end</code></pre></td>
 while i < 999999999:
     i = i + 1
 print(i)</code></pre></td>
+<td><pre><code>local i = 0
+while i < 999999999 do
+    i = i + 1
+end
+print(i)</code></pre></td>
  </tr>
 <tr>
 <td>
-5.4s (7.7x faster)
+5.15s (8.1x faster)
 </td>
 <td>
 42s
+</td>
+<td>
+0.33s
 </td>
 </tr>
 </table>
@@ -94,8 +103,8 @@ print(i)</code></pre></td>
 
 <table border="0">
  <tr>
-    <td><b style="font-size:20px">Spock code</b></td>
-    <td><b style="font-size:20px">Python code</b></td>
+    <td><b style="font-size:20px">Spock</b></td>
+    <td><b style="font-size:20px">Python</b></td>
  </tr>
  <tr>
     <td><pre><code>fn main() {
@@ -124,8 +133,9 @@ print(len(i))</code></pre></td>
 
 <table border="0">
  <tr>
-    <td><b style="font-size:20px">Spock code</b></td>
-    <td><b style="font-size:20px">Python code</b></td>
+    <td><b style="font-size:20px">Spock</b></td>
+    <td><b style="font-size:20px">Python</b></td>
+    <td><b style="font-size:20px">LuaJIT (-j off)</b></td>
  </tr>
  <tr>
     <td><pre><code>fn main() {
@@ -140,13 +150,21 @@ x = 0
 for i in range(0,10000000):
     x = x+sqrt(i)
 print(x)</code></pre></td>
- </tr>
+<td><pre><code>local x = 0
+for i = 0, 9999999 do
+    x = x + math.sqrt(i)
+end
+print(x)</code></pre></td>
+</tr>
 <tr>
 <td>
 0.199s (7x faster)
 </td>
 <td>
 1.4s
+</td>
+<td>
+0.019s
 </td>
 </tr>
 </table>
@@ -155,8 +173,9 @@ print(x)</code></pre></td>
 
 <table border="0">
  <tr>
-    <td><b style="font-size:20px">Spock code</b></td>
-    <td><b style="font-size:20px">Python code</b></td>
+    <td><b style="font-size:20px">Spock</b></td>
+    <td><b style="font-size:20px">Python</b></td>
+    <td><b style="font-size:20px">LuaJIT (-j off)</b></td>
  </tr>
  <tr>
     <td><pre><code>fn main() {
@@ -180,14 +199,28 @@ while count < limit:
     if result > 1000000:
         result = result % 1000000
     count += 1
+print(result)</code></pre></td>  
+<td><pre><code>local count = 0
+local limit = 1000000
+local result = 1
+while count < limit do
+    result = result * 2
+    if result > 1000000 then
+        result = result % 1000000
+    end
+    count = count + 1
+end
 print(result)</code></pre></td>
- </tr>
+</tr>
 <tr>
 <td>
-0.021s (5.7x faster)
+0.018s (5.7x faster)
 </td>
 <td>
 0.120s
+</td>
+<td>
+0.014s
 </td>
 </tr>
 </table>
