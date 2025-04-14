@@ -1,3 +1,48 @@
+- ## Fib(40) repeated 200000 times
+
+<table border="0">
+ <tr>
+    <td><b style="font-size:20px">Spock code</b></td>
+    <td><b style="font-size:20px">Python code</b></td>
+ </tr>
+ <tr>
+    <td><pre><code>fn main() {
+for _ in range(0,200000) {
+let n = 40;
+let a=0;
+let b=1;
+let c=0;
+let i=0;
+while i < n {
+   c = a+b;
+   a = b;
+   b = c;
+   i = i+1;
+}
+}
+}</code></pre></td>
+    <td><pre><code>for x in range(0,200000):
+    n = 40
+    a=0
+    b=1
+    c=0
+    i=0
+    while i < n:
+        c = a+b
+        a = b
+        b = c
+        i = i+1</code></pre></td>
+ </tr>
+<tr>
+<td>
+0.0024s (387.5x faster)
+</td>
+<td>
+0.93s
+</td>
+</tr>
+</table>
+
 - ## Basic loop sum
 
 <table border="0">
