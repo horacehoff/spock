@@ -20,7 +20,7 @@ print(i)</code></pre></td>
  </tr>
 <tr>
 <td>
-5.5s (7.6x faster)
+5.4s (7.7x faster)
 </td>
 <td>
 42s

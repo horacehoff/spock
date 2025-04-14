@@ -103,7 +103,7 @@ pub fn execute(
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
-                    i -= (size) as usize;
+                    i -= size as usize;
                 } else {
                     i += size as usize;
                 }
@@ -618,10 +618,7 @@ fn clean_contents(inp: &str, base_name: &str) -> String {
                     .trim_end_matches(';')
                     .trim();
                 if import_path != base_name {
-                    let path = clean_contents(
-                        &fs::read_to_string(import_path).unwrap(),
-                        base_name,
-                    );
+                    let path = clean_contents(&fs::read_to_string(import_path).unwrap(), base_name);
                     Some(path)
                 } else {
                     None
@@ -636,8 +633,6 @@ fn clean_contents(inp: &str, base_name: &str) -> String {
 
 // Live long and prosper
 fn main() {
-    dbg!(size_of::<Instr>());
-    dbg!(size_of::<Data>());
     let mut contents = std::fs::read_to_string("test.spock").unwrap();
     contents = clean_contents(&contents, "test.spock");
     print!("{contents:?}");
