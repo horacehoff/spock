@@ -2,9 +2,9 @@
 
 <table border="0">
  <tr>
-    <td><b style="font-size:20px">Spock code</b></td>
-    <td><b style="font-size:20px">Python code</b></td>
-    <td><b style="font-size:20px">Lua code</b></td>
+    <td><b style="font-size:20px">Spock</b></td>
+    <td><b style="font-size:20px">Python</b></td>
+    <td><b style="font-size:20px">LuaJIT (-j off)</b></td>
  </tr>
  <tr>
     <td><pre><code>fn main() {
