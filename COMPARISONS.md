@@ -4,6 +4,7 @@
  <tr>
     <td><b style="font-size:20px">Spock code</b></td>
     <td><b style="font-size:20px">Python code</b></td>
+    <td><b style="font-size:20px">Lua code</b></td>
  </tr>
  <tr>
     <td><pre><code>fn main() {
@@ -31,7 +32,20 @@ while i < n {
         c = a+b
         a = b
         b = c
-        i = i+1</code></pre></td>
+        i = i+1</code></pre></td> 
+<td><pre><code>for x = 0, 199999 do
+    local n = 40
+    local a = 0
+    local b = 1
+    local c = 0
+    local i = 0
+    while i < n do
+        c = a + b
+        a = b
+        b = c
+        i = i + 1
+    end
+end</code></pre></td>
  </tr>
 <tr>
 <td>
@@ -39,6 +53,9 @@ while i < n {
 </td>
 <td>
 0.93s
+</td>
+<td>
+0.0059s
 </td>
 </tr>
 </table>
