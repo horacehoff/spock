@@ -1,8 +1,8 @@
 use crate::parser::Expr;
 use crate::{Data, Instr, Opcode, format_lines};
-use colored::Colorize;
 use concat_string::concat_string;
 use fnv::FnvHashMap;
+use inline_colorization::*;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
 use std::fmt::Formatter;
@@ -195,18 +195,16 @@ where
         }
         ParseError::UnrecognizedToken { token, expected } => {
             format!(
-                "PARSING: {ctx}\nExpected token {} but got '{}'",
+                "PARSING: {ctx}\nExpected token {color_blue}{}{color_reset} but got '{color_red}{}{color_reset}'",
                 expected
                     .iter()
                     .map(|x| x.trim_matches('"'))
                     .collect::<Vec<&str>>()
-                    .join(" / ")
-                    .blue(),
+                    .join(" / "),
                 {
                     let tok: Token = token.1.into();
                     tok.1
                 }
-                .blue()
             )
         }
         ParseError::ExtraToken { .. } => {

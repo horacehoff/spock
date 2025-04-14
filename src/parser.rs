@@ -1,7 +1,6 @@
 use crate::display::print_instructions;
 use crate::{Data, Instr, Opcode, error, num};
 use crate::{check_args, check_args_range, print};
-use colored::Colorize;
 use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
@@ -131,7 +130,7 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::GetIndex(_, _, y)
         | Instr::Range(_, _, y)
         | Instr::Type(_, y)
-        | Instr::IoOpen(_,y,_)
+        | Instr::IoOpen(_, y, _)
         | Instr::Str(_, y) => y,
         _ => unreachable!(),
     }
@@ -268,7 +267,7 @@ fn get_id(
             } else {
                 error!(
                     line,
-                    format_args!("Unknown variable {}", name.red()),
+                    format_args!("Unknown variable {color_red}{}{color_reset}", name),
                     format_args!("Add 'let {name} = 0;'")
                 );
             }
@@ -460,7 +459,7 @@ fn parser_to_instr_set(
                 } else {
                     error!(
                         ctx,
-                        format_args!("Unknown variable {}", name.red()),
+                        format_args!("Unknown variable {color_red}{}{color_reset}", name),
                         format_args!("Add 'let {name} = 0;'")
                     );
                 }
@@ -571,9 +570,9 @@ fn parser_to_instr_set(
                     parser_to_instr_set(y.into_vec(), &mut temp_vars, consts, fns, fn_state, arrs);
                 let consts_after = consts.len();
                 let temp_vars_after = temp_vars.len();
-                let modified_temp_vars = (temp_vars_before..temp_vars_after).map(|x|  temp_vars[x].clone()).collect::<Vec<_>>();
-
-
+                let modified_temp_vars = (temp_vars_before..temp_vars_after)
+                    .map(|x| temp_vars[x].clone())
+                    .collect::<Vec<_>>();
 
                 let mut len = (cond_code.len() + 2) as u16;
                 add_cmp(condition_id, &mut len, &mut output, true);
@@ -581,9 +580,8 @@ fn parser_to_instr_set(
 
                 output.push(Instr::Jmp(len, true));
 
-
                 // clean up
-                if consts_before+1 != consts_after {
+                if consts_before + 1 != consts_after {
                     consts.push(Data::Number(0.0));
                 }
                 (consts_before..consts_after).for_each(|x| {
@@ -591,9 +589,6 @@ fn parser_to_instr_set(
                         output.push(Instr::Mov((consts.len() - 1) as u16, x as u16));
                     }
                 });
-
-
-
             }
             Expr::ForLoop(var_name, array, code) => {
                 let array = get_id(*array, v, consts, &mut output, &ctx, fns, arrs);
@@ -627,7 +622,9 @@ fn parser_to_instr_set(
                 temp_vars.remove(current_element_variable_id);
                 let consts_after = consts.len();
                 let temp_vars_after = temp_vars.len();
-                let modified_temp_vars = (temp_vars_before..temp_vars_after).map(|x|  temp_vars[x].clone()).collect::<Vec<_>>();
+                let modified_temp_vars = (temp_vars_before..temp_vars_after)
+                    .map(|x| temp_vars[x].clone())
+                    .collect::<Vec<_>>();
                 let mut len = (cond_code.len() + 4) as u16;
                 add_cmp(condition_id, &mut len, &mut output, true);
 
@@ -823,7 +820,10 @@ fn parser_to_instr_set(
                                 } else {
                                     error!(
                                         ctx,
-                                        format_args!("Unknown function {}", function.red())
+                                        format_args!(
+                                            "Unknown function {color_red}{}{color_reset}",
+                                            function
+                                        )
                                     );
                                 }
                             };
@@ -1155,14 +1155,20 @@ fn parser_to_instr_set(
                             id = f_id;
                         }
                         other => {
-                            error!(ctx, format_args!("Unknown function {}", other.red()));
+                            error!(
+                                ctx,
+                                format_args!("Unknown function {color_red}{}{color_reset}", other)
+                            );
                         }
                     }
                 }
             }
             Expr::FunctionDecl(x, y, z) => {
                 if fns.iter().any(|(name, _, _)| name == &x) {
-                    error!(ctx, format_args!("Function {} is already defined", x.red()));
+                    error!(
+                        ctx,
+                        format_args!("Function {color_red}{}{color_reset} is already defined", x)
+                    );
                 }
                 fns.push((x, y, z));
             }

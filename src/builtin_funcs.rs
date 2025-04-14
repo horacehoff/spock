@@ -1,7 +1,6 @@
 use crate::display::format_data;
 use crate::util::get_type;
 use crate::{Data, error_b, num};
-use colored::Colorize;
 use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
@@ -20,8 +19,8 @@ fn uppercase(
         consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
     } else {
         error_b!(format_args!(
-            "{} is not a String",
-            consts[tgt as usize].to_string().red()
+            "{color_red}{}{color_reset} is not a String",
+            consts[tgt as usize]
         ));
     }}
 }
@@ -37,8 +36,8 @@ fn lowercase(
         consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
     } else {
         error_b!(format_args!(
-            "{} is not a String",
-            consts[tgt as usize].to_string().red()
+            "{color_red}{}{color_reset} is not a String",
+            consts[tgt as usize]
         ));
     }}
 }
@@ -77,8 +76,8 @@ fn contains(
             consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
         } else {
             error_b!(format_args!(
-                "{} is not a String",
-                consts[arg as usize].to_string().red()
+                "{color_red}{}{color_reset} is not a String",
+                consts[arg as usize]
             ));
         }}
     } else if let Data::Array(x) = target {
@@ -86,8 +85,8 @@ fn contains(
         consts[dest as usize] = Data::Bool(arrays[&x].contains(&arg))
     } else {
         error_b!(format_args!(
-            "{} is not a String",
-            consts[tgt as usize].to_string().red()
+            "{color_red}{}{color_reset} is not a String",
+            consts[tgt as usize]
         ));
     }
 }
@@ -103,8 +102,8 @@ fn trim(
         consts[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
     } else {
         error_b!(format_args!(
-            "{} is not a String",
-            consts[tgt as usize].to_string().red()
+            "{color_red}{}{color_reset} is not a String",
+            consts[tgt as usize]
         ));
     }}
 }
@@ -124,14 +123,14 @@ fn trim_sequence(
                 Data::String(Intern::from(str.trim_matches(&chars[..]).to_string()));
         } else {
             error_b!(format_args!(
-                "{} is not a String",
-                consts[arg as usize].to_string().red()
+                "{color_red}{}{color_reset} is not a String",
+                consts[arg as usize]
             ));
         }}
     } else {
         error_b!(format_args!(
-            "{} is not a String",
-            consts[tgt as usize].to_string().red()
+            "{color_red}{}{color_reset} is not a String",
+            consts[tgt as usize]
         ));
     }}
 }
@@ -148,12 +147,12 @@ fn index(
         let arg = consts[args.swap_remove(0) as usize];
         if_likely! { let Data::String(arg) = arg => {
             consts[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
-                error_b!(format_args!("Cannot get index of {:?} in \"{}\"", arg.red(), str.blue()));
+                error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
             }) as num);
         } else {
             error_b!(format_args!(
-                "{} is not a String",
-                arg.to_string().red()
+                "{color_red}{}{color_reset} is not a String",
+                arg.to_string()
             ));
         }}
     } else if let Data::Array(x) = target {
@@ -204,8 +203,8 @@ fn trim_right(
         consts[dest as usize] = Data::String(Intern::from(str.trim_end().to_string()))
     } else {
         error_b!(format_args!(
-            "{:?} is not a String",
-            consts[tgt as usize].to_string().red()
+            "{color_red}{:?}{color_reset} is not a String",
+            consts[tgt as usize]
         ));
     }}
 }
@@ -225,14 +224,14 @@ fn trim_sequence_left(
                 Data::String(Intern::from(str.trim_start_matches(&chars[..]).to_string()));
         } else {
             error_b!(format_args!(
-                "{:?} is not a String",
-                consts[arg as usize].to_string().red()
+                "{color_red}{:?}{color_reset} is not a String",
+                consts[arg as usize]
             ));
         }}
     } else {
         error_b!(format_args!(
-            "{:?} is not a String",
-            consts[tgt as usize].to_string().red()
+            "{color_red}{:?}{color_reset} is not a String",
+            consts[tgt as usize]
         ));
     }}
 }
@@ -252,14 +251,14 @@ fn trim_sequence_right(
                 Data::String(Intern::from(str.trim_end_matches(&chars[..]).to_string()));
         } else {
             error_b!(format_args!(
-                "{:?} is not a String",
-                consts[arg as usize].to_string().red()
+                "{color_red}{:?}{color_reset} is not a String",
+                consts[arg as usize]
             ));
         }}
     } else {
         error_b!(format_args!(
-            "{:?} is not a String",
-            consts[tgt as usize].to_string().red()
+            "{color_red}{:?}{color_blue} is not a String",
+            consts[tgt as usize]
         ));
     }}
 }
@@ -276,12 +275,12 @@ fn rindex(
         let arg = consts[args.swap_remove(0) as usize];
         if_likely! { let Data::String(arg) = arg => {
             consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
-                error_b!(format_args!("Cannot get index of {:?} in \"{}\"", arg.red(), str.blue()));
+                error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
             }) as f64);
         } else {
             error_b!(format_args!(
-                "{} is not a String",
-                arg.to_string().red()
+                "{color_red}{}{color_reset} is not a String",
+                arg
             ));
         }}
     } else if let Data::Array(x) = target {
@@ -310,8 +309,8 @@ fn repeat(
             consts[dest as usize] = Data::String(Intern::from(str.repeat(arg as usize)))
         } else {
             error_b!(format_args!(
-                "A2{:?} is not a Number",
-                consts[arg as usize].to_string().red()
+                "{color_red}{:?}{color_reset} is not a Number",
+                consts[arg as usize]
             ));
         }}
     } else if let Data::Array(x) = consts[tgt as usize] {
@@ -322,14 +321,14 @@ fn repeat(
             consts[dest as usize] = Data::Array(id);
         } else {
             error_b!(format_args!(
-            "ARRAY{color_red}{:?}{color_reset} is not a Number",
+            "{color_red}{:?}{color_reset} is not a Number",
                 consts[arg as usize]
             ));
         }}
     } else {
         error_b!(format_args!(
-            "{:?} is not a String",
-            consts[tgt as usize].to_string().red()
+            "{color_red}{:?}{color_reset} is not a String",
+            consts[tgt as usize]
         ));
     }
 }

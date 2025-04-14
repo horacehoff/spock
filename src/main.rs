@@ -2,7 +2,6 @@ use crate::display::format_data;
 use crate::parser::parse;
 use crate::util::get_type;
 use builtin_funcs::FUNCS;
-use colored::Colorize;
 use concat_string::concat_string;
 use fnv::FnvHashMap;
 use inline_colorization::*;
@@ -463,9 +462,9 @@ pub fn execute(
                                 *str_id = Intern::from(temp);
                             } else {
                                 error_b!(format_args!(
-                                    "Trying to get index {color_red}{}{color_reset} but String \"{}\" has {} characters",
+                                    "Trying to get index {color_red}{}{color_reset} but String \"{color_blue}{}{color_reset}\" has {} characters",
                                     index,
-                                    str_id.blue(),
+                                    str_id,
                                     str_id.len()
                                 ));
                             }
@@ -495,9 +494,9 @@ pub fn execute(
                                 consts[dest as usize] = arr[idx];
                             } else {
                                 error_b!(format_args!(
-                                    "Trying to get index {color_red}{}{color_reset} but Array {} has {} elements",
+                                    "Trying to get index {color_red}{}{color_reset} but Array {color_blue}{}{color_reset} has {} elements",
                                     idx,
-                                    format_data(target, arrays).blue(),
+                                    format_data(target, arrays),
                                     arr.len()
                                 ));
                             }
@@ -515,15 +514,18 @@ pub fn execute(
                                 ));
                             } else {
                                 error_b!(format_args!(
-                                    "Trying to get index {color_red}{}{color_reset} but String \"{}\" has {} letters",
+                                    "Trying to get index {color_red}{}{color_reset} but String \"{color_blue}{}{color_reset}\" has {} letters",
                                     idx,
-                                    format_data(target, arrays).blue(),
+                                    format_data(target, arrays),
                                     str.len()
                                 ));
                             }
                         }
                         other => {
-                            error_b!(format_args!("Cannot index {}", get_type(other).red()));
+                            error_b!(format_args!(
+                                "Cannot index {color_red}{}{color_reset}",
+                                get_type(other)
+                            ));
                         }
                     }
                 } else {
