@@ -62,7 +62,7 @@ pub Code: Box<[Expr]> = {
 
 pub Import:Expr = {
     <path: r"import [a-zA-Z_.\/-]*"> => {
-        Expr::Import(String::from(path.trim_left_matches("import").trim()))
+        Expr::Import(String::from(path.trim_start_matches("import").trim()))
     }
 }
 
@@ -115,44 +115,44 @@ OpVarAssign: Expr = {
 
 IndexAccess: Expr = {
     <t: Term> <f: ("[" Expression "]")+> => {
-        Expr::GetIndex(t, f.iter().map(|x| x.1.clone()).collect::<Vec<Expr>>().into_boxed_slice())
+        Expr::GetIndex(Box::from(t), f.iter().map(|x| x.1.clone()).collect::<Vec<Expr>>().into_boxed_slice())
     }
 }
 
 Expression: Expr = {
     <o:Operation> => o,
-    <t: Term> => *t,
+    <t: Term> => t,
     <i: IndexAccess> => i,
 }
 
 Operation: Expr = {
     "-" <t: Term> => {
-        if let Expr::Num(x) = *t {
+        if let Expr::Num(x) = t {
             return Expr::Num(-x);
         }
-        return Expr::Op(Box::from(Expr::Num(0.0)), Box::from(vec![(Opcode::Neg, t)]));
+        return Expr::Op(Box::from(Expr::Num(0.0)), Box::from(vec![(Opcode::Neg, Box::from(t))]));
     },
     <o1: Term> <o3: (<Op> <Term>)+> => {
-        Expr::Op(o1, o3.into_boxed_slice())
+        Expr::Op(Box::from(o1), o3.iter().map(|x| (x.0,Box::from(x.1.clone()))).collect::<Vec<_>>().into_boxed_slice())
     }
 }
 
-Term: Box<Expr> = {
-    "(" <o2: Expression> ")" => Box::new(Expr::Priority(Box::new(o2))),
-    <t: Num> => Box::new(Expr::Num(t)),
-    <b: Bool> => Box::new(Expr::Bool(b)),
-    <s: String> => Box::new(Expr::String(s)),
-    <v: Var> => Box::new(Expr::Var(v)),
+Term: Expr = {
+    "(" <o2: Expression> ")" => Expr::Priority(Box::new(o2)),
+    <t: Num> => Expr::Num(t),
+    <b: Bool> => Expr::Bool(b),
+    <s: String> => Expr::String(s),
+    <v: Var> => Expr::Var(v),
     "[" <t: Expression?> <f: ("," Expression)*> "]" => {
         let mut terms = Vec::new();
         if let Some(x) = t {
             terms.push(x);
         }
         terms.extend(f.iter().map(|x| x.1.clone()).collect::<Vec<_>>());
-        Box::new(Expr::Array(terms.into_boxed_slice()))
+        Expr::Array(terms.into_boxed_slice())
     },
-    <f: FunctionCall> => Box::new(<>),
-    <o: ObjFunctionCall> => Box::new(o),
+    <f: FunctionCall> => <>,
+    <o: ObjFunctionCall> => <>,
 };
 
 FunctionCall: Expr = {
@@ -189,7 +189,7 @@ ObjFunctionCall:Expr = {
                 func_calls.push((x,y))
             }
         }
-        Expr::ObjFunctionCall(t, Box::from(func_calls))
+        Expr::ObjFunctionCall(Box::from(t), Box::from(func_calls))
     }
 }
 

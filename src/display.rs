@@ -35,7 +35,7 @@ pub fn format_data(x: Data, arrays: &FnvHashMap<u16, Vec<Data>>) -> String {
             "]"
         ),
         Data::Null => String::from("NULL"),
-        Data::File(path) => String::from(format!("FILE({path:?})")),
+        Data::File(path) => format!("FILE({path:?})"),
     }
 }
 
@@ -220,6 +220,6 @@ where
 
 pub fn print_instructions(instructions: &[Instr]) {
     for (i, instr) in instructions.iter().enumerate() {
-        println!("{} {:?}", i + 1, instr);
+        println!("{} {:?}", i, instr);
     }
 }

@@ -269,19 +269,32 @@ fn rindex(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
-    if_likely! { let Data::String(str) = consts[tgt as usize] => {
-        let arg = args.swap_remove(0);
-        if_likely!{ let Data::String(arg) = consts[arg as usize] => {
-            consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap() as num);
+    let target = consts[tgt as usize];
+    if let Data::String(str) = target {
+        let arg = consts[args.swap_remove(0) as usize];
+        if_likely! { let Data::String(arg) = arg => {
+            consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
+                error_b!(format_args!("Cannot get index of {:?} in \"{}\"", arg.red(), str.blue()));
+            }) as f64);
         } else {
             error_b!(format_args!(
                 "{} is not a String",
-                consts[arg as usize].to_string().red()
+                arg.to_string().red()
             ));
         }}
-    }}
+    } else if let Data::Array(x) = target {
+        let arg = consts[args.swap_remove(0) as usize];
+        consts[dest as usize] = Data::Number(arrays[&x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
+            error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{:?}{color_reset}", arg, format_data(target, arrays)));
+        }) as f64);
+    } else {
+        error_b!(format_args!(
+            "Cannot index type {color_red}{}{color_reset}",
+            get_type(target)
+        ));
+    }
 }
 
 fn repeat(
@@ -297,7 +310,7 @@ fn repeat(
             consts[dest as usize] = Data::String(Intern::from(str.repeat(arg as usize)))
         } else {
             error_b!(format_args!(
-                "{:?} is not a Number",
+                "A2{:?} is not a Number",
                 consts[arg as usize].to_string().red()
             ));
         }}
@@ -309,8 +322,8 @@ fn repeat(
             consts[dest as usize] = Data::Array(id);
         } else {
             error_b!(format_args!(
-                "{:?} is not a Number",
-                consts[arg as usize].to_string().red()
+            "ARRAY{color_red}{:?}{color_reset} is not a Number",
+                consts[arg as usize]
             ));
         }}
     } else {
@@ -411,7 +424,7 @@ fn write(
                     .truncate(truncate)
                     .open(path.as_str()).unwrap_or_else(|_| {
                         error_b!(format_args!("Cannot open file {color_red}{path}{color_reset}"));
-                    }).write(contents.as_bytes()).unwrap_or_else(|_| {
+                    }).write_all(contents.as_bytes()).unwrap_or_else(|_| {
                         error_b!(format_args!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
                 });
             }}

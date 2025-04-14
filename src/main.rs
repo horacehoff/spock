@@ -103,7 +103,7 @@ pub fn execute(
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
-                    i -= size as usize;
+                    i -= (size) as usize;
                 } else {
                     i += size as usize;
                 }
@@ -538,7 +538,7 @@ pub fn execute(
                     let Data::Number(x) = consts[min as usize] => {
                         if_likely! {let Data::Number(y) = consts[max as usize] => {
                             let id = arrays.len() as u16;
-                            arrays.insert(id, (x as u64..y as u64).into_iter().map(|x| Data::Number(x as num)).collect());
+                            arrays.insert(id, (x as u64..y as u64).map(|x| Data::Number(x as num)).collect());
                             consts[dest as usize] = Data::Array(id);
                         }}
                     }
@@ -551,12 +551,10 @@ pub fn execute(
                             File::create(str.as_str()).unwrap_or_else(|_| {
                                 error_b!(format_args!("Cannot create file {color_red}{str}{color_reset}"));
                             });
-                        } else {
-                            if unlikely(!fs::exists(str.as_str()).unwrap_or_else(|_| {
-                                error_b!(format_args!("Cannot check existence of file {color_red}{str}{color_reset}"));
-                            })) {
-                                error_b!(format_args!("File {color_red}{str}{color_reset} does not exist"));
-                            }
+                        } else if unlikely(!fs::exists(str.as_str()).unwrap_or_else(|_| {
+                            error_b!(format_args!("Cannot check existence of file {color_red}{str}{color_reset}"));
+                        })) {
+                            error_b!(format_args!("File {color_red}{str}{color_reset} does not exist"));
                         }
                         consts[dest as usize] = Data::File(str);
                     } else {
@@ -599,7 +597,7 @@ pub enum Opcode {
     Neg,
 }
 
-fn clean_contents(inp: String, base_name: String) -> String {
+fn clean_contents(inp: &str, base_name: &str) -> String {
     inp.lines()
         .filter_map(|mut line| {
             if line.starts_with("//") {
@@ -617,12 +615,12 @@ fn clean_contents(inp: String, base_name: String) -> String {
             } else if line.starts_with("import") {
                 let import_path = line
                     .trim_start_matches("import")
-                    .trim_end_matches(";")
+                    .trim_end_matches(';')
                     .trim();
                 if import_path != base_name {
                     let path = clean_contents(
-                        std::fs::read_to_string(import_path).unwrap(),
-                        base_name.clone(),
+                        &fs::read_to_string(import_path).unwrap(),
+                        base_name,
                     );
                     Some(path)
                 } else {
@@ -641,7 +639,7 @@ fn main() {
     dbg!(size_of::<Instr>());
     dbg!(size_of::<Data>());
     let mut contents = std::fs::read_to_string("test.spock").unwrap();
-    contents = clean_contents(contents, "test.spock".parse().unwrap());
+    contents = clean_contents(&contents, "test.spock");
     print!("{contents:?}");
 
     let (instructions, mut consts, mut arrays) = parse(&contents);
