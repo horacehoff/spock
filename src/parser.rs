@@ -581,14 +581,14 @@ fn parser_to_instr_set(
                 output.push(Instr::Jmp(len, true));
 
                 // clean up
-                if consts_before + 1 != consts_after {
-                    consts.push(Data::Number(0.0));
-                }
-                (consts_before..consts_after).for_each(|x| {
-                    if modified_temp_vars.iter().any(|w| w.1 == x as u16) {
-                        output.push(Instr::Mov((consts.len() - 1) as u16, x as u16));
-                    }
-                });
+                // if consts_before + 1 != consts_after {
+                //     consts.push(Data::Number(0.0));
+                // }
+                // (consts_before..consts_after).for_each(|x| {
+                //     if modified_temp_vars.iter().any(|w| w.1 == x as u16) {
+                //         output.push(Instr::Mov((consts.len() - 1) as u16, x as u16));
+                //     }
+                // });
             }
             Expr::ForLoop(var_name, array, code) => {
                 let array = get_id(*array, v, consts, &mut output, &ctx, fns, arrs);
@@ -637,11 +637,11 @@ fn parser_to_instr_set(
 
                 // clean up
                 output.push(Instr::Mov((consts.len() - 1) as u16, index_id));
-                (consts_before..consts_after).for_each(|x| {
-                    if modified_temp_vars.iter().any(|w| w.1 == x as u16) {
-                        output.push(Instr::Mov((consts.len() - 1) as u16, x as u16));
-                    }
-                });
+                // (consts_before..consts_after).for_each(|x| {
+                //     if modified_temp_vars.iter().any(|w| w.1 == x as u16) {
+                //         output.push(Instr::Mov((consts.len() - 1) as u16, x as u16));
+                //     }
+                // });
             }
             Expr::VarDeclare(x, y) => {
                 let mut val = parser_to_instr_set(vec![*y], v, consts, fns, fn_state, arrs);

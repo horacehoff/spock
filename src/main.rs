@@ -1,4 +1,4 @@
-use crate::display::format_data;
+use crate::display::{format_data};
 use crate::parser::parse;
 use crate::util::get_type;
 use builtin_funcs::FUNCS;
@@ -98,15 +98,15 @@ pub fn execute(
     let len = instructions.len();
     let mut i: usize = 0;
     while i < len {
-        // println!("CURRENT INSTRUCTION {:?}", instructions[i]);
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
                     i -= size as usize;
+                    continue;
                 } else {
                     i += size as usize;
+                    continue;
                 }
-                continue;
             }
             Instr::Cmp(cond_id, size) => {
                 if let Data::Bool(false) = consts[cond_id as usize] {
@@ -114,89 +114,82 @@ pub fn execute(
                     continue;
                 }
             }
-            Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
-                (Data::Number(parent), Data::Number(child)) => {
-                    consts[dest as usize] = Data::Number(parent + child);
-                }
-                (Data::String(parent), Data::String(child)) => {
-                    let result = concat_string!(*parent, *child);
-                    consts[dest as usize] = Data::String(Intern::from(result));
-                }
-                (Data::Array(a), Data::Array(b)) => {
-                    let id = arrays.len() as u16;
-                    arrays.insert(id, [arrays[&a].clone(), arrays[&b].clone()].concat());
-                    consts[dest as usize] = Data::Array(id);
-                }
-                (a, b) => {
-                    error_b!(format_args!(
+            Instr::Add(o1, o2, dest) => {
+                match (consts[o1 as usize], consts[o2 as usize]) {
+                    (Data::Number(parent), Data::Number(child)) => {
+                        consts[dest as usize] = Data::Number(parent + child);
+                    }
+                    (Data::String(parent), Data::String(child)) => {
+                        let result = concat_string!(*parent, *child);
+                        consts[dest as usize] = Data::String(Intern::from(result));
+                    }
+                    (Data::Array(a), Data::Array(b)) => {
+                        let id = arrays.len() as u16;
+                        let arr_a = &arrays[&a];
+                        let arr_b = &arrays[&b];
+
+                        let mut combined = Vec::with_capacity(arr_a.len() + arr_b.len());
+                        combined.extend_from_slice(arr_a);
+                        combined.extend_from_slice(arr_b);
+                        arrays.insert(id, combined);
+                        consts[dest as usize] = Data::Array(id);
+                    }
+                    (a, b) => {
+                        error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {} + {}",
                         format_data(a, arrays),
                         format_data(b, arrays)
                     ));
+                    }
                 }
             },
             Instr::Mul(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent * child);
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} * {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
             Instr::Div(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent / child);
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} / {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
             Instr::Sub(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent - child);
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} - {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
             Instr::Mod(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent % child);
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} % {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
             Instr::Pow(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent.powf(child));
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} ^ {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
@@ -220,23 +213,17 @@ pub fn execute(
                 }
             }
             Instr::Sup(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent > child);
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} > {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
             Instr::SupCmp(o1, o2, jump_size) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     if parent <= child {
                         i += jump_size as usize;
                         continue;
@@ -244,28 +231,22 @@ pub fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} > {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
             Instr::SupEq(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent >= child);
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} >= {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
             Instr::SupEqCmp(o1, o2, jump_size) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     if parent < child {
                         i += jump_size as usize;
                         continue;
@@ -273,28 +254,22 @@ pub fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} >= {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
             Instr::Inf(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent < child);
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} < {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
             Instr::InfCmp(o1, o2, jump_size) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     if parent >= child {
                     i += jump_size as usize;
                     continue;
@@ -302,28 +277,22 @@ pub fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} < {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
             Instr::InfEq(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent <= child);
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} <= {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
             Instr::InfEqCmp(o1, o2, jump_size) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Number(parent), Data::Number(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     if parent > child {
                         i += jump_size as usize;
                         continue;
@@ -331,33 +300,27 @@ pub fn execute(
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} <= {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
             Instr::BoolAnd(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent && child);
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} && {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }
             Instr::BoolOr(o1, o2, dest) => {
-                let first_elem = consts[o1 as usize];
-                let second_elem = consts[o2 as usize];
-
-                if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (first_elem, second_elem) => {
+                if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent || child);
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} || {:?}",
-                        format_data(first_elem, arrays), format_data(second_elem, arrays)
+                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
                     ));
                 }}
             }

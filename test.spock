@@ -1,12 +1,7 @@
 fn main() {
-let counter = "";
-for _ in range(30) {
-let path = "test";
-let x = io::open(path,true);
-x.write("THIS IS A TEST");
-counter += x.read();
-io::delete(path);
-}
-let len = counter.len();
-print(len);
+    let i = 0;
+    while i < 999999999 {
+        i += 1;
+    }
+    print(i);
 }
