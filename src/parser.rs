@@ -592,7 +592,54 @@ fn parser_to_instr_set(
             }
             Expr::ForLoop(var_name, array, code) => {
                 let array = get_id(*array, v, consts, &mut output, &ctx, fns, arrs);
-
+                // simple inefficient loop summation
+                print!("for loop code is {code:?}");
+                if code.len() == 1 {
+                    if let Expr::VarAssign(name, x) = code.first().unwrap() {
+                        if let Expr::Op(base, tgt) = &**x {
+                            if tgt.len() == 1 {
+                                if let (op, dest) = tgt.first().unwrap() {
+                                    if op == &Opcode::Add {
+                                        if **base == Expr::Var(name.to_string()) {
+                                            let var_id =
+                                                v.iter().find(|(w, _)| w == name).unwrap().1;
+                                            if let Expr::Num(reps) = **dest {
+                                                if let Data::Array(id) = consts[array as usize] {
+                                                    let len = arrs[&id].len();
+                                                    consts.push(Data::Number(reps * len as f64));
+                                                    output.push(Instr::Mov(
+                                                        (consts.len() - 1) as u16,
+                                                        var_id,
+                                                    ));
+                                                    continue;
+                                                } else {
+                                                    consts.push(Data::Null);
+                                                    output.push(Instr::ApplyFunc(
+                                                        2,
+                                                        array,
+                                                        (consts.len() - 1) as u16,
+                                                    ));
+                                                    consts.push(Data::Number(reps));
+                                                    consts.push(Data::Null);
+                                                    output.push(Instr::Mul(
+                                                        (consts.len() - 3) as u16,
+                                                        (consts.len() - 2) as u16,
+                                                        (consts.len() - 1) as u16,
+                                                    ));
+                                                    output.push(Instr::Mov(
+                                                        (consts.len() - 1) as u16,
+                                                        var_id,
+                                                    ));
+                                                    continue;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 consts.push(Data::Null);
                 let array_len_id = (consts.len() - 1) as u16;
                 output.push(Instr::ApplyFunc(2, array, array_len_id));
