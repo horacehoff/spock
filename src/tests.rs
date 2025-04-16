@@ -37,7 +37,7 @@ mod tests {
             &instr,
             &mut consts,
             &mut Vec::with_capacity(0),
-            &mut FnvHashMap::default(),
+            &mut FnvHashMap::default(), &mut Vec::new()
         );
         assert_eq!(consts[2], Number(102334155.0));
     }
@@ -73,7 +73,7 @@ mod tests {
             &instr,
             &mut consts,
             &mut Vec::with_capacity(0),
-            &mut FnvHashMap::default(),
+            &mut FnvHashMap::default(), &mut Vec::new()
         );
         assert_eq!(consts[2], Number(81055900096023530000000000000.0));
     }
@@ -84,7 +84,7 @@ mod tests {
         let mut consts = vec![Array(0), Number(7.0), Null];
         let mut arrays: FnvHashMap<u16, Vec<Data>> = FnvHashMap::default();
         arrays.insert(0, vec![Number(1.0), Number(2.0), Number(3.0)]);
-        execute(&instr, &mut consts, &mut Vec::with_capacity(1), &mut arrays);
+        execute(&instr, &mut consts, &mut Vec::with_capacity(1), &mut arrays, &mut Vec::new());
         assert_eq!(arrays[&0], vec![
             Number(1.0),
             Number(2.0),
@@ -99,7 +99,7 @@ mod tests {
         let mut consts = vec![Array(0), Null, Number(3.0), Null];
         let mut arrays: FnvHashMap<u16, Vec<Data>> = FnvHashMap::default();
         arrays.insert(0, vec![Number(1.0), Number(2.0), Number(3.0)]);
-        execute(&instr, &mut consts, &mut Vec::with_capacity(1), &mut arrays);
+        execute(&instr, &mut consts, &mut Vec::with_capacity(1), &mut arrays, &mut Vec::new());
         assert_eq!(consts[3], Number(2.0));
     }
 
@@ -111,7 +111,7 @@ mod tests {
             &instr,
             &mut consts,
             &mut Vec::with_capacity(0),
-            &mut FnvHashMap::default(),
+            &mut FnvHashMap::default(), &mut Vec::new()
         );
         assert_eq!(consts[1], Bool(true));
     }
@@ -139,7 +139,7 @@ mod tests {
             &instr,
             &mut consts,
             &mut Vec::with_capacity(0),
-            &mut FnvHashMap::default(),
+            &mut FnvHashMap::default(), &mut Vec::new()
         );
         assert_eq!(consts[0], Number(9765625.0));
     }
@@ -152,7 +152,7 @@ mod tests {
             &instr,
             &mut consts,
             &mut Vec::with_capacity(0),
-            &mut FnvHashMap::default(),
+            &mut FnvHashMap::default(), &mut Vec::new()
         );
         assert_eq!(consts[5], Number(12.0));
     }
@@ -165,7 +165,7 @@ mod tests {
             &instr,
             &mut consts,
             &mut Vec::with_capacity(0),
-            &mut FnvHashMap::default(),
+            &mut FnvHashMap::default(), &mut Vec::new()
         );
         assert_eq!(consts[0], Number(99999999.0))
     }
@@ -199,7 +199,7 @@ mod tests {
             &instr,
             &mut consts,
             &mut Vec::with_capacity(0),
-            &mut FnvHashMap::default(),
+            &mut FnvHashMap::default(), &mut Vec::new()
         );
         assert_eq!(consts[2], Number(109376.0))
     }
@@ -237,7 +237,7 @@ mod tests {
             Number(4.0),
             Number(5.0),
         ]);
-        execute(&instr, &mut consts, &mut Vec::with_capacity(1), &mut arrays);
+        execute(&instr, &mut consts, &mut Vec::with_capacity(1), &mut arrays, &mut Vec::new());
         assert_eq!(consts[0], Number(6300.0))
     }
 
@@ -286,6 +286,7 @@ mod tests {
             &mut consts,
             &mut Vec::with_capacity(2),
             &mut FnvHashMap::default(),
+            &mut Vec::new()
         );
         assert_eq!(consts[consts.len() - 1], Number(420.0))
     }
@@ -298,7 +299,7 @@ mod tests {
         let mut arrays: FnvHashMap<u16, Vec<Data>> = FnvHashMap::default();
         arrays.insert(1, vec![Number(1.0), Number(2.0), Number(3.0)]);
         arrays.insert(0, vec![]);
-        execute(&instr, &mut consts, &mut Vec::with_capacity(1), &mut arrays);
+        execute(&instr, &mut consts, &mut Vec::with_capacity(1), &mut arrays, &mut Vec::new());
         assert_eq!(consts[consts.len() - 8], String(Intern::from_ref("4848.45416516546132498498498465465Stringtrue4848.454165165462484869.63084205411752344848.454165165461324984984984654654848.45416516546132498498498465465Hello WorldHello World      Hello WorldExampleExample######Exampletrue710[0,1,2,3,4][3,4,5,6]HiHiHi6411[1,2,3,4,1,2,3,4]4848.45416516546132498498498465465Stringtrue4848.454165165462484869.63084205411752344848.454165165461324984984984654654848.45416516546132498498498465465Hello WorldHello World      Hello WorldExampleExample######Exampletrue710[0,1,2,3,4][3,4,5,6]HiHiHi6511[1,2,3,4,4,1,2,3,4,4]4848.45416516546132498498498465465Stringtrue4848.454165165462484869.63084205411752344848.454165165461324984984984654654848.45416516546132498498498465465Hello WorldHello World      Hello WorldExampleExample######Exampletrue710[0,1,2,3,4][3,4,5,6]HiHiHi6611[1,2,3,4,4,4,1,2,3,4,4,4]4848.45416516546132498498498465465Stringtrue4848.454165165462484869.63084205411752344848.454165165461324984984984654654848.45416516546132498498498465465Hello WorldHello World      Hello WorldExampleExample######Exampletrue710[0,1,2,3,4][3,4,5,6]HiHiHi6711[1,2,3,4,4,4,4,1,2,3,4,4,4,4]4848.45416516546132498498498465465Stringtrue4848.454165165462484869.63084205411752344848.454165165461324984984984654654848.45416516546132498498498465465Hello WorldHello World      Hello WorldExampleExample######Exampletrue710[0,1,2,3,4][3,4,5,6]HiHiHi6811[1,2,3,4,4,4,4,4,1,2,3,4,4,4,4,4]4848.45416516546132498498498465465Stringtrue4848.454165165462484869.63084205411752344848.454165165461324984984984654654848.45416516546132498498498465465Hello WorldHello World      Hello WorldExampleExample######Exampletrue710[0,1,2,3,4][3,4,5,6]HiHiHi6911[1,2,3,4,4,4,4,4,4,1,2,3,4,4,4,4,4,4]4848.45416516546132498498498465465Stringtrue4848.454165165462484869.63084205411752344848.454165165461324984984984654654848.45416516546132498498498465465Hello WorldHello World      Hello WorldExampleExample######Exampletrue710[0,1,2,3,4][3,4,5,6]HiHiHi61011[1,2,3,4,4,4,4,4,4,4,1,2,3,4,4,4,4,4,4,4]4848.45416516546132498498498465465Stringtrue4848.454165165462484869.63084205411752344848.454165165461324984984984654654848.45416516546132498498498465465Hello WorldHello World      Hello WorldExampleExample######Exampletrue710[0,1,2,3,4][3,4,5,6]HiHiHi61111[1,2,3,4,4,4,4,4,4,4,4,1,2,3,4,4,4,4,4,4,4,4]")));
     }
 }
