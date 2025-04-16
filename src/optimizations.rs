@@ -49,6 +49,7 @@ pub fn while_loop_summation(
                                         }
                                     }
                                 }
+                            } else {
                             }
                         }
                     }
