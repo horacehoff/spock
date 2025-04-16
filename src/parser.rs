@@ -217,6 +217,85 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     }
 }
 
+fn get_tgt_id_vec(x: &mut [Instr]) -> u16 {
+    if x.is_empty() {
+        unreachable!();
+    }
+    if matches!(
+        x.last().unwrap(),
+        Instr::ArrayMov(_, _, _) | Instr::IoDelete(_)
+    ) {
+        unreachable!();
+    }
+    // print!("MOVING TO ID {tgt_id} => {x:?}");
+    match x
+        .get_mut(
+            x.iter()
+                .rposition(|w| {
+                    matches!(
+                        w,
+                        Instr::Add(_, _, _)
+                            | Instr::Mul(_, _, _)
+                            | Instr::Sub(_, _, _)
+                            | Instr::Div(_, _, _)
+                            | Instr::Mod(_, _, _)
+                            | Instr::Pow(_, _, _)
+                            | Instr::Eq(_, _, _)
+                            | Instr::NotEq(_, _, _)
+                            | Instr::Sup(_, _, _)
+                            | Instr::SupEq(_, _, _)
+                            | Instr::Inf(_, _, _)
+                            | Instr::InfEq(_, _, _)
+                            | Instr::BoolAnd(_, _, _)
+                            | Instr::BoolOr(_, _, _)
+                            | Instr::Mov(_, _)
+                            | Instr::Neg(_, _)
+                            | Instr::Bool(_, _)
+                            | Instr::Num(_, _)
+                            | Instr::Str(_, _)
+                            | Instr::Type(_, _)
+                            | Instr::Range(_, _, _)
+                            | Instr::IoOpen(_, _, _)
+                            | Instr::GetIndex(_, _, _)
+                            | Instr::ApplyFunc(_, _, _)
+                            | Instr::Floor(_, _)
+                            | Instr::Input(_, _)
+                    )
+                })
+                .unwrap_or(x.len() - 1),
+        )
+        .unwrap()
+    {
+        Instr::Add(_, _, z)
+        | Instr::Mul(_, _, z)
+        | Instr::Sub(_, _, z)
+        | Instr::Div(_, _, z)
+        | Instr::Mod(_, _, z)
+        | Instr::Pow(_, _, z)
+        | Instr::Eq(_, _, z)
+        | Instr::NotEq(_, _, z)
+        | Instr::Sup(_, _, z)
+        | Instr::SupEq(_, _, z)
+        | Instr::Inf(_, _, z)
+        | Instr::InfEq(_, _, z)
+        | Instr::BoolAnd(_, _, z)
+        | Instr::BoolOr(_, _, z)
+        | Instr::Mov(_, z)
+        | Instr::Neg(_, z)
+        | Instr::Type(_, z)
+        | Instr::Bool(_, z)
+        | Instr::Num(_, z)
+        | Instr::ApplyFunc(_, _, z)
+        | Instr::Input(_, z)
+        | Instr::GetIndex(_, _, z)
+        | Instr::Range(_, _, z)
+        | Instr::IoOpen(_, z, _)
+        | Instr::Floor(_, z)
+        | Instr::Str(_, z) => *z,
+        _ => unreachable!(),
+    }
+}
+
 macro_rules! handle_ops {
     ($final_stack: expr, $x: expr, $y: expr, $z: expr, $op: expr, $consts: expr) => {
         match $op {
@@ -290,7 +369,7 @@ fn get_id(
                 (consts.len() - 1) as u16
             } else {
                 println!("GET_ID CALLING WITH {:?}", x.clone());
-                get_tgt_id(*instr.last().unwrap())
+                get_tgt_id_vec(instr)
             }
         }
     }
