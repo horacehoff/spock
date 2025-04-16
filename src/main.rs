@@ -98,6 +98,7 @@ pub enum Instr {
 
     Call(u16,u16), // function_start_index, return_target_id
     Ret(u16, u16), // return obj id -- return target id
+    Copy(u16,u16)
 }
 
 struct CallFrame {
@@ -125,6 +126,9 @@ pub fn execute(
                     i += size as usize;
                     continue;
                 }
+            }
+            Instr::Copy(x,y) => {
+                consts[y as usize] = consts[x as usize]
             }
             Instr::Cmp(cond_id, size) => {
                 if let Data::Bool(false) = consts[cond_id as usize] {

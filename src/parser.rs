@@ -978,7 +978,7 @@ fn parser_to_instr_set(
                                     consts.push(Data::Null);
                                     output.push(Instr::Call(*loc, (consts.len() - 1) as u16));
                                     for (x,y) in saves {
-                                        output.push(Instr::Mov(y,x));
+                                        output.push(Instr::Copy(y,x));
                                     }
                                     continue;
                                 }
