@@ -538,14 +538,14 @@ pub fn execute(
                 }}
             }
             Instr::Floor(tgt, dest) => {
-                if let Data::Number(x) = consts[tgt as usize] {
+                if_likely! {let Data::Number(x) = consts[tgt as usize] => {
                     consts[dest as usize] = Data::Number(x.floor());
                 } else {
                     error_b!(format_args!(
                         "Cannot floor {color_red}{}{color_reset}",
                         consts[tgt as usize]
                     ));
-                }
+                }}
             }
         }
         i += 1;

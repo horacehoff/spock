@@ -909,6 +909,13 @@ fn parser_to_instr_set(
                                 output.push(Instr::Range(id_x, id_y, (consts.len() - 1) as u16));
                             }
                         }
+                        "floor" => {
+                            check_args!(args, 1, "floor", ctx);
+                            let id =
+                                get_id(args[0].clone(), v, consts, &mut output, &ctx, fns, arrs);
+                            consts.push(Data::Null);
+                            output.push(Instr::Num(id, (consts.len() - 1) as u16));
+                        }
                         function => {
                             let (fn_code, exp_args): (Vec<Expr>, Box<[String]>) = {
                                 if let Some((_, exp_args, code)) =
