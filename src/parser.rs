@@ -1,4 +1,5 @@
 use crate::display::print_instructions;
+use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::{Data, Instr, Opcode, error, num};
 use crate::{check_args, check_args_range, print};
 use fnv::FnvHashMap;
@@ -563,55 +564,8 @@ fn parser_to_instr_set(
                 if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
-                if let Expr::Op(base, tgt) = *x.clone() {
-                    if tgt.len() == 1 {
-                        let (op, dest) = tgt.first().unwrap();
-                        if let Expr::Num(fac) = **dest {
-                            if op == &Opcode::Inf {
-                                if let Expr::Var(var_name) = *base {
-                                    if let Expr::VarAssign(name, x) = y.first().unwrap() {
-                                        if name == &var_name {
-                                            if let Expr::Op(base, tgt) = &**x {
-                                                if tgt.len() == 1 {
-                                                    let (op, dest_reps) = tgt.first().unwrap();
-                                                    if op == &Opcode::Add {
-                                                        if **base == Expr::Var(name.to_string()) {
-                                                            let var_id = v
-                                                                .iter()
-                                                                .find(|(w, _)| w == name)
-                                                                .unwrap()
-                                                                .1;
-                                                            if let Expr::Num(reps) = **dest_reps {
-                                                                consts.push(Data::Number(fac));
-                                                                consts.push(Data::Null);
-                                                                output.push(Instr::Sub(
-                                                                    (consts.len() - 2) as u16,
-                                                                    var_id,
-                                                                    (consts.len() - 1) as u16,
-                                                                ));
-                                                                consts.push(Data::Number(reps));
-                                                                consts.push(Data::Null);
-                                                                output.push(Instr::Div(
-                                                                    (consts.len() - 3) as u16,
-                                                                    (consts.len() - 2) as u16,
-                                                                    (consts.len() - 1) as u16,
-                                                                ));
-                                                                output.push(Instr::Floor(
-                                                                    (consts.len() - 1) as u16,
-                                                                    var_id,
-                                                                ));
-                                                                continue;
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                if while_loop_summation(&mut output, consts, v, *x.clone(), y.clone()) {
+                    continue;
                 }
                 let condition = parser_to_instr_set(vec![*x], v, consts, fns, fn_state, arrs);
                 output.extend(condition);
@@ -645,51 +599,8 @@ fn parser_to_instr_set(
             }
             Expr::ForLoop(var_name, array, code) => {
                 let array = get_id(*array, v, consts, &mut output, &ctx, fns, arrs);
-                // simple inefficient loop summation
-                print!("for loop code is {code:?}");
-                if code.len() == 1 {
-                    if let Expr::VarAssign(name, x) = code.first().unwrap() {
-                        if let Expr::Op(base, tgt) = &**x {
-                            if tgt.len() == 1 {
-                                let (op, dest) = tgt.first().unwrap();
-                                if op == &Opcode::Add {
-                                    if **base == Expr::Var(name.to_string()) {
-                                        let var_id = v.iter().find(|(w, _)| w == name).unwrap().1;
-                                        if let Expr::Num(reps) = **dest {
-                                            if let Data::Array(id) = consts[array as usize] {
-                                                let len = arrs[&id].len();
-                                                consts.push(Data::Number(reps * len as f64));
-                                                output.push(Instr::Mov(
-                                                    (consts.len() - 1) as u16,
-                                                    var_id,
-                                                ));
-                                                continue;
-                                            } else {
-                                                consts.push(Data::Null);
-                                                output.push(Instr::ApplyFunc(
-                                                    2,
-                                                    array,
-                                                    (consts.len() - 1) as u16,
-                                                ));
-                                                consts.push(Data::Number(reps));
-                                                consts.push(Data::Null);
-                                                output.push(Instr::Mul(
-                                                    (consts.len() - 3) as u16,
-                                                    (consts.len() - 2) as u16,
-                                                    (consts.len() - 1) as u16,
-                                                ));
-                                                output.push(Instr::Mov(
-                                                    (consts.len() - 1) as u16,
-                                                    var_id,
-                                                ));
-                                                continue;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                if for_loop_summation(&mut output, consts, v, arrs, array, code.clone()) {
+                    continue;
                 }
                 consts.push(Data::Null);
                 let array_len_id = (consts.len() - 1) as u16;
