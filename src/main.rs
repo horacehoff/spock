@@ -98,7 +98,7 @@ pub enum Instr {
 
     Call(u16,u16), // function_start_index, return_target_id
     Ret(u16, u16), // return obj id -- return target id
-    RestoreCallArg(u16, u16)
+    RestoreCallArg(u16, u16) // same than mov, used because mov can be changed by the parser
 }
 
 // struct CallFrame {
@@ -107,16 +107,15 @@ pub enum Instr {
 //     to_return:u16
 // }
 //  ===
-//
-type CallFrame = (Vec<Data>,usize,u16);
+type CallFrame = (Vec<Data>, usize, u16);
 
 pub fn execute(
     instructions: &[Instr],
     consts: &mut [Data],
     func_args: &mut Vec<u16>,
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    call_stack: &mut Vec<CallFrame>
 ) {
-    let mut call_stack:Vec<CallFrame>  = Vec::new();
     let len = instructions.len();
     let mut i: usize = 0;
     while i < len {
@@ -140,19 +139,16 @@ pub fn execute(
                 }
             }
             Instr::Call(x,y) => {
-                call_stack.push((consts.to_vec(), i+1, y));
+                call_stack.push((consts.to_vec(), i + 1, y));
                 i = x as usize;
                 continue;
             }
             Instr::Ret(x,y) => {
                 let val = consts[x as usize];
-                if !call_stack.is_empty() {
-                    let stack = call_stack.pop().unwrap();
-                    for w in stack.0.iter().enumerate() {
-                        consts[w.0] = *w.1;
-                    }
-                    i = stack.1;
-                    consts[stack.2 as usize] = val;
+                if let Some((prev_consts, ret_i, dest)) = call_stack.pop() {
+                    consts.copy_from_slice(&prev_consts);
+                    i = ret_i;
+                    consts[dest as usize] = val;
                     continue;
                 } else {
                     consts[y as usize] = val;
@@ -656,8 +652,11 @@ fn main() {
 
     let (instructions, mut consts, mut arrays) = parse(&contents);
 
+
     let mut func_args_count = 0;
     let mut func_args_count_max = 0;
+    let call_stack_count = 0;
+    let call_stack_count_max = 0;
     for x in &instructions {
         if matches!(x, Instr::StoreFuncArg(_)) {
             func_args_count += 1;
@@ -665,17 +664,28 @@ fn main() {
             func_args_count_max = func_args_count;
             func_args_count = 0;
         }
+
+        if matches!(x, Instr::Call(_,_)) {
+            func_args_count += 1;
+        } else if matches!(x, Instr::ApplyFunc(_, _, _)) && func_args_count > func_args_count_max {
+            func_args_count_max = func_args_count;
+            func_args_count = func_args_count - 1;
+        }
     }
-    // println!("INSTR {instructions:?}");
-    // println!("CONSTS {consts:?}");
+
+
+    println!("INSTR {instructions:?}");
+    println!("CONSTS {consts:?}");
     print!("ARRAYS {arrays:?}");
     print!("FUNC_ARGS_COUNT {func_args_count_max:?}");
+
     let now = Instant::now();
     execute(
         &instructions,
         &mut consts,
         &mut Vec::with_capacity(func_args_count_max),
         &mut arrays,
+        &mut Vec::with_capacity(call_stack_count_max*2)
     );
     println!("EXEC TIME {:.2?}", now.elapsed());
     // println!("CONSTS {consts:?}");

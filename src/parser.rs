@@ -497,6 +497,12 @@ macro_rules! add_args {
     };
 }
 
+macro_rules! ctx {
+    ($x: expr) => {
+        x.to_string()
+    };
+}
+
 type Function = (String, Box<[String]>, Box<[Expr]>);
 // last = expecting return ?
 type FunctionState = (String, u16, Vec<(String, u16)>, Option<u16>, bool);
