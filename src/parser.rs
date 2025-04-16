@@ -483,7 +483,8 @@ macro_rules! add_args {
 }
 
 type Function = (String, Box<[String]>, Box<[Expr]>);
-type FunctionState = (String, u16, Vec<(String, u16)>, Option<u16>);
+// last = expecting return ?
+type FunctionState = (String, u16, Vec<(String, u16)>, Option<u16>, bool);
 
 fn parser_to_instr_set(
     input: Vec<Expr>,
@@ -503,9 +504,6 @@ fn parser_to_instr_set(
         println!("PARSING ELEM {x:?}");
         let ctx = x.to_string();
         match x {
-            Expr::Import(path) => {
-                println!("IMPORT PATH: ");
-            }
             Expr::Num(num) => consts.push(Data::Number(num as num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
@@ -935,8 +933,14 @@ fn parser_to_instr_set(
                             };
                             check_args!(args, exp_args.len(), function, ctx);
 
-                            if let Some((name, loc, func_args, return_id)) = fn_state {
+                            if let Some((name, loc, func_args, return_id,in_return)) = fn_state {
                                 if name == function {
+                                    // println!("oizjrgf");
+                                    // if *in_return {
+                                    //     println!("SHIIIIIIIIIIIIIIIIIIIIIIIIIIIIT");
+                                    // }
+                                    //
+                                    //
                                     // recursive function, go back to function def and move on
                                     // "return" doesn't work with recursive functions for now
                                     for (i, _) in exp_args.iter().enumerate() {
@@ -960,7 +964,7 @@ fn parser_to_instr_set(
                                         }
                                     }
 
-                                    output.push(Instr::Jmp((output.len() as u16) - loc, true));
+                                    output.push(Instr::Call(*loc, return_id.unwrap()));
                                     continue;
                                 }
                             }
@@ -994,6 +998,7 @@ fn parser_to_instr_set(
                                     output.len() as u16,
                                     vars,
                                     Some((consts.len() - 1) as u16),
+                                    false
                                 )),
                                 arrs,
                             ));
@@ -1053,8 +1058,7 @@ fn parser_to_instr_set(
                 if let Some(x) = fn_state {
                     if let Some(return_value) = *val {
                         if let Some(ret_id) = x.3 {
-                            println!("RETURN VALUE IS {return_value:?}");
-                            let mut val = get_id(
+                            let val = get_id(
                                 return_value,
                                 v,
                                 consts,
@@ -1064,15 +1068,7 @@ fn parser_to_instr_set(
                                 arrs,
                                 fn_state
                             );
-
-                            let a = output.len();
-                            let b = x.1 as usize;
-                            let diff = (a - b) as u16;
-                            println!("DIFF IS {val:?}");
-                            if diff != 0 {
-                                output.push(Instr::Jmp(diff, (a as isize - b as isize) < 0));
-                            }
-                            output.push(Instr::Mov(val, ret_id));
+                            output.push(Instr::Ret(val));
                             // if val.is_empty() {
                             //     output.push(Instr::Mov((consts.len() - 1) as u16, ret_id));
                             // } else {

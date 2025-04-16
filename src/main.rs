@@ -93,6 +93,17 @@ pub enum Instr {
     // different than ArrayMov => looks into the consts
     ArrayMod(u16, u16, u16),
     GetIndex(u16, u16, u16),
+
+
+
+    Call(u16, u16), // function_start_index, return_target_id
+    Ret(u16),
+}
+
+struct CallFrame {
+    // Local variables for this function call
+    local_vars: Vec<Data>,  // Local variables, will be different per function call
+    return_address: u16,     // Address to jump to after the function returns
 }
 
 pub fn execute(
@@ -119,6 +130,12 @@ pub fn execute(
                     i += size as usize;
                     continue;
                 }
+            }
+            Instr::Call(x,y) => {
+
+            }
+            Instr::Ret(x) => {
+
             }
             Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
                 (Data::Number(parent), Data::Number(child)) => {
@@ -633,12 +650,12 @@ fn main() {
     print!("ARRAYS {arrays:?}");
     print!("FUNC_ARGS_COUNT {func_args_count_max:?}");
     let now = Instant::now();
-    execute(
-        &instructions,
-        &mut consts,
-        &mut Vec::with_capacity(func_args_count_max),
-        &mut arrays,
-    );
+    // execute(
+    //     &instructions,
+    //     &mut consts,
+    //     &mut Vec::with_capacity(func_args_count_max),
+    //     &mut arrays,
+    // );
     println!("EXEC TIME {:.2?}", now.elapsed());
     print!("INSTR {instructions:?}");
     print!("CONSTS {consts:?}");
