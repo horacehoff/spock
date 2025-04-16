@@ -8,6 +8,7 @@ use inline_colorization::*;
 use internment::Intern;
 use likely_stable::{if_likely, likely, unlikely};
 use std::cmp::PartialEq;
+use std::fmt::Display;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -82,10 +83,6 @@ pub enum Instr {
     IoOpen(u16, u16, u16),
     IoDelete(u16),
 
-
-
-
-
     StoreFuncArg(u16),
     ApplyFunc(u8, u16, u16),
 
@@ -94,11 +91,9 @@ pub enum Instr {
     ArrayMod(u16, u16, u16),
     GetIndex(u16, u16, u16),
 
-
-
-    Call(u16,u16), // function_start_index, return_target_id
-    Ret(u16, u16), // return obj id -- return target id
-    RestoreCallArg(u16, u16) // same than mov, used because mov can be changed by the parser
+    Call(u16, u16),           // function_start_index, return_target_id
+    Ret(u16, u16),            // return obj id -- return target id
+    RestoreCallArg(u16, u16), // same than mov, used because mov can be changed by the parser
 }
 
 // struct CallFrame {
@@ -114,7 +109,7 @@ pub fn execute(
     consts: &mut [Data],
     func_args: &mut Vec<u16>,
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
-    call_stack: &mut Vec<CallFrame>
+    call_stack: &mut Vec<CallFrame>,
 ) {
     let len = instructions.len();
     let mut i: usize = 0;
@@ -129,24 +124,27 @@ pub fn execute(
                     continue;
                 }
             }
-            Instr::RestoreCallArg(x, y) => {
-                consts[y as usize] = consts[x as usize]
-            }
             Instr::Cmp(cond_id, size) => {
                 if let Data::Bool(false) = consts[cond_id as usize] {
                     i += size as usize;
                     continue;
                 }
             }
-            Instr::Call(x,y) => {
-                call_stack.push((consts.to_vec(), i + 1, y));
+
+            // funcs
+            Instr::Call(x, y) => {
+                call_stack.push((consts[0..y as usize].to_vec(), i + 1, y));
                 i = x as usize;
                 continue;
             }
-            Instr::Ret(x,y) => {
+            Instr::Ret(x, y) => {
                 let val = consts[x as usize];
                 if let Some((prev_consts, ret_i, dest)) = call_stack.pop() {
-                    consts.copy_from_slice(&prev_consts);
+                    // consts[..prev_consts.len()].copy_from_slice(&prev_consts);
+                    for (a, b) in consts.iter_mut().zip(prev_consts.iter()) {
+                        *a = *b;
+                    }
+
                     i = ret_i;
                     consts[dest as usize] = val;
                     continue;
@@ -154,6 +152,8 @@ pub fn execute(
                     consts[y as usize] = val;
                 }
             }
+            Instr::RestoreCallArg(x, y) => consts[y as usize] = consts[x as usize],
+
             Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
                 (Data::Number(parent), Data::Number(child)) => {
                     consts[dest as usize] = Data::Number(parent + child);
@@ -652,7 +652,6 @@ fn main() {
 
     let (instructions, mut consts, mut arrays) = parse(&contents);
 
-
     let mut func_args_count = 0;
     let mut func_args_count_max = 0;
     let call_stack_count = 0;
@@ -665,14 +664,13 @@ fn main() {
             func_args_count = 0;
         }
 
-        if matches!(x, Instr::Call(_,_)) {
+        if matches!(x, Instr::Call(_, _)) {
             func_args_count += 1;
         } else if matches!(x, Instr::ApplyFunc(_, _, _)) && func_args_count > func_args_count_max {
             func_args_count_max = func_args_count;
             func_args_count = func_args_count - 1;
         }
     }
-
 
     println!("INSTR {instructions:?}");
     println!("CONSTS {consts:?}");
@@ -685,7 +683,7 @@ fn main() {
         &mut consts,
         &mut Vec::with_capacity(func_args_count_max),
         &mut arrays,
-        &mut Vec::with_capacity(call_stack_count_max*2)
+        &mut Vec::with_capacity(call_stack_count_max * 2),
     );
     println!("EXEC TIME {:.2?}", now.elapsed());
     // println!("CONSTS {consts:?}");
