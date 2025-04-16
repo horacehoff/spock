@@ -97,13 +97,12 @@ pub enum Instr {
 
 
     Call(u16, u16), // function_start_index, return_target_id
-    Ret(u16),
+    Ret(u16, u16), // return obj id -- return target id
 }
 
 struct CallFrame {
-    // Local variables for this function call
-    local_vars: Vec<Data>,  // Local variables, will be different per function call
-    return_address: u16,     // Address to jump to after the function returns
+    frame_consts: Vec<Data>,
+    ret_addr: u16,
 }
 
 pub fn execute(
@@ -112,6 +111,7 @@ pub fn execute(
     func_args: &mut Vec<u16>,
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
+    let mut call_stack:Vec<CallFrame>  = Vec::new();
     let len = instructions.len();
     let mut i: usize = 0;
     while i < len {
@@ -132,10 +132,22 @@ pub fn execute(
                 }
             }
             Instr::Call(x,y) => {
-
+                call_stack.push(CallFrame {frame_consts: consts.to_vec(), ret_addr: (i+1) as u16});
+                i = x as usize;
             }
-            Instr::Ret(x) => {
-
+            Instr::Ret(x,y) => {
+                println!("RETURNING YEP");
+                println!("RETURNING CONSTS ARE {consts:?}");
+                let val = consts[x as usize];
+                println!("VAL IS {val:?}");
+                if !call_stack.is_empty() {
+                    let stack = call_stack.pop().unwrap();
+                    for w in stack.frame_consts.iter().enumerate() {
+                        consts[w.0] = *w.1;
+                    }
+                    i = stack.ret_addr as usize;
+                }
+                consts[y as usize] = val;
             }
             Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
                 (Data::Number(parent), Data::Number(child)) => {
@@ -645,20 +657,18 @@ fn main() {
             func_args_count = 0;
         }
     }
-    print!("INSTR {instructions:?}");
-    print!("CONSTS {consts:?}");
+    println!("INSTR {instructions:?}");
+    println!("CONSTS {consts:?}");
     print!("ARRAYS {arrays:?}");
     print!("FUNC_ARGS_COUNT {func_args_count_max:?}");
     let now = Instant::now();
-    // execute(
-    //     &instructions,
-    //     &mut consts,
-    //     &mut Vec::with_capacity(func_args_count_max),
-    //     &mut arrays,
-    // );
+    execute(
+        &instructions,
+        &mut consts,
+        &mut Vec::with_capacity(func_args_count_max),
+        &mut arrays,
+    );
     println!("EXEC TIME {:.2?}", now.elapsed());
-    print!("INSTR {instructions:?}");
-    print!("CONSTS {consts:?}");
+    println!("CONSTS {consts:?}");
     // print!("ARRAYS {arrays:?}");
-    print!("FUNC_ARGS_COUNT {func_args_count_max:?}");
 }

@@ -133,6 +133,8 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::Type(_, y)
         | Instr::IoOpen(_, y, _)
         | Instr::Floor(_, y)
+        | Instr::Call(_, y)
+        | Instr::Ret(_, y)
         | Instr::Str(_, y) => y,
         _ => unreachable!("Was unable to match {:?}", x),
     }
@@ -181,6 +183,8 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
                             | Instr::ApplyFunc(_, _, _)
                             | Instr::Floor(_, _)
                             | Instr::Input(_, _)
+                            | Instr::Ret(_, _)
+                            | Instr::Call(_, _)
                     )
                 })
                 .unwrap_or(x.len() - 1),
@@ -212,6 +216,8 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Range(_, _, z)
         | Instr::IoOpen(_, z, _)
         | Instr::Floor(_, z)
+        | Instr::Call(_, z)
+        | Instr::Ret(_, z)
         | Instr::Str(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
@@ -260,6 +266,9 @@ fn get_tgt_id_vec(x: &mut [Instr]) -> u16 {
                             | Instr::ApplyFunc(_, _, _)
                             | Instr::Floor(_, _)
                             | Instr::Input(_, _)
+                            | Instr::Call(_,_)
+                            | Instr::Ret(_, _)
+
                     )
                 })
                 .unwrap_or(x.len() - 1),
@@ -291,6 +300,8 @@ fn get_tgt_id_vec(x: &mut [Instr]) -> u16 {
         | Instr::Range(_, _, z)
         | Instr::IoOpen(_, z, _)
         | Instr::Floor(_, z)
+        | Instr::Call(_,z)
+        | Instr::Ret(_, z)
         | Instr::Str(_, z) => *z,
         _ => unreachable!(),
     }
@@ -357,9 +368,13 @@ fn get_id(
             }
         }
         _ => {
-            print!("PARSING FOR ID {:?}", x.clone());
-            instr.append(&mut parser_to_instr_set(
-                vec![x.clone()],
+            print!("PARSING FOR ID {:?}", x);
+            println!("vars are {variables:?}");
+            println!("consts are {consts:?}");
+            println!("funcs are {functions:?}");
+            println!("fn_state is {fn_state:?}");
+            instr.extend(parser_to_instr_set(
+                vec![x],
                 variables,
                 consts,
                 functions,
@@ -369,7 +384,7 @@ fn get_id(
             if instr.is_empty() {
                 (consts.len() - 1) as u16
             } else {
-                println!("GET_ID CALLING WITH {:?}", x.clone());
+                println!("GET_ID CALLING");
                 get_tgt_id_vec(instr)
             }
         }
@@ -1068,7 +1083,7 @@ fn parser_to_instr_set(
                                 arrs,
                                 fn_state
                             );
-                            output.push(Instr::Ret(val));
+                            output.push(Instr::Ret(val, ret_id));
                             // if val.is_empty() {
                             //     output.push(Instr::Mov((consts.len() - 1) as u16, ret_id));
                             // } else {
