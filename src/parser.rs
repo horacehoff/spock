@@ -134,7 +134,7 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::IoOpen(_, y, _)
         | Instr::Floor(_, y)
         | Instr::Str(_, y) => y,
-        _ => unreachable!(),
+        _ => unreachable!("Was unable to match {:?}", x),
     }
 }
 
@@ -277,9 +277,9 @@ fn get_id(
             }
         }
         _ => {
-            print!("PARSING {x}");
+            print!("PARSING {}", x.clone());
             instr.append(&mut parser_to_instr_set(
-                vec![x],
+                vec![x.clone()],
                 variables,
                 consts,
                 functions,
@@ -289,6 +289,7 @@ fn get_id(
             if instr.is_empty() {
                 (consts.len() - 1) as u16
             } else {
+                println!("GET_ID CALLING WITH {:?}", x.clone());
                 get_tgt_id(*instr.last().unwrap())
             }
         }
@@ -970,15 +971,19 @@ fn parser_to_instr_set(
                                 fn_state,
                                 arrs,
                             );
+
+                            let a = output.len();
+                            let b = x.1 as usize;
+                            let diff = (a - b) as u16;
+                            if diff != 0 {
+                                output.push(Instr::Jmp(diff, (a as isize - b as isize) < 0));
+                            }
                             if val.is_empty() {
                                 output.push(Instr::Mov((consts.len() - 1) as u16, ret_id));
                             } else {
                                 move_to_id(&mut val, ret_id);
                                 output.extend(val);
                             }
-                            let a = output.len();
-                            let b = x.1 as usize;
-                            output.push(Instr::Jmp((a - b) as u16, (a as isize - b as isize) < 0));
                         }
                     }
                 } else {
