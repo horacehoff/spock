@@ -98,14 +98,17 @@ pub enum Instr {
 
     Call(u16,u16), // function_start_index, return_target_id
     Ret(u16, u16), // return obj id -- return target id
-    Copy(u16,u16)
+    RestoreCallArg(u16, u16)
 }
 
-struct CallFrame {
-    frame_consts: Vec<Data>,
-    ret_addr: u16,
-    to_return:u16
-}
+// struct CallFrame {
+//     frame_consts: Vec<Data>,
+//     ret_addr: u16,
+//     to_return:u16
+// }
+//  ===
+//
+type CallFrame = (Vec<Data>,usize,u16);
 
 pub fn execute(
     instructions: &[Instr],
@@ -127,7 +130,7 @@ pub fn execute(
                     continue;
                 }
             }
-            Instr::Copy(x,y) => {
+            Instr::RestoreCallArg(x, y) => {
                 consts[y as usize] = consts[x as usize]
             }
             Instr::Cmp(cond_id, size) => {
@@ -137,22 +140,19 @@ pub fn execute(
                 }
             }
             Instr::Call(x,y) => {
-                call_stack.push(CallFrame {frame_consts: consts.to_vec(), ret_addr: (i+1) as u16, to_return: y});
+                call_stack.push((consts.to_vec(), i+1, y));
                 i = x as usize;
                 continue;
             }
             Instr::Ret(x,y) => {
-                println!("RETURNING YEP");
-                println!("RETURNING CONSTS ARE {consts:?}");
                 let val = consts[x as usize];
-                println!("VAL IS {val:?}");
                 if !call_stack.is_empty() {
                     let stack = call_stack.pop().unwrap();
-                    for w in stack.frame_consts.iter().enumerate() {
+                    for w in stack.0.iter().enumerate() {
                         consts[w.0] = *w.1;
                     }
-                    i = stack.ret_addr as usize;
-                    consts[stack.to_return as usize] = val;
+                    i = stack.1;
+                    consts[stack.2 as usize] = val;
                     continue;
                 } else {
                     consts[y as usize] = val;
@@ -666,8 +666,8 @@ fn main() {
             func_args_count = 0;
         }
     }
-    println!("INSTR {instructions:?}");
-    println!("CONSTS {consts:?}");
+    // println!("INSTR {instructions:?}");
+    // println!("CONSTS {consts:?}");
     print!("ARRAYS {arrays:?}");
     print!("FUNC_ARGS_COUNT {func_args_count_max:?}");
     let now = Instant::now();
@@ -678,6 +678,6 @@ fn main() {
         &mut arrays,
     );
     println!("EXEC TIME {:.2?}", now.elapsed());
-    println!("CONSTS {consts:?}");
+    // println!("CONSTS {consts:?}");
     // print!("ARRAYS {arrays:?}");
 }

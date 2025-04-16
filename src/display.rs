@@ -30,7 +30,7 @@ pub const format_data_closure: fn(Data, &FnvHashMap<u16, Vec<Data>>) -> String =
         "[",
         arrays[&a]
             .iter()
-            .map(|x| format_data(*x, &arrays))
+            .map(|x| format_data(*x, arrays))
             .collect::<Vec<_>>()
             .join(","),
         "]"

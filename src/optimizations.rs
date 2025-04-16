@@ -5,7 +5,7 @@ use fnv::FnvHashMap;
 pub fn while_loop_summation(
     output: &mut Vec<Instr>,
     consts: &mut Vec<Data>,
-    v: &mut Vec<(String, u16)>,
+    v: &mut [(String, u16)],
     x: Expr,
     y: Box<[Expr]>,
 ) -> bool {
@@ -63,7 +63,7 @@ pub fn while_loop_summation(
 pub fn for_loop_summation(
     output: &mut Vec<Instr>,
     consts: &mut Vec<Data>,
-    v: &mut Vec<(String, u16)>,
+    v: &mut [(String, u16)],
     arrs: &mut FnvHashMap<u16, Vec<Data>>,
     array: u16,
     code: Box<[Expr]>,

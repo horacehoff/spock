@@ -369,10 +369,10 @@ fn get_id(
         }
         _ => {
             print!("PARSING FOR ID {:?}", x);
-            println!("vars are {variables:?}");
-            println!("consts are {consts:?}");
-            println!("funcs are {functions:?}");
-            println!("fn_state is {fn_state:?}");
+            // println!("vars are {variables:?}");
+            // println!("consts are {consts:?}");
+            // println!("funcs are {functions:?}");
+            // println!("fn_state is {fn_state:?}");
             instr.extend(parser_to_instr_set(
                 vec![x],
                 variables,
@@ -384,7 +384,7 @@ fn get_id(
             if instr.is_empty() {
                 (consts.len() - 1) as u16
             } else {
-                println!("GET_ID CALLING");
+                // println!("GET_ID CALLING");
                 get_tgt_id_vec(instr)
             }
         }
@@ -514,9 +514,9 @@ fn parser_to_instr_set(
     arrs: &mut FnvHashMap<u16, Vec<Data>>,
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
-    println!("PARSING {input:?}");
+    // println!("PARSING {input:?}");
     for x in input {
-        println!("PARSING ELEM {x:?}");
+        // println!("PARSING ELEM {x:?}");
         let ctx = x.to_string();
         match x {
             Expr::Num(num) => consts.push(Data::Number(num as num)),
@@ -557,7 +557,7 @@ fn parser_to_instr_set(
                 consts.push(Data::Null);
                 if let Some((_, var_id)) = v.iter().rev().find(|(x, _)| &name == x) {
                     output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
-                    println!("just parsed var!")
+                    // println!("just parsed var!")
                 } else {
                     error!(
                         ctx,
@@ -820,7 +820,7 @@ fn parser_to_instr_set(
                 output.extend(value);
             }
             Expr::FunctionCall(x, args, namespace) => {
-                println!("FUNCFUNC {x}");
+                // println!("FUNCFUNC {x}");
                 if *namespace == ["std"] {
                     match x.as_str() {
                         "print" => {
@@ -930,7 +930,7 @@ fn parser_to_instr_set(
                             output.push(Instr::Num(id, (consts.len() - 1) as u16));
                         }
                         function => {
-                            println!("func called");
+                            // println!("func called");
                             let (fn_code, exp_args): (Vec<Expr>, Box<[String]>) = {
                                 if let Some((_, exp_args, code)) =
                                     fns.iter().find(|(a, _, _)| a == function)
@@ -978,7 +978,7 @@ fn parser_to_instr_set(
                                     consts.push(Data::Null);
                                     output.push(Instr::Call(*loc, (consts.len() - 1) as u16));
                                     for (x,y) in saves {
-                                        output.push(Instr::Copy(y,x));
+                                        output.push(Instr::RestoreCallArg(y, x));
                                     }
                                     continue;
                                 }
@@ -1069,7 +1069,7 @@ fn parser_to_instr_set(
                 }
             }
             Expr::ReturnVal(val) => {
-                println!("RETURNING");
+                // println!("RETURNING");
                 if let Some(x) = fn_state {
                     if let Some(return_value) = *val {
                         if let Some(ret_id) = x.3 {
@@ -1300,7 +1300,7 @@ fn parser_to_instr_set(
                 fns.push((x, y, z));
             }
             Expr::Op(left, right) => {
-                println!("CALLED OP {left:?} ||| {right:?}");
+                // println!("CALLED OP {left:?} ||| {right:?}");
                 fn remove_priority(
                     x: Expr,
                     variables: &mut Vec<(String, u16)>,
