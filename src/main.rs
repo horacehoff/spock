@@ -1,4 +1,4 @@
-use crate::display::{format_data};
+use crate::display::format_data;
 use crate::parser::parse;
 use crate::util::get_type;
 use builtin_funcs::FUNCS;
@@ -74,6 +74,7 @@ pub enum Instr {
     Str(u16, u16),
     Bool(u16, u16),
     Input(u16, u16),
+    Floor(u16, u16),
     // start,end,dest
     Range(u16, u16, u16),
     // path - dest - create?
@@ -114,33 +115,31 @@ pub fn execute(
                     continue;
                 }
             }
-            Instr::Add(o1, o2, dest) => {
-                match (consts[o1 as usize], consts[o2 as usize]) {
-                    (Data::Number(parent), Data::Number(child)) => {
-                        consts[dest as usize] = Data::Number(parent + child);
-                    }
-                    (Data::String(parent), Data::String(child)) => {
-                        let result = concat_string!(*parent, *child);
-                        consts[dest as usize] = Data::String(Intern::from(result));
-                    }
-                    (Data::Array(a), Data::Array(b)) => {
-                        let id = arrays.len() as u16;
-                        let arr_a = &arrays[&a];
-                        let arr_b = &arrays[&b];
+            Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
+                (Data::Number(parent), Data::Number(child)) => {
+                    consts[dest as usize] = Data::Number(parent + child);
+                }
+                (Data::String(parent), Data::String(child)) => {
+                    let result = concat_string!(*parent, *child);
+                    consts[dest as usize] = Data::String(Intern::from(result));
+                }
+                (Data::Array(a), Data::Array(b)) => {
+                    let id = arrays.len() as u16;
+                    let arr_a = &arrays[&a];
+                    let arr_b = &arrays[&b];
 
-                        let mut combined = Vec::with_capacity(arr_a.len() + arr_b.len());
-                        combined.extend_from_slice(arr_a);
-                        combined.extend_from_slice(arr_b);
-                        arrays.insert(id, combined);
-                        consts[dest as usize] = Data::Array(id);
-                    }
-                    (a, b) => {
-                        error_b!(format_args!(
+                    let mut combined = Vec::with_capacity(arr_a.len() + arr_b.len());
+                    combined.extend_from_slice(arr_a);
+                    combined.extend_from_slice(arr_b);
+                    arrays.insert(id, combined);
+                    consts[dest as usize] = Data::Array(id);
+                }
+                (a, b) => {
+                    error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {} + {}",
                         format_data(a, arrays),
                         format_data(b, arrays)
                     ));
-                    }
                 }
             },
             Instr::Mul(o1, o2, dest) => {
@@ -537,6 +536,16 @@ pub fn execute(
                 } else {
                     error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", consts[path as usize]));
                 }}
+            }
+            Instr::Floor(tgt, dest) => {
+                if let Data::Number(x) = consts[tgt as usize] {
+                    consts[dest as usize] = Data::Number(x.floor());
+                } else {
+                    error_b!(format_args!(
+                        "Cannot floor {color_red}{}{color_reset}",
+                        consts[tgt as usize]
+                    ));
+                }
             }
         }
         i += 1;

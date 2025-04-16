@@ -131,6 +131,7 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::Range(_, _, y)
         | Instr::Type(_, y)
         | Instr::IoOpen(_, y, _)
+        | Instr::Floor(_, y)
         | Instr::Str(_, y) => y,
         _ => unreachable!(),
     }
@@ -177,6 +178,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
                             | Instr::IoOpen(_, _, _)
                             | Instr::GetIndex(_, _, _)
                             | Instr::ApplyFunc(_, _, _)
+                            | Instr::Floor(_, _)
                             | Instr::Input(_, _)
                     )
                 })
@@ -208,6 +210,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::GetIndex(_, _, z)
         | Instr::Range(_, _, z)
         | Instr::IoOpen(_, z, _)
+        | Instr::Floor(_, z)
         | Instr::Str(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
@@ -560,6 +563,56 @@ fn parser_to_instr_set(
                 if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
+                if let Expr::Op(base, tgt) = *x.clone() {
+                    if tgt.len() == 1 {
+                        let (op, dest) = tgt.first().unwrap();
+                        if let Expr::Num(fac) = **dest {
+                            if op == &Opcode::Inf {
+                                if let Expr::Var(var_name) = *base {
+                                    if let Expr::VarAssign(name, x) = y.first().unwrap() {
+                                        if name == &var_name {
+                                            if let Expr::Op(base, tgt) = &**x {
+                                                if tgt.len() == 1 {
+                                                    let (op, dest_reps) = tgt.first().unwrap();
+                                                    if op == &Opcode::Add {
+                                                        if **base == Expr::Var(name.to_string()) {
+                                                            let var_id = v
+                                                                .iter()
+                                                                .find(|(w, _)| w == name)
+                                                                .unwrap()
+                                                                .1;
+                                                            if let Expr::Num(reps) = **dest_reps {
+                                                                consts.push(Data::Number(fac));
+                                                                consts.push(Data::Null);
+                                                                output.push(Instr::Sub(
+                                                                    (consts.len() - 2) as u16,
+                                                                    var_id,
+                                                                    (consts.len() - 1) as u16,
+                                                                ));
+                                                                consts.push(Data::Number(reps));
+                                                                consts.push(Data::Null);
+                                                                output.push(Instr::Div(
+                                                                    (consts.len() - 3) as u16,
+                                                                    (consts.len() - 2) as u16,
+                                                                    (consts.len() - 1) as u16,
+                                                                ));
+                                                                output.push(Instr::Floor(
+                                                                    (consts.len() - 1) as u16,
+                                                                    var_id,
+                                                                ));
+                                                                continue;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 let condition = parser_to_instr_set(vec![*x], v, consts, fns, fn_state, arrs);
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
@@ -598,40 +651,38 @@ fn parser_to_instr_set(
                     if let Expr::VarAssign(name, x) = code.first().unwrap() {
                         if let Expr::Op(base, tgt) = &**x {
                             if tgt.len() == 1 {
-                                if let (op, dest) = tgt.first().unwrap() {
-                                    if op == &Opcode::Add {
-                                        if **base == Expr::Var(name.to_string()) {
-                                            let var_id =
-                                                v.iter().find(|(w, _)| w == name).unwrap().1;
-                                            if let Expr::Num(reps) = **dest {
-                                                if let Data::Array(id) = consts[array as usize] {
-                                                    let len = arrs[&id].len();
-                                                    consts.push(Data::Number(reps * len as f64));
-                                                    output.push(Instr::Mov(
-                                                        (consts.len() - 1) as u16,
-                                                        var_id,
-                                                    ));
-                                                    continue;
-                                                } else {
-                                                    consts.push(Data::Null);
-                                                    output.push(Instr::ApplyFunc(
-                                                        2,
-                                                        array,
-                                                        (consts.len() - 1) as u16,
-                                                    ));
-                                                    consts.push(Data::Number(reps));
-                                                    consts.push(Data::Null);
-                                                    output.push(Instr::Mul(
-                                                        (consts.len() - 3) as u16,
-                                                        (consts.len() - 2) as u16,
-                                                        (consts.len() - 1) as u16,
-                                                    ));
-                                                    output.push(Instr::Mov(
-                                                        (consts.len() - 1) as u16,
-                                                        var_id,
-                                                    ));
-                                                    continue;
-                                                }
+                                let (op, dest) = tgt.first().unwrap();
+                                if op == &Opcode::Add {
+                                    if **base == Expr::Var(name.to_string()) {
+                                        let var_id = v.iter().find(|(w, _)| w == name).unwrap().1;
+                                        if let Expr::Num(reps) = **dest {
+                                            if let Data::Array(id) = consts[array as usize] {
+                                                let len = arrs[&id].len();
+                                                consts.push(Data::Number(reps * len as f64));
+                                                output.push(Instr::Mov(
+                                                    (consts.len() - 1) as u16,
+                                                    var_id,
+                                                ));
+                                                continue;
+                                            } else {
+                                                consts.push(Data::Null);
+                                                output.push(Instr::ApplyFunc(
+                                                    2,
+                                                    array,
+                                                    (consts.len() - 1) as u16,
+                                                ));
+                                                consts.push(Data::Number(reps));
+                                                consts.push(Data::Null);
+                                                output.push(Instr::Mul(
+                                                    (consts.len() - 3) as u16,
+                                                    (consts.len() - 2) as u16,
+                                                    (consts.len() - 1) as u16,
+                                                ));
+                                                output.push(Instr::Mov(
+                                                    (consts.len() - 1) as u16,
+                                                    var_id,
+                                                ));
+                                                continue;
                                             }
                                         }
                                     }
