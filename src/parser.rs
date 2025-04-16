@@ -133,8 +133,8 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::Type(_, y)
         | Instr::IoOpen(_, y, _)
         | Instr::Floor(_, y)
-        | Instr::Call(_, y)
         | Instr::Ret(_, y)
+        | Instr::Call(_, y)
         | Instr::Str(_, y) => y,
         _ => unreachable!("Was unable to match {:?}", x),
     }
@@ -183,8 +183,8 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
                             | Instr::ApplyFunc(_, _, _)
                             | Instr::Floor(_, _)
                             | Instr::Input(_, _)
+                                | Instr::Call(_, _)
                             | Instr::Ret(_, _)
-                            | Instr::Call(_, _)
                     )
                 })
                 .unwrap_or(x.len() - 1),
@@ -216,8 +216,8 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Range(_, _, z)
         | Instr::IoOpen(_, z, _)
         | Instr::Floor(_, z)
-        | Instr::Call(_, z)
         | Instr::Ret(_, z)
+        | Instr::Call(_, z)
         | Instr::Str(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
@@ -266,7 +266,7 @@ fn get_tgt_id_vec(x: &mut [Instr]) -> u16 {
                             | Instr::ApplyFunc(_, _, _)
                             | Instr::Floor(_, _)
                             | Instr::Input(_, _)
-                            | Instr::Call(_,_)
+                                | Instr::Call(_, _)
                             | Instr::Ret(_, _)
 
                     )
@@ -300,8 +300,8 @@ fn get_tgt_id_vec(x: &mut [Instr]) -> u16 {
         | Instr::Range(_, _, z)
         | Instr::IoOpen(_, z, _)
         | Instr::Floor(_, z)
-        | Instr::Call(_,z)
         | Instr::Ret(_, z)
+        | Instr::Call(_, z)
         | Instr::Str(_, z) => *z,
         _ => unreachable!(),
     }
@@ -950,14 +950,7 @@ fn parser_to_instr_set(
 
                             if let Some((name, loc, func_args, return_id,in_return)) = fn_state {
                                 if name == function {
-                                    // println!("oizjrgf");
-                                    // if *in_return {
-                                    //     println!("SHIIIIIIIIIIIIIIIIIIIIIIIIIIIIT");
-                                    // }
-                                    //
-                                    //
                                     // recursive function, go back to function def and move on
-                                    // "return" doesn't work with recursive functions for now
                                     for (i, _) in exp_args.iter().enumerate() {
                                         let arg = args.get(i).unwrap();
                                         let val = expr_to_data(arg.clone());
@@ -978,8 +971,8 @@ fn parser_to_instr_set(
                                             output.extend(value);
                                         }
                                     }
-
-                                    output.push(Instr::Call(*loc, return_id.unwrap()));
+                                    consts.push(Data::Null);
+                                    output.push(Instr::Call(*loc, (consts.len() - 1) as u16));
                                     continue;
                                 }
                             }

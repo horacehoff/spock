@@ -1,11 +1,11 @@
 fn fib(n) {
-    if n < 2 {
+    if n == 1 {
         return n;
     } else {
-        return fib(n - 1) + fib(n - 2);
+        return fib(n - 1);
     }
 }
 
 fn main() {
-    print(fib(10));
+    print(fib(25));
 }

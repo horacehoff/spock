@@ -96,13 +96,14 @@ pub enum Instr {
 
 
 
-    Call(u16, u16), // function_start_index, return_target_id
+    Call(u16,u16), // function_start_index, return_target_id
     Ret(u16, u16), // return obj id -- return target id
 }
 
 struct CallFrame {
     frame_consts: Vec<Data>,
     ret_addr: u16,
+    to_return:u16
 }
 
 pub fn execute(
@@ -132,8 +133,9 @@ pub fn execute(
                 }
             }
             Instr::Call(x,y) => {
-                call_stack.push(CallFrame {frame_consts: consts.to_vec(), ret_addr: (i+1) as u16});
+                call_stack.push(CallFrame {frame_consts: consts.to_vec(), ret_addr: (i+1) as u16, to_return: y});
                 i = x as usize;
+                continue;
             }
             Instr::Ret(x,y) => {
                 println!("RETURNING YEP");
@@ -146,8 +148,11 @@ pub fn execute(
                         consts[w.0] = *w.1;
                     }
                     i = stack.ret_addr as usize;
+                    consts[stack.to_return as usize] = val;
+                    continue;
+                } else {
+                    consts[y as usize] = val;
                 }
-                consts[y as usize] = val;
             }
             Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
                 (Data::Number(parent), Data::Number(child)) => {
