@@ -950,10 +950,14 @@ fn parser_to_instr_set(
 
                             if let Some((name, loc, func_args, return_id,in_return)) = fn_state {
                                 if name == function {
+                                    let mut saves:Vec<(u16,u16)> = Vec::new();
                                     // recursive function, go back to function def and move on
                                     for (i, _) in exp_args.iter().enumerate() {
                                         let arg = args.get(i).unwrap();
                                         let val = expr_to_data(arg.clone());
+                                        consts.push(Data::Null);
+                                        output.push(Instr::Mov(func_args[i].1, (consts.len() - 1) as u16));
+                                        saves.push((func_args[i].1, (consts.len() - 1) as u16));
                                         if val != Data::Null {
                                             consts[func_args[i].1 as usize] = val;
                                         } else {
@@ -973,6 +977,9 @@ fn parser_to_instr_set(
                                     }
                                     consts.push(Data::Null);
                                     output.push(Instr::Call(*loc, (consts.len() - 1) as u16));
+                                    for (x,y) in saves {
+                                        output.push(Instr::Mov(y,x));
+                                    }
                                     continue;
                                 }
                             }
