@@ -1,7 +1,11 @@
-fn main() {
-    let i = 0;
-    while i < 999999999 {
-        i += 1;
+fn fib(n) {
+    if n < 2 {
+        return n;
+    } else {
+        return fib(n-1) + fib(n-2);
     }
-    print(i);
+}
+
+fn main() {
+    print(fib(10));
 }
