@@ -91,9 +91,10 @@ pub enum Instr {
     ArrayMod(u16, u16, u16),
     GetIndex(u16, u16, u16),
 
-    Call(u16, u16),           // function_start_index, return_target_id
-    Ret(u16, u16),            // return obj id -- return target id
+    Call(u16, u16), // function_start_index, return_target_id
+    Ret(u16, u16),  // return obj id -- return target id
     RestoreCallArg(u16, u16), // same than mov, used because mov can be changed by the parser
+                    // LoadCallArg(u16), // same than mov, used because mov can be changed by the parser
 }
 
 // struct CallFrame {
@@ -102,7 +103,7 @@ pub enum Instr {
 //     to_return:u16
 // }
 //  ===
-type CallFrame = (Vec<Data>, usize, u16);
+type CallFrame = (usize, u16);
 
 pub fn execute(
     instructions: &[Instr],
@@ -111,6 +112,7 @@ pub fn execute(
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
     call_stack: &mut Vec<CallFrame>,
 ) {
+    let mut stuff: Vec<Data> = Vec::with_capacity(consts.len() * call_stack.capacity());
     let len = instructions.len();
     let mut i: usize = 0;
     while i < len {
@@ -133,18 +135,17 @@ pub fn execute(
 
             // funcs
             Instr::Call(x, y) => {
-                call_stack.push((consts[0..y as usize].to_vec(), i + 1, y));
+                call_stack.push((i + 1, y));
+                stuff.extend_from_slice(consts);
                 i = x as usize;
                 continue;
             }
             Instr::Ret(x, y) => {
                 let val = consts[x as usize];
-                if let Some((prev_consts, ret_i, dest)) = call_stack.pop() {
-                    // consts[..prev_consts.len()].copy_from_slice(&prev_consts);
-                    for (a, b) in consts.iter_mut().zip(prev_consts.iter()) {
-                        *a = *b;
+                if let Some((ret_i, dest)) = call_stack.pop() {
+                    for (a, b) in stuff.drain(stuff.len() - consts.len()..).enumerate() {
+                        consts[a] = b;
                     }
-
                     i = ret_i;
                     consts[dest as usize] = val;
                     continue;
@@ -153,7 +154,9 @@ pub fn execute(
                 }
             }
             Instr::RestoreCallArg(x, y) => consts[y as usize] = consts[x as usize],
-
+            // Instr::LoadCallArg(x) => {
+            //     stuff.push(consts[x as usize]);
+            // },
             Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
                 (Data::Number(parent), Data::Number(child)) => {
                     consts[dest as usize] = Data::Number(parent + child);
