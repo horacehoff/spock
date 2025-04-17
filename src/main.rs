@@ -91,14 +91,12 @@ pub enum Instr {
     ArrayMod(u16, u16, u16),
     GetIndex(u16, u16, u16),
 
-    Call(u16, u16), // function_start_index, return_target_id
-    Ret(u16, u16),  // return obj id -- return target id
+    Call(u16, u16),           // function_start_index, return_target_id
+    Ret(u16, u16),            // return obj id -- return target id
     RestoreCallArg(u16, u16), // same than mov, used because mov can be changed by the parser
-                    // LoadCallArg(u16), // same than mov, used because mov can be changed by the parser
 }
 
 // struct CallFrame {
-//     frame_consts: Vec<Data>,
 //     ret_addr: u16,
 //     to_return:u16
 // }
@@ -154,9 +152,6 @@ pub fn execute(
                 }
             }
             Instr::RestoreCallArg(x, y) => consts[y as usize] = consts[x as usize],
-            // Instr::LoadCallArg(x) => {
-            //     stuff.push(consts[x as usize]);
-            // },
             Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
                 (Data::Number(parent), Data::Number(child)) => {
                     consts[dest as usize] = Data::Number(parent + child);
