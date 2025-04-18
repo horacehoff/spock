@@ -134,16 +134,15 @@ pub fn execute(
             // funcs
             Instr::Call(x, y) => {
                 call_stack.push((i + 1, y));
-                stuff.extend_from_slice(consts);
+                stuff.extend(consts.as_ref());
                 i = x as usize;
                 continue;
             }
             Instr::Ret(x, y) => {
                 let val = consts[x as usize];
                 if let Some((ret_i, dest)) = call_stack.pop() {
-                    for (a, b) in stuff.drain(stuff.len() - consts.len()..).enumerate() {
-                        consts[a] = b;
-                    }
+                    let consts_part = stuff.split_off(stuff.len() - consts.len());
+                    consts.copy_from_slice(&consts_part);
                     i = ret_i;
                     consts[dest as usize] = val;
                     continue;
@@ -652,8 +651,8 @@ fn main() {
 
     let mut func_args_count = 0;
     let mut func_args_count_max = 0;
-    let call_stack_count = 0;
-    let call_stack_count_max = 0;
+    let mut call_stack_count = 0;
+    let mut call_stack_count_max = 0;
     for x in &instructions {
         if matches!(x, Instr::StoreFuncArg(_)) {
             func_args_count += 1;
@@ -663,10 +662,10 @@ fn main() {
         }
 
         if matches!(x, Instr::Call(_, _)) {
-            func_args_count += 1;
-        } else if matches!(x, Instr::ApplyFunc(_, _, _)) && func_args_count > func_args_count_max {
-            func_args_count_max = func_args_count;
-            func_args_count = func_args_count - 1;
+            call_stack_count += 1;
+        } else if matches!(x, Instr::Ret(_, _)) && call_stack_count > call_stack_count_max {
+            call_stack_count_max = call_stack_count;
+            call_stack_count -= 1;
         }
     }
 
