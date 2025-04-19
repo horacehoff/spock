@@ -8,7 +8,6 @@ use inline_colorization::*;
 use internment::Intern;
 use likely_stable::{if_likely, likely, unlikely};
 use std::cmp::PartialEq;
-use std::fmt::Display;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -143,14 +142,13 @@ pub fn execute(
                 if let Some((ret_i, dest)) = call_stack.pop() {
                     let consts_part = stuff.split_off(stuff.len() - consts.len());
                     consts.copy_from_slice(&consts_part);
-                    i = ret_i;
                     consts[dest as usize] = val;
+                    i = ret_i;
                     continue;
                 } else {
                     consts[y as usize] = val;
                 }
             }
-            Instr::RestoreCallArg(x, y) => consts[y as usize] = consts[x as usize],
             Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
                 (Data::Number(parent), Data::Number(child)) => {
                     consts[dest as usize] = Data::Number(parent + child);
@@ -359,7 +357,7 @@ pub fn execute(
                     ));
                 }}
             }
-            Instr::Mov(tgt, dest) => {
+            Instr::Mov(tgt, dest) | Instr::RestoreCallArg(tgt, dest) => {
                 consts[dest as usize] = consts[tgt as usize];
             }
             Instr::Neg(tgt, dest) => {
