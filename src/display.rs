@@ -20,25 +20,25 @@ impl std::fmt::Display for Data {
     }
 }
 
-
-pub const format_data_closure: fn(Data, &FnvHashMap<u16, Vec<Data>>) -> String = |x: Data, arrays: &FnvHashMap<u16, Vec<Data>>| -> String {
-    match x {
-        Data::Number(num) => num.to_string(),
-        Data::Bool(bool) => bool.to_string(),
-        Data::String(str) => str.to_string(),
-        Data::Array(a) => concat_string!(
-        "[",
-        arrays[&a]
-            .iter()
-            .map(|x| format_data(*x, arrays))
-            .collect::<Vec<_>>()
-            .join(","),
-        "]"
-    ),
-        Data::Null => String::from("NULL"),
-        Data::File(path) => format!("FILE({path:?})"),
-    }
-};
+pub const format_data_closure: fn(Data, &FnvHashMap<u16, Vec<Data>>) -> String =
+    |x: Data, arrays: &FnvHashMap<u16, Vec<Data>>| -> String {
+        match x {
+            Data::Number(num) => num.to_string(),
+            Data::Bool(bool) => bool.to_string(),
+            Data::String(str) => str.to_string(),
+            Data::Array(a) => concat_string!(
+                "[",
+                arrays[&a]
+                    .iter()
+                    .map(|x| format_data(*x, arrays))
+                    .collect::<Vec<_>>()
+                    .join(","),
+                "]"
+            ),
+            Data::Null => String::from("NULL"),
+            Data::File(path) => format!("FILE({path:?})"),
+        }
+    };
 
 pub fn format_data(x: Data, arrays: &FnvHashMap<u16, Vec<Data>>) -> String {
     match x {
@@ -46,14 +46,14 @@ pub fn format_data(x: Data, arrays: &FnvHashMap<u16, Vec<Data>>) -> String {
         Data::Bool(bool) => bool.to_string(),
         Data::String(str) => str.to_string(),
         Data::Array(a) => concat_string!(
-        "[",
-        arrays[&a]
-            .iter()
-            .map(|x| format_data(*x, arrays))
-            .collect::<Vec<_>>()
-            .join(","),
-        "]"
-    ),
+            "[",
+            arrays[&a]
+                .iter()
+                .map(|x| format_data(*x, arrays))
+                .collect::<Vec<_>>()
+                .join(","),
+            "]"
+        ),
         Data::Null => String::from("NULL"),
         Data::File(path) => format!("FILE({path:?})"),
     }
@@ -173,6 +173,17 @@ impl std::fmt::Display for Expr {
                         ))
                         .collect::<Vec<String>>()
                         .join("")
+                )
+            }
+            Expr::ReturnVal(x) => {
+                write!(
+                    f,
+                    "return{}",
+                    if x.is_none() {
+                        String::new()
+                    } else {
+                        format!(" {}", x.clone().unwrap())
+                    }
                 )
             }
             _ => write!(f, "{self:?}"),

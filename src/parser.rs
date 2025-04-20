@@ -520,6 +520,7 @@ fn parser_to_instr_set(
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
+        println!("PARSING {x}");
         let ctx = x.to_string();
         match x {
             Expr::Num(num) => consts.push(Data::Number(num as num)),
@@ -1033,7 +1034,6 @@ fn parser_to_instr_set(
                             }
 
                             let mut fn_variables: Vec<(String, u16)> = Vec::new();
-                            let mut instructions: Vec<Instr> = Vec::new();
 
                             for (i, x) in exp_args.iter().enumerate() {
                                 let len = consts.len() as u16;
@@ -1051,7 +1051,7 @@ fn parser_to_instr_set(
                             }
                             let vars = fn_variables.clone();
                             consts.push(Data::Null);
-                            instructions.extend(parser_to_instr_set(
+                            output.extend(parser_to_instr_set(
                                 fn_code,
                                 &mut fn_variables,
                                 consts,
@@ -1065,7 +1065,6 @@ fn parser_to_instr_set(
                                 )),
                                 arrs,
                             ));
-                            output.extend(instructions);
                         }
                     }
                 } else if *namespace == ["io"] {

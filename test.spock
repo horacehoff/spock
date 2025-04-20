@@ -7,11 +7,5 @@ fn fib(n) {
 }
 
 fn main() {
-    //print(fib(28));
-
-    let x = 1;
-    for y in range(0,10) {
-        x *= 3;
-    }
-    print(x);
+    print(fib(4));
 }

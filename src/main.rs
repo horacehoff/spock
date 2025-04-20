@@ -141,7 +141,9 @@ pub fn execute(
                 let val = consts[x as usize];
                 if let Some((ret_i, dest)) = call_stack.pop() {
                     let consts_part = stuff.split_off(stuff.len() - consts.len());
+                    // println!("CONSTS BEFORE {consts:?}");
                     consts.copy_from_slice(&consts_part);
+                    // println!("CONSTS AFTER {consts:?}");
                     consts[dest as usize] = val;
                     i = ret_i;
                     continue;
