@@ -133,7 +133,6 @@ pub fn execute(
             // funcs
             Instr::Call(x, y) => {
                 call_stack.push((i + 1, y));
-                // stuff.extend(consts.as_ref());
                 i = x as usize;
                 continue;
             }
