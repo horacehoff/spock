@@ -560,7 +560,6 @@ fn parser_to_instr_set(
                 consts.push(Data::Null);
                 if let Some((_, var_id)) = v.iter().rev().find(|(x, _)| &name == x) {
                     output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
-                    // println!("just parsed var!")
                 } else {
                     error!(
                         ctx,
@@ -1143,7 +1142,6 @@ fn parser_to_instr_set(
                 }
             }
             Expr::ReturnVal(val) => {
-                // println!("RETURNING");
                 if let Some(x) = fn_state {
                     if let Some(return_value) = *val {
                         if let Some(ret_id) = x.3 {
@@ -1158,15 +1156,10 @@ fn parser_to_instr_set(
                                 fn_state,
                             );
                             output.push(Instr::Ret(val, ret_id));
-                            // if val.is_empty() {
-                            //     output.push(Instr::Mov((consts.len() - 1) as u16, ret_id));
-                            // } else {
-                            //     move_to_id(&mut val, ret_id);
-                            //     output.extend(val);
-                            // }
                         }
                     }
                 } else {
+                    // exit the program
                     output.push(Instr::Jmp(65535, false));
                 }
             }
@@ -1374,7 +1367,6 @@ fn parser_to_instr_set(
                 fns.push((x, y, z));
             }
             Expr::Op(left, right) => {
-                // println!("CALLED OP {left:?} ||| {right:?}");
                 fn remove_priority(
                     x: Expr,
                     variables: &mut Vec<(String, u16)>,
@@ -1383,7 +1375,7 @@ fn parser_to_instr_set(
                     match x {
                         Expr::Op(_, _) => process_op(x, variables, consts),
                         Expr::Priority(x) => {
-                            let mut output: Vec<Expr> = Vec::new();
+                            let mut output: Vec<Expr> = Vec::with_capacity(3);
                             output.push(Expr::LPAREN);
                             output.extend(remove_priority(*x, variables, consts));
                             output.push(Expr::RPAREN);
@@ -1412,22 +1404,17 @@ fn parser_to_instr_set(
                     }
                     operation
                 }
-
-                print!("{left:?} {right:?}");
                 let temp_op: Vec<Expr> = process_op(Expr::Op(left, right), v, consts);
-                print!("TEMPOP {temp_op:?}");
                 let op = op_to_rpn(temp_op);
-                print!("OP {op:?}");
 
-                let mut item_stack: Vec<Expr> = Vec::new();
-                let mut final_stack: Vec<Instr> = Vec::new();
+                let mut item_stack: Vec<Expr> = Vec::with_capacity(4);
+                let mut final_stack: Vec<Instr> =
+                    Vec::with_capacity(op.iter().filter(|x| matches!(x, Expr::Opcode(_))).count());
                 for x in op {
                     if let Expr::Opcode(op) = x {
                         if final_stack.is_empty() {
                             let last = item_stack.pop().unwrap();
-                            print!("1.OLD IS {last}");
                             let first = item_stack.pop().unwrap();
-                            print!("1.NEW IS {first}");
 
                             let first_v =
                                 get_id(first, v, consts, &mut output, &ctx, fns, arrs, fn_state);
@@ -1437,15 +1424,10 @@ fn parser_to_instr_set(
                             let x = first_v;
                             let y = second_v;
                             let z = consts.len() - 1;
-
-                            print!("1.{x} {y} {z}");
-
                             handle_ops!(final_stack, x, y, z as u16, op, consts);
                         } else {
-                            print!("2.OLD IS {:?}", final_stack.last().unwrap());
                             let old_id = get_tgt_id(*final_stack.last().unwrap());
                             let new = item_stack.pop().unwrap();
-                            print!("2.NEW IS {new}");
                             let new_v =
                                 get_id(new, v, consts, &mut output, &ctx, fns, arrs, fn_state);
                             consts.push(Data::Null);
@@ -1453,15 +1435,11 @@ fn parser_to_instr_set(
                             let y = old_id;
                             let z = consts.len() - 1;
                             handle_ops!(final_stack, x, y, z as u16, op, consts);
-                            print!("2.{x} {y} {z}");
                         }
                     } else {
                         item_stack.push(x);
                     }
                 }
-                print!("CONSTS {consts:?}");
-                print!("VARS {v:?}");
-                print!("FINAL STACK {final_stack:?}");
                 output.extend(final_stack);
             }
             Expr::Priority(x) => {
@@ -1475,11 +1453,10 @@ fn parser_to_instr_set(
                 ));
             }
             other => {
-                error!(ctx, format_args!("Not implemented {other:?}"));
+                unreachable!("Not implemented {:?}", other);
             }
         }
     }
-
     output
 }
 
