@@ -1035,8 +1035,7 @@ fn parser_to_instr_set(
 
                                     // doesn't work for now
                                     let len = output.len();
-                                    let instr_to_backup =
-                                        get_all_tgt_id(&output[*loc as usize..len]);
+                                    let instr_to_backup = get_all_tgt_id(&output[0..len]);
                                     let mut instr_backups: Vec<(u16, u16)> = Vec::new();
                                     for x in instr_to_backup {
                                         consts.push(Data::Null);
@@ -1047,16 +1046,13 @@ fn parser_to_instr_set(
                                     consts.push(Data::Null);
                                     let final_tgt_id = (consts.len() - 1) as u16;
                                     output.push(Instr::Call(*loc, final_tgt_id));
-                                    for (x, y) in saves {
-                                        if x != final_tgt_id {
-                                            output.push(Instr::RestoreCallArg(y, x));
-                                        }
-                                    }
                                     for (x, y) in instr_backups {
-                                        if x != final_tgt_id {
-                                            output.push(Instr::RestoreCallArg(y, x));
-                                        }
+                                        output.push(Instr::RestoreCallArg(y, x));
                                     }
+                                    for (x, y) in saves {
+                                        output.push(Instr::RestoreCallArg(y, x));
+                                    }
+
                                     continue;
                                 }
                             }

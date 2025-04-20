@@ -112,6 +112,7 @@ pub fn execute(
     let mut stuff: Vec<Data> = Vec::with_capacity(consts.len() * call_stack.capacity());
     let len = instructions.len();
     let mut i: usize = 0;
+    let mut to_set_after: Vec<(u16, Data)> = Vec::with_capacity(10);
     while i < len {
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
@@ -139,7 +140,8 @@ pub fn execute(
             Instr::Ret(x, y) => {
                 let val = consts[x as usize];
                 if let Some((ret_i, dest)) = call_stack.pop() {
-                    consts[dest as usize] = val;
+                    // consts[dest as usize] = val;
+                    to_set_after.push((dest, val));
                     i = ret_i;
                     continue;
                 } else {
@@ -354,8 +356,14 @@ pub fn execute(
                     ));
                 }}
             }
-            Instr::Mov(tgt, dest) | Instr::RestoreCallArg(tgt, dest) => {
+            Instr::Mov(tgt, dest) => {
                 consts[dest as usize] = consts[tgt as usize];
+            }
+            Instr::RestoreCallArg(tgt, dest) => {
+                consts[dest as usize] = consts[tgt as usize];
+                if let Some((x, y)) = to_set_after.pop() {
+                    consts[x as usize] = y;
+                }
             }
             Instr::Neg(tgt, dest) => {
                 let tgt = consts[tgt as usize];
