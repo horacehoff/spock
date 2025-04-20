@@ -989,22 +989,6 @@ fn parser_to_instr_set(
                                         );
                                     });
 
-                            // let (fn_code, exp_args): (Vec<Expr>, Box<[String]>) = {
-                            //     if let Some((_, exp_args, code)) =
-                            //         fns.iter().find(|(a, _, _)| a == function)
-                            //     {
-                            //         (code.into_vec(), exp_args.clone())
-                            //     } else {
-                            //         error!(
-                            //             ctx,
-                            //             format_args!(
-                            //                 "Unknown function {color_red}{}{color_reset}",
-                            //                 function
-                            //             )
-                            //         );
-                            //     }
-                            // };
-
                             let args_len = found.1.len();
                             check_args!(args, args_len, function, ctx);
 
@@ -1039,9 +1023,30 @@ fn parser_to_instr_set(
                                         }
                                     }
 
+                                    fn get_all_tgt_id(x: &[Instr]) -> Vec<u16> {
+                                        let mut total: Vec<u16> = Vec::new();
+                                        for x in x {
+                                            total.push(get_tgt_id(*x))
+                                        }
+                                        total
+                                    }
+
+                                    let len = output.len();
+                                    let instr_to_backup =
+                                        get_all_tgt_id(&output[*loc as usize..len]);
+                                    let mut instr_backups: Vec<(u16, u16)> = Vec::new();
+                                    for x in instr_to_backup {
+                                        consts.push(Data::Null);
+                                        output.push(Instr::Mov(x, (consts.len() - 1) as u16));
+                                        instr_backups.push((x, (consts.len() - 1) as u16))
+                                    }
+
                                     consts.push(Data::Null);
                                     output.push(Instr::Call(*loc, (consts.len() - 1) as u16));
                                     for (x, y) in saves {
+                                        output.push(Instr::RestoreCallArg(y, x));
+                                    }
+                                    for (x, y) in instr_backups {
                                         output.push(Instr::RestoreCallArg(y, x));
                                     }
                                     continue;
