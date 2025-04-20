@@ -1026,7 +1026,9 @@ fn parser_to_instr_set(
                                     fn get_all_tgt_id(x: &[Instr]) -> Vec<u16> {
                                         let mut total: Vec<u16> = Vec::new();
                                         for x in x {
-                                            total.push(get_tgt_id(*x))
+                                            if !matches!(x, Instr::Ret(_, _)) {
+                                                total.push(get_tgt_id(*x))
+                                            }
                                         }
                                         total
                                     }
