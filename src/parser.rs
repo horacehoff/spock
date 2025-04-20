@@ -1045,12 +1045,17 @@ fn parser_to_instr_set(
                                     }
 
                                     consts.push(Data::Null);
-                                    output.push(Instr::Call(*loc, (consts.len() - 1) as u16));
+                                    let final_tgt_id = (consts.len() - 1) as u16;
+                                    output.push(Instr::Call(*loc, final_tgt_id));
                                     for (x, y) in saves {
-                                        output.push(Instr::RestoreCallArg(y, x));
+                                        if x != final_tgt_id {
+                                            output.push(Instr::RestoreCallArg(y, x));
+                                        }
                                     }
                                     for (x, y) in instr_backups {
-                                        output.push(Instr::RestoreCallArg(y, x));
+                                        if x != final_tgt_id {
+                                            output.push(Instr::RestoreCallArg(y, x));
+                                        }
                                     }
                                     continue;
                                 }
