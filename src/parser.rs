@@ -390,11 +390,11 @@ fn get_id(
     }
 }
 
-fn expr_to_data(input: Expr) -> Data {
+fn expr_to_data(input: &Expr) -> Data {
     match input {
-        Expr::Num(num) => Data::Number(num as num),
-        Expr::Bool(bool) => Data::Bool(bool),
-        Expr::String(str) => Data::String(Intern::from(str)),
+        Expr::Num(num) => Data::Number(*num as num),
+        Expr::Bool(bool) => Data::Bool(*bool),
+        Expr::String(str) => Data::String(Intern::from(str.to_string())),
         _ => Data::Null,
     }
 }
@@ -976,31 +976,45 @@ fn parser_to_instr_set(
                             output.push(Instr::Num(id, (consts.len() - 1) as u16));
                         }
                         function => {
-                            // println!("func called");
-                            let (fn_code, exp_args): (Vec<Expr>, Box<[String]>) = {
-                                if let Some((_, exp_args, code)) =
-                                    fns.iter().find(|(a, _, _)| a == function)
-                                {
-                                    (code.to_vec(), exp_args.clone())
-                                } else {
-                                    error!(
-                                        ctx,
-                                        format_args!(
-                                            "Unknown function {color_red}{}{color_reset}",
-                                            function
-                                        )
-                                    );
-                                }
-                            };
-                            check_args!(args, exp_args.len(), function, ctx);
+                            let found =
+                                fns.iter()
+                                    .find(|(a, _, _)| a == function)
+                                    .unwrap_or_else(|| {
+                                        error!(
+                                            ctx,
+                                            format_args!(
+                                                "Unknown function {color_red}{}{color_reset}",
+                                                function
+                                            )
+                                        );
+                                    });
+
+                            // let (fn_code, exp_args): (Vec<Expr>, Box<[String]>) = {
+                            //     if let Some((_, exp_args, code)) =
+                            //         fns.iter().find(|(a, _, _)| a == function)
+                            //     {
+                            //         (code.into_vec(), exp_args.clone())
+                            //     } else {
+                            //         error!(
+                            //             ctx,
+                            //             format_args!(
+                            //                 "Unknown function {color_red}{}{color_reset}",
+                            //                 function
+                            //             )
+                            //         );
+                            //     }
+                            // };
+
+                            let args_len = found.1.len();
+                            check_args!(args, args_len, function, ctx);
 
                             if let Some((name, loc, func_args, return_id, in_return)) = fn_state {
                                 if name == function {
                                     let mut saves: Vec<(u16, u16)> = Vec::new();
                                     // recursive function, go back to function def and move on
-                                    for (i, _) in exp_args.iter().enumerate() {
+                                    for i in 0..args_len {
                                         let arg = args.get(i).unwrap();
-                                        let val = expr_to_data(arg.clone());
+                                        let val = expr_to_data(arg);
                                         consts.push(Data::Null);
                                         output.push(Instr::Mov(
                                             func_args[i].1,
@@ -1024,6 +1038,7 @@ fn parser_to_instr_set(
                                             output.extend(value);
                                         }
                                     }
+
                                     consts.push(Data::Null);
                                     output.push(Instr::Call(*loc, (consts.len() - 1) as u16));
                                     for (x, y) in saves {
@@ -1035,13 +1050,13 @@ fn parser_to_instr_set(
 
                             let mut fn_variables: Vec<(String, u16)> = Vec::new();
 
-                            for (i, x) in exp_args.iter().enumerate() {
+                            for (i, x) in found.1.iter().enumerate() {
                                 let len = consts.len() as u16;
                                 let mut value = parser_to_instr_set(
                                     vec![args[i].clone()],
                                     v,
                                     consts,
-                                    fns,
+                                    &mut fns.clone(),
                                     fn_state,
                                     arrs,
                                 );
@@ -1052,7 +1067,7 @@ fn parser_to_instr_set(
                             let vars = fn_variables.clone();
                             consts.push(Data::Null);
                             output.extend(parser_to_instr_set(
-                                fn_code,
+                                found.2.to_vec(),
                                 &mut fn_variables,
                                 consts,
                                 fns,
