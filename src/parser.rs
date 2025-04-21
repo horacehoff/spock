@@ -1,7 +1,7 @@
 use crate::display::print_instructions;
+use crate::{check_args, check_args_range, print};
 // use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::{Data, Instr, Opcode, error, num};
-use crate::{check_args, check_args_range, print};
 use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
@@ -20,8 +20,10 @@ pub enum Expr {
     VarDeclare(String, Box<Expr>),
     VarAssign(String, Box<Expr>),
     // condition - code -- else_if_blocks(condition array) - else_block
-    Condition(Box<Expr>, Box<[Expr]>, Box<[Expr]>, Option<Box<[Expr]>>),
+    Condition(Box<Expr>, Box<[Expr]>),
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
+    ElseBlock(Box<[Expr]>),
+
     WhileBlock(Box<Expr>, Box<[Expr]>),
     // name - args - optional namespace
     FunctionCall(String, Box<[Expr]>, Box<[String]>),
@@ -572,7 +574,7 @@ fn parser_to_instr_set(
                     );
                 }
             }
-            Expr::Condition(x, y, z, w) => {
+            Expr::Condition(x, y) => {
                 let mut condition_blocks: Vec<(Vec<Instr>, Vec<Instr>)> = Vec::new();
                 let val = *x;
                 if matches!(val, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
@@ -580,22 +582,37 @@ fn parser_to_instr_set(
                 }
                 let condition = parser_to_instr_set(vec![val], v, consts, fns, fn_state, arrs);
                 let mut priv_vars = v.clone();
-                let cond_code =
-                    parser_to_instr_set(y.into_vec(), &mut priv_vars, consts, fns, fn_state, arrs);
+                let cond_code = parser_to_instr_set(
+                    y.iter()
+                        .filter(|x| !matches!(x, Expr::ElseIfBlock(_, _) | Expr::ElseBlock(_)))
+                        .map(|x| x.clone())
+                        .collect(),
+                    &mut priv_vars,
+                    consts,
+                    fns,
+                    fn_state,
+                    arrs,
+                );
 
                 condition_blocks.push((condition, cond_code));
 
-                for condition in z {
-                    if let Expr::ElseIfBlock(condition, code) = condition {
-                        let conserved = *condition;
+                y.iter().for_each(|x| {
+                    if let Expr::ElseIfBlock(condition, code) = x {
+                        let conserved = &**condition;
                         if matches!(conserved, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                             error!(ctx, format_args!("{} is not a bool", conserved));
                         }
-                        let condition =
-                            parser_to_instr_set(vec![conserved], v, consts, fns, fn_state, arrs);
+                        let condition = parser_to_instr_set(
+                            vec![conserved.clone()],
+                            v,
+                            consts,
+                            fns,
+                            fn_state,
+                            arrs,
+                        );
                         let mut priv_vars = v.clone();
                         let cond_code = parser_to_instr_set(
-                            code.into_vec(),
+                            code.to_vec(),
                             &mut priv_vars,
                             consts,
                             fns,
@@ -603,20 +620,52 @@ fn parser_to_instr_set(
                             arrs,
                         );
                         condition_blocks.push((condition, cond_code));
+                    } else if let Expr::ElseBlock(code) = x {
+                        let mut priv_vars = v.clone();
+                        let cond_code = parser_to_instr_set(
+                            code.to_vec(),
+                            &mut priv_vars,
+                            consts,
+                            fns,
+                            fn_state,
+                            arrs,
+                        );
+                        condition_blocks.push((Vec::new(), cond_code));
                     }
-                }
-                if let Some(code) = w {
-                    let mut priv_vars = v.clone();
-                    let cond_code = parser_to_instr_set(
-                        code.into_vec(),
-                        &mut priv_vars,
-                        consts,
-                        fns,
-                        fn_state,
-                        arrs,
-                    );
-                    condition_blocks.push((Vec::new(), cond_code));
-                }
+                });
+
+                // for condition in z {
+                //     if let Expr::ElseIfBlock(condition, code) = condition {
+                //         let conserved = *condition;
+                //         if matches!(conserved, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
+                //             error!(ctx, format_args!("{} is not a bool", conserved));
+                //         }
+                //         let condition =
+                //             parser_to_instr_set(vec![conserved], v, consts, fns, fn_state, arrs);
+                //         let mut priv_vars = v.clone();
+                //         let cond_code = parser_to_instr_set(
+                //             code.into_vec(),
+                //             &mut priv_vars,
+                //             consts,
+                //             fns,
+                //             fn_state,
+                //             arrs,
+                //         );
+                //         condition_blocks.push((condition, cond_code));
+                //     }
+                // }
+                // if let Some(code) = w {
+                //     let mut priv_vars = v.clone();
+                //     let cond_code = parser_to_instr_set(
+                //         code.into_vec(),
+                //         &mut priv_vars,
+                //         consts,
+                //         fns,
+                //         fn_state,
+                //         arrs,
+                //     );
+                //     condition_blocks.push((Vec::new(), cond_code));
+                // }
 
                 let jumps: Vec<u16> = (0..condition_blocks.len())
                     .map(|i| {

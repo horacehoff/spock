@@ -42,8 +42,21 @@ ElseIfBlock:Expr = {
     "else" "if" <o1: Expression> "{" <o2:Code> "}" => Expr::ElseIfBlock(Box::from(o1), o2)
 }
 
+ElseBlock:Expr = {
+    "else" "{" <o2:Code> "}" => Expr::ElseBlock(o2)
+}
+
 ConditionalBlock: Expr = {
-    "if" <o1: Expression> "{" <o2:Code> "}" <o3: ElseIfBlock*> <o4: ("else" "{" <Code> "}")?> => Expr::Condition(Box::from(o1), o2, Box::from(o3), o4)
+    "if" <o1: Expression> "{" <o2:Code> "}" <o3: ElseIfBlock*> <o4: ElseBlock?> => {
+        let mut code = o2.to_vec();
+        for x in o3 {
+            code.push(x);
+        }
+        if let Some(x) = o4 {
+            code.push(x);
+        }
+        Expr::Condition(Box::from(o1), code.into_boxed_slice())
+    }
 }
 
 WhileBlock: Expr = {

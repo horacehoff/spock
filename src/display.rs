@@ -70,46 +70,14 @@ impl std::fmt::Display for Expr {
             Expr::Op(x) => {
                 write!(f, "{:?}", x,)
             }
-            Expr::Condition(x, y, z, w) => {
+            Expr::Condition(x, y) => {
                 write!(
                     f,
-                    "if {x} {{\n{}}} {} {}",
+                    "if {x} {{\n{}}}",
                     y.iter()
                         .map(|x| format_lines!(x))
                         .collect::<Vec<String>>()
                         .join(""),
-                    if z.is_empty() {
-                        String::new()
-                    } else {
-                        z.iter()
-                            .map(|w| {
-                                if let Expr::ElseIfBlock(x, y) = w {
-                                    format!(
-                                        "else if {x} {{\n{}}}",
-                                        y.iter()
-                                            .map(|x| format_lines!(x))
-                                            .collect::<Vec<String>>()
-                                            .join("")
-                                    )
-                                } else {
-                                    String::new()
-                                }
-                            })
-                            .collect::<Vec<String>>()
-                            .join("")
-                    },
-                    if let Some(else_block) = w {
-                        format!(
-                            "else {{\n{}}}",
-                            else_block
-                                .iter()
-                                .map(|x| format_lines!(x))
-                                .collect::<Vec<String>>()
-                                .join("")
-                        )
-                    } else {
-                        String::new()
-                    }
                 )
             }
             Expr::FunctionDecl(x, y, z) => {
