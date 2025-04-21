@@ -168,7 +168,7 @@ FunctionCall: Expr = {
             if let Some(ns) = namespace {
                 ns.iter().map(|x| x.0.to_string()).collect::<Vec<String>>().into_boxed_slice()
             } else {
-                Box::from(vec!["std".to_string()])
+                Box::from(Vec::new())
             }
         })
     }

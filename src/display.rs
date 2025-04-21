@@ -150,8 +150,12 @@ impl std::fmt::Display for Expr {
             Expr::FunctionCall(x, y, z) => {
                 write!(
                     f,
-                    "{}::{x}({})",
-                    z.to_vec().join("::"),
+                    "{}{x}({})",
+                    if z.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{}::", z.to_vec().join("::"))
+                    },
                     y.iter()
                         .map(|w| format!("{w}"))
                         .collect::<Vec<String>>()

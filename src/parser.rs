@@ -826,8 +826,7 @@ fn parser_to_instr_set(
                 output.extend(value);
             }
             Expr::FunctionCall(x, args, namespace) => {
-                // println!("FUNCFUNC {x}");
-                if *namespace == ["std"] {
+                if namespace.is_empty() {
                     match x.as_str() {
                         "print" => {
                             for arg in args {
