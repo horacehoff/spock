@@ -165,16 +165,19 @@ pub fn execute(
                 }
             }
             Instr::MovRange(start, end, offset) => {
-                for x in start..end {
-                    consts[(x+offset) as usize] = consts[x as usize]
-                }
+                stuff.extend_from_slice(consts.as_ref());
+                // for x in start..end {
+                //     consts[(x+offset) as usize] = consts[x as usize]
+                // }
             }
             Instr::MovRangeNeg(start, end, offset) => {
-                println!("CONSTS BEFORE {consts:?}");
-                for x in start..end {
-                    consts[(x-offset) as usize] = consts[x as usize]
-                }
-                println!("CONSTS AFTER {consts:?}")
+                // println!("CONSTS BEFORE {consts:?}");
+                // for x in start..end {
+                //     consts[(x-offset) as usize] = consts[x as usize]
+                // }
+                // println!("CONSTS AFTER {consts:?}")
+                let consts_part = stuff.split_off(stuff.len() - consts.len());
+                consts.copy_from_slice(&consts_part);
             }
             Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
                 (Data::Number(parent), Data::Number(child)) => {
@@ -392,6 +395,7 @@ pub fn execute(
                     if let Some((x, y)) = to_set_after.pop() {
                         // println!("RESETTING {:?}", (x,y));
                         // println!("CONSTS BEFORE ARE {consts:?}");
+                        // println!("DUO {x} to {y}");
                         consts[x as usize] = y;
                         // println!("CONSTS AFTER ARE ARE {consts:?}");
                     }
