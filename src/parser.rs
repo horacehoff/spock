@@ -1,4 +1,5 @@
 use crate::display::print_instructions;
+use crate::optimizations::while_loop_summation;
 use crate::{check_args, check_args_range, print};
 // use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::{Data, Instr, Opcode, error, num};
@@ -26,7 +27,7 @@ pub enum Expr {
     ElseBlock(Box<[Expr]>),
 
     WhileBlock(Box<Expr>, Box<[Expr]>),
-    // name - args - optional namespace
+    // args - (optional namespace + name)
     FunctionCall(Box<[Expr]>, Box<[String]>),
     ObjFunctionCall(Box<Expr>, Box<[(String, Box<[Expr]>)]>),
     LPAREN,
@@ -145,13 +146,12 @@ fn get_tgt_id(x: Instr) -> u16 {
 }
 
 fn move_to_id(x: &mut [Instr], tgt_id: u16) {
-    if x.is_empty() {
-        return;
-    }
-    if matches!(
-        x.last().unwrap(),
-        Instr::ArrayMov(_, _, _) | Instr::IoDelete(_)
-    ) {
+    if x.is_empty()
+        || matches!(
+            x.last().unwrap(),
+            Instr::ArrayMov(_, _, _) | Instr::IoDelete(_)
+        )
+    {
         return;
     }
     print!("MOVING TO ID {tgt_id} => {x:?}");
@@ -230,16 +230,14 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
 }
 
 fn get_tgt_id_vec(x: &mut [Instr]) -> u16 {
-    if x.is_empty() {
+    if x.is_empty()
+        || matches!(
+            x.last().unwrap(),
+            Instr::ArrayMov(_, _, _) | Instr::IoDelete(_)
+        )
+    {
         unreachable!();
     }
-    if matches!(
-        x.last().unwrap(),
-        Instr::ArrayMov(_, _, _) | Instr::IoDelete(_)
-    ) {
-        unreachable!();
-    }
-    // print!("MOVING TO ID {tgt_id} => {x:?}");
     match x
         .get_mut(
             x.iter()
@@ -374,10 +372,6 @@ fn get_id(
         }
         _ => {
             print!("PARSING FOR ID {:?}", x);
-            // println!("vars are {variables:?}");
-            // println!("consts are {consts:?}");
-            // println!("funcs are {functions:?}");
-            // println!("fn_state is {fn_state:?}");
             instr.extend(parser_to_instr_set(
                 vec![x],
                 variables,
@@ -389,7 +383,6 @@ fn get_id(
             if instr.is_empty() {
                 (consts.len() - 1) as u16
             } else {
-                // println!("GET_ID CALLING");
                 get_tgt_id_vec(instr)
             }
         }
@@ -685,9 +678,9 @@ fn parser_to_instr_set(
                 if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
-                // if while_loop_summation(&mut output, consts, v, *x.clone(), y.clone()) {
-                //     continue;
-                // }
+                if while_loop_summation(&mut output, consts, v, *x.clone(), y.clone()) {
+                    continue;
+                }
                 let condition = parser_to_instr_set(vec![*x], v, consts, fns, fn_state, arrs);
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
