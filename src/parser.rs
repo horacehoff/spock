@@ -1057,7 +1057,7 @@ fn parser_to_instr_set(
                                     // }
                                     // let end = consts.len();
                                     // output.push(Instr::MovRange(start as u16, end as u16, offset));
-                                    output.push(Instr::TEMP_START_MOV);
+                                    // output.push(Instr::TEMP_START_MOV);
                                     consts.push(Data::Null);
                                     let final_tgt_id = (consts.len() - 1) as u16;
                                     output.push(Instr::Call(*loc, final_tgt_id));
@@ -1067,11 +1067,9 @@ fn parser_to_instr_set(
                                     //     output.push(Instr::RestoreCallArg(y, x, i==(len-1)));
                                     //     i += 1;
                                     // }
-                                    output.push(Instr::TEMP_STOP_MOV);
-                                    let mut i = 0;
+                                    // output.push(Instr::TEMP_STOP_MOV);
                                     for (x, y) in saves {
-                                        output.push(Instr::RestoreCallArg(y, x, i == 0));
-                                        i += 1;
+                                        output.push(Instr::RestoreCallArg(y, x));
                                     }
 
                                     continue;

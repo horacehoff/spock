@@ -93,16 +93,14 @@ pub enum Instr {
 
     Call(u16, u16),           // function_start_index, return_target_id
     Ret(u16, u16),            // return obj id -- return target id
-    RestoreCallArg(u16, u16, bool), // same than mov, used because mov can be changed by the parser
+    RestoreCallArg(u16, u16), // same than mov, used because mov can be changed by the parser
 
     TheAnswer(u16),
-
-
-    MovRange(u16,u16,u16),
-    MovRangeNeg(u16,u16,u16),
-
-    TEMP_START_MOV,
-    TEMP_STOP_MOV,
+    // MovRange(u16,u16,u16),
+    // MovRangeNeg(u16,u16,u16),
+    //
+    // TEMP_START_MOV,
+    // TEMP_STOP_MOV,
 }
 
 // struct CallFrame {
@@ -122,7 +120,7 @@ pub fn execute(
     let mut stuff: Vec<Data> = Vec::with_capacity(consts.len() * call_stack.capacity());
     let len = instructions.len();
     let mut i: usize = 0;
-    let mut to_set_after: Vec<(u16, Data)> = Vec::with_capacity(10);
+    // let mut to_set_after: Vec<(u16, Data)> = Vec::with_capacity(10);
     while i < len {
         // println!("CURR INSTR {:?}", instructions[i]);
         match instructions[i] {
@@ -146,39 +144,39 @@ pub fn execute(
             Instr::Call(x, y) => {
                 call_stack.push((i + 1, y));
                 i = x as usize;
-                // stuff.extend_from_slice(consts.as_ref());
+                stuff.extend_from_slice(consts.as_ref());
                 continue;
             }
             Instr::Ret(x, y) => {
                 let val = consts[x as usize];
                 if let Some((ret_i, dest)) = call_stack.pop() {
-                    // let consts_part = stuff.split_off(stuff.len() - consts.len());
+                    let consts_part = stuff.split_off(stuff.len() - consts.len());
                     // println!("CONSTS BEFORE {consts:?}");
-                    // consts.copy_from_slice(&consts_part);
+                    consts.copy_from_slice(&consts_part);
                     // println!("CONSTS AFTER {consts:?}");
-                    // consts[dest as usize] = val;
-                    to_set_after.push((dest, val));
+                    consts[dest as usize] = val;
+                    // to_set_after.push((dest, val));
                     i = ret_i;
                     continue;
                 } else {
                     consts[y as usize] = val;
                 }
             }
-            Instr::MovRange(start, end, offset) => {
-                stuff.extend_from_slice(consts.as_ref());
-                // for x in start..end {
-                //     consts[(x+offset) as usize] = consts[x as usize]
-                // }
-            }
-            Instr::MovRangeNeg(start, end, offset) => {
-                // println!("CONSTS BEFORE {consts:?}");
-                // for x in start..end {
-                //     consts[(x-offset) as usize] = consts[x as usize]
-                // }
-                // println!("CONSTS AFTER {consts:?}")
-                let consts_part = stuff.split_off(stuff.len() - consts.len());
-                consts.copy_from_slice(&consts_part);
-            }
+            // Instr::MovRange(start, end, offset) => {
+            //     stuff.extend_from_slice(consts.as_ref());
+            //     // for x in start..end {
+            //     //     consts[(x+offset) as usize] = consts[x as usize]
+            //     // }
+            // }
+            // Instr::MovRangeNeg(start, end, offset) => {
+            //     // println!("CONSTS BEFORE {consts:?}");
+            //     // for x in start..end {
+            //     //     consts[(x-offset) as usize] = consts[x as usize]
+            //     // }
+            //     // println!("CONSTS AFTER {consts:?}")
+            //     let consts_part = stuff.split_off(stuff.len() - consts.len());
+            //     consts.copy_from_slice(&consts_part);
+            // }
             Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
                 (Data::Number(parent), Data::Number(child)) => {
                     consts[dest as usize] = Data::Number(parent + child);
@@ -390,18 +388,8 @@ pub fn execute(
             Instr::Mov(tgt, dest) => {
                 consts[dest as usize] = consts[tgt as usize];
             }
-            Instr::RestoreCallArg(tgt, dest, is_last) => {
-                if is_last {
-                    if let Some((x, y)) = to_set_after.pop() {
-                        // println!("RESETTING {:?}", (x,y));
-                        // println!("CONSTS BEFORE ARE {consts:?}");
-                        // println!("DUO {x} to {y}");
-                        consts[x as usize] = y;
-                        // println!("CONSTS AFTER ARE ARE {consts:?}");
-                    }
-                }
+            Instr::RestoreCallArg(tgt, dest) => {
                 consts[dest as usize] = consts[tgt as usize];
-
             }
             Instr::Neg(tgt, dest) => {
                 // let tgt = consts[tgt as usize];
@@ -630,9 +618,7 @@ pub fn execute(
                 );
                 consts[dest as usize] = Data::Number(42.0);
             }
-            _ => unsafe {
-                unreachable_unchecked()
-            }
+            _ => unsafe { unreachable_unchecked() },
         }
         i += 1;
     }
@@ -724,31 +710,29 @@ fn main() {
     print!("ARRAYS {arrays:?}");
     print!("FUNC_ARGS_COUNT {func_args_count_max:?}");
 
-
-    let mut range:Vec<(u16,u16,u16)> = Vec::new();
+    let mut range: Vec<(u16, u16, u16)> = Vec::new();
     let start = consts.len();
-    let final_instructions:Vec<Instr> = instructions.iter().map(|x| {
-        if *x == Instr::TEMP_START_MOV {
-            for _ in 0..consts.len() {
-                consts.push(Data::Null)
-            }
-            range.push((0, start as u16, (start) as u16));
-            Instr::MovRange(0, start as u16, start as u16)
-        }
-        else if *x == Instr::TEMP_STOP_MOV {
-            let prev_mov = range.pop().unwrap();
-            Instr::MovRangeNeg(prev_mov.0+prev_mov.2, prev_mov.1+prev_mov.2, prev_mov.2)
-        }
-        else {
-            *x
-        }
-    }).collect();
-    println!("FINAL INSTR {final_instructions:?}");
-
+    // let final_instructions:Vec<Instr> = instructions.iter().map(|x| {
+    //     if *x == Instr::TEMP_START_MOV {
+    //         for _ in 0..consts.len() {
+    //             consts.push(Data::Null)
+    //         }
+    //         range.push((0, start as u16, (start) as u16));
+    //         Instr::MovRange(0, start as u16, start as u16)
+    //     }
+    //     else if *x == Instr::TEMP_STOP_MOV {
+    //         let prev_mov = range.pop().unwrap();
+    //         Instr::MovRangeNeg(prev_mov.0+prev_mov.2, prev_mov.1+prev_mov.2, prev_mov.2)
+    //     }
+    //     else {
+    //         *x
+    //     }
+    // }).collect();
+    // println!("FINAL INSTR {final_instructions:?}");
 
     let now = Instant::now();
     execute(
-        &final_instructions,
+        &instructions,
         &mut consts,
         &mut Vec::with_capacity(func_args_count_max),
         &mut arrays,
