@@ -83,7 +83,7 @@ Line: Expr = {
 }
 
 ReturnLn: Expr = {
-    "return" <e: Expression?> => Expr::ReturnVal(Box::from(e))
+    "return" <e: Expression?> => Expr::ReturnVal(Box::new(e))
 }
 
 VarDeclare: Expr = {
@@ -105,12 +105,12 @@ VarAssign: Expr = {
 }
 
 OpVarAssign: Expr = {
-    <v: Var> "+=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from(Expr::Var(v)), Box::from(vec![(Opcode::Add, Box::from(e))])))),
-    <v: Var> "-=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from(Expr::Var(v)), Box::from(vec![(Opcode::Sub, Box::from(e))])))),
-    <v: Var> "*=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from(Expr::Var(v)), Box::from(vec![(Opcode::Mul, Box::from(e))])))),
-    <v: Var> "/=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from(Expr::Var(v)), Box::from(vec![(Opcode::Div, Box::from(e))])))),
-    <v: Var> "%=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from(Expr::Var(v)), Box::from(vec![(Opcode::Mod, Box::from(e))])))),
-    <v: Var> "^=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from(Expr::Var(v)), Box::from(vec![(Opcode::Pow, Box::from(e))])))),
+    <v: Var> "+=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Add), e])))),
+    <v: Var> "-=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Sub), e])))),
+    <v: Var> "*=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Mul), e])))),
+    <v: Var> "/=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Div), e])))),
+    <v: Var> "%=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Mod), e])))),
+    <v: Var> "^=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Pow), e])))),
 }
 
 IndexAccess: Expr = {
@@ -130,10 +130,16 @@ Operation: Expr = {
         if let Expr::Num(x) = t {
             return Expr::Num(-x);
         }
-        return Expr::Op(Box::from(Expr::Num(0.0)), Box::from(vec![(Opcode::Neg, Box::from(t))]));
+        return Expr::Op(Box::from([Expr::Num(0.0), Expr::Opcode(Opcode::Neg), t]));
     },
     <o1: Term> <o3: (<Op> <Term>)+> => {
-        Expr::Op(Box::from(o1), o3.iter().map(|x| (x.0,Box::from(x.1.clone()))).collect::<Vec<_>>().into_boxed_slice())
+        let mut output_op:Vec<Expr> = vec![o1];
+        for x in o3 {
+            output_op.push(Expr::Opcode(x.0));
+            output_op.push(x.1);
+        }
+        Expr::Op(output_op.into_boxed_slice())
+        //Expr::Op(Box::from(o1), o3.iter().map(|x| (x.0,Box::from(x.1.clone()))).collect::<Vec<_>>().into_boxed_slice())
     }
 }
 

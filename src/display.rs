@@ -67,16 +67,8 @@ impl std::fmt::Display for Expr {
             Expr::String(x) => write!(f, "\"{x}\""),
             Expr::Var(x) => write!(f, "{}", x),
             Expr::Opcode(x) => write!(f, "{}", x),
-            Expr::Op(x, y) => {
-                write!(
-                    f,
-                    "{} {}",
-                    x,
-                    y.iter()
-                        .map(|w| format!("{} {}", w.0, w.1))
-                        .collect::<Vec<String>>()
-                        .join(" ")
-                )
+            Expr::Op(x) => {
+                write!(f, "{:?}", x,)
             }
             Expr::Condition(x, y, z, w) => {
                 write!(

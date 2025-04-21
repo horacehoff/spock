@@ -1,5 +1,5 @@
 use crate::display::print_instructions;
-use crate::optimizations::{for_loop_summation, while_loop_summation};
+// use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::{Data, Instr, Opcode, error, num};
 use crate::{check_args, check_args_range, print};
 use fnv::FnvHashMap;
@@ -11,7 +11,7 @@ use lalrpop_util::lalrpop_mod;
 pub enum Expr {
     Num(f64),
     Bool(bool),
-    Op(Box<Expr>, Box<[(Opcode, Box<Expr>)]>),
+    Op(Box<[Expr]>),
     Opcode(Opcode),
     Priority(Box<Expr>),
     String(String),
@@ -668,9 +668,9 @@ fn parser_to_instr_set(
                 if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
-                if while_loop_summation(&mut output, consts, v, *x.clone(), y.clone()) {
-                    continue;
-                }
+                // if while_loop_summation(&mut output, consts, v, *x.clone(), y.clone()) {
+                //     continue;
+                // }
                 let condition = parser_to_instr_set(vec![*x], v, consts, fns, fn_state, arrs);
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
@@ -703,9 +703,9 @@ fn parser_to_instr_set(
             }
             Expr::ForLoop(var_name, array, code) => {
                 let array = get_id(*array, v, consts, &mut output, &ctx, fns, arrs, fn_state);
-                if for_loop_summation(&mut output, consts, v, arrs, array, code.clone()) {
-                    continue;
-                }
+                // if for_loop_summation(&mut output, consts, v, arrs, array, code.clone()) {
+                //     continue;
+                // }
                 consts.push(Data::Null);
                 let array_len_id = (consts.len() - 1) as u16;
                 output.push(Instr::ApplyFunc(2, array, array_len_id));
@@ -1409,14 +1409,20 @@ fn parser_to_instr_set(
                 }
                 fns.push((x, y, z));
             }
-            Expr::Op(left, right) => {
+            Expr::Op(items) => {
                 fn remove_priority(
                     x: Expr,
                     variables: &mut Vec<(String, u16)>,
                     consts: &mut Vec<Data>,
                 ) -> Vec<Expr> {
                     match x {
-                        Expr::Op(_, _) => process_op(x, variables, consts),
+                        Expr::Op(w) => {
+                            let mut output = Vec::new();
+                            for x in w {
+                                output.extend(remove_priority(x, variables, consts));
+                            }
+                            output
+                        }
                         Expr::Priority(x) => {
                             let mut output: Vec<Expr> = Vec::with_capacity(3);
                             output.push(Expr::LPAREN);
@@ -1427,27 +1433,11 @@ fn parser_to_instr_set(
                         _ => vec![x],
                     }
                 }
-                fn process_op(
-                    op: Expr,
-                    variables: &mut Vec<(String, u16)>,
-                    consts: &mut Vec<Data>,
-                ) -> Vec<Expr> {
-                    let mut operation: Vec<Expr> = Vec::new();
-                    if let Expr::Op(left, right) = op {
-                        operation.extend(remove_priority(*left, variables, consts));
-                        for x in right {
-                            let val = *x.1;
-                            operation.extend(remove_priority(Expr::Opcode(x.0), variables, consts));
-                            if matches!(val, Expr::Op(_, _)) {
-                                operation.extend(process_op(val, variables, consts));
-                            } else {
-                                operation.extend(remove_priority(val, variables, consts));
-                            }
-                        }
-                    }
-                    operation
+
+                let mut temp_op = Vec::new();
+                for x in items {
+                    temp_op.extend(remove_priority(x, v, consts));
                 }
-                let temp_op: Vec<Expr> = process_op(Expr::Op(left, right), v, consts);
                 let op = op_to_rpn(temp_op);
 
                 let mut item_stack: Vec<Expr> = Vec::with_capacity(4);

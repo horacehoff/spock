@@ -1,5 +1,5 @@
 use crate::display::format_data;
-use crate::parser::parse;
+use crate::parser::{Expr, parse};
 use crate::util::get_type;
 use builtin_funcs::FUNCS;
 use concat_string::concat_string;
@@ -679,6 +679,8 @@ fn clean_contents(inp: &str, base_name: &str) -> String {
 
 // Live long and prosper
 fn main() {
+    dbg!(size_of::<Expr>());
+
     let mut contents = std::fs::read_to_string("test.spock").unwrap();
     contents = clean_contents(&contents, "test.spock");
     print!("{contents:?}");
