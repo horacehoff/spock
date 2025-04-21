@@ -93,6 +93,8 @@ pub enum Instr {
     Call(u16, u16),           // function_start_index, return_target_id
     Ret(u16, u16),            // return obj id -- return target id
     RestoreCallArg(u16, u16), // same than mov, used because mov can be changed by the parser
+
+    TheAnswer(u16),
 }
 
 // struct CallFrame {
@@ -109,11 +111,12 @@ pub fn execute(
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
     call_stack: &mut Vec<CallFrame>,
 ) {
-    let mut stuff: Vec<Data> = Vec::with_capacity(consts.len() * call_stack.capacity());
+    // let mut stuff: Vec<Data> = Vec::with_capacity(consts.len() * call_stack.capacity());
     let len = instructions.len();
     let mut i: usize = 0;
     let mut to_set_after: Vec<(u16, Data)> = Vec::with_capacity(10);
     while i < len {
+        // println!("CURR INSTR {:?}", instructions[i]);
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
@@ -366,11 +369,11 @@ pub fn execute(
                 }
             }
             Instr::Neg(tgt, dest) => {
-                let tgt = consts[tgt as usize];
-                if_likely! {let Data::Number(x) = tgt => {
+                // let tgt = consts[tgt as usize];
+                if_likely! {let Data::Number(x) = consts[tgt as usize] => {
                     consts[dest as usize] = Data::Number(-x);
                 } else {
-                    error_b!(format_args!("UNSUPPORTED OPERATION: -{}", format_data(tgt, arrays)));
+                    error_b!(format_args!("UNSUPPORTED OPERATION: -{}", format_data(consts[tgt as usize], arrays)));
                 }}
             }
             Instr::Print(target) => {
@@ -585,6 +588,12 @@ pub fn execute(
                         consts[tgt as usize]
                     ));
                 }}
+            }
+            Instr::TheAnswer(dest) => {
+                println!(
+                    "The answer to the Ultimate Question of Life, the Universe, and Everything is 42."
+                );
+                consts[dest as usize] = Data::Number(42.0);
             }
         }
         i += 1;

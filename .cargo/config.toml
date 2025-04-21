@@ -1,4 +1,4 @@
 [build]
 rustflags = ["-Ctarget-cpu=native",
-    #    "-Cprofile-use=<path to the .profraw>","-Cllvm-args=-pgo-warn-missing-function"
+    #        "-Cprofile-use=<path to the .profraw>","-Cllvm-args=-pgo-warn-missing-function"
 ]

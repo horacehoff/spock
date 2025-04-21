@@ -135,6 +135,7 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::Floor(_, y)
         | Instr::Ret(_, y)
         | Instr::Call(_, y)
+        | Instr::TheAnswer(y)
         | Instr::Str(_, y) => y,
         _ => unreachable!("Was unable to match {:?}", x),
     }
@@ -185,6 +186,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
                             | Instr::Input(_, _)
                             | Instr::Call(_, _)
                             | Instr::Ret(_, _)
+                            | Instr::TheAnswer(_)
                     )
                 })
                 .unwrap_or(x.len() - 1),
@@ -218,6 +220,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Floor(_, z)
         | Instr::Ret(_, z)
         | Instr::Call(_, z)
+        | Instr::TheAnswer(z)
         | Instr::Str(_, z) => *z = tgt_id,
         _ => unreachable!(),
     }
@@ -520,7 +523,7 @@ fn parser_to_instr_set(
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::new();
     for x in input {
-        println!("PARSING {x}");
+        print!("PARSING {x}");
         let ctx = x.to_string();
         match x {
             Expr::Num(num) => consts.push(Data::Number(num as num)),
@@ -672,15 +675,15 @@ fn parser_to_instr_set(
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
                 let mut temp_vars = v.clone();
-                let consts_before = consts.len() - 1;
-                let temp_vars_before = temp_vars.len() - 1;
+                // let consts_before = consts.len() - 1;
+                // let temp_vars_before = temp_vars.len() - 1;
                 let cond_code =
                     parser_to_instr_set(y.into_vec(), &mut temp_vars, consts, fns, fn_state, arrs);
-                let consts_after = consts.len();
-                let temp_vars_after = temp_vars.len();
-                let modified_temp_vars = (temp_vars_before..temp_vars_after)
-                    .map(|x| temp_vars[x].clone())
-                    .collect::<Vec<_>>();
+                // let consts_after = consts.len();
+                // let temp_vars_after = temp_vars.len();
+                // let modified_temp_vars = (temp_vars_before..temp_vars_after)
+                //     .map(|x| temp_vars[x].clone())
+                //     .collect::<Vec<_>>();
 
                 let mut len = (cond_code.len() + 2) as u16;
                 add_cmp(condition_id, &mut len, &mut output, true);
@@ -718,7 +721,7 @@ fn parser_to_instr_set(
                 v.push((var_name, current_element_id));
                 let current_element_variable_id = v.len() - 1;
                 let mut temp_vars = v.clone();
-                let consts_before = consts.len() - 1;
+                // let consts_before = consts.len() - 1;
                 let temp_vars_before = temp_vars.len() - 1;
                 let cond_code = parser_to_instr_set(
                     code.into_vec(),
@@ -730,11 +733,11 @@ fn parser_to_instr_set(
                 );
                 v.remove(current_element_variable_id);
                 temp_vars.remove(current_element_variable_id);
-                let consts_after = consts.len();
+                // let consts_after = consts.len();
                 let temp_vars_after = temp_vars.len();
-                let modified_temp_vars = (temp_vars_before..temp_vars_after)
-                    .map(|x| temp_vars[x].clone())
-                    .collect::<Vec<_>>();
+                // let modified_temp_vars = (temp_vars_before..temp_vars_after)
+                //     .map(|x| temp_vars[x].clone())
+                //     .collect::<Vec<_>>();
                 let mut len = (cond_code.len() + 4) as u16;
                 add_cmp(condition_id, &mut len, &mut output, true);
 
@@ -974,6 +977,11 @@ fn parser_to_instr_set(
                             );
                             consts.push(Data::Null);
                             output.push(Instr::Num(id, (consts.len() - 1) as u16));
+                        }
+                        "the_answer" => {
+                            check_args!(args, 0, "the_answer", ctx);
+                            consts.push(Data::Null);
+                            output.push(Instr::TheAnswer((consts.len() - 1) as u16));
                         }
                         function => {
                             let found =
