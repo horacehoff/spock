@@ -183,11 +183,13 @@ FunctionCall: Expr = {
         if let Some(add_args) = o3 {
             args.extend(add_args.iter().map(|(_, x)|x.clone()));
         }
-        Expr::FunctionCall(String::from(o1.trim_end_matches('(')), args.into_boxed_slice(), {
+        Expr::FunctionCall(args.into_boxed_slice(), {
             if let Some(ns) = namespace {
-                ns.iter().map(|x| x.0.to_string()).collect::<Vec<String>>().into_boxed_slice()
+                let mut ns = ns.iter().map(|x| x.0.to_string()).collect::<Vec<String>>();
+                ns.push(String::from(o1.trim_end_matches('(')));
+                ns.into_boxed_slice()
             } else {
-                Box::from(Vec::new())
+                Box::from(vec![String::from(o1.trim_end_matches('('))])
             }
         })
     }
@@ -204,8 +206,8 @@ ObjFunctionCall:Expr = {
         }
         let mut func_calls = vec![(String::from(o1.trim_end_matches('(').trim_start_matches('.')),args.into_boxed_slice())];
         for x in o.iter().map(|x| x.1.clone()) {
-            if let Expr::FunctionCall(x,y,_) = x {
-                func_calls.push((x,y))
+            if let Expr::FunctionCall(y,x) = x {
+                func_calls.push((x.last().unwrap().to_string(),y))
             }
         }
         Expr::ObjFunctionCall(Box::from(t), Box::from(func_calls))

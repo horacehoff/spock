@@ -8,6 +8,7 @@ use internment::Intern;
 use lalrpop_util::lalrpop_mod;
 
 #[derive(Debug, Clone, PartialEq)]
+#[repr(u8)]
 pub enum Expr {
     Num(f64),
     Bool(bool),
@@ -19,14 +20,14 @@ pub enum Expr {
     Array(Box<[Expr]>),
     VarDeclare(String, Box<Expr>),
     VarAssign(String, Box<Expr>),
-    // condition - code -- else_if_blocks(condition array) - else_block
+    // condition - code (contains else_if_blocks and potentially else_block)
     Condition(Box<Expr>, Box<[Expr]>),
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
     ElseBlock(Box<[Expr]>),
 
     WhileBlock(Box<Expr>, Box<[Expr]>),
     // name - args - optional namespace
-    FunctionCall(String, Box<[Expr]>, Box<[String]>),
+    FunctionCall(Box<[Expr]>, Box<[String]>),
     ObjFunctionCall(Box<Expr>, Box<[(String, Box<[Expr]>)]>),
     LPAREN,
     RPAREN,
@@ -634,39 +635,6 @@ fn parser_to_instr_set(
                     }
                 });
 
-                // for condition in z {
-                //     if let Expr::ElseIfBlock(condition, code) = condition {
-                //         let conserved = *condition;
-                //         if matches!(conserved, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
-                //             error!(ctx, format_args!("{} is not a bool", conserved));
-                //         }
-                //         let condition =
-                //             parser_to_instr_set(vec![conserved], v, consts, fns, fn_state, arrs);
-                //         let mut priv_vars = v.clone();
-                //         let cond_code = parser_to_instr_set(
-                //             code.into_vec(),
-                //             &mut priv_vars,
-                //             consts,
-                //             fns,
-                //             fn_state,
-                //             arrs,
-                //         );
-                //         condition_blocks.push((condition, cond_code));
-                //     }
-                // }
-                // if let Some(code) = w {
-                //     let mut priv_vars = v.clone();
-                //     let cond_code = parser_to_instr_set(
-                //         code.into_vec(),
-                //         &mut priv_vars,
-                //         consts,
-                //         fns,
-                //         fn_state,
-                //         arrs,
-                //     );
-                //     condition_blocks.push((Vec::new(), cond_code));
-                // }
-
                 let jumps: Vec<u16> = (0..condition_blocks.len())
                     .map(|i| {
                         condition_blocks
@@ -874,9 +842,12 @@ fn parser_to_instr_set(
                 }
                 output.extend(value);
             }
-            Expr::FunctionCall(x, args, namespace) => {
+            Expr::FunctionCall(args, namespace) => {
+                // let name = namespace[0];
+                let mut name: &str = namespace.last().unwrap();
+                let namespace: Vec<&String> = namespace.iter().rev().skip(1).rev().collect();
                 if namespace.is_empty() {
-                    match x.as_str() {
+                    match name {
                         "print" => {
                             for arg in args {
                                 let id =
@@ -1161,7 +1132,7 @@ fn parser_to_instr_set(
                         }
                     }
                 } else if *namespace == ["io"] {
-                    match x.as_str() {
+                    match name {
                         "open" => {
                             check_args_range!(args, 1, 2, "open", ctx);
                             consts.push(Data::Null);
@@ -1218,7 +1189,11 @@ fn parser_to_instr_set(
                                 format_args!(
                                     "Unknown function {color_red}{}{color_reset} in namespace {color_red}{}{color_reset}",
                                     other,
-                                    namespace.join("::")
+                                    namespace
+                                        .iter()
+                                        .map(|x| x.to_string())
+                                        .collect::<Vec<String>>()
+                                        .join("::")
                                 )
                             );
                         }
@@ -1228,7 +1203,11 @@ fn parser_to_instr_set(
                         ctx,
                         format_args!(
                             "Unknown namespace {color_red}{}{color_reset}",
-                            namespace.join("::")
+                            namespace
+                                .iter()
+                                .map(|x| x.to_string())
+                                .collect::<Vec<String>>()
+                                .join("::")
                         )
                     );
                 }

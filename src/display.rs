@@ -107,15 +107,16 @@ impl std::fmt::Display for Expr {
             Expr::VarDeclare(x, y) => {
                 write!(f, "let {x} = {y}")
             }
-            Expr::FunctionCall(x, y, z) => {
+            Expr::FunctionCall(y, z) => {
                 write!(
                     f,
-                    "{}{x}({})",
-                    if z.is_empty() {
+                    "{}{}({})",
+                    if z.len() == 0 || z.len() - 1 == 0 {
                         String::new()
                     } else {
-                        format!("{}::", z.to_vec().join("::"))
+                        format!("{}::", z[1..].join("::"))
                     },
+                    z.last().unwrap(),
                     y.iter()
                         .map(|w| format!("{w}"))
                         .collect::<Vec<String>>()
