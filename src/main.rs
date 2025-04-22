@@ -1,5 +1,5 @@
 use crate::display::format_data;
-use crate::parser::{Expr, parse};
+use crate::parser::parse;
 use crate::util::get_type;
 use builtin_funcs::FUNCS;
 use concat_string::concat_string;
@@ -119,9 +119,7 @@ pub fn execute(
     let mut stuff: Vec<Data> = Vec::with_capacity(consts.len() * call_stack.capacity());
     let len = instructions.len();
     let mut i: usize = 0;
-    // let mut to_set_after: Vec<(u16, Data)> = Vec::with_capacity(10);
     while i < len {
-        // println!("CURR INSTR {:?}", instructions[i]);
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
@@ -736,5 +734,5 @@ fn main() {
     println!("EXEC TIME {:.2?}", now.elapsed());
     // println!("CONSTS {consts:?}");
     // print!("ARRAYS {arrays:?}");
-    dbg!(size_of::<Expr>());
+    // dbg!(size_of::<Expr>());
 }
