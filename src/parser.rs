@@ -8,8 +8,6 @@ use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
 
-pub struct ObjFunctionCallBlock {}
-
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum Expr {
@@ -43,7 +41,9 @@ pub enum Expr {
     GetIndex(Box<Expr>, Box<[Expr]>),
     ArrayModify(Box<Expr>, Box<[Expr]>, Box<Expr>),
 
-    ForLoop(String, Box<Expr>, Box<[Expr]>),
+    // id name -- array as first + code
+    // ForLoop(String, Box<Expr>, Box<[Expr]>),
+    ForLoop(String, Box<[Expr]>),
     Import(String),
 }
 
@@ -372,6 +372,24 @@ fn get_id(
                     format_args!("Add 'let {name} = 0;'")
                 );
             }
+        }
+        Expr::Array(elems) => {
+            let id = arrays.len() as u16;
+            arrays.insert(id, Vec::new());
+            for elem in elems {
+                let x =
+                    parser_to_instr_set(vec![elem], variables, consts, functions, fn_state, arrays);
+                if !x.is_empty() {
+                    let c_id = get_tgt_id(*x.last().unwrap());
+                    instr.extend(x);
+                    arrays.get_mut(&id).unwrap().push(Data::Null);
+                    instr.push(Instr::ArrayMov(c_id, id, (arrays[&id].len() - 1) as u16));
+                } else {
+                    arrays.get_mut(&id).unwrap().push(consts.pop().unwrap());
+                }
+            }
+            consts.push(Data::Array(id));
+            (consts.len() - 1) as u16
         }
         _ => {
             print!("PARSING FOR ID {:?}", x);
@@ -714,8 +732,23 @@ fn parser_to_instr_set(
                 //     }
                 // });
             }
-            Expr::ForLoop(var_name, array, code) => {
-                let array = get_id(*array, v, consts, &mut output, &ctx, fns, arrs, fn_state);
+            Expr::ForLoop(var_name, array_code) => {
+                let array = array_code.first().unwrap();
+                // println!("ARR {array:?}");
+                let code = array_code[1..].to_vec();
+                // println!("CODE IS {code:?}");
+                let array = get_id(
+                    array.clone(),
+                    v,
+                    consts,
+                    &mut output,
+                    &ctx,
+                    fns,
+                    arrs,
+                    fn_state,
+                );
+                // println!("ARRAY ID IS {array}");
+                // println!("CONSTS {consts:?}");
                 // if for_loop_summation(&mut output, consts, v, arrs, array, code.clone()) {
                 //     continue;
                 // }
@@ -736,14 +769,8 @@ fn parser_to_instr_set(
                 let mut temp_vars = v.clone();
                 // let consts_before = consts.len() - 1;
                 let temp_vars_before = temp_vars.len() - 1;
-                let cond_code = parser_to_instr_set(
-                    code.into_vec(),
-                    &mut temp_vars,
-                    consts,
-                    fns,
-                    fn_state,
-                    arrs,
-                );
+                let cond_code =
+                    parser_to_instr_set(code, &mut temp_vars, consts, fns, fn_state, arrs);
                 v.remove(current_element_variable_id);
                 temp_vars.remove(current_element_variable_id);
                 // let consts_after = consts.len();
