@@ -2,7 +2,7 @@ use crate::display::print_instructions;
 use crate::optimizations::while_loop_summation;
 use crate::{check_args, check_args_range, print};
 // use crate::optimizations::{for_loop_summation, while_loop_summation};
-use crate::{Data, Instr, Opcode, error, num};
+use crate::{Data, Instr, Num, Opcode, error};
 use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
@@ -77,7 +77,7 @@ pub fn op_to_rpn(operation_input: Vec<Expr>) -> Vec<Expr> {
     let mut return_vector: Vec<Expr> = Vec::new();
     let mut op_stack: Vec<Expr> = Vec::new();
     for x in operation_input {
-        // num, function,...
+        // Num, function,...
         if !matches!(x, Expr::Opcode(_) | Expr::LPAREN | Expr::RPAREN) {
             return_vector.push(x);
         } else if matches!(x, Expr::Opcode(_)) && x != Expr::LPAREN && x != Expr::RPAREN {
@@ -348,7 +348,7 @@ fn get_id(
     print!("GETTING ID OF {x:?}");
     match x {
         Expr::Num(num) => {
-            consts.push(Data::Number(num as num));
+            consts.push(Data::Number(num as Num));
             (consts.len() - 1) as u16
         }
         Expr::String(str) => {
@@ -412,7 +412,7 @@ fn get_id(
 
 fn expr_to_data(input: &Expr) -> Data {
     match input {
-        Expr::Num(num) => Data::Number(*num as num),
+        Expr::Num(num) => Data::Number(*num as Num),
         Expr::Bool(bool) => Data::Bool(*bool),
         Expr::String(str) => Data::String(Intern::from(str.to_string())),
         _ => Data::Null,
@@ -543,7 +543,7 @@ fn parser_to_instr_set(
         print!("PARSING {x}");
         let ctx = x.to_string();
         match x {
-            Expr::Num(num) => consts.push(Data::Number(num as num)),
+            Expr::Num(num) => consts.push(Data::Number(num as Num)),
             Expr::Bool(bool) => consts.push(Data::Bool(bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str))),
             Expr::Array(elems) => {
@@ -893,8 +893,8 @@ fn parser_to_instr_set(
                             consts.push(Data::Null);
                             output.push(Instr::Type(id, (consts.len() - 1) as u16));
                         }
-                        "num" => {
-                            check_args!(args, 1, "num", ctx);
+                        "Num" => {
+                            check_args!(args, 1, "Num", ctx);
                             let id = get_id(
                                 args[0].clone(),
                                 v,
@@ -1103,7 +1103,7 @@ fn parser_to_instr_set(
                                     consts.push(Data::Null);
                                     let final_tgt_id = (consts.len() - 1) as u16;
                                     output.push(Instr::Call(*loc, final_tgt_id));
-                                    let mut i = 0;
+                                    // let mut i = 0;
                                     // let len = instr_backups.len();
                                     // for (x, y) in instr_backups {
                                     //     output.push(Instr::RestoreCallArg(y, x, i==(len-1)));

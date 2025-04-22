@@ -1,6 +1,6 @@
 use crate::display::format_data;
 use crate::util::get_type;
-use crate::{Data, error_b, num};
+use crate::{Data, Num, error_b};
 use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
@@ -51,9 +51,9 @@ fn len(
 ) {
     let tgt = consts[tgt as usize];
     if let Data::String(str) = tgt {
-        consts[dest as usize] = Data::Number(str.chars().count() as num)
+        consts[dest as usize] = Data::Number(str.chars().count() as Num)
     } else if let Data::Array(arr) = tgt {
-        consts[dest as usize] = Data::Number(arrays[&arr].len() as num)
+        consts[dest as usize] = Data::Number(arrays[&arr].len() as Num)
     } else {
         error_b!(format_args!(
             "Cannot get length of type {color_red}{}{color_reset}",
@@ -148,7 +148,7 @@ fn index(
         if_likely! { let Data::String(arg) = arg => {
             consts[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
                 error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
-            }) as num);
+            }) as Num);
         } else {
             error_b!(format_args!(
                 "{color_red}{}{color_reset} is not a String",
@@ -159,7 +159,7 @@ fn index(
         let arg = consts[args.swap_remove(0) as usize];
         consts[dest as usize] = Data::Number(arrays[&x].iter().position(|x| x == &arg).unwrap_or_else(|| {
             error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{:?}{color_reset}", arg, format_data(target, arrays)));
-        }) as num);
+        }) as Num);
     } else {
         error_b!(format_args!(
             "Cannot index type {color_red}{}{color_reset}",
@@ -276,7 +276,7 @@ fn rindex(
         if_likely! { let Data::String(arg) = arg => {
             consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
                 error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
-            }) as num);
+            }) as Num);
         } else {
             error_b!(format_args!(
                 "{color_red}{}{color_reset} is not a String",
@@ -287,7 +287,7 @@ fn rindex(
         let arg = consts[args.swap_remove(0) as usize];
         consts[dest as usize] = Data::Number(arrays[&x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
             error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{:?}{color_reset}", arg, format_data(target, arrays)));
-        }) as num);
+        }) as Num);
     } else {
         error_b!(format_args!(
             "Cannot index type {color_red}{}{color_reset}",

@@ -21,11 +21,11 @@ mod parser;
 mod tests;
 mod util;
 
-pub type num = f64;
+pub type Num = f64;
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Data {
-    Number(num),
+    Number(Num),
     Bool(bool),
     String(Intern<String>),
     Array(u16),
@@ -411,7 +411,7 @@ pub fn execute(
                 match base {
                     Data::String(str) => {
                         consts[dest as usize] =
-                            Data::Number(str.parse::<num>().unwrap_or_else(|_| {
+                            Data::Number(str.parse::<Num>().unwrap_or_else(|_| {
                                 error_b!(format_args!("CANNOT CONVERT '{str}' TO NUMBER"));
                             }));
                     }
@@ -567,7 +567,7 @@ pub fn execute(
                     let Data::Number(x) = consts[min as usize] => {
                         if_likely! {let Data::Number(y) = consts[max as usize] => {
                             let id = arrays.len() as u16;
-                            arrays.insert(id, (x as u64..y as u64).map(|x| Data::Number(x as num)).collect());
+                            arrays.insert(id, (x as u64..y as u64).map(|x| Data::Number(x as Num)).collect());
                             consts[dest as usize] = Data::Array(id);
                         }}
                     }
