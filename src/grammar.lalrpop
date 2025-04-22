@@ -68,8 +68,8 @@ ForLoop:Expr = {
     "for" <o1:Var> "in" <o2: Expression> "{" <o3:Code> "}" => {
         let mut output = vec![o2];
         output.extend(o3);
-        Expr::ForLoop(o1,output.into_boxed_slice())
-        //Expr::ForLoop(o1,Box::from(o2),o3)
+        Expr::ForLoop(Intern::from(o1),output.into_boxed_slice())
+        //Expr::ForLoop(Intern::from(o1),Box::from(o2),o3)
     }
 }
 
@@ -104,14 +104,14 @@ ReturnLn: Expr = {
 }
 
 VarDeclare: Expr = {
-    "let" <v: Var> "=" <e: Expression> => Expr::VarDeclare(v, Box::from(e)),
+    "let" <v: Var> "=" <e: Expression> => Expr::VarDeclare(Intern::from(v), Box::from(e)),
     //! => {
     //    parsing_error!(format_parser_error(<>.error, "Variable Declaration"));
   //  }
 }
 
 VarAssign: Expr = {
-    <v: Var> "=" <e: Expression> => Expr::VarAssign(v, Box::from(e)),
+    <v: Var> "=" <e: Expression> => Expr::VarAssign(Intern::from(v), Box::from(e)),
     <i: IndexAccess> "=" <e: Expression> => {
         if let Expr::GetIndex(a,b) = i {
             Expr::ArrayModify(a,b,Box::new(e))
@@ -122,12 +122,12 @@ VarAssign: Expr = {
 }
 
 OpVarAssign: Expr = {
-    <v: Var> "+=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Add), e])))),
-    <v: Var> "-=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Sub), e])))),
-    <v: Var> "*=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Mul), e])))),
-    <v: Var> "/=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Div), e])))),
-    <v: Var> "%=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Mod), e])))),
-    <v: Var> "^=" <e: Expression> => Expr::VarAssign(v.to_string(), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Pow), e])))),
+    <v: Var> "+=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Add), e])))),
+    <v: Var> "-=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Sub), e])))),
+    <v: Var> "*=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Mul), e])))),
+    <v: Var> "/=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Div), e])))),
+    <v: Var> "%=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Mod), e])))),
+    <v: Var> "^=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Pow), e])))),
 }
 
 IndexAccess: Expr = {

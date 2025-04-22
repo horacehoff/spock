@@ -1,10 +1,11 @@
 use crate::parser::Expr;
 use crate::{Data, Instr, Opcode};
+use internment::Intern;
 
 pub fn while_loop_summation(
     output: &mut Vec<Instr>,
     consts: &mut Vec<Data>,
-    v: &mut [(String, u16)],
+    v: &mut [(Intern<String>, u16)],
     x: Expr,
     y: Box<[Expr]>,
 ) -> bool {
@@ -17,7 +18,7 @@ pub fn while_loop_summation(
                 if op == &Expr::Opcode(Opcode::Inf) {
                     if let Expr::Var(var_name) = items.first().unwrap() {
                         if let Expr::VarAssign(name, x) = y.first().unwrap() {
-                            if name == var_name {
+                            if **name == *var_name {
                                 if let Expr::Op(second_items) = &**x {
                                     if items.len() == 3 {
                                         let op = second_items.get(1).unwrap();
@@ -27,7 +28,7 @@ pub fn while_loop_summation(
                                                 == &Expr::Var(name.to_string())
                                             {
                                                 let var_id =
-                                                    v.iter().find(|(w, _)| w == name).unwrap().1;
+                                                    v.iter().find(|(w, _)| *w == *name).unwrap().1;
                                                 if let Expr::Num(reps) = *dest_reps {
                                                     consts.push(Data::Number(fac));
                                                     consts.push(Data::Null);

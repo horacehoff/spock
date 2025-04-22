@@ -739,10 +739,7 @@ fn main() {
         &mut Vec::with_capacity(call_stack_count_max * 2),
     );
     println!("EXEC TIME {:.2?}", now.elapsed());
-    dbg!(size_of::<Expr>());
-    dbg!(size_of::<Box<Expr>>());
-    dbg!(size_of::<Box<[Expr]>>());
-    dbg!(size_of::<Box<[(String, Box<[Expr]>)]>>());
     // println!("CONSTS {consts:?}");
     // print!("ARRAYS {arrays:?}");
+    dbg!(size_of::<Expr>());
 }

@@ -19,8 +19,8 @@ pub enum Expr {
     String(String),
     Var(String),
     Array(Box<[Expr]>),
-    VarDeclare(String, Box<Expr>),
-    VarAssign(String, Box<Expr>),
+    VarDeclare(Intern<String>, Box<Expr>),
+    VarAssign(Intern<String>, Box<Expr>),
     // condition - code (contains else_if_blocks and potentially else_block)
     Condition(Box<Expr>, Box<[Expr]>),
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
@@ -43,7 +43,7 @@ pub enum Expr {
 
     // id name -- array as first + code
     // ForLoop(String, Box<Expr>, Box<[Expr]>),
-    ForLoop(String, Box<[Expr]>),
+    ForLoop(Intern<String>, Box<[Expr]>),
     Import(String),
 }
 
@@ -337,7 +337,7 @@ macro_rules! handle_ops {
 
 fn get_id(
     x: Expr,
-    variables: &mut Vec<(String, u16)>,
+    variables: &mut Vec<(Intern<String>, u16)>,
     consts: &mut Vec<Data>,
     instr: &mut Vec<Instr>,
     line: &String,
@@ -362,7 +362,7 @@ fn get_id(
         Expr::Var(name) => {
             print!("getting id of var {name:?}");
             print!("{variables:?}");
-            if let Some((_, id)) = variables.iter().find(|(var, _)| name == *var) {
+            if let Some((_, id)) = variables.iter().find(|(var, _)| name == **var) {
                 print!("returning id {id:?}");
                 *id
             } else {
@@ -524,12 +524,12 @@ macro_rules! ctx {
 
 type Function = (String, Box<[String]>, Box<[Expr]>);
 // last = expecting return ?
-type FunctionState = (String, u16, Vec<(String, u16)>, Option<u16>, bool);
+type FunctionState = (String, u16, Vec<(Intern<String>, u16)>, Option<u16>, bool);
 
 fn parser_to_instr_set(
     input: Vec<Expr>,
     // variables
-    v: &mut Vec<(String, u16)>,
+    v: &mut Vec<(Intern<String>, u16)>,
     // constants
     consts: &mut Vec<Data>,
     // functions
@@ -579,7 +579,7 @@ fn parser_to_instr_set(
             }
             Expr::Var(name) => {
                 consts.push(Data::Null);
-                if let Some((_, var_id)) = v.iter().rev().find(|(x, _)| &name == x) {
+                if let Some((_, var_id)) = v.iter().rev().find(|(x, _)| name == **x) {
                     output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
                 } else {
                     error!(
@@ -1118,7 +1118,7 @@ fn parser_to_instr_set(
                                 }
                             }
 
-                            let mut fn_variables: Vec<(String, u16)> = Vec::new();
+                            let mut fn_variables: Vec<(Intern<String>, u16)> = Vec::new();
 
                             for (i, x) in found.1.iter().enumerate() {
                                 let len = consts.len() as u16;
@@ -1132,7 +1132,7 @@ fn parser_to_instr_set(
                                 );
                                 move_to_id(&mut value, len);
                                 output.extend(value);
-                                fn_variables.push((x.to_string(), len));
+                                fn_variables.push((Intern::from_ref(x), len));
                             }
                             let vars = fn_variables.clone();
                             consts.push(Data::Null);
@@ -1470,7 +1470,7 @@ fn parser_to_instr_set(
             Expr::Op(items) => {
                 fn remove_priority(
                     x: Expr,
-                    variables: &mut Vec<(String, u16)>,
+                    variables: &mut Vec<(Intern<String>, u16)>,
                     consts: &mut Vec<Data>,
                 ) -> Vec<Expr> {
                     match x {
@@ -1594,7 +1594,7 @@ pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, FnvHashMap<u16, Vec<Data
 
     print!("{functions:?}");
 
-    let mut variables: Vec<(String, u16)> = Vec::new();
+    let mut variables: Vec<(Intern<String>, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
     let mut arrays: FnvHashMap<u16, Vec<Data>> = FnvHashMap::default();
     let instructions = parser_to_instr_set(
