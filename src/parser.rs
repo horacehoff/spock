@@ -600,7 +600,7 @@ fn parser_to_instr_set(
                 let cond_code = parser_to_instr_set(
                     y.iter()
                         .filter(|x| !matches!(x, Expr::ElseIfBlock(_, _) | Expr::ElseBlock(_)))
-                        .map(|x| x.clone())
+                        .cloned()
                         .collect(),
                     &mut priv_vars,
                     consts,
@@ -768,13 +768,13 @@ fn parser_to_instr_set(
                 let current_element_variable_id = v.len() - 1;
                 let mut temp_vars = v.clone();
                 // let consts_before = consts.len() - 1;
-                let temp_vars_before = temp_vars.len() - 1;
+                // let temp_vars_before = temp_vars.len() - 1;
                 let cond_code =
                     parser_to_instr_set(code, &mut temp_vars, consts, fns, fn_state, arrs);
                 v.remove(current_element_variable_id);
                 temp_vars.remove(current_element_variable_id);
                 // let consts_after = consts.len();
-                let temp_vars_after = temp_vars.len();
+                // let temp_vars_after = temp_vars.len();
                 // let modified_temp_vars = (temp_vars_before..temp_vars_after)
                 //     .map(|x| temp_vars[x].clone())
                 //     .collect::<Vec<_>>();
@@ -867,7 +867,7 @@ fn parser_to_instr_set(
             }
             Expr::FunctionCall(args, namespace) => {
                 // let name = namespace[0];
-                let mut name: &str = namespace.last().unwrap();
+                let name: &str = namespace.last().unwrap();
                 let namespace: Vec<&String> = namespace.iter().rev().skip(1).rev().collect();
                 if namespace.is_empty() {
                     match name {
@@ -1042,7 +1042,7 @@ fn parser_to_instr_set(
                             let args_len = found.1.len();
                             check_args!(args, args_len, function, ctx);
 
-                            if let Some((name, loc, func_args, return_id, in_return)) = fn_state {
+                            if let Some((name, loc, func_args, _, _)) = fn_state {
                                 if name == function {
                                     let mut saves: Vec<(u16, u16)> = Vec::new();
                                     // recursive function, go back to function def and move on
@@ -1077,7 +1077,7 @@ fn parser_to_instr_set(
                                         let mut total: Vec<u16> = Vec::new();
                                         for x in x {
                                             if !matches!(x, Instr::Ret(_, _)) {
-                                                total.push(get_tgt_id(*x))
+                                                total.push(get_tgt_id(*x));
                                             }
                                         }
                                         total
@@ -1136,7 +1136,7 @@ fn parser_to_instr_set(
                             }
                             let vars = fn_variables.clone();
                             consts.push(Data::Null);
-                            let start = consts.len();
+                            // let start = consts.len();
                             output.extend(parser_to_instr_set(
                                 found.2.to_vec(),
                                 &mut fn_variables,
@@ -1214,7 +1214,7 @@ fn parser_to_instr_set(
                                     other,
                                     namespace
                                         .iter()
-                                        .map(|x| x.to_string())
+                                        .map(|x| (*x).to_string())
                                         .collect::<Vec<String>>()
                                         .join("::")
                                 )
@@ -1228,7 +1228,7 @@ fn parser_to_instr_set(
                             "Unknown namespace {color_red}{}{color_reset}",
                             namespace
                                 .iter()
-                                .map(|x| x.to_string())
+                                .map(|x| (*x).to_string())
                                 .collect::<Vec<String>>()
                                 .join("::")
                         )
@@ -1463,28 +1463,24 @@ fn parser_to_instr_set(
                 }
                 fns.push((
                     x.first().unwrap().to_string(),
-                    x.iter().skip(1).map(|x| x.to_string()).collect(),
+                    x.iter().skip(1).map(ToString::to_string).collect(),
                     y,
                 ));
             }
             Expr::Op(items) => {
-                fn remove_priority(
-                    x: Expr,
-                    variables: &mut Vec<(Intern<String>, u16)>,
-                    consts: &mut Vec<Data>,
-                ) -> Vec<Expr> {
+                fn remove_priority(x: Expr) -> Vec<Expr> {
                     match x {
                         Expr::Op(w) => {
                             let mut output = Vec::new();
                             for x in w {
-                                output.extend(remove_priority(x, variables, consts));
+                                output.extend(remove_priority(x));
                             }
                             output
                         }
                         Expr::Priority(x) => {
                             let mut output: Vec<Expr> = Vec::with_capacity(3);
                             output.push(Expr::LPAREN);
-                            output.extend(remove_priority(*x, variables, consts));
+                            output.extend(remove_priority(*x));
                             output.push(Expr::RPAREN);
                             output
                         }
@@ -1494,7 +1490,7 @@ fn parser_to_instr_set(
 
                 let mut temp_op = Vec::new();
                 for x in items {
-                    temp_op.extend(remove_priority(x, v, consts));
+                    temp_op.extend(remove_priority(x));
                 }
                 let op = op_to_rpn(temp_op);
 
@@ -1581,7 +1577,7 @@ pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, FnvHashMap<u16, Vec<Data
                     x.first().unwrap().trim_end_matches('(').to_string(),
                     x.iter()
                         .skip(1)
-                        .map(|x| x.to_string())
+                        .map(ToString::to_string)
                         .collect::<Vec<String>>()
                         .into_boxed_slice(),
                     y.clone(),

@@ -112,7 +112,7 @@ impl std::fmt::Display for Expr {
                 write!(
                     f,
                     "{}{}({})",
-                    if z.len() == 0 || z.len() - 1 == 0 {
+                    if z.is_empty() || z.len() - 1 == 0 {
                         String::new()
                     } else {
                         format!("{}::", z[1..].join("::"))
@@ -159,23 +159,27 @@ impl std::fmt::Display for Expr {
 
 impl std::fmt::Display for Opcode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            Opcode::Mul => "*",
-            Opcode::Div => "/",
-            Opcode::Add => "+",
-            Opcode::Sub => "-",
-            Opcode::Mod => "%",
-            Opcode::Pow => "^",
-            Opcode::Eq => "==",
-            Opcode::NotEq => "!=",
-            Opcode::Sup => ">",
-            Opcode::SupEq => ">=",
-            Opcode::Inf => "<",
-            Opcode::InfEq => "<=",
-            Opcode::BoolAnd => "&&",
-            Opcode::BoolOr => "||",
-            Opcode::Neg => "-",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Opcode::Mul => "*",
+                Opcode::Div => "/",
+                Opcode::Add => "+",
+                Opcode::Sub => "-",
+                Opcode::Mod => "%",
+                Opcode::Pow => "^",
+                Opcode::Eq => "==",
+                Opcode::NotEq => "!=",
+                Opcode::Sup => ">",
+                Opcode::SupEq => ">=",
+                Opcode::Inf => "<",
+                Opcode::InfEq => "<=",
+                Opcode::BoolAnd => "&&",
+                Opcode::BoolOr => "||",
+                Opcode::Neg => "-",
+            }
+        )
     }
 }
 

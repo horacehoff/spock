@@ -10,7 +10,6 @@ use likely_stable::{if_likely, likely, unlikely};
 use std::cmp::PartialEq;
 use std::fs;
 use std::fs::File;
-use std::hint::unreachable_unchecked;
 use std::io::Write;
 use std::time::Instant;
 
@@ -385,10 +384,7 @@ pub fn execute(
                     ));
                 }}
             }
-            Instr::Mov(tgt, dest) => {
-                consts[dest as usize] = consts[tgt as usize];
-            }
-            Instr::RestoreCallArg(tgt, dest) => {
+            Instr::Mov(tgt, dest) | Instr::RestoreCallArg(tgt, dest) => {
                 consts[dest as usize] = consts[tgt as usize];
             }
             Instr::Neg(tgt, dest) => {
@@ -617,8 +613,7 @@ pub fn execute(
                     "The answer to the Ultimate Question of Life, the Universe, and Everything is 42."
                 );
                 consts[dest as usize] = Data::Number(42.0);
-            }
-            _ => unsafe { unreachable_unchecked() },
+            } // _ => unsafe { unreachable_unchecked() },
         }
         i += 1;
     }
