@@ -8,6 +8,8 @@ use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
 
+pub struct ObjFunctionCallBlock {}
+
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum Expr {
@@ -33,7 +35,8 @@ pub enum Expr {
     LPAREN,
     RPAREN,
 
-    FunctionDecl(String, Box<[String]>, Box<[Expr]>),
+    // name+args -- code
+    FunctionDecl(Box<[String]>, Box<[Expr]>),
 
     ReturnVal(Box<Option<Expr>>),
 
@@ -998,7 +1001,7 @@ fn parser_to_instr_set(
                         function => {
                             let found =
                                 fns.iter()
-                                    .find(|(a, _, _)| a == function)
+                                    .find(|(a, _, _)| *a == function)
                                     .unwrap_or_else(|| {
                                         error!(
                                             ctx,
@@ -1421,14 +1424,21 @@ fn parser_to_instr_set(
                     }
                 }
             }
-            Expr::FunctionDecl(x, y, z) => {
-                if fns.iter().any(|(name, _, _)| name == &x) {
+            Expr::FunctionDecl(x, y) => {
+                if fns.iter().any(|(name, _, _)| **name == *x.first().unwrap()) {
                     error!(
                         ctx,
-                        format_args!("Function {color_red}{}{color_reset} is already defined", x)
+                        format_args!(
+                            "Function {color_red}{}{color_reset} is already defined",
+                            x.first().unwrap()
+                        )
                     );
                 }
-                fns.push((x, y, z));
+                fns.push((
+                    x.first().unwrap().to_string(),
+                    x.iter().skip(1).map(|x| x.to_string()).collect(),
+                    y,
+                ));
             }
             Expr::Op(items) => {
                 fn remove_priority(
@@ -1519,13 +1529,13 @@ pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, FnvHashMap<u16, Vec<Data
     print!("funcs {functions:?}");
     let main_function: Vec<Expr> = {
         if let Some(fctn) = functions.iter().position(|a| {
-            if let Expr::FunctionDecl(name, _, _) = a {
-                name.trim_end_matches('(') == "main"
+            if let Expr::FunctionDecl(name, _) = a {
+                name.first().unwrap().trim_end_matches('(') == "main"
             } else {
                 false
             }
         }) {
-            if let Expr::FunctionDecl(_, _, code) = functions.swap_remove(fctn) {
+            if let Expr::FunctionDecl(_, code) = functions.swap_remove(fctn) {
                 code.to_vec()
             } else {
                 error!(contents, "No main function");
@@ -1535,11 +1545,20 @@ pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, FnvHashMap<u16, Vec<Data
         }
     };
 
-    let mut functions: Vec<(String, Box<[String]>, Box<[Expr]>)> = functions
+    // let mut functions: Vec<(Intern<String>, Box<[String]>, Box<[Expr]>)> = functions
+    let mut functions: Vec<Function> = functions
         .iter()
         .map(|w| {
-            if let Expr::FunctionDecl(x, y, z) = w {
-                (x.trim_end_matches('(').to_string(), y.clone(), z.clone())
+            if let Expr::FunctionDecl(x, y) = w {
+                (
+                    x.first().unwrap().trim_end_matches('(').to_string(),
+                    x.iter()
+                        .skip(1)
+                        .map(|x| x.to_string())
+                        .collect::<Vec<String>>()
+                        .into_boxed_slice(),
+                    y.clone(),
+                )
             } else {
                 error!(contents, "Function expected");
             }

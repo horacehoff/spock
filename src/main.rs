@@ -679,8 +679,6 @@ fn clean_contents(inp: &str, base_name: &str) -> String {
 
 // Live long and prosper
 fn main() {
-    dbg!(size_of::<Expr>());
-
     let mut contents = std::fs::read_to_string("test.spock").unwrap();
     contents = clean_contents(&contents, "test.spock");
     print!("{contents:?}");
@@ -741,6 +739,10 @@ fn main() {
         &mut Vec::with_capacity(call_stack_count_max * 2),
     );
     println!("EXEC TIME {:.2?}", now.elapsed());
+    dbg!(size_of::<Expr>());
+    dbg!(size_of::<Box<Expr>>());
+    dbg!(size_of::<Box<[Expr]>>());
+    dbg!(size_of::<Box<[(String, Box<[Expr]>)]>>());
     // println!("CONSTS {consts:?}");
     // print!("ARRAYS {arrays:?}");
 }

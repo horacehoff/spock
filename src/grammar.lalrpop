@@ -4,6 +4,7 @@ use crate::parser::Expr;
 use inline_colorization::*;
 use crate::display::format_parser_error;
 use crate::error_b;
+use internment::Intern;
 
 
 grammar;
@@ -15,7 +16,7 @@ pub File:Vec<Expr> = {
 
 pub Function:Expr = {
     "fn" <o1: r#"([a-zA-Z_]*)\("#> <o2: (Var ("," Var)*)?>  ")" "{" <o3:Code> "}" => {
-        let mut final_args:Vec<String> = Vec::new();
+        let mut final_args:Vec<String> = vec![o1.to_string()];
         if let Some(fn_args) = o2 {
             let args = fn_args;
             final_args.push(args.0);
@@ -23,10 +24,10 @@ pub Function:Expr = {
                 final_args.extend(args.1.iter().map(|(_,b)|b.clone()).collect::<Vec<String>>())
             }
         }
-        return Expr::FunctionDecl(String::from(o1), Box::from(final_args), o3);
+        return Expr::FunctionDecl(final_args.into_boxed_slice(), o3);
     },
     "fn" <o1:Var> "(" <o2: (Var ("," Var)*)?>  ")" "{" <o3:Code> "}" => {
-            let mut final_args:Vec<String> = Vec::new();
+            let mut final_args:Vec<String> = vec![o1.to_string()];
             if let Some(fn_args) = o2 {
                 let args = fn_args;
                 final_args.push(args.0);
@@ -34,7 +35,7 @@ pub Function:Expr = {
                     final_args.extend(args.1.iter().map(|(_,b)|b.clone()).collect::<Vec<String>>())
                 }
             }
-            return Expr::FunctionDecl(o1, Box::from(final_args), o3);
+            return Expr::FunctionDecl(final_args.into_boxed_slice(), o3);
         }
 }
 

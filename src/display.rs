@@ -80,12 +80,13 @@ impl std::fmt::Display for Expr {
                         .join(""),
                 )
             }
-            Expr::FunctionDecl(x, y, z) => {
+            Expr::FunctionDecl(x, y) => {
                 write!(
                     f,
-                    "fn {x}({}) {{\n{}}}",
-                    y.to_vec().join(","),
-                    z.iter()
+                    "fn {}({}) {{\n{}}}",
+                    x.first().unwrap(),
+                    x.iter().skip(1).cloned().collect::<Vec<String>>().join(","),
+                    y.iter()
                         .map(|x| format_lines!(x))
                         .collect::<Vec<String>>()
                         .join("")
