@@ -704,8 +704,8 @@ fn main() {
     print!("ARRAYS {arrays:?}");
     print!("FUNC_ARGS_COUNT {func_args_count_max:?}");
 
-    let mut range: Vec<(u16, u16, u16)> = Vec::new();
-    let start = consts.len();
+    // let mut range: Vec<(u16, u16, u16)> = Vec::new();
+    // let start = consts.len();
     // let final_instructions:Vec<Instr> = instructions.iter().map(|x| {
     //     if *x == Instr::TEMP_START_MOV {
     //         for _ in 0..consts.len() {

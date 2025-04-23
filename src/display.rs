@@ -3,8 +3,8 @@ use crate::{Data, Instr, Opcode, format_lines};
 use concat_string::concat_string;
 use fnv::FnvHashMap;
 use inline_colorization::*;
-use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
+use lalrpop_util::{ErrorRecovery, ParseError};
 use std::fmt::Formatter;
 
 impl std::fmt::Display for Data {
@@ -188,6 +188,40 @@ where
     Token<'a>: From<T>,
 {
     match x {
+        ParseError::InvalidToken { .. } => {
+            unreachable!("InvalidTokenError")
+        }
+        ParseError::UnrecognizedEof { .. } => {
+            unreachable!("UnrecognizedEofError")
+        }
+        ParseError::UnrecognizedToken { token, expected } => {
+            format!(
+                "PARSING: {ctx}\nExpected token {color_blue}{}{color_reset} but got '{color_red}{}{color_reset}'",
+                expected
+                    .iter()
+                    .map(|x| x.trim_matches('"'))
+                    .collect::<Vec<&str>>()
+                    .join(" / "),
+                {
+                    let tok: Token = token.1.into();
+                    tok.1
+                }
+            )
+        }
+        ParseError::ExtraToken { .. } => {
+            unreachable!("ExtraTokenError")
+        }
+        ParseError::User { .. } => {
+            unreachable!("UserError")
+        }
+    }
+}
+
+pub fn format_parser_error_recovery<'a, L, T, E>(x: ErrorRecovery<L, T, E>, ctx: &str) -> String
+where
+    Token<'a>: From<T>,
+{
+    match x.error {
         ParseError::InvalidToken { .. } => {
             unreachable!("InvalidTokenError")
         }

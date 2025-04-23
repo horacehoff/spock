@@ -7,7 +7,7 @@ pub fn while_loop_summation(
     consts: &mut Vec<Data>,
     v: &mut [(Intern<String>, u16)],
     x: Expr,
-    y: Box<[Expr]>,
+    y: &[Expr],
 ) -> bool {
     if let Expr::Op(items) = x {
         if items.len() == 3 {
