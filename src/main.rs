@@ -15,6 +15,7 @@ use std::time::Instant;
 
 mod builtin_funcs;
 mod display;
+mod ops;
 mod optimizations;
 mod parser;
 mod tests;

@@ -5,6 +5,8 @@ use inline_colorization::*;
 use crate::display::format_parser_error;
 use crate::error_b;
 use internment::Intern;
+use crate::ops::remove_priority;
+use crate::ops::op_to_rpn;
 
 
 grammar;
@@ -153,10 +155,42 @@ Operation: Expr = {
         let mut output_op:Vec<Expr> = vec![o1];
         for x in o3 {
             output_op.push(Expr::Opcode(x.0));
-            output_op.push(x.1);
+            output_op.extend(remove_priority(x.1));
         }
-        Expr::Op(output_op.into_boxed_slice())
-        //Expr::Op(Box::from(o1), o3.iter().map(|x| (x.0,Box::from(x.1.clone()))).collect::<Vec<_>>().into_boxed_slice())
+        output_op = op_to_rpn(output_op);
+
+
+        // constant folding
+        if output_op.iter().any(|x| !matches!(x, Expr::Num(_) | Expr::Opcode(_))) {
+            Expr::Op(output_op.into_boxed_slice())
+        } else {
+            let mut output_num:f64 = 0.0;
+            let mut stack:Vec<f64> = Vec::new();
+            for x in output_op {
+                if let Expr::Num(n) = x {
+                    stack.push(n);
+                } else if let Expr::Opcode(op) = x {
+                    let last = stack.pop().unwrap();
+                    let first = {
+                        if let Some(num) = stack.pop() {
+                            num
+                        } else {
+                            output_num
+                        }
+                    };
+                    output_num = match op {
+                        Opcode::Add => first+last,
+                        Opcode::Sub => first-last,
+                        Opcode::Mul => first*last,
+                        Opcode::Div => first/last,
+                        Opcode::Mod => first%last,
+                        Opcode::Pow => first.powf(last),
+                        _ => todo!()
+                    }
+                }
+            }
+            Expr::Num(output_num)
+        }
     }
 }
 
