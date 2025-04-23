@@ -90,9 +90,9 @@ pub enum Instr {
     ArrayMod(u16, u16, u16),
     GetIndex(u16, u16, u16),
 
-    Call(u16, u16),           // function_start_index, return_target_id
-    Ret(u16, u16),            // return obj id -- return target id
-    RestoreCallArg(u16, u16), // same than mov, used because mov can be changed by the parser
+    Call(u16, u16),    // function_start_index, return_target_id
+    Ret(u16, u16),     // return obj id -- return target id
+    MovAnon(u16, u16), // same than mov, used because mov can be changed by the parser
 
     TheAnswer(u16),
     // MovRange(u16,u16,u16),
@@ -382,7 +382,7 @@ pub fn execute(
                     ));
                 }}
             }
-            Instr::Mov(tgt, dest) | Instr::RestoreCallArg(tgt, dest) => {
+            Instr::Mov(tgt, dest) | Instr::MovAnon(tgt, dest) => {
                 consts[dest as usize] = consts[tgt as usize];
             }
             Instr::Neg(tgt, dest) => {

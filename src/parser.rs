@@ -1111,7 +1111,7 @@ fn parser_to_instr_set(
                                     // }
                                     // output.push(Instr::TEMP_STOP_MOV);
                                     for (x, y) in saves {
-                                        output.push(Instr::RestoreCallArg(y, x));
+                                        output.push(Instr::MovAnon(y, x));
                                     }
 
                                     continue;
