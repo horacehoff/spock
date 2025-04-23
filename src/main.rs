@@ -658,7 +658,9 @@ fn clean_contents(inp: &str, base_name: &str) -> String {
                     .trim_end_matches(';')
                     .trim();
                 if import_path != base_name {
-                    let path = clean_contents(&fs::read_to_string(import_path).unwrap(), base_name);
+                    let path = clean_contents(&fs::read_to_string(import_path).unwrap_or_else(|_| {
+                        error!(line, format_args!("Unable to read & import file '{color_red}{import_path}{color_reset}'"));
+                    }), base_name);
                     Some(path)
                 } else {
                     None
@@ -671,19 +673,12 @@ fn clean_contents(inp: &str, base_name: &str) -> String {
         .join("\r\n")
 }
 
-// Live long and prosper
-fn main() {
-    let mut contents = std::fs::read_to_string("test.spock").unwrap();
-    contents = clean_contents(&contents, "test.spock");
-    print!("{contents:?}");
-
-    let (instructions, mut consts, mut arrays) = parse(&contents);
-
+fn get_vec_capacity(instructions: &[Instr]) -> (usize, usize) {
     let mut func_args_count = 0;
     let mut func_args_count_max = 0;
     let mut call_stack_count = 0;
     let mut call_stack_count_max = 0;
-    for x in &instructions {
+    for x in instructions {
         if matches!(x, Instr::StoreFuncArg(_)) {
             func_args_count += 1;
         } else if matches!(x, Instr::ApplyFunc(_, _, _)) && func_args_count > func_args_count_max {
@@ -698,42 +693,31 @@ fn main() {
             call_stack_count -= 1;
         }
     }
+    (func_args_count_max, call_stack_count_max)
+}
+
+// Live long and prosper
+fn main() {
+    let mut contents = fs::read_to_string("test.spock").unwrap();
+    contents = clean_contents(&contents, "test.spock");
+    print!("{contents:?}");
+
+    let (instructions, mut consts, mut arrays) = parse(&contents);
+
+    let (func_args_count, call_stack_count) = get_vec_capacity(&instructions);
 
     println!("INSTR {instructions:?}");
     println!("CONSTS {consts:?}");
     print!("ARRAYS {arrays:?}");
-    print!("FUNC_ARGS_COUNT {func_args_count_max:?}");
-
-    // let mut range: Vec<(u16, u16, u16)> = Vec::new();
-    // let start = consts.len();
-    // let final_instructions:Vec<Instr> = instructions.iter().map(|x| {
-    //     if *x == Instr::TEMP_START_MOV {
-    //         for _ in 0..consts.len() {
-    //             consts.push(Data::Null)
-    //         }
-    //         range.push((0, start as u16, (start) as u16));
-    //         Instr::MovRange(0, start as u16, start as u16)
-    //     }
-    //     else if *x == Instr::TEMP_STOP_MOV {
-    //         let prev_mov = range.pop().unwrap();
-    //         Instr::MovRangeNeg(prev_mov.0+prev_mov.2, prev_mov.1+prev_mov.2, prev_mov.2)
-    //     }
-    //     else {
-    //         *x
-    //     }
-    // }).collect();
-    // println!("FINAL INSTR {final_instructions:?}");
+    print!("FUNC_ARGS_COUNT {func_args_count:?}");
 
     let now = Instant::now();
     execute(
         &instructions,
         &mut consts,
-        &mut Vec::with_capacity(func_args_count_max),
+        &mut Vec::with_capacity(func_args_count),
         &mut arrays,
-        &mut Vec::with_capacity(call_stack_count_max * 2),
+        &mut Vec::with_capacity(call_stack_count * 2),
     );
     println!("EXEC TIME {:.2?}", now.elapsed());
-    // println!("CONSTS {consts:?}");
-    // print!("ARRAYS {arrays:?}");
-    // dbg!(size_of::<Expr>());
 }

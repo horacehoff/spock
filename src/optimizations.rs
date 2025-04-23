@@ -6,7 +6,7 @@ pub fn while_loop_summation(
     output: &mut Vec<Instr>,
     consts: &mut Vec<Data>,
     v: &mut [(Intern<String>, u16)],
-    x: Expr,
+    x: &Expr,
     y: &[Expr],
 ) -> bool {
     if let Expr::Op(items) = x {
