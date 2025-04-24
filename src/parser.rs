@@ -635,7 +635,7 @@ fn parser_to_instr_set(
                 if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
-                if while_loop_summation(&mut output, consts, v, &*x, &y) {
+                if while_loop_summation(&mut output, consts, v, &x, &y) {
                     continue;
                 }
                 let condition = parser_to_instr_set(vec![*x], v, consts, fns, fn_state, arrs);

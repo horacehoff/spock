@@ -242,7 +242,7 @@ Operation: Expr = {
                             match (first,last) {
                             (Expr::Num(x),Expr::Num(y)) => Expr::Num(x.powf(y)),
                             (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  "UNSUPPORTED OPERATION: {} ^ {}",
                                   format_expr_type(x),
                                   format_expr_type(y)
                               ));}
@@ -258,7 +258,7 @@ Operation: Expr = {
                             match (first,last) {
                             (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x > y),
                             (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  "UNSUPPORTED OPERATION: {} > {}",
                                   format_expr_type(x),
                                   format_expr_type(y)
                               ));}
@@ -268,7 +268,7 @@ Operation: Expr = {
                             match (first,last) {
                             (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x >= y),
                             (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  "UNSUPPORTED OPERATION: {} >= {}",
                                   format_expr_type(x),
                                   format_expr_type(y)
                               ));}
@@ -278,7 +278,7 @@ Operation: Expr = {
                             match (first,last) {
                             (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x < y),
                             (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  "UNSUPPORTED OPERATION: {} < {}",
                                   format_expr_type(x),
                                   format_expr_type(y)
                               ));}
@@ -288,7 +288,7 @@ Operation: Expr = {
                             match (first,last) {
                             (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x <= y),
                             (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  "UNSUPPORTED OPERATION: {} <= {}",
                                   format_expr_type(x),
                                   format_expr_type(y)
                               ));}
@@ -298,7 +298,7 @@ Operation: Expr = {
                             match (first,last) {
                             (Expr::Bool(x),Expr::Bool(y)) => Expr::Bool(x && y),
                             (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  "UNSUPPORTED OPERATION: {} && {}",
                                   format_expr_type(x),
                                   format_expr_type(y)
                               ));}
@@ -308,7 +308,7 @@ Operation: Expr = {
                             match (first,last) {
                             (Expr::Bool(x),Expr::Bool(y)) => Expr::Bool(x || y),
                             (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  "UNSUPPORTED OPERATION: {} || {}",
                                   format_expr_type(x),
                                   format_expr_type(y)
                               ));}
