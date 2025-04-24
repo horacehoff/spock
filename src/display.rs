@@ -256,3 +256,12 @@ pub fn print_instructions(instructions: &[Instr]) {
         println!("{} {:?}", i, instr);
     }
 }
+
+pub fn format_expr_type(x: Expr) -> String {
+    match x {
+        Expr::Num(x) => format_args!("Num({x})").to_string(),
+        Expr::String(x) => format_args!("String(\"{x}\")").to_string(),
+        Expr::Bool(x) => format_args!("Bool({x})").to_string(),
+        _ => unreachable!(),
+    }
+}

@@ -8,6 +8,8 @@ use internment::Intern;
 use crate::ops::remove_priority;
 use crate::ops::op_to_rpn;
 use crate::display::format_parser_error_recovery;
+use concat_string::concat_string;
+use crate::display::format_expr_type;
 
 
 grammar;
@@ -169,15 +171,13 @@ Operation: Expr = {
 
 
         // constant folding
-        if output_op.iter().any(|x| !matches!(x, Expr::Num(_) | Expr::Opcode(_))) {
+        if output_op.iter().any(|x| !matches!(x, Expr::Num(_) | Expr::Bool(_) | Expr::String(_) | Expr::Opcode(_))) {
             Expr::Op(output_op.into_boxed_slice())
         } else {
-            let mut output_num:f64 = 0.0;
-            let mut stack:Vec<f64> = Vec::new();
+            let mut output_num:Expr = Expr::Num(0.0);
+            let mut stack:Vec<Expr> = Vec::new();
             for x in output_op {
-                if let Expr::Num(n) = x {
-                    stack.push(n);
-                } else if let Expr::Opcode(op) = x {
+                if let Expr::Opcode(op) = x {
                     let last = stack.pop().unwrap();
                     let first = {
                         if let Some(num) = stack.pop() {
@@ -187,17 +187,140 @@ Operation: Expr = {
                         }
                     };
                     output_num = match op {
-                        Opcode::Add => first+last,
-                        Opcode::Sub => first-last,
-                        Opcode::Mul => first*last,
-                        Opcode::Div => first/last,
-                        Opcode::Mod => first%last,
-                        Opcode::Pow => first.powf(last),
-                        _ => todo!()
-                    }
+                        Opcode::Add => {
+                            match (first,last) {
+                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(x+y),
+                            (Expr::String(x),Expr::String(y)) => Expr::String(concat_string!(x,y)),
+                            (x,y) => {error_b!(format_args!(
+                                  "UNSUPPORTED OPERATION: {} + {}",
+                                  format_expr_type(x),
+                                  format_expr_type(y)
+                              ));}
+                            }
+                        },
+                        Opcode::Mul => {
+                            match (first,last) {
+                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(x*y),
+                            (x,y) => {error_b!(format_args!(
+                                  "UNSUPPORTED OPERATION: {} * {}",
+                                  format_expr_type(x),
+                                  format_expr_type(y)
+                              ));}
+                            }
+                        },
+                        Opcode::Div => {
+                            match (first,last) {
+                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(x/y),
+                            (x,y) => {error_b!(format_args!(
+                                  "UNSUPPORTED OPERATION: {} / {}",
+                                  format_expr_type(x),
+                                  format_expr_type(y)
+                              ));}
+                            }
+                        },
+                        Opcode::Sub => {
+                            match (first,last) {
+                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(x-y),
+                            (x,y) => {error_b!(format_args!(
+                                  "UNSUPPORTED OPERATION: {} - {}",
+                                  format_expr_type(x),
+                                  format_expr_type(y)
+                              ));}
+                            }
+                        },
+                        Opcode::Mod => {
+                            match (first,last) {
+                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(x%y),
+                            (x,y) => {error_b!(format_args!(
+                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  format_expr_type(x),
+                                  format_expr_type(y)
+                              ));}
+                            }
+                        },
+                        Opcode::Pow => {
+                            match (first,last) {
+                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(x.powf(y)),
+                            (x,y) => {error_b!(format_args!(
+                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  format_expr_type(x),
+                                  format_expr_type(y)
+                              ));}
+                            }
+                        },
+                        Opcode::Eq => {
+                            Expr::Bool(first == last)
+                        },
+                        Opcode::NotEq => {
+                            Expr::Bool(first != last)
+                        },
+                        Opcode::Sup => {
+                            match (first,last) {
+                            (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x > y),
+                            (x,y) => {error_b!(format_args!(
+                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  format_expr_type(x),
+                                  format_expr_type(y)
+                              ));}
+                            }
+                        },
+                        Opcode::SupEq => {
+                            match (first,last) {
+                            (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x >= y),
+                            (x,y) => {error_b!(format_args!(
+                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  format_expr_type(x),
+                                  format_expr_type(y)
+                              ));}
+                            }
+                        },
+                        Opcode::Inf => {
+                            match (first,last) {
+                            (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x < y),
+                            (x,y) => {error_b!(format_args!(
+                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  format_expr_type(x),
+                                  format_expr_type(y)
+                              ));}
+                            }
+                        },
+                        Opcode::InfEq => {
+                            match (first,last) {
+                            (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x <= y),
+                            (x,y) => {error_b!(format_args!(
+                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  format_expr_type(x),
+                                  format_expr_type(y)
+                              ));}
+                            }
+                        },
+                        Opcode::BoolAnd => {
+                            match (first,last) {
+                            (Expr::Bool(x),Expr::Bool(y)) => Expr::Bool(x && y),
+                            (x,y) => {error_b!(format_args!(
+                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  format_expr_type(x),
+                                  format_expr_type(y)
+                              ));}
+                            }
+                        },
+                        Opcode::BoolOr => {
+                            match (first,last) {
+                            (Expr::Bool(x),Expr::Bool(y)) => Expr::Bool(x || y),
+                            (x,y) => {error_b!(format_args!(
+                                  "UNSUPPORTED OPERATION: {} % {}",
+                                  format_expr_type(x),
+                                  format_expr_type(y)
+                              ));}
+                            }
+                        }
+                        _ => unreachable!()
+                        }
+                } else {
+                    stack.push(x);
                 }
             }
-            Expr::Num(output_num)
+            output_num
         }
     }
 }
