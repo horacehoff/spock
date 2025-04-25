@@ -1018,33 +1018,10 @@ fn parser_to_instr_set(
                                         total
                                     }
 
-                                    // doesn't work for now
-                                    // let len = output.len();
-                                    // let instr_to_backup:Vec<u16> = (0u16..consts.len() as u16).collect();
-                                    // let instr_to_backup = get_all_tgt_id(&output[0..len]);
-                                    // println!("CONSTS TO BE BAC/KED UP ARE {instr_to_backup:?}");
-                                    // let mut instr_backups: Vec<(u16, u16)> = Vec::new();
-                                    // let start = consts.len();
-                                    // let mut offset = 0;
-                                    // for x in instr_to_backup {
-                                    //     consts.push(Data::Null);
-                                    //     offset = (consts.len() - 1) as u16 - x;
-                                    //     // output.push(Instr::Mov(x, (consts.len() - 1) as u16));
-                                    //     // instr_backups.push((x, (consts.len() - 1) as u16))
-                                    // }
-                                    // let end = consts.len();
-                                    // output.push(Instr::MovRange(start as u16, end as u16, offset));
-                                    // output.push(Instr::TEMP_START_MOV);
                                     consts.push(Data::Null);
                                     let final_tgt_id = (consts.len() - 1) as u16;
                                     output.push(Instr::Call(*loc, final_tgt_id));
-                                    // let mut i = 0;
-                                    // let len = instr_backups.len();
-                                    // for (x, y) in instr_backups {
-                                    //     output.push(Instr::RestoreCallArg(y, x, i==(len-1)));
-                                    //     i += 1;
-                                    // }
-                                    // output.push(Instr::TEMP_STOP_MOV);
+
                                     for (x, y) in saves {
                                         output.push(Instr::MovAnon(y, x));
                                     }
@@ -1071,7 +1048,6 @@ fn parser_to_instr_set(
                             }
                             let vars = fn_variables.clone();
                             consts.push(Data::Null);
-                            // let start = consts.len();
                             output.extend(parser_to_instr_set(
                                 found.2.to_vec(),
                                 &mut fn_variables,
@@ -1086,7 +1062,6 @@ fn parser_to_instr_set(
                                 )),
                                 arrs,
                             ));
-                            let end = consts.len();
                         }
                     }
                 } else if *namespace == ["io"] {
