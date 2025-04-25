@@ -49,41 +49,6 @@ pub enum Expr {
 
 lalrpop_mod!(pub grammar);
 
-fn get_tgt_id(x: Instr) -> u16 {
-    match x {
-        Instr::Mov(_, y)
-        | Instr::Add(_, _, y)
-        | Instr::Mul(_, _, y)
-        | Instr::Sub(_, _, y)
-        | Instr::Div(_, _, y)
-        | Instr::Mod(_, _, y)
-        | Instr::Pow(_, _, y)
-        | Instr::Eq(_, _, y)
-        | Instr::NotEq(_, _, y)
-        | Instr::Sup(_, _, y)
-        | Instr::SupEq(_, _, y)
-        | Instr::Inf(_, _, y)
-        | Instr::InfEq(_, _, y)
-        | Instr::BoolAnd(_, _, y)
-        | Instr::BoolOr(_, _, y)
-        | Instr::Neg(_, y)
-        | Instr::Num(_, y)
-        | Instr::Bool(_, y)
-        | Instr::ApplyFunc(_, _, y)
-        | Instr::Input(_, y)
-        | Instr::GetIndex(_, _, y)
-        | Instr::Range(_, _, y)
-        | Instr::Type(_, y)
-        | Instr::IoOpen(_, y, _)
-        | Instr::Floor(_, y)
-        | Instr::Ret(_, y)
-        | Instr::Call(_, y)
-        | Instr::TheAnswer(y)
-        | Instr::Str(_, y) => y,
-        _ => unreachable!("Was unable to match {:?}", x),
-    }
-}
-
 fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     if x.is_empty()
         || matches!(
@@ -168,7 +133,42 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     }
 }
 
-fn get_tgt_id_vec(x: &mut [Instr]) -> u16 {
+fn get_tgt_id(x: Instr) -> u16 {
+    match x {
+        Instr::Mov(_, y)
+        | Instr::Add(_, _, y)
+        | Instr::Mul(_, _, y)
+        | Instr::Sub(_, _, y)
+        | Instr::Div(_, _, y)
+        | Instr::Mod(_, _, y)
+        | Instr::Pow(_, _, y)
+        | Instr::Eq(_, _, y)
+        | Instr::NotEq(_, _, y)
+        | Instr::Sup(_, _, y)
+        | Instr::SupEq(_, _, y)
+        | Instr::Inf(_, _, y)
+        | Instr::InfEq(_, _, y)
+        | Instr::BoolAnd(_, _, y)
+        | Instr::BoolOr(_, _, y)
+        | Instr::Neg(_, y)
+        | Instr::Num(_, y)
+        | Instr::Bool(_, y)
+        | Instr::ApplyFunc(_, _, y)
+        | Instr::Input(_, y)
+        | Instr::GetIndex(_, _, y)
+        | Instr::Range(_, _, y)
+        | Instr::Type(_, y)
+        | Instr::IoOpen(_, y, _)
+        | Instr::Floor(_, y)
+        | Instr::Ret(_, y)
+        | Instr::Call(_, y)
+        | Instr::TheAnswer(y)
+        | Instr::Str(_, y) => y,
+        _ => unreachable!("Was unable to match {:?}", x),
+    }
+}
+
+fn get_tgt_id_vec(x: &[Instr]) -> u16 {
     if x.is_empty()
         || matches!(
             x.last().unwrap(),
@@ -178,7 +178,7 @@ fn get_tgt_id_vec(x: &mut [Instr]) -> u16 {
         unreachable!();
     }
     match x
-        .get_mut(
+        .get(
             x.iter()
                 .rposition(|w| {
                     matches!(
@@ -271,6 +271,7 @@ macro_rules! handle_ops {
     };
 }
 
+#[inline(always)]
 fn get_id(
     x: Expr,
     variables: &mut Vec<(Intern<String>, u16)>,
@@ -327,25 +328,21 @@ fn get_id(
             consts.push(Data::Array(id));
             (consts.len() - 1) as u16
         }
-        _ => {
-            print!("PARSING FOR ID {:?}", x);
+        other => {
             instr.extend(parser_to_instr_set(
-                vec![x],
+                vec![other],
                 variables,
                 consts,
                 functions,
                 fn_state,
                 arrays,
             ));
-            if instr.is_empty() {
-                (consts.len() - 1) as u16
-            } else {
-                get_tgt_id_vec(instr)
-            }
+            get_tgt_id_vec(instr)
         }
     }
 }
 
+#[inline(always)]
 fn expr_to_data(input: &Expr) -> Data {
     match input {
         Expr::Num(num) => Data::Number(*num as Num),
@@ -355,10 +352,12 @@ fn expr_to_data(input: &Expr) -> Data {
     }
 }
 
+#[inline(always)]
 fn can_move(x: Instr) -> bool {
     !matches!(x, Instr::ArrayMov(_, _, _))
 }
 
+#[inline(always)]
 fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwards: bool) {
     match *output.last().unwrap() {
         Instr::Inf(o1, o2, o3) => {
@@ -983,7 +982,7 @@ fn parser_to_instr_set(
                                     let mut saves: Vec<(u16, u16)> = Vec::new();
                                     // recursive function, go back to function def and move on
                                     for i in 0..args_len {
-                                        let arg = args.get(i).unwrap();
+                                        let arg = &args[i];
                                         let val = expr_to_data(arg);
                                         consts.push(Data::Null);
                                         output.push(Instr::Mov(
