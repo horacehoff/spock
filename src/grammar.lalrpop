@@ -134,12 +134,12 @@ VarAssign: Expr = {
 }
 
 OpVarAssign: Expr = {
-    <v: Var> "+=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Add), e])))),
-    <v: Var> "-=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Sub), e])))),
-    <v: Var> "*=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Mul), e])))),
-    <v: Var> "/=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Div), e])))),
-    <v: Var> "%=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Mod), e])))),
-    <v: Var> "^=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(v),Expr::Opcode(Opcode::Pow), e])))),
+    <v: Var> "+=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),Expr::Opcode(Opcode::Add), e])))),
+    <v: Var> "-=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),Expr::Opcode(Opcode::Sub), e])))),
+    <v: Var> "*=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),Expr::Opcode(Opcode::Mul), e])))),
+    <v: Var> "/=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),Expr::Opcode(Opcode::Div), e])))),
+    <v: Var> "%=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),Expr::Opcode(Opcode::Mod), e])))),
+    <v: Var> "^=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),Expr::Opcode(Opcode::Pow), e])))),
 }
 
 IndexAccess: Expr = {
@@ -330,7 +330,7 @@ Term: Expr = {
     <t: Num> => Expr::Num(t),
     <b: Bool> => Expr::Bool(b),
     <s: String> => Expr::String(s),
-    <v: Var> => Expr::Var(v),
+    <v: Var> => Expr::Var(Intern::from(v)),
     "[" <t: Expression?> <f: ("," Expression)*> "]" => {
         let mut terms = Vec::new();
         if let Some(x) = t {

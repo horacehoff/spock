@@ -18,14 +18,14 @@ pub fn while_loop_summation(
                 if op == &Expr::Opcode(Opcode::Inf) {
                     if let Expr::Var(var_name) = items.first().unwrap() {
                         if let Expr::VarAssign(name, x) = y.first().unwrap() {
-                            if **name == *var_name {
+                            if *name == *var_name {
                                 if let Expr::Op(second_items) = &**x {
                                     if items.len() == 3 {
                                         let op = second_items.get(1).unwrap();
                                         let dest_reps = second_items.get(2).unwrap();
                                         if op == &Expr::Opcode(Opcode::Add) {
                                             if second_items.first().unwrap()
-                                                == &Expr::Var(name.to_string())
+                                                == &Expr::Var(*name)
                                             {
                                                 let var_id =
                                                     v.iter().find(|(w, _)| *w == *name).unwrap().1;

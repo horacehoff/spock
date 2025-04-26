@@ -17,7 +17,7 @@ pub enum Expr {
     Opcode(Opcode),
     Priority(Box<Expr>),
     String(String),
-    Var(String),
+    Var(Intern<String>),
     Array(Box<[Expr]>),
     VarDeclare(Intern<String>, Box<Expr>),
     VarAssign(Intern<String>, Box<Expr>),
@@ -293,7 +293,7 @@ fn get_id(
         Expr::Var(name) => {
             print!("getting id of var {name:?}");
             print!("{variables:?}");
-            if let Some((_, id)) = variables.iter().find(|(var, _)| name == **var) {
+            if let Some((_, id)) = variables.iter().find(|(var, _)| name == *var) {
                 print!("returning id {id:?}");
                 *id
             } else {
@@ -468,7 +468,7 @@ fn parser_to_instr_set(
     // arrays
     arrs: &mut FnvHashMap<u16, Vec<Data>>,
 ) -> Vec<Instr> {
-    let mut output: Vec<Instr> = Vec::new();
+    let mut output: Vec<Instr> = Vec::with_capacity(input.len());
     for x in input {
         print!("PARSING {x}");
         let ctx = x.to_string();
@@ -509,7 +509,7 @@ fn parser_to_instr_set(
             }
             Expr::Var(name) => {
                 consts.push(Data::Null);
-                if let Some((_, var_id)) = v.iter().rev().find(|(x, _)| name == **x) {
+                if let Some((_, var_id)) = v.iter().rev().find(|(x, _)| name == *x) {
                     output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
                 } else {
                     error!(

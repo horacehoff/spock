@@ -17,6 +17,7 @@ lalrpop = "0.22.1"
 [profile.dev]
 panic = 'abort'
 debug-assertions = true
+opt-level = 1
 
 [profile.release]
 opt-level = 3
