@@ -15,7 +15,7 @@ fnv = "1.0.3"
 lalrpop = "0.22.1"
 
 [profile.dev]
-panic = 'abort'
+panic = 'unwind'
 debug-assertions = true
 opt-level = 1
 

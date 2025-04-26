@@ -1,7 +1,6 @@
 use crate::display::print_instructions;
 use crate::optimizations::while_loop_summation;
 use crate::{check_args, check_args_range, print};
-// use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::{Data, Instr, Num, Opcode, error};
 use fnv::FnvHashMap;
 use inline_colorization::*;
@@ -58,7 +57,6 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     {
         return;
     }
-    print!("MOVING TO ID {tgt_id} => {x:?}");
     match x
         .get_mut(
             x.iter()
@@ -276,7 +274,6 @@ fn get_id(
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
     fn_state: Option<&FunctionState>,
 ) -> u16 {
-    print!("GETTING ID OF {x:?}");
     match x {
         Expr::Num(num) => {
             consts.push(Data::Number(num as Num));
@@ -291,10 +288,7 @@ fn get_id(
             (consts.len() - 1) as u16
         }
         Expr::Var(name) => {
-            print!("getting id of var {name:?}");
-            print!("{variables:?}");
             if let Some((_, id)) = variables.iter().find(|(var, _)| name == *var) {
-                print!("returning id {id:?}");
                 *id
             } else {
                 error!(
@@ -312,8 +306,9 @@ fn get_id(
                     parser_to_instr_set(vec![elem], variables, consts, functions, fn_state, arrays);
                 if !x.is_empty() {
                     let c_id = get_tgt_id(*x.last().unwrap());
-                    instr.extend(x);
                     arrays.get_mut(&id).unwrap().push(Data::Null);
+
+                    instr.extend(x);
                     instr.push(Instr::ArrayMov(c_id, id, (arrays[&id].len() - 1) as u16));
                 } else {
                     arrays.get_mut(&id).unwrap().push(consts.pop().unwrap());
@@ -442,12 +437,6 @@ macro_rules! add_args {
             );
             $output.push(Instr::StoreFuncArg(arg_id));
         }
-    };
-}
-
-macro_rules! ctx {
-    ($x: expr) => {
-        x.to_string()
     };
 }
 
