@@ -1,4 +1,4 @@
-> Please note Spock is very experimental, and as such many more optimizations are still to come.
+> Please note Spock is very experimental, and as such many more optimizations and speed improvements are still to come.
 
 - ## Fib(40) repeated 200000 times
 
