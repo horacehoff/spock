@@ -164,88 +164,83 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::Call(_, y)
         | Instr::TheAnswer(y)
         | Instr::Str(_, y) => y,
-        _ => unreachable!("Was unable to match {:?}", x),
+        _ => unreachable!(),
     }
 }
 
 fn get_tgt_id_vec(x: &[Instr]) -> u16 {
-    if x.is_empty()
-        || matches!(
-            x.last().unwrap(),
-            Instr::ArrayMov(_, _, _) | Instr::IoDelete(_)
+    debug_assert!(
+        !(x.is_empty()
+            || matches!(
+                x.last().unwrap(),
+                Instr::ArrayMov(_, _, _) | Instr::IoDelete(_)
+            ))
+    );
+    match x.iter().rposition(|w| {
+        matches!(
+            w,
+            Instr::Add(_, _, _)
+                | Instr::Mul(_, _, _)
+                | Instr::Sub(_, _, _)
+                | Instr::Div(_, _, _)
+                | Instr::Mod(_, _, _)
+                | Instr::Pow(_, _, _)
+                | Instr::Eq(_, _, _)
+                | Instr::NotEq(_, _, _)
+                | Instr::Sup(_, _, _)
+                | Instr::SupEq(_, _, _)
+                | Instr::Inf(_, _, _)
+                | Instr::InfEq(_, _, _)
+                | Instr::BoolAnd(_, _, _)
+                | Instr::BoolOr(_, _, _)
+                | Instr::Mov(_, _)
+                | Instr::Neg(_, _)
+                | Instr::Bool(_, _)
+                | Instr::Num(_, _)
+                | Instr::Str(_, _)
+                | Instr::Type(_, _)
+                | Instr::Range(_, _, _)
+                | Instr::IoOpen(_, _, _)
+                | Instr::GetIndex(_, _, _)
+                | Instr::ApplyFunc(_, _, _)
+                | Instr::Floor(_, _)
+                | Instr::Input(_, _)
+                | Instr::Call(_, _)
+                | Instr::Ret(_, _)
         )
-    {
-        unreachable!();
-    }
-    match x
-        .get(
-            x.iter()
-                .rposition(|w| {
-                    matches!(
-                        w,
-                        Instr::Add(_, _, _)
-                            | Instr::Mul(_, _, _)
-                            | Instr::Sub(_, _, _)
-                            | Instr::Div(_, _, _)
-                            | Instr::Mod(_, _, _)
-                            | Instr::Pow(_, _, _)
-                            | Instr::Eq(_, _, _)
-                            | Instr::NotEq(_, _, _)
-                            | Instr::Sup(_, _, _)
-                            | Instr::SupEq(_, _, _)
-                            | Instr::Inf(_, _, _)
-                            | Instr::InfEq(_, _, _)
-                            | Instr::BoolAnd(_, _, _)
-                            | Instr::BoolOr(_, _, _)
-                            | Instr::Mov(_, _)
-                            | Instr::Neg(_, _)
-                            | Instr::Bool(_, _)
-                            | Instr::Num(_, _)
-                            | Instr::Str(_, _)
-                            | Instr::Type(_, _)
-                            | Instr::Range(_, _, _)
-                            | Instr::IoOpen(_, _, _)
-                            | Instr::GetIndex(_, _, _)
-                            | Instr::ApplyFunc(_, _, _)
-                            | Instr::Floor(_, _)
-                            | Instr::Input(_, _)
-                            | Instr::Call(_, _)
-                            | Instr::Ret(_, _)
-                    )
-                })
-                .unwrap_or(x.len() - 1),
-        )
-        .unwrap()
-    {
-        Instr::Add(_, _, z)
-        | Instr::Mul(_, _, z)
-        | Instr::Sub(_, _, z)
-        | Instr::Div(_, _, z)
-        | Instr::Mod(_, _, z)
-        | Instr::Pow(_, _, z)
-        | Instr::Eq(_, _, z)
-        | Instr::NotEq(_, _, z)
-        | Instr::Sup(_, _, z)
-        | Instr::SupEq(_, _, z)
-        | Instr::Inf(_, _, z)
-        | Instr::InfEq(_, _, z)
-        | Instr::BoolAnd(_, _, z)
-        | Instr::BoolOr(_, _, z)
-        | Instr::Mov(_, z)
-        | Instr::Neg(_, z)
-        | Instr::Type(_, z)
-        | Instr::Bool(_, z)
-        | Instr::Num(_, z)
-        | Instr::ApplyFunc(_, _, z)
-        | Instr::Input(_, z)
-        | Instr::GetIndex(_, _, z)
-        | Instr::Range(_, _, z)
-        | Instr::IoOpen(_, z, _)
-        | Instr::Floor(_, z)
-        | Instr::Ret(_, z)
-        | Instr::Call(_, z)
-        | Instr::Str(_, z) => *z,
-        _ => unreachable!(),
+    }) {
+        Some(idx) => match &x[idx] {
+            Instr::Add(_, _, z)
+            | Instr::Mul(_, _, z)
+            | Instr::Sub(_, _, z)
+            | Instr::Div(_, _, z)
+            | Instr::Mod(_, _, z)
+            | Instr::Pow(_, _, z)
+            | Instr::Eq(_, _, z)
+            | Instr::NotEq(_, _, z)
+            | Instr::Sup(_, _, z)
+            | Instr::SupEq(_, _, z)
+            | Instr::Inf(_, _, z)
+            | Instr::InfEq(_, _, z)
+            | Instr::BoolAnd(_, _, z)
+            | Instr::BoolOr(_, _, z)
+            | Instr::Mov(_, z)
+            | Instr::Neg(_, z)
+            | Instr::Type(_, z)
+            | Instr::Bool(_, z)
+            | Instr::Num(_, z)
+            | Instr::ApplyFunc(_, _, z)
+            | Instr::Input(_, z)
+            | Instr::GetIndex(_, _, z)
+            | Instr::Range(_, _, z)
+            | Instr::IoOpen(_, z, _)
+            | Instr::Floor(_, z)
+            | Instr::Ret(_, z)
+            | Instr::Call(_, z)
+            | Instr::Str(_, z) => *z,
+            _ => unreachable!(),
+        },
+        None => unreachable!(),
     }
 }
 
@@ -271,7 +266,6 @@ macro_rules! handle_ops {
     };
 }
 
-#[inline(always)]
 fn get_id(
     x: Expr,
     variables: &mut Vec<(Intern<String>, u16)>,
@@ -461,6 +455,7 @@ type Function = (String, Box<[String]>, Box<[Expr]>);
 // last = expecting return ?
 type FunctionState = (String, u16, Vec<(Intern<String>, u16)>, Option<u16>, bool);
 
+#[inline(always)]
 fn parser_to_instr_set(
     input: Vec<Expr>,
     // variables
