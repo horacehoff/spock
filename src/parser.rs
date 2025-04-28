@@ -1,6 +1,6 @@
 use std::slice;
 use crate::display::print_instructions;
-use crate::optimizations::while_loop_summation;
+use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::{check_args, check_args_range, print};
 use crate::{Data, Instr, Num, Opcode, error};
 use fnv::FnvHashMap;
@@ -489,10 +489,13 @@ fn parser_to_instr_set(
                 consts.push(Data::Array(id));
                 print!("ARRAYS {arrs:?}");
             }
+            // array[index]
             Expr::GetIndex(target, index) => {
+                // process the array/string that is being indexed
                 let x = parser_to_instr_set(slice::from_ref(target), v, consts, fns, fn_state, arrs);
                 output.extend(x);
                 let mut id = (consts.len() - 1) as u16;
+                // for each index operation, process the index, adjust the id variable for the nest index operation, push null to constants to use GetIndex to index at runtime
                 for elem in index {
                     let x = parser_to_instr_set(slice::from_ref(elem), v, consts, fns, fn_state, arrs);
                     output.extend(x);
@@ -676,9 +679,9 @@ fn parser_to_instr_set(
                 );
                 // println!("ARRAY ID IS {array}");
                 // println!("CONSTS {consts:?}");
-                // if for_loop_summation(&mut output, consts, v, arrs, array, code.clone()) {
-                //     continue;
-                // }
+                if for_loop_summation(&mut output, consts, v, arrs, array, code) {
+                    continue;
+                }
                 consts.push(Data::Null);
                 let array_len_id = (consts.len() - 1) as u16;
                 output.push(Instr::ApplyFunc(2, array, array_len_id));

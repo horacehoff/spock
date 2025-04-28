@@ -1,3 +1,4 @@
+use fnv::FnvHashMap;
 use crate::parser::Expr;
 use crate::{Data, Instr, Opcode};
 use internment::Intern;
@@ -64,56 +65,61 @@ pub fn while_loop_summation(
     false
 }
 //
-// pub fn for_loop_summation(
-//     output: &mut Vec<Instr>,
-//     consts: &mut Vec<Data>,
-//     v: &mut [(String, u16)],
-//     arrs: &mut FnvHashMap<u16, Vec<Data>>,
-//     array: u16,
-//     code: Box<[Expr]>,
-// ) -> bool {
-//     if code.len() == 1 {
-//         if let Expr::VarAssign(name, x) = code.first().unwrap() {
-//             if let Expr::Op(base, tgt) = &**x {
-//                 if tgt.len() == 1 {
-//                     let (op, dest) = tgt.first().unwrap();
-//                     if **base == Expr::Var(name.to_string()) {
-//                         let var_id = v.iter().find(|(w, _)| w == name).unwrap().1;
-//                         if let Expr::Num(reps) = **dest {
-//                             if let Data::Array(id) = consts[array as usize] {
-//                                 let len = arrs[&id].len();
-//                                 if op == &Opcode::Add {
-//                                     consts.push(Data::Number(reps * len as f64));
-//                                 } else if op == &Opcode::Mul {
-//                                     consts.push(Data::Number(reps.powi(len as i32)));
-//                                 }
-//                                 output.push(Instr::Mov((consts.len() - 1) as u16, var_id));
-//                             } else {
-//                                 consts.push(Data::Null);
-//                                 output.push(Instr::ApplyFunc(2, array, (consts.len() - 1) as u16));
-//                                 consts.push(Data::Number(reps));
-//                                 consts.push(Data::Null);
-//                                 if op == &Opcode::Add {
-//                                     output.push(Instr::Mul(
-//                                         (consts.len() - 3) as u16,
-//                                         (consts.len() - 2) as u16,
-//                                         (consts.len() - 1) as u16,
-//                                     ));
-//                                 } else if op == &Opcode::Mul {
-//                                     output.push(Instr::Pow(
-//                                         (consts.len() - 2) as u16,
-//                                         (consts.len() - 3) as u16,
-//                                         (consts.len() - 1) as u16,
-//                                     ));
-//                                 }
-//                                 output.push(Instr::Mov((consts.len() - 1) as u16, var_id));
-//                             }
-//                             return true;
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//     }
-//     false
-// }
+pub fn for_loop_summation(
+    output: &mut Vec<Instr>,
+    consts: &mut Vec<Data>,
+    v: &mut [(Intern<String>, u16)],
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    array: u16,
+    code: &[Expr],
+) -> bool {
+    if code.len() == 1 {
+        if let Expr::VarAssign(name, x) = code.first().unwrap() {
+            if let Expr::Op(items) = &**x {
+                if items.len() == 3 {
+                    if &Expr::Var(*name) == items.first().unwrap() {
+                        let var_id = v.iter().find(|(w, _)| w == name).unwrap().1;
+                        if let Expr::Num(reps) = items.last().unwrap() {
+                            let op = if let Expr::Opcode(x) = items[1] {
+                                x
+                            } else {
+                                unreachable!()
+                            };
+                            
+                            if let Data::Array(id) = consts[array as usize] {
+                                let len = arrs[&id].len();
+                                if op == Opcode::Add {
+                                    consts.push(Data::Number(reps * len as f64));
+                                } else if op == Opcode::Mul {
+                                    consts.push(Data::Number(reps.powi(len as i32)));
+                                }
+                                output.push(Instr::Mov((consts.len() - 1) as u16, var_id));
+                            } else {
+                                consts.push(Data::Null);
+                                output.push(Instr::ApplyFunc(2, array, (consts.len() - 1) as u16));
+                                consts.push(Data::Number(*reps));
+                                consts.push(Data::Null);
+                                if op == Opcode::Add {
+                                    output.push(Instr::Mul(
+                                        (consts.len() - 3) as u16,
+                                        (consts.len() - 2) as u16,
+                                        (consts.len() - 1) as u16,
+                                    ));
+                                } else if op == Opcode::Mul {
+                                    output.push(Instr::Pow(
+                                        (consts.len() - 2) as u16,
+                                        (consts.len() - 3) as u16,
+                                        (consts.len() - 1) as u16,
+                                    ));
+                                }
+                                output.push(Instr::Mov((consts.len() - 1) as u16, var_id));
+                            }
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
+}
