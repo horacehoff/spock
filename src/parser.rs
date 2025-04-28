@@ -1,3 +1,4 @@
+use std::slice;
 use crate::display::print_instructions;
 use crate::optimizations::while_loop_summation;
 use crate::{check_args, check_args_range, print};
@@ -265,7 +266,7 @@ macro_rules! handle_ops {
 }
 
 fn get_id(
-    x: Expr,
+    x: &Expr,
     variables: &mut Vec<(Intern<String>, u16)>,
     consts: &mut Vec<Data>,
     instr: &mut Vec<Instr>,
@@ -276,19 +277,19 @@ fn get_id(
 ) -> u16 {
     match x {
         Expr::Num(num) => {
-            consts.push(Data::Number(num as Num));
+            consts.push(Data::Number(*num as Num));
             (consts.len() - 1) as u16
         }
         Expr::String(str) => {
-            consts.push(Data::String(Intern::from(str)));
+            consts.push(Data::String(Intern::from(str.to_string())));
             (consts.len() - 1) as u16
         }
         Expr::Bool(bool) => {
-            consts.push(Data::Bool(bool));
+            consts.push(Data::Bool(*bool));
             (consts.len() - 1) as u16
         }
         Expr::Var(name) => {
-            if let Some((_, id)) = variables.iter().find(|(var, _)| name == *var) {
+            if let Some((_, id)) = variables.iter().find(|(var, _)| *name == *var) {
                 *id
             } else {
                 error!(
@@ -303,7 +304,7 @@ fn get_id(
             arrays.insert(id, Vec::new());
             for elem in elems {
                 let x =
-                    parser_to_instr_set(vec![elem], variables, consts, functions, fn_state, arrays);
+                    parser_to_instr_set(slice::from_ref(&elem), variables, consts, functions, fn_state, arrays);
                 if !x.is_empty() {
                     let c_id = get_tgt_id(*x.last().unwrap());
                     arrays.get_mut(&id).unwrap().push(Data::Null);
@@ -319,7 +320,7 @@ fn get_id(
         }
         other => {
             instr.extend(parser_to_instr_set(
-                vec![other],
+                slice::from_ref(&other),
                 variables,
                 consts,
                 functions,
@@ -426,7 +427,7 @@ macro_rules! add_args {
     ($args: expr, $variables: expr, $consts: expr, $output: expr, $ctx: expr, $functions: expr, $arrays: expr, $fn_state: expr) => {
         for arg in $args {
             let arg_id = get_id(
-                arg,
+                &arg,
                 $variables,
                 $consts,
                 &mut $output,
@@ -442,11 +443,11 @@ macro_rules! add_args {
 
 type Function = (String, Box<[String]>, Box<[Expr]>);
 // last = expecting return ?
-type FunctionState = (String, u16, Vec<(Intern<String>, u16)>, Option<u16>, bool);
+type FunctionState = (String, u16, Vec<(Intern<String>, u16)>, Option<u16>);
 
 #[inline(always)]
 fn parser_to_instr_set(
-    input: Vec<Expr>,
+    input: &[Expr],
     // variables
     v: &mut Vec<(Intern<String>, u16)>,
     // constants
@@ -462,14 +463,14 @@ fn parser_to_instr_set(
         print!("PARSING {x}");
         let ctx = x.to_string();
         match x {
-            Expr::Num(num) => consts.push(Data::Number(num as Num)),
-            Expr::Bool(bool) => consts.push(Data::Bool(bool)),
-            Expr::String(str) => consts.push(Data::String(Intern::from(str))),
+            Expr::Num(num) => consts.push(Data::Number(*num as Num)),
+            Expr::Bool(bool) => consts.push(Data::Bool(*bool)),
+            Expr::String(str) => consts.push(Data::String(Intern::from(str.to_string()))),
             Expr::Array(elems) => {
                 let id = arrs.len() as u16;
                 arrs.insert(id, Vec::new());
                 for elem in elems {
-                    let x = parser_to_instr_set(vec![elem], v, consts, fns, fn_state, arrs);
+                    let x = parser_to_instr_set(slice::from_ref(elem), v, consts, fns, fn_state, arrs);
                     if !x.is_empty() {
                         let c_id = get_tgt_id(*x.last().unwrap());
                         output.extend(x);
@@ -483,11 +484,11 @@ fn parser_to_instr_set(
                 print!("ARRAYS {arrs:?}");
             }
             Expr::GetIndex(target, index) => {
-                let x = parser_to_instr_set(vec![*target], v, consts, fns, fn_state, arrs);
+                let x = parser_to_instr_set(slice::from_ref(target), v, consts, fns, fn_state, arrs);
                 output.extend(x);
                 let mut id = (consts.len() - 1) as u16;
                 for elem in index {
-                    let x = parser_to_instr_set(vec![elem], v, consts, fns, fn_state, arrs);
+                    let x = parser_to_instr_set(slice::from_ref(elem), v, consts, fns, fn_state, arrs);
                     output.extend(x);
                     let f_id = (consts.len() - 1) as u16;
 
@@ -498,7 +499,7 @@ fn parser_to_instr_set(
             }
             Expr::Var(name) => {
                 consts.push(Data::Null);
-                if let Some((_, var_id)) = v.iter().rev().find(|(x, _)| name == *x) {
+                if let Some((_, var_id)) = v.iter().rev().find(|(x, _)| *name == *x) {
                     output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
                 } else {
                     error!(
@@ -510,17 +511,17 @@ fn parser_to_instr_set(
             }
             Expr::Condition(x, y) => {
                 let mut condition_blocks: Vec<(Vec<Instr>, Vec<Instr>)> = Vec::new();
-                let val = *x;
+                let val = &**x;
                 if matches!(val, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", val));
                 }
-                let condition = parser_to_instr_set(vec![val], v, consts, fns, fn_state, arrs);
+                let condition = parser_to_instr_set(slice::from_ref(val), v, consts, fns, fn_state, arrs);
                 let mut priv_vars = v.clone();
                 let cond_code = parser_to_instr_set(
                     y.iter()
                         .filter(|x| !matches!(x, Expr::ElseIfBlock(_, _) | Expr::ElseBlock(_)))
                         .cloned()
-                        .collect(),
+                        .collect::<Vec<Expr>>().as_slice(),
                     &mut priv_vars,
                     consts,
                     fns,
@@ -537,7 +538,7 @@ fn parser_to_instr_set(
                             error!(ctx, format_args!("{} is not a bool", conserved));
                         }
                         let condition = parser_to_instr_set(
-                            vec![conserved.clone()],
+                            slice::from_ref(conserved),
                             v,
                             consts,
                             fns,
@@ -546,7 +547,7 @@ fn parser_to_instr_set(
                         );
                         let mut priv_vars = v.clone();
                         let cond_code = parser_to_instr_set(
-                            code.to_vec(),
+                            code.as_ref(),
                             &mut priv_vars,
                             consts,
                             fns,
@@ -557,7 +558,7 @@ fn parser_to_instr_set(
                     } else if let Expr::ElseBlock(code) = x {
                         let mut priv_vars = v.clone();
                         let cond_code = parser_to_instr_set(
-                            code.to_vec(),
+                            code.as_ref(),
                             &mut priv_vars,
                             consts,
                             fns,
@@ -615,20 +616,20 @@ fn parser_to_instr_set(
                 print!("{consts:?}");
             }
             Expr::WhileBlock(x, y) => {
-                if matches!(*x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
+                if matches!(&**x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
                 if while_loop_summation(&mut output, consts, v, &x, &y) {
                     continue;
                 }
-                let condition = parser_to_instr_set(vec![*x], v, consts, fns, fn_state, arrs);
+                let condition = parser_to_instr_set(slice::from_ref(x), v, consts, fns, fn_state, arrs);
                 output.extend(condition);
                 let condition_id = get_tgt_id(*output.last().unwrap());
                 let mut temp_vars = v.clone();
                 // let consts_before = consts.len() - 1;
                 // let temp_vars_before = temp_vars.len() - 1;
                 let cond_code =
-                    parser_to_instr_set(y.into_vec(), &mut temp_vars, consts, fns, fn_state, arrs);
+                    parser_to_instr_set(y.as_ref(), &mut temp_vars, consts, fns, fn_state, arrs);
                 // let consts_after = consts.len();
                 // let temp_vars_after = temp_vars.len();
                 // let modified_temp_vars = (temp_vars_before..temp_vars_after)
@@ -654,10 +655,10 @@ fn parser_to_instr_set(
             Expr::ForLoop(var_name, array_code) => {
                 let array = array_code.first().unwrap();
                 // println!("ARR {array:?}");
-                let code = array_code[1..].to_vec();
+                let code = &array_code[1..];
                 // println!("CODE IS {code:?}");
                 let array = get_id(
-                    array.clone(),
+                    array,
                     v,
                     consts,
                     &mut output,
@@ -683,7 +684,7 @@ fn parser_to_instr_set(
 
                 consts.push(Data::Null);
                 let current_element_id = (consts.len() - 1) as u16;
-                v.push((var_name, current_element_id));
+                v.push((*var_name, current_element_id));
                 let current_element_variable_id = v.len() - 1;
                 let mut temp_vars = v.clone();
                 // let consts_before = consts.len() - 1;
@@ -716,26 +717,26 @@ fn parser_to_instr_set(
                 // });
             }
             Expr::VarDeclare(x, y) => {
-                let mut val = parser_to_instr_set(vec![*y], v, consts, fns, fn_state, arrs);
+                let mut val = parser_to_instr_set(slice::from_ref(y), v, consts, fns, fn_state, arrs);
                 print!("VAL IS {val:?}");
                 if val.is_empty() {
                     print!("VAR {x:?} IS EMPTY");
-                    v.push((x, (consts.len() - 1) as u16));
+                    v.push((*x, (consts.len() - 1) as u16));
                 } else {
                     if can_move(*val.last().unwrap()) {
                         consts.push(Data::Null);
                     }
                     move_to_id(&mut val, (consts.len() - 1) as u16);
-                    v.push((x, (consts.len() - 1) as u16));
+                    v.push((*x, (consts.len() - 1) as u16));
                     output.extend(val);
                 }
             }
             Expr::ArrayModify(x, z, w) => {
-                let mut id = get_id(*x, v, consts, &mut output, &ctx, fns, arrs, fn_state);
+                let mut id = get_id(x, v, consts, &mut output, &ctx, fns, arrs, fn_state);
 
                 for elem in z.iter().rev().skip(1).rev() {
                     print!("ELM {elem:?}");
-                    let x = parser_to_instr_set(vec![elem.clone()], v, consts, fns, fn_state, arrs);
+                    let x = parser_to_instr_set(slice::from_ref(elem), v, consts, fns, fn_state, arrs);
                     output.extend(x);
                     let f_id = (consts.len() - 1) as u16;
 
@@ -745,7 +746,7 @@ fn parser_to_instr_set(
                 }
 
                 let final_id = get_id(
-                    z.last().unwrap().clone(),
+                    z.last().unwrap(),
                     v,
                     consts,
                     &mut output,
@@ -759,7 +760,7 @@ fn parser_to_instr_set(
                 print!("CONSTS IS {consts:?}");
                 print!("LAST Z IS {}", z.last().unwrap());
 
-                let elem_id = get_id(*w, v, consts, &mut output, &ctx, fns, arrs, fn_state);
+                let elem_id = get_id(w, v, consts, &mut output, &ctx, fns, arrs, fn_state);
 
                 let to_push = Instr::ArrayMod(id, elem_id, final_id);
                 output.push(to_push);
@@ -767,7 +768,7 @@ fn parser_to_instr_set(
             Expr::VarAssign(x, y) => {
                 let id = v
                     .iter()
-                    .find(|(w, _)| w == &x)
+                    .find(|(w, _)| w == x)
                     .unwrap_or_else(|| {
                         error!(
                             ctx,
@@ -777,7 +778,7 @@ fn parser_to_instr_set(
                     })
                     .1;
 
-                let mut value = parser_to_instr_set(vec![*y], v, consts, fns, fn_state, arrs);
+                let mut value = parser_to_instr_set(slice::from_ref(y), v, consts, fns, fn_state, arrs);
                 move_to_id(&mut value, id);
                 if value.is_empty() {
                     output.push(Instr::Mov((consts.len() - 1) as u16, id));
@@ -800,7 +801,7 @@ fn parser_to_instr_set(
                         "type" => {
                             check_args!(args, 1, "type", ctx);
                             let id = get_id(
-                                args[0].clone(),
+                                &args[0],
                                 v,
                                 consts,
                                 &mut output,
@@ -815,7 +816,7 @@ fn parser_to_instr_set(
                         "Num" => {
                             check_args!(args, 1, "Num", ctx);
                             let id = get_id(
-                                args[0].clone(),
+                                &args[0],
                                 v,
                                 consts,
                                 &mut output,
@@ -830,7 +831,7 @@ fn parser_to_instr_set(
                         "str" => {
                             check_args!(args, 1, "str", ctx);
                             let id = get_id(
-                                args[0].clone(),
+                                &args[0],
                                 v,
                                 consts,
                                 &mut output,
@@ -845,7 +846,7 @@ fn parser_to_instr_set(
                         "bool" => {
                             check_args!(args, 1, "bool", ctx);
                             let id = get_id(
-                                args[0].clone(),
+                                &args[0],
                                 v,
                                 consts,
                                 &mut output,
@@ -861,7 +862,7 @@ fn parser_to_instr_set(
                             check_args_range!(args, 0, 1, "input", ctx);
                             if !args.is_empty() {
                                 let id = get_id(
-                                    args[0].clone(),
+                                    &args[0],
                                     v,
                                     consts,
                                     &mut output,
@@ -883,7 +884,7 @@ fn parser_to_instr_set(
                             check_args_range!(args, 1, 2, "range", ctx);
                             if args.len() == 1 {
                                 let id_x = get_id(
-                                    args[0].clone(),
+                                    &args[0],
                                     v,
                                     consts,
                                     &mut output,
@@ -901,7 +902,7 @@ fn parser_to_instr_set(
                                 ));
                             } else {
                                 let id_x = get_id(
-                                    args[0].clone(),
+                                    &args[0],
                                     v,
                                     consts,
                                     &mut output,
@@ -911,7 +912,7 @@ fn parser_to_instr_set(
                                     fn_state,
                                 );
                                 let id_y = get_id(
-                                    args[1].clone(),
+                                    &args[1],
                                     v,
                                     consts,
                                     &mut output,
@@ -927,7 +928,7 @@ fn parser_to_instr_set(
                         "floor" => {
                             check_args!(args, 1, "floor", ctx);
                             let id = get_id(
-                                args[0].clone(),
+                                &args[0],
                                 v,
                                 consts,
                                 &mut output,
@@ -961,7 +962,7 @@ fn parser_to_instr_set(
                             let args_len = found.1.len();
                             check_args!(args, args_len, function, ctx);
 
-                            if let Some((name, loc, func_args, _, _)) = fn_state {
+                            if let Some((name, loc, func_args, _)) = fn_state {
                                 if name == function {
                                     let mut saves: Vec<(u16, u16)> = Vec::new();
                                     // recursive function, go back to function def and move on
@@ -979,7 +980,7 @@ fn parser_to_instr_set(
                                         } else {
                                             print!("{arg}");
                                             let mut value = parser_to_instr_set(
-                                                vec![arg.clone()],
+                                                slice::from_ref(arg),
                                                 v,
                                                 consts,
                                                 fns,
@@ -1019,7 +1020,7 @@ fn parser_to_instr_set(
                             for (i, x) in found.1.iter().enumerate() {
                                 let len = consts.len() as u16;
                                 let mut value = parser_to_instr_set(
-                                    vec![args[i].clone()],
+                                    slice::from_ref(&args[i]),
                                     v,
                                     consts,
                                     &mut fns.clone(),
@@ -1032,8 +1033,12 @@ fn parser_to_instr_set(
                             }
                             let vars = fn_variables.clone();
                             consts.push(Data::Null);
-                            output.extend(parser_to_instr_set(
-                                found.2.to_vec(),
+
+
+
+                            let wtf = found.2.to_vec();
+                            let to_extend = parser_to_instr_set(
+                                &wtf,
                                 &mut fn_variables,
                                 consts,
                                 fns,
@@ -1042,10 +1047,12 @@ fn parser_to_instr_set(
                                     output.len() as u16,
                                     vars,
                                     Some((consts.len() - 1) as u16),
-                                    false,
                                 )),
                                 arrs,
-                            ));
+                            );
+
+
+                            output.extend(to_extend);
                         }
                     }
                 } else if *namespace == ["io"] {
@@ -1054,7 +1061,7 @@ fn parser_to_instr_set(
                             check_args_range!(args, 1, 2, "open", ctx);
                             consts.push(Data::Null);
                             let arg_id = get_id(
-                                args[0].clone(),
+                                &args[0],
                                 v,
                                 consts,
                                 &mut output,
@@ -1069,7 +1076,7 @@ fn parser_to_instr_set(
                                 (consts.len() - 1) as u16
                             } else {
                                 get_id(
-                                    args[1].clone(),
+                                    &args[1],
                                     v,
                                     consts,
                                     &mut output,
@@ -1089,7 +1096,7 @@ fn parser_to_instr_set(
                         "delete" => {
                             check_args!(args, 1, "delete", ctx);
                             let arg_id = get_id(
-                                args[0].clone(),
+                                &args[0],
                                 v,
                                 consts,
                                 &mut output,
@@ -1131,7 +1138,7 @@ fn parser_to_instr_set(
             }
             Expr::ReturnVal(val) => {
                 if let Some(x) = fn_state {
-                    if let Some(return_value) = *val {
+                    if let Some(return_value) = &**val {
                         if let Some(ret_id) = x.3 {
                             let val = get_id(
                                 return_value,
@@ -1152,9 +1159,9 @@ fn parser_to_instr_set(
                 }
             }
             Expr::ObjFunctionCall(obj, funcs) => {
-                let mut id = get_id(*obj, v, consts, &mut output, &ctx, fns, arrs, fn_state);
+                let mut id = get_id(obj, v, consts, &mut output, &ctx, fns, arrs, fn_state);
                 for func in funcs {
-                    let args = func.1;
+                    let args = &func.1;
                     match func.0.as_str() {
                         "uppercase" => {
                             check_args!(args, 0, "uppercase", ctx);
@@ -1358,11 +1365,11 @@ fn parser_to_instr_set(
                 fns.push((
                     x.first().unwrap().to_string(),
                     x.iter().skip(1).map(ToString::to_string).collect(),
-                    y,
+                    y.clone(),
                 ));
             }
             Expr::Op(items) => {
-                let mut item_stack: Vec<Expr> = Vec::with_capacity(4);
+                let mut item_stack: Vec<&Expr> = Vec::with_capacity(4);
                 let mut final_stack: Vec<Instr> = Vec::with_capacity(
                     items
                         .iter()
@@ -1403,7 +1410,7 @@ fn parser_to_instr_set(
             }
             Expr::Priority(x) => {
                 output.extend(parser_to_instr_set(
-                    vec![*x],
+                    slice::from_ref(x),
                     v,
                     consts,
                     fns,
@@ -1466,7 +1473,7 @@ pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, FnvHashMap<u16, Vec<Data
     let mut consts: Vec<Data> = Vec::new();
     let mut arrays: FnvHashMap<u16, Vec<Data>> = FnvHashMap::default();
     let instructions = parser_to_instr_set(
-        main_function,
+        &main_function,
         &mut variables,
         &mut consts,
         &mut functions,
