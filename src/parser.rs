@@ -304,7 +304,7 @@ fn get_id(
             arrays.insert(id, Vec::new());
             for elem in elems {
                 let x =
-                    parser_to_instr_set(slice::from_ref(&elem), variables, consts, functions, fn_state, arrays);
+                    parser_to_instr_set(slice::from_ref(elem), variables, consts, functions, fn_state, arrays);
                 if !x.is_empty() {
                     let c_id = get_tgt_id(*x.last().unwrap());
                     arrays.get_mut(&id).unwrap().push(Data::Null);
@@ -320,7 +320,7 @@ fn get_id(
         }
         other => {
             instr.extend(parser_to_instr_set(
-                slice::from_ref(&other),
+                slice::from_ref(other),
                 variables,
                 consts,
                 functions,
@@ -629,7 +629,7 @@ fn parser_to_instr_set(
                 if matches!(&**x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", *x));
                 }
-                if while_loop_summation(&mut output, consts, v, &x, &y) {
+                if while_loop_summation(&mut output, consts, v, x, y) {
                     continue;
                 }
                 let condition = parser_to_instr_set(slice::from_ref(x), v, consts, fns, fn_state, arrs);
@@ -956,7 +956,7 @@ fn parser_to_instr_set(
                             output.push(Instr::TheAnswer((consts.len() - 1) as u16));
                         }
                         function => {
-                            let found =
+                            let user_function =
                                 fns.iter()
                                     .find(|(a, _, _)| *a == function)
                                     .unwrap_or_else(|| {
@@ -969,7 +969,7 @@ fn parser_to_instr_set(
                                         );
                                     });
 
-                            let args_len = found.1.len();
+                            let args_len = user_function.1.len();
                             check_args!(args, args_len, function, ctx);
 
                             if let Some((name, loc, func_args, _)) = fn_state {
@@ -979,6 +979,7 @@ fn parser_to_instr_set(
                                     for i in 0..args_len {
                                         let arg = &args[i];
                                         let val = expr_to_data(arg);
+                                        // backup args to avoid them getting modified by the function
                                         consts.push(Data::Null);
                                         output.push(Instr::Mov(
                                             func_args[i].1,
@@ -1003,20 +1004,11 @@ fn parser_to_instr_set(
                                         }
                                     }
 
-                                    fn get_all_tgt_id(x: &[Instr]) -> Vec<u16> {
-                                        let mut total: Vec<u16> = Vec::new();
-                                        for x in x {
-                                            if !matches!(x, Instr::Ret(_, _)) {
-                                                total.push(get_tgt_id(*x));
-                                            }
-                                        }
-                                        total
-                                    }
-
                                     consts.push(Data::Null);
                                     let final_tgt_id = (consts.len() - 1) as u16;
                                     output.push(Instr::Call(*loc, final_tgt_id));
 
+                                    // restore the args, use MovAnon so as not to be modified by mov_to_id()
                                     for (x, y) in saves {
                                         output.push(Instr::MovAnon(y, x));
                                     }
@@ -1027,7 +1019,7 @@ fn parser_to_instr_set(
 
                             let mut fn_variables: Vec<(Intern<String>, u16)> = Vec::new();
 
-                            for (i, x) in found.1.iter().enumerate() {
+                            for (i, x) in user_function.1.iter().enumerate() {
                                 let len = consts.len() as u16;
                                 let mut value = parser_to_instr_set(
                                     slice::from_ref(&args[i]),
@@ -1045,10 +1037,10 @@ fn parser_to_instr_set(
                             consts.push(Data::Null);
 
 
-
-                            let wtf = found.2.to_vec();
+                            // process and inline the function
+                            let user_function_code = user_function.2.to_vec();
                             let to_extend = parser_to_instr_set(
-                                &wtf,
+                                &user_function_code,
                                 &mut fn_variables,
                                 consts,
                                 fns,

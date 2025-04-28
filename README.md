@@ -11,6 +11,7 @@ Key info:
 
 - ~5-10x faster than Python in most cases.
   Comparisons [here](COMPARISONS.md)
+- Inlined functions
 ## Instruction Set
 
 Spock uses an instruction set with a size of 8 bytes.
