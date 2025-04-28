@@ -461,23 +461,29 @@ fn parser_to_instr_set(
     let mut output: Vec<Instr> = Vec::with_capacity(input.len());
     for x in input {
         print!("PARSING {x}");
+        // ctx => for errors
         let ctx = x.to_string();
         match x {
+            // if number / bool / str, just push it to the constants, and the caller will grab the last index
             Expr::Num(num) => consts.push(Data::Number(*num as Num)),
             Expr::Bool(bool) => consts.push(Data::Bool(*bool)),
             Expr::String(str) => consts.push(Data::String(Intern::from(str.to_string()))),
             Expr::Array(elems) => {
+                // create new blank array with latest id
                 let id = arrs.len() as u16;
                 arrs.insert(id, Vec::new());
                 for elem in elems {
+                    // process each array element
                     let x = parser_to_instr_set(slice::from_ref(elem), v, consts, fns, fn_state, arrs);
-                    if !x.is_empty() {
+                    // if there are no instructions, then that means the element has been pushed to the constants, so pop it and push it directly to the array
+                    if x.is_empty() {
+                        arrs.get_mut(&id).unwrap().push(consts.pop().unwrap());
+                    } else {
+                        // if there are instructions, then push everything, a null to the array, and then add an instruction to move the element to the array at runtime with ArrayMov
                         let c_id = get_tgt_id(*x.last().unwrap());
                         output.extend(x);
                         arrs.get_mut(&id).unwrap().push(Data::Null);
                         output.push(Instr::ArrayMov(c_id, id, (arrs[&id].len() - 1) as u16));
-                    } else {
-                        arrs.get_mut(&id).unwrap().push(consts.pop().unwrap());
                     }
                 }
                 consts.push(Data::Array(id));
@@ -498,6 +504,7 @@ fn parser_to_instr_set(
                 }
             }
             Expr::Var(name) => {
+                // push null to the constants, and then at runtime move the variable value to that index, so as not to potentially override the variable at runtime when reading it
                 consts.push(Data::Null);
                 if let Some((_, var_id)) = v.iter().rev().find(|(x, _)| *name == *x) {
                     output.push(Instr::Mov(*var_id, (consts.len() - 1) as u16));
