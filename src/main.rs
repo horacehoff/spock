@@ -96,11 +96,6 @@ pub enum Instr {
     MovAnon(u16, u16), // same than mov, used because mov can be changed by the parser
 
     TheAnswer(u16),
-    // MovRange(u16,u16,u16),
-    // MovRangeNeg(u16,u16,u16),
-    //
-    // TEMP_START_MOV,
-    // TEMP_STOP_MOV,
 }
 
 // struct CallFrame {

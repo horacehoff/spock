@@ -62,38 +62,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         .get_mut(
             x.iter()
                 .rposition(|w| {
-                    matches!(
-                        w,
-                        Instr::Add(_, _, _)
-                            | Instr::Mul(_, _, _)
-                            | Instr::Sub(_, _, _)
-                            | Instr::Div(_, _, _)
-                            | Instr::Mod(_, _, _)
-                            | Instr::Pow(_, _, _)
-                            | Instr::Eq(_, _, _)
-                            | Instr::NotEq(_, _, _)
-                            | Instr::Sup(_, _, _)
-                            | Instr::SupEq(_, _, _)
-                            | Instr::Inf(_, _, _)
-                            | Instr::InfEq(_, _, _)
-                            | Instr::BoolAnd(_, _, _)
-                            | Instr::BoolOr(_, _, _)
-                            | Instr::Mov(_, _)
-                            | Instr::Neg(_, _)
-                            | Instr::Bool(_, _)
-                            | Instr::Num(_, _)
-                            | Instr::Str(_, _)
-                            | Instr::Type(_, _)
-                            | Instr::Range(_, _, _)
-                            | Instr::IoOpen(_, _, _)
-                            | Instr::GetIndex(_, _, _)
-                            | Instr::ApplyFunc(_, _, _)
-                            | Instr::Floor(_, _)
-                            | Instr::Input(_, _)
-                            | Instr::Call(_, _)
-                            | Instr::Ret(_, _)
-                            | Instr::TheAnswer(_)
-                    )
+                    get_tgt_id(*w).is_some()
                 })
                 .unwrap_or(x.len() - 1),
         )
@@ -132,7 +101,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     }
 }
 
-fn get_tgt_id(x: Instr) -> u16 {
+fn get_tgt_id(x: Instr) -> Option<u16> {
     match x {
         Instr::Mov(_, y)
         | Instr::Add(_, _, y)
@@ -162,8 +131,8 @@ fn get_tgt_id(x: Instr) -> u16 {
         | Instr::Ret(_, y)
         | Instr::Call(_, y)
         | Instr::TheAnswer(y)
-        | Instr::Str(_, y) => y,
-        _ => unreachable!(),
+        | Instr::Str(_, y) => Some(y),
+        _ => None,
     }
 }
 
@@ -175,72 +144,12 @@ fn get_tgt_id_vec(x: &[Instr]) -> u16 {
                 Instr::ArrayMov(_, _, _) | Instr::IoDelete(_)
             ))
     );
-    match x.iter().rposition(|w| {
-        matches!(
-            w,
-            Instr::Add(_, _, _)
-                | Instr::Mul(_, _, _)
-                | Instr::Sub(_, _, _)
-                | Instr::Div(_, _, _)
-                | Instr::Mod(_, _, _)
-                | Instr::Pow(_, _, _)
-                | Instr::Eq(_, _, _)
-                | Instr::NotEq(_, _, _)
-                | Instr::Sup(_, _, _)
-                | Instr::SupEq(_, _, _)
-                | Instr::Inf(_, _, _)
-                | Instr::InfEq(_, _, _)
-                | Instr::BoolAnd(_, _, _)
-                | Instr::BoolOr(_, _, _)
-                | Instr::Mov(_, _)
-                | Instr::Neg(_, _)
-                | Instr::Bool(_, _)
-                | Instr::Num(_, _)
-                | Instr::Str(_, _)
-                | Instr::Type(_, _)
-                | Instr::Range(_, _, _)
-                | Instr::IoOpen(_, _, _)
-                | Instr::GetIndex(_, _, _)
-                | Instr::ApplyFunc(_, _, _)
-                | Instr::Floor(_, _)
-                | Instr::Input(_, _)
-                | Instr::Call(_, _)
-                | Instr::Ret(_, _)
-        )
-    }) {
-        Some(idx) => match &x[idx] {
-            Instr::Add(_, _, z)
-            | Instr::Mul(_, _, z)
-            | Instr::Sub(_, _, z)
-            | Instr::Div(_, _, z)
-            | Instr::Mod(_, _, z)
-            | Instr::Pow(_, _, z)
-            | Instr::Eq(_, _, z)
-            | Instr::NotEq(_, _, z)
-            | Instr::Sup(_, _, z)
-            | Instr::SupEq(_, _, z)
-            | Instr::Inf(_, _, z)
-            | Instr::InfEq(_, _, z)
-            | Instr::BoolAnd(_, _, z)
-            | Instr::BoolOr(_, _, z)
-            | Instr::Mov(_, z)
-            | Instr::Neg(_, z)
-            | Instr::Type(_, z)
-            | Instr::Bool(_, z)
-            | Instr::Num(_, z)
-            | Instr::ApplyFunc(_, _, z)
-            | Instr::Input(_, z)
-            | Instr::GetIndex(_, _, z)
-            | Instr::Range(_, _, z)
-            | Instr::IoOpen(_, z, _)
-            | Instr::Floor(_, z)
-            | Instr::Ret(_, z)
-            | Instr::Call(_, z)
-            | Instr::Str(_, z) => *z,
-            _ => unreachable!(),
-        },
-        None => unreachable!(),
+    for y in x.iter().rev() {
+        if let Some(id) = get_tgt_id(*y) {
+            return id;
+        }
     }
+    unreachable!();
 }
 
 macro_rules! handle_ops {
@@ -306,7 +215,7 @@ fn get_id(
                 let x =
                     parser_to_instr_set(slice::from_ref(elem), variables, consts, functions, fn_state, arrays);
                 if !x.is_empty() {
-                    let c_id = get_tgt_id(*x.last().unwrap());
+                    let c_id = get_tgt_id(*x.last().unwrap()).unwrap();
                     arrays.get_mut(&id).unwrap().push(Data::Null);
 
                     instr.extend(x);
@@ -480,7 +389,7 @@ fn parser_to_instr_set(
                         arrs.get_mut(&id).unwrap().push(consts.pop().unwrap());
                     } else {
                         // if there are instructions, then push everything, a null to the array, and then add an instruction to move the element to the array at runtime with ArrayMov
-                        let c_id = get_tgt_id(*x.last().unwrap());
+                        let c_id = get_tgt_id(*x.last().unwrap()).unwrap();
                         output.extend(x);
                         arrs.get_mut(&id).unwrap().push(Data::Null);
                         output.push(Instr::ArrayMov(c_id, id, (arrs[&id].len() - 1) as u16));
@@ -601,7 +510,7 @@ fn parser_to_instr_set(
                         break;
                     }
                     output.extend(x);
-                    let condition_id = get_tgt_id(*output.last().unwrap());
+                    let condition_id = get_tgt_id(*output.last().unwrap()).unwrap();
                     let jump_size = jumps[i];
                     if jump_size == 0 {
                         add_cmp(
@@ -634,7 +543,7 @@ fn parser_to_instr_set(
                 }
                 let condition = parser_to_instr_set(slice::from_ref(x), v, consts, fns, fn_state, arrs);
                 output.extend(condition);
-                let condition_id = get_tgt_id(*output.last().unwrap());
+                let condition_id = get_tgt_id(*output.last().unwrap()).unwrap();
                 let mut temp_vars = v.clone();
                 // let consts_before = consts.len() - 1;
                 // let temp_vars_before = temp_vars.len() - 1;
@@ -1371,12 +1280,13 @@ fn parser_to_instr_set(
                 ));
             }
             Expr::Op(items) => {
-                let mut item_stack: Vec<&Expr> = Vec::with_capacity(4);
+                let final_stack_capacity = items
+                    .iter()
+                    .filter(|x| matches!(x, Expr::Opcode(_)))
+                    .count();
+                let mut item_stack: Vec<&Expr> = Vec::with_capacity(items.len() - final_stack_capacity);
                 let mut final_stack: Vec<Instr> = Vec::with_capacity(
-                    items
-                        .iter()
-                        .filter(|x| matches!(x, Expr::Opcode(_)))
-                        .count(),
+                    final_stack_capacity,
                 );
                 for x in items {
                     if let Expr::Opcode(op) = x {
@@ -1394,7 +1304,7 @@ fn parser_to_instr_set(
                             let z = consts.len() - 1;
                             handle_ops!(final_stack, x, y, z as u16, op, consts);
                         } else {
-                            let old_id = get_tgt_id(*final_stack.last().unwrap());
+                            let old_id = get_tgt_id(*final_stack.last().unwrap()).unwrap();
                             let new = item_stack.pop().unwrap();
                             let new_v =
                                 get_id(new, v, consts, &mut output, &ctx, fns, arrs, fn_state);
