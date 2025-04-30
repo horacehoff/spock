@@ -78,7 +78,6 @@ ForLoop:Expr = {
         let mut output = vec![o2];
         output.extend(o3);
         Expr::ForLoop(Intern::from(o1),output.into_boxed_slice())
-        //Expr::ForLoop(Intern::from(o1),Box::from(o2),o3)
     }
 }
 

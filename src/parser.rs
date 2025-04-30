@@ -437,12 +437,13 @@ fn parser_to_instr_set(
             }
             Expr::Condition(x, y) => {
                 let mut condition_blocks: Vec<(Vec<Instr>, Vec<Instr>)> = Vec::new();
-                let val = &**x;
-                if matches!(val, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
-                    error!(ctx, format_args!("{} is not a bool", val));
+                // check if condition is not var/str/num (it's supposed to be a bool)
+                if matches!(**x, Expr::Var(_) | Expr::String(_) | Expr::Num(_)) {
+                    error!(ctx, format_args!("{} is not a bool", x));
                 }
+                // parse the main condition
                 let condition =
-                    parser_to_instr_set(slice::from_ref(val), v, consts, fns, fn_state, arrs);
+                    parser_to_instr_set(slice::from_ref(x), v, consts, fns, fn_state, arrs);
                 let mut priv_vars = v.clone();
                 let cond_code = parser_to_instr_set(
                     y.iter()
@@ -557,42 +558,62 @@ fn parser_to_instr_set(
                 output.push(Instr::Jmp(len, true));
             }
             Expr::ForLoop(var_name, array_code) => {
+                // parse the array, get its id (the target array is the first Expr in array_code)
                 let array = array_code.first().unwrap();
                 let code = &array_code[1..];
                 let array = get_id(array, v, consts, &mut output, &ctx, fns, arrs, fn_state);
+
+                // try to optimize it
                 if for_loop_summation(&mut output, consts, v, arrs, array, code) {
                     continue;
                 }
+
+                // add an instruction to get array length (func id 2 = len)
                 consts.push(Data::Null);
                 let array_len_id = (consts.len() - 1) as u16;
                 output.push(Instr::ApplyFunc(2, array, array_len_id));
 
+                // set up the id of the index variable (0..len)
                 consts.push(Data::Number(0.0));
                 let index_id = (consts.len() - 1) as u16;
+
+                // do the 'i < len' condition, set up the condition's id (true/false)
                 consts.push(Data::Null);
                 let condition_id = (consts.len() - 1) as u16;
                 output.push(Instr::Inf(index_id, array_len_id, condition_id));
 
+                // set up the variable for the current element (for current_element_id in ... {}) => current_element_id = array[index]
                 consts.push(Data::Null);
                 let current_element_id = (consts.len() - 1) as u16;
-                v.push((*var_name, current_element_id));
-                let current_element_variable_id = v.len() - 1;
+
+                // parse everything, add the current element variable to temp_vars so that the loop code can interact with it
                 let mut temp_vars = v.clone();
+                temp_vars.push((*var_name, current_element_id));
+
+                let current_element_variable_id = temp_vars.len() - 1;
+
                 let cond_code =
                     parser_to_instr_set(code, &mut temp_vars, consts, fns, fn_state, arrs);
-                v.remove(current_element_variable_id);
+                // discard the current element variable, no longer needed by the parser
                 temp_vars.remove(current_element_variable_id);
+
+                // add the condition ('i < len') jumping logic
                 let mut len = (cond_code.len() + 4) as u16;
                 add_cmp(condition_id, &mut len, &mut output, true);
 
+                // instruction to make current_element actually hold the array index's value
                 output.push(Instr::GetIndex(array, index_id, current_element_id));
+                // then add the condition code
                 output.extend(cond_code);
+                // add 1 to the index (i+=1) so that the next loop iteration will have the next element in the array
                 consts.push(Data::Number(1.0));
                 output.push(Instr::Add(index_id, (consts.len() - 1) as u16, index_id));
+
+                // jump back to the loop if still inside of it
                 output.push(Instr::Jmp(len, true));
-                consts.push(Data::Number(0.0));
 
                 // clean up, reset the index variable
+                consts.push(Data::Number(0.0));
                 output.push(Instr::Mov((consts.len() - 1) as u16, index_id));
             }
             Expr::VarDeclare(x, y) => {
@@ -611,11 +632,12 @@ fn parser_to_instr_set(
                     output.extend(val);
                 }
             }
+            // x[y]... = z;
             Expr::ArrayModify(x, z, w) => {
+                // get the id of the target array
                 let mut id = get_id(x, v, consts, &mut output, &ctx, fns, arrs, fn_state);
 
                 for elem in z.iter().rev().skip(1).rev() {
-                    print!("ELM {elem:?}");
                     let x =
                         parser_to_instr_set(slice::from_ref(elem), v, consts, fns, fn_state, arrs);
                     output.extend(x);
@@ -626,6 +648,7 @@ fn parser_to_instr_set(
                     id = (consts.len() - 1) as u16;
                 }
 
+                // get the 
                 let final_id = get_id(
                     z.last().unwrap(),
                     v,
@@ -636,10 +659,6 @@ fn parser_to_instr_set(
                     arrs,
                     fn_state,
                 );
-
-                print!("ID IS {id:?}");
-                print!("CONSTS IS {consts:?}");
-                print!("LAST Z IS {}", z.last().unwrap());
 
                 let elem_id = get_id(w, v, consts, &mut output, &ctx, fns, arrs, fn_state);
 
@@ -1153,7 +1172,7 @@ fn parser_to_instr_set(
                         other => {
                             error!(
                                 ctx,
-                                format_args!("Unknown function {color_red}{}{color_reset}", other)
+                                format_args!("Unknown function {color_red}{other}{color_reset}")
                             );
                         }
                     }
