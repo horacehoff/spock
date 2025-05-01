@@ -505,14 +505,17 @@ fn parser_to_instr_set(
                     .collect();
 
                 for (i, (x, y)) in condition_blocks.into_iter().enumerate() {
+                    // if no condition (= else block), simply add it and stop the loo
                     if x.is_empty() {
                         output.extend(y);
                         break;
                     }
+                    // add the condition, get its id, and retrieve the jump id of the current condition block
                     output.extend(x);
                     let condition_id = get_tgt_id(*output.last().unwrap()).unwrap();
                     let jump_size = jumps[i];
                     if jump_size == 0 {
+                        // if jump_size == 0, then else_if block is the last, so no need for a Jmp, simply add cmp and code
                         add_cmp(
                             condition_id,
                             &mut ((y.len() + 1) as u16),
@@ -521,6 +524,7 @@ fn parser_to_instr_set(
                         );
                         output.extend(y);
                     } else {
+                        // if jump_size != 0, then add cmp and code (which contains Jmp to skip all other succeeding blocks if condition is true)
                         add_cmp(
                             condition_id,
                             &mut ((y.len() + 2) as u16),

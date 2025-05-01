@@ -149,32 +149,14 @@ pub fn execute(
                 let val = consts[x as usize];
                 if let Some((ret_i, dest)) = call_stack.pop() {
                     let consts_part = stuff.split_off(stuff.len() - consts.len());
-                    // println!("CONSTS BEFORE {consts:?}");
                     consts.copy_from_slice(&consts_part);
-                    // println!("CONSTS AFTER {consts:?}");
                     consts[dest as usize] = val;
-                    // to_set_after.push((dest, val));
                     i = ret_i;
                     continue;
                 } else {
                     consts[y as usize] = val;
                 }
             }
-            // Instr::MovRange(start, end, offset) => {
-            //     stuff.extend_from_slice(consts.as_ref());
-            //     // for x in start..end {
-            //     //     consts[(x+offset) as usize] = consts[x as usize]
-            //     // }
-            // }
-            // Instr::MovRangeNeg(start, end, offset) => {
-            //     // println!("CONSTS BEFORE {consts:?}");
-            //     // for x in start..end {
-            //     //     consts[(x-offset) as usize] = consts[x as usize]
-            //     // }
-            //     // println!("CONSTS AFTER {consts:?}")
-            //     let consts_part = stuff.split_off(stuff.len() - consts.len());
-            //     consts.copy_from_slice(&consts_part);
-            // }
             Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
                 (Data::Number(parent), Data::Number(child)) => {
                     consts[dest as usize] = Data::Number(parent + child);
@@ -395,30 +377,25 @@ pub fn execute(
                 }}
             }
             Instr::Print(target) => {
-                let elem = consts[target as usize];
-                println!("{}", format_data(elem, arrays));
+                println!("{}", format_data(consts[target as usize], arrays));
             }
             Instr::Type(tgt, dest) => {
                 consts[dest as usize] = Data::String(Intern::from(get_type(consts[tgt as usize])));
             }
-            Instr::Num(tgt, dest) => {
-                let base = consts[tgt as usize];
-                match base {
-                    Data::String(str) => {
-                        consts[dest as usize] =
-                            Data::Number(str.parse::<Num>().unwrap_or_else(|_| {
-                                error_b!(format_args!("CANNOT CONVERT '{str}' TO NUMBER"));
-                            }));
-                    }
-                    Data::Number(_) => consts[dest as usize] = base,
-                    other => {
-                        error_b!(format_args!(
-                            "CANNOT CONVERT {} TO NUMBER",
-                            format_data(other, arrays)
-                        ));
-                    }
+            Instr::Num(tgt, dest) => match consts[tgt as usize] {
+                Data::String(str) => {
+                    consts[dest as usize] = Data::Number(str.parse::<Num>().unwrap_or_else(|_| {
+                        error_b!(format_args!("CANNOT CONVERT '{str}' TO NUMBER"));
+                    }));
                 }
-            }
+                Data::Number(num) => consts[dest as usize] = Data::Number(num),
+                other => {
+                    error_b!(format_args!(
+                        "CANNOT CONVERT {} TO NUMBER",
+                        format_data(other, arrays)
+                    ));
+                }
+            },
             Instr::Str(tgt, dest) => {
                 consts[dest as usize] =
                     Data::String(Intern::from(format_data(consts[tgt as usize], arrays)));
@@ -476,7 +453,7 @@ pub fn execute(
                             ));
                         }
                     } else if let Data::String(str_id) = consts.get_mut(tgt as usize).unwrap() {
-                        if let Data::String(letter) = requested_mod {
+                        if_likely!{let Data::String(letter) = requested_mod => {
                             if likely(str_id.len() > index as usize) {
                                 let mut temp = str_id.to_string();
                                 temp.remove(index as usize);
@@ -495,7 +472,7 @@ pub fn execute(
                                 "Cannot replace type {color_blue}Letter{color_reset} by type {color_red}{}{color_reset}",
                                 get_type(requested_mod)
                             ));
-                        }
+                        }}
                     } else {
                         error_b!(format_args!(
                             "Cannot index type {color_red}{}{color_reset}",
@@ -506,10 +483,9 @@ pub fn execute(
             }
             // takes tgt from  consts, index is index, dest is consts index destination
             Instr::GetIndex(tgt, index, dest) => {
-                if let Data::Number(idx) = consts[index as usize] {
+                if_likely! {let Data::Number(idx) = consts[index as usize] => {
                     let idx = idx as usize;
-                    let target = consts[tgt as usize];
-                    match target {
+                    match consts[tgt as usize] {
                         Data::Array(x) => {
                             let arr = &arrays[&x];
                             if likely(arr.len() > idx) {
@@ -518,7 +494,7 @@ pub fn execute(
                                 error_b!(format_args!(
                                     "Trying to get index {color_red}{}{color_reset} but Array {color_blue}{}{color_reset} has {} elements",
                                     idx,
-                                    format_data(target, arrays),
+                                    format_data(Data::Array(x), arrays),
                                     arr.len()
                                 ));
                             }
@@ -532,7 +508,7 @@ pub fn execute(
                                 error_b!(format_args!(
                                     "Trying to get index {color_red}{}{color_reset} but String \"{color_blue}{}{color_reset}\" has {} letters",
                                     idx,
-                                    format_data(target, arrays),
+                                    format_data(Data::String(str), arrays),
                                     str.len()
                                 ));
                             }
@@ -549,7 +525,7 @@ pub fn execute(
                         "{} is not a valid index",
                         format_data(consts[index as usize], arrays)
                     ));
-                }
+                }}
             }
             Instr::Range(min, max, dest) => {
                 if_likely! {
