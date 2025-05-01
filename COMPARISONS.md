@@ -34,7 +34,7 @@ while i < n {
         c = a+b
         a = b
         b = c
-        i = i+1</code></pre></td> 
+        i = i+1</code></pre></td>
 <td><pre><code>for x = 0, 199999 do
     local n = 40
     local a = 0
@@ -84,7 +84,7 @@ print(len(i))</code></pre></td>
  </tr>
 <tr>
 <td>
-2.6s (6.7x faster)
+1.8s (9.6x faster)
 </td>
 <td>
 17.4s
@@ -162,7 +162,7 @@ while count < limit:
     if result > 1000000:
         result = result % 1000000
     count += 1
-print(result)</code></pre></td>  
+print(result)</code></pre></td>
 <td><pre><code>local count = 0
 local limit = 1000000
 local result = 1

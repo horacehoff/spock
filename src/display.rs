@@ -7,39 +7,6 @@ use lalrpop_util::lexer::Token;
 use lalrpop_util::{ErrorRecovery, ParseError};
 use std::fmt::Formatter;
 
-impl std::fmt::Display for Data {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Data::Number(num) => write!(f, "{num}"),
-            Data::Bool(bool) => write!(f, "{bool}"),
-            Data::String(str) => write!(f, "{str}"),
-            Data::Null => write!(f, "NULL"),
-            Data::Array(start) => write!(f, "ARRAY{start}"),
-            Data::File(str) => write!(f, "FILE({str:?})"),
-        }
-    }
-}
-
-pub const format_data_closure: fn(Data, &FnvHashMap<u16, Vec<Data>>) -> String =
-    |x: Data, arrays: &FnvHashMap<u16, Vec<Data>>| -> String {
-        match x {
-            Data::Number(num) => num.to_string(),
-            Data::Bool(bool) => bool.to_string(),
-            Data::String(str) => str.to_string(),
-            Data::Array(a) => concat_string!(
-                "[",
-                arrays[&a]
-                    .iter()
-                    .map(|x| format_data(*x, arrays))
-                    .collect::<Vec<_>>()
-                    .join(","),
-                "]"
-            ),
-            Data::Null => String::from("NULL"),
-            Data::File(path) => format!("FILE({path:?})"),
-        }
-    };
-
 pub fn format_data(x: Data, arrays: &FnvHashMap<u16, Vec<Data>>) -> String {
     match x {
         Data::Number(num) => num.to_string(),

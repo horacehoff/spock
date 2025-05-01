@@ -248,6 +248,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "lazy_format"
+version = "2.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e479e99b287d578ed5f6cd4c92cdf48db219088adb9c5b14f7c155b71dfba792"
+
+[[package]]
 name = "libc"
 version = "0.2.172"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -450,6 +456,7 @@ dependencies = [
  "internment",
  "lalrpop",
  "lalrpop-util",
+ "lazy_format",
  "likely_stable",
 ]
 

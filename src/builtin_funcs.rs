@@ -13,14 +13,14 @@ fn uppercase(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
     } else {
         error_b!(format_args!(
             "{color_red}{}{color_reset} is not a String",
-            consts[tgt as usize]
+            format_data(consts[tgt as usize], arrs)
         ));
     }}
 }
@@ -30,36 +30,16 @@ fn lowercase(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
     if_likely! {let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
     } else {
         error_b!(format_args!(
             "{color_red}{}{color_reset} is not a String",
-            consts[tgt as usize]
+            format_data(consts[tgt as usize], arrs)
         ));
     }}
-}
-
-fn len(
-    tgt: u16,
-    dest: u16,
-    consts: &mut [Data],
-    _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
-) {
-    let tgt = consts[tgt as usize];
-    if let Data::String(str) = tgt {
-        consts[dest as usize] = Data::Number(str.chars().count() as Num)
-    } else if let Data::Array(arr) = tgt {
-        consts[dest as usize] = Data::Number(arrays[&arr].len() as Num)
-    } else {
-        error_b!(format_args!(
-            "Cannot get length of type {color_red}{}{color_reset}",
-            get_type(tgt)
-        ));
-    }
 }
 
 fn contains(
@@ -77,7 +57,7 @@ fn contains(
         } else {
             error_b!(format_args!(
                 "{color_red}{}{color_reset} is not a String",
-                consts[arg as usize]
+                format_data(consts[arg as usize], arrays)
             ));
         }}
     } else if let Data::Array(x) = target {
@@ -86,7 +66,7 @@ fn contains(
     } else {
         error_b!(format_args!(
             "{color_red}{}{color_reset} is not a String",
-            consts[tgt as usize]
+            format_data(consts[tgt as usize], arrays)
         ));
     }
 }
@@ -96,14 +76,14 @@ fn trim(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
     } else {
         error_b!(format_args!(
             "{color_red}{}{color_reset} is not a String",
-            consts[tgt as usize]
+            format_data(consts[tgt as usize], arrs)
         ));
     }}
 }
@@ -113,7 +93,7 @@ fn trim_sequence(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
@@ -124,13 +104,13 @@ fn trim_sequence(
         } else {
             error_b!(format_args!(
                 "{color_red}{}{color_reset} is not a String",
-                consts[arg as usize]
+                format_data(consts[arg as usize], arrs)
             ));
         }}
     } else {
         error_b!(format_args!(
             "{color_red}{}{color_reset} is not a String",
-            consts[tgt as usize]
+            format_data(consts[tgt as usize], arrs)
         ));
     }}
 }
@@ -152,7 +132,7 @@ fn index(
         } else {
             error_b!(format_args!(
                 "{color_red}{}{color_reset} is not a String",
-                arg.to_string()
+                format_data(arg, arrays)
             ));
         }}
     } else if let Data::Array(x) = target {
@@ -214,7 +194,7 @@ fn trim_sequence_left(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
@@ -224,14 +204,14 @@ fn trim_sequence_left(
                 Data::String(Intern::from(str.trim_start_matches(&chars[..]).to_string()));
         } else {
             error_b!(format_args!(
-                "{color_red}{:?}{color_reset} is not a String",
-                consts[arg as usize]
+                "{color_red}{}{color_reset} is not a String",
+                format_data(consts[arg as usize], arrs)
             ));
         }}
     } else {
         error_b!(format_args!(
-            "{color_red}{:?}{color_reset} is not a String",
-            consts[tgt as usize]
+            "{color_red}{}{color_reset} is not a String",
+            format_data(consts[tgt as usize], arrs)
         ));
     }}
 }
@@ -241,7 +221,7 @@ fn trim_sequence_right(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
@@ -251,14 +231,14 @@ fn trim_sequence_right(
                 Data::String(Intern::from(str.trim_end_matches(&chars[..]).to_string()));
         } else {
             error_b!(format_args!(
-                "{color_red}{:?}{color_reset} is not a String",
-                consts[arg as usize]
+                "{color_red}{}{color_reset} is not a String",
+                format_data(consts[arg as usize], arrs)
             ));
         }}
     } else {
         error_b!(format_args!(
             "{color_red}{:?}{color_blue} is not a String",
-            consts[tgt as usize]
+            format_data(consts[tgt as usize], arrs)
         ));
     }}
 }
@@ -280,13 +260,13 @@ fn rindex(
         } else {
             error_b!(format_args!(
                 "{color_red}{}{color_reset} is not a String",
-                arg
+                format_data(arg, arrays)
             ));
         }}
     } else if let Data::Array(x) = target {
         let arg = consts[args.swap_remove(0) as usize];
         consts[dest as usize] = Data::Number(arrays[&x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
-            error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{:?}{color_reset}", arg, format_data(target, arrays)));
+            error_b!(format_args!("Cannot get index of {color_red}{}{color_reset} in {color_blue}{}{color_reset}", format_data(arg, arrays), format_data(target, arrays)));
         }) as Num);
     } else {
         error_b!(format_args!(
@@ -309,8 +289,8 @@ fn repeat(
             consts[dest as usize] = Data::String(Intern::from(str.repeat(arg as usize)))
         } else {
             error_b!(format_args!(
-                "{color_red}{:?}{color_reset} is not a Number",
-                consts[arg as usize]
+                "{color_red}{}{color_reset} is not a Number",
+                format_data(consts[arg as usize], arrays)
             ));
         }}
     } else if let Data::Array(x) = consts[tgt as usize] {
@@ -321,47 +301,16 @@ fn repeat(
             consts[dest as usize] = Data::Array(id);
         } else {
             error_b!(format_args!(
-            "{color_red}{:?}{color_reset} is not a Number",
-                consts[arg as usize]
+            "{color_red}{}{color_reset} is not a Number",
+                format_data(consts[arg as usize], arrays)
             ));
         }}
     } else {
         error_b!(format_args!(
-            "{color_red}{:?}{color_reset} is not a String",
-            consts[tgt as usize]
+            "{color_red}{}{color_reset} is not a String",
+            format_data(consts[tgt as usize], arrays)
         ));
     }
-}
-
-fn push(
-    tgt: u16,
-    _: u16,
-    consts: &mut [Data],
-    args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
-) {
-    if_likely! {let Data::Array(id) = consts[tgt as usize] => {
-        arrays
-            .get_mut(&id)
-            .unwrap()
-            .push(consts[args.remove(0) as usize]);
-    } else {
-        error_b!(format_args!("Cannot push element to {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
-    }}
-}
-
-fn sqrt(
-    tgt: u16,
-    dest: u16,
-    consts: &mut [Data],
-    _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
-) {
-    if_likely! {let Data::Number(num) = consts[tgt as usize] => {
-        consts[dest as usize] = Data::Number(num.sqrt())
-    } else {
-        error_b!(format_args!("Cannot compute square root of {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
-    }}
 }
 
 fn round(
@@ -433,10 +382,9 @@ fn write(
     }}
 }
 
-pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>); 20] = [
+pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>); 17] = [
     uppercase,
     lowercase,
-    len,
     contains,
     trim,
     trim_sequence,
@@ -448,8 +396,6 @@ pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, 
     trim_sequence_right,
     rindex,
     repeat,
-    push,
-    sqrt,
     round,
     abs,
     read,

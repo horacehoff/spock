@@ -77,6 +77,7 @@ pub enum Instr {
     Bool(u16, u16),
     Input(u16, u16),
     Floor(u16, u16),
+    Sqrt(u16, u16),
     // start,end,dest
     Range(u16, u16, u16),
     // path - dest - create?
@@ -96,6 +97,10 @@ pub enum Instr {
     MovAnon(u16, u16), // same than mov, used because mov can be changed by the parser
 
     TheAnswer(u16),
+    // array - element
+    Push(u16, u16),
+    // array/str - dest
+    Len(u16, u16),
 }
 
 // struct CallFrame {
@@ -520,12 +525,6 @@ pub fn execute(
                         }
                         Data::String(str) => {
                             if likely(str.len() > idx) {
-                                println!(
-                                    "RET_IDX IS {}",
-                                    Data::String(Intern::from(
-                                        str.get(idx..=idx).unwrap().to_string()
-                                    ))
-                                );
                                 consts[dest as usize] = Data::String(Intern::from(
                                     str.get(idx..=idx).unwrap().to_string(),
                                 ));
@@ -548,7 +547,7 @@ pub fn execute(
                 } else {
                     error_b!(format_args!(
                         "{} is not a valid index",
-                        consts[index as usize]
+                        format_data(consts[index as usize], arrays)
                     ));
                 }
             }
@@ -577,10 +576,10 @@ pub fn execute(
                         }
                         consts[dest as usize] = Data::File(str);
                     } else {
-                        error_b!(format_args!("Invalid create option: {color_red}{}{color_reset}", consts[create as usize]));
+                        error_b!(format_args!("Invalid create option: {color_red}{}{color_reset}", format_data(consts[create as usize], arrays)));
                     }}
                 } else {
-                    error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", consts[path as usize]));
+                    error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", format_data(consts[path as usize], arrays)));
                 }}
             }
             Instr::IoDelete(path) => {
@@ -589,7 +588,7 @@ pub fn execute(
                         error_b!(format_args!("Cannot remove file {color_red}{str}{color_reset}"));
                     });
                 } else {
-                    error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", consts[path as usize]));
+                    error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", format_data(consts[path as usize], arrays)));
                 }}
             }
             Instr::Floor(tgt, dest) => {
@@ -598,7 +597,7 @@ pub fn execute(
                 } else {
                     error_b!(format_args!(
                         "Cannot floor {color_red}{}{color_reset}",
-                        consts[tgt as usize]
+                        format_data(consts[tgt as usize], arrays)
                     ));
                 }}
             }
@@ -607,7 +606,36 @@ pub fn execute(
                     "The answer to the Ultimate Question of Life, the Universe, and Everything is 42."
                 );
                 consts[dest as usize] = Data::Number(42.0);
-            } // _ => unsafe { unreachable_unchecked() },
+            }
+            Instr::Push(array, element) => {
+                if_likely! {let Data::Array(id) = consts[array as usize] => {
+                    arrays
+                        .get_mut(&id)
+                        .unwrap()
+                        .push(consts[element as usize]);
+                } else {
+                    error_b!(format_args!("Cannot push element to {color_red}{}{color_reset}", format_data(consts[array as usize], arrays)));
+                }}
+            }
+            Instr::Len(tgt, dest) => {
+                consts[dest as usize] = match consts[tgt as usize] {
+                    Data::Array(arr) => Data::Number(arrays[&arr].len() as Num),
+                    Data::String(str) => Data::Number(str.chars().count() as Num),
+                    x => {
+                        error_b!(format_args!(
+                            "Cannot get length of type {color_red}{}{color_reset}",
+                            get_type(x)
+                        ));
+                    }
+                };
+            }
+            Instr::Sqrt(tgt, dest) => {
+                if_likely! {let Data::Number(num) = consts[tgt as usize] => {
+                    consts[dest as usize] = Data::Number(num.sqrt())
+                } else {
+                    error_b!(format_args!("Cannot compute square root of {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
+                }}
+            }
         }
         i += 1;
     }

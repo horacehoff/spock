@@ -133,12 +133,12 @@ VarAssign: Expr = {
 }
 
 OpVarAssign: Expr = {
-    <v: Var> "+=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),Expr::Opcode(Opcode::Add), e])))),
-    <v: Var> "-=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),Expr::Opcode(Opcode::Sub), e])))),
-    <v: Var> "*=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),Expr::Opcode(Opcode::Mul), e])))),
-    <v: Var> "/=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),Expr::Opcode(Opcode::Div), e])))),
-    <v: Var> "%=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),Expr::Opcode(Opcode::Mod), e])))),
-    <v: Var> "^=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),Expr::Opcode(Opcode::Pow), e])))),
+    <v: Var> "+=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),e, Expr::Opcode(Opcode::Add)])))),
+    <v: Var> "-=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),e, Expr::Opcode(Opcode::Sub)])))),
+    <v: Var> "*=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),e,Expr::Opcode(Opcode::Mul)])))),
+    <v: Var> "/=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),e,Expr::Opcode(Opcode::Div)])))),
+    <v: Var> "%=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),e,Expr::Opcode(Opcode::Mod)])))),
+    <v: Var> "^=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),e,Expr::Opcode(Opcode::Pow)])))),
 }
 
 IndexAccess: Expr = {
