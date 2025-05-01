@@ -1199,7 +1199,6 @@ fn parser_to_instr_set(
                 for x in items {
                     if let Expr::Opcode(op) = x {
                         if final_stack.is_empty() {
-                            println!("ITEM STACK IS {item_stack:?}");
                             let last = item_stack.pop().unwrap();
                             let first = item_stack.pop().unwrap();
 
