@@ -1,6 +1,6 @@
 use crate::display::format_data;
 use crate::util::get_type;
-use crate::{Data, Num, error_b};
+use crate::{Data, Num, error_b, is_float};
 use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
@@ -321,7 +321,7 @@ fn round(
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
     if_likely! {let Data::Number(num) = consts[tgt as usize] => {
-        consts[dest as usize] = Data::Number(num.round())
+        consts[dest as usize] = Data::Number(is_float!(num.round(),num));
     } else {
         error_b!(format_args!("Cannot round {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
     }}
@@ -335,7 +335,7 @@ fn abs(
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
     if_likely! {let Data::Number(num) = consts[tgt as usize] => {
-        consts[dest as usize] = Data::Number(num.abs())
+        consts[dest as usize] = Data::Number(is_float!(num.abs(),num))
     } else {
         error_b!(format_args!("Cannot get absolute value of {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
     }}

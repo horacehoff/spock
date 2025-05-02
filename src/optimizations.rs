@@ -1,6 +1,6 @@
-use fnv::FnvHashMap;
 use crate::parser::Expr;
-use crate::{Data, Instr, Opcode};
+use crate::{Data, Instr, Num, Opcode, is_float};
+use fnv::FnvHashMap;
 use internment::Intern;
 
 pub fn while_loop_summation(
@@ -25,9 +25,7 @@ pub fn while_loop_summation(
                                         let op = second_items.get(1).unwrap();
                                         let dest_reps = second_items.get(2).unwrap();
                                         if op == &Expr::Opcode(Opcode::Add) {
-                                            if second_items.first().unwrap()
-                                                == &Expr::Var(*name)
-                                            {
+                                            if second_items.first().unwrap() == &Expr::Var(*name) {
                                                 let var_id =
                                                     v.iter().find(|(w, _)| *w == *name).unwrap().1;
                                                 if let Expr::Num(reps) = *dest_reps {
@@ -85,13 +83,16 @@ pub fn for_loop_summation(
                             } else {
                                 unreachable!()
                             };
-                            
+
                             if let Data::Array(id) = consts[array as usize] {
                                 let len = arrs[&id].len();
                                 if op == Opcode::Add {
-                                    consts.push(Data::Number(reps * len as f64));
+                                    consts.push(Data::Number(reps * len as Num));
                                 } else if op == Opcode::Mul {
-                                    consts.push(Data::Number(reps.powi(len as i32)));
+                                    consts.push(Data::Number(is_float!(
+                                        reps.powi(len as i32),
+                                        reps.pow(len as u32)
+                                    )));
                                 }
                                 output.push(Instr::Mov((consts.len() - 1) as u16, var_id));
                             } else {

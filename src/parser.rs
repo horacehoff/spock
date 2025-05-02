@@ -11,7 +11,7 @@ use std::slice;
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum Expr {
-    Num(f64),
+    Num(Num),
     Bool(bool),
     Op(Box<[Expr]>),
     Opcode(Opcode),
@@ -575,7 +575,7 @@ fn parser_to_instr_set(
                 output.push(Instr::Len(array, array_len_id));
 
                 // set up the id of the index variable (0..len)
-                consts.push(Data::Number(0.0));
+                consts.push(Data::Number(0.0 as Num));
                 let index_id = (consts.len() - 1) as u16;
 
                 // do the 'i < len' condition, set up the condition's id (true/false)
@@ -607,14 +607,14 @@ fn parser_to_instr_set(
                 // then add the condition code
                 output.extend(cond_code);
                 // add 1 to the index (i+=1) so that the next loop iteration will have the next element in the array
-                consts.push(Data::Number(1.0));
+                consts.push(Data::Number(1.0 as Num));
                 output.push(Instr::Add(index_id, (consts.len() - 1) as u16, index_id));
 
                 // jump back to the loop if still inside of it
                 output.push(Instr::Jmp(len, true));
 
                 // clean up, reset the index variable
-                consts.push(Data::Number(0.0));
+                consts.push(Data::Number(0.0 as Num));
                 output.push(Instr::Mov((consts.len() - 1) as u16, index_id));
             }
             Expr::VarDeclare(x, y) => {
@@ -760,7 +760,7 @@ fn parser_to_instr_set(
                                     arrs,
                                     fn_state,
                                 );
-                                consts.push(Data::Number(0.0));
+                                consts.push(Data::Number(0.0 as Num));
                                 consts.push(Data::Null);
                                 output.push(Instr::Range(
                                     (consts.len() - 2) as u16,

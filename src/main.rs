@@ -7,6 +7,7 @@ use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
 use likely_stable::{if_likely, likely, unlikely};
+use std::any::{type_name, type_name_of_val};
 use std::cmp::PartialEq;
 use std::fs;
 use std::fs::File;
@@ -21,7 +22,27 @@ mod parser;
 mod tests;
 mod util;
 
+#[cfg(feature = "int")]
+pub type Num = isize;
+
+#[cfg(not(feature = "int"))]
 pub type Num = f64;
+
+#[macro_export]
+macro_rules! is_float {
+    ($if:expr, $else:expr) => {{
+        #[cfg(feature = "int")]
+        {
+            $else
+        }
+
+        #[cfg(not(feature = "int"))]
+        {
+            $if
+        }
+    }};
+}
+
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Data {
@@ -226,7 +247,7 @@ pub fn execute(
             }
             Instr::Pow(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                    consts[dest as usize] = Data::Number(parent.powf(child));
+                    consts[dest as usize] = Data::Number(is_float!(parent.powf(child), parent.pow(child as u32)));
                 } else {
                     error_b!(format_args!(
                         "UNSUPPORTED OPERATION: {:?} ^ {:?}",
@@ -569,7 +590,7 @@ pub fn execute(
             }
             Instr::Floor(tgt, dest) => {
                 if_likely! {let Data::Number(x) = consts[tgt as usize] => {
-                    consts[dest as usize] = Data::Number(x.floor());
+                    consts[dest as usize] = Data::Number(is_float!(x.floor(),x));
                 } else {
                     error_b!(format_args!(
                         "Cannot floor {color_red}{}{color_reset}",
@@ -581,7 +602,7 @@ pub fn execute(
                 println!(
                     "The answer to the Ultimate Question of Life, the Universe, and Everything is 42."
                 );
-                consts[dest as usize] = Data::Number(42.0);
+                consts[dest as usize] = Data::Number(42.0 as Num);
             }
             Instr::Push(array, element) => {
                 if_likely! {let Data::Array(id) = consts[array as usize] => {
@@ -607,7 +628,7 @@ pub fn execute(
             }
             Instr::Sqrt(tgt, dest) => {
                 if_likely! {let Data::Number(num) = consts[tgt as usize] => {
-                    consts[dest as usize] = Data::Number(num.sqrt())
+                    consts[dest as usize] = Data::Number(is_float!(num.sqrt(), num.isqrt()))
                 } else {
                     error_b!(format_args!("Cannot compute square root of {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
                 }}

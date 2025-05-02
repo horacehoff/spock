@@ -4,6 +4,8 @@ use crate::parser::Expr;
 use crate::display::format_parser_error;
 use inline_colorization::*;
 use crate::error_b;
+use crate::Num;
+use crate::is_float;
 use internment::Intern;
 use crate::ops::remove_priority;
 use crate::ops::op_to_rpn;
@@ -158,7 +160,7 @@ Operation: Expr = {
         if let Expr::Num(x) = t {
             return Expr::Num(-x);
         }
-        return Expr::Op(Box::from([Expr::Num(0.0), Expr::Opcode(Opcode::Neg), t]));
+        return Expr::Op(Box::from([Expr::Num(0.0 as Num), Expr::Opcode(Opcode::Neg), t]));
     },
     <o1: Term> <o3: (<Op> <Term>)+> => {
         let mut output_op:Vec<Expr> = vec![o1];
@@ -173,7 +175,7 @@ Operation: Expr = {
         if output_op.iter().any(|x| !matches!(x, Expr::Num(_) | Expr::Bool(_) | Expr::String(_) | Expr::Opcode(_))) {
             Expr::Op(output_op.into_boxed_slice())
         } else {
-            let mut output_num:Expr = Expr::Num(0.0);
+            let mut output_num:Expr = Expr::Num(0.0 as Num);
             let mut stack:Vec<Expr> = Vec::new();
             for x in output_op {
                 if let Expr::Opcode(op) = x {
@@ -239,7 +241,7 @@ Operation: Expr = {
                         },
                         Opcode::Pow => {
                             match (first,last) {
-                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(x.powf(y)),
+                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(is_float!(x.powf(y),x.pow(y as u32))),
                             (x,y) => {error_b!(format_args!(
                                   "UNSUPPORTED OPERATION: {} ^ {}",
                                   format_expr_type(x),
@@ -382,8 +384,8 @@ ObjFunctionCall:Expr = {
     }
 }
 
-Num: f64 = {
-    <n: r"([0-9]*[.])?[0-9]+"> => f64::from_str(n).unwrap()
+Num: Num = {
+    <n: r"([0-9]*[.])?[0-9]+"> => is_float!(f64::from_str(n).unwrap(),isize::from_str(n).unwrap())
 };
 
 Bool: bool = {
