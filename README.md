@@ -15,6 +15,23 @@ Key info:
   Comparisons [here](COMPARISONS.md)
 - Inlined functions
 
+## Installation
+No binaries are provided yet. You need to compile Spock yourself.
+1. [Install Rust](https://rustup.rs/)
+2. Clone the repo
+```sh
+git clone https://github.com/horacehoff/spock
+```
+3. Run/Build Spock
+```diff
++ Using --release is very recommended, as it's much faster and doesn't print Spock debug information
+cargo run --release
+cargo build --release
++ To use i64 as the numeric type instead of f64, use the following flag
+cargo run --release --features "int"
+cargo build --release --features "int"
+```
+
 ## Instruction Set
 
 Spock uses an instruction set with a size of 8 bytes.
