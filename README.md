@@ -7,11 +7,14 @@ Spock
 
 A work-in-progress programming language written in Rust for the best performance possible, whose syntax takes inspiration from Rust and Python. Basically, its goal is to provide a faster alternative to Python, and one that's closer to low-level languages, while still being accessible to a wide audience.
 
+Two "versions" of Spock exist. The only difference between them is the numeric type used. The first version uses f64 as its numeric type, while the other version uses i64 instead of f64. This is done because i64 can offer some speed improvements when compared to f64. There is no other difference. You can even change the numeric type in the code (f64/i64) and compile it yourself and use your preferred type. The only thing you need to change is the beginning of the main.rs file.
+
 Key info:
 
 - ~5-10x faster than Python in most cases.
   Comparisons [here](COMPARISONS.md)
 - Inlined functions
+
 ## Instruction Set
 
 Spock uses an instruction set with a size of 8 bytes.

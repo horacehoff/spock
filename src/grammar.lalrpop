@@ -385,7 +385,7 @@ ObjFunctionCall:Expr = {
 }
 
 Num: Num = {
-    <n: r"([0-9]*[.])?[0-9]+"> => is_float!(f64::from_str(n).unwrap(),isize::from_str(n).unwrap())
+    <n: r"([0-9]*[.])?[0-9]+"> => Num::from_str(n).unwrap_or_else(|_| {error_b!(format_args!("Invalid number: '{color_red}{n}{color_reset}'"));})
 };
 
 Bool: bool = {

@@ -7,7 +7,6 @@ use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
 use likely_stable::{if_likely, likely, unlikely};
-use std::any::{type_name, type_name_of_val};
 use std::cmp::PartialEq;
 use std::fs;
 use std::fs::File;
@@ -23,7 +22,7 @@ mod tests;
 mod util;
 
 #[cfg(feature = "int")]
-pub type Num = isize;
+pub type Num = i64;
 
 #[cfg(not(feature = "int"))]
 pub type Num = f64;
