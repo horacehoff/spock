@@ -71,6 +71,29 @@ ConditionalBlock: Expr = {
     }
 }
 
+
+MatchBlock:Expr = {
+    "match" <o1: Expression> "{" <o2: (Expression "=>" "{" Code "}")+> <o3: ("_" "=>" "{" Code "}")?> "}" => {
+        let to_match = o1;
+        let main_matches = o2.clone();
+
+        let first = main_matches.first().unwrap();
+
+        let other_matches = &main_matches[1..];
+        println!("{other_matches:?}");
+
+        let mut output_code:Vec<Expr> = first.3.to_vec();
+        output_code.extend(other_matches.iter().map(|x| Expr::ElseIfBlock(Box::from(Expr::Op(Box::from([to_match.clone(), x.0.clone(), Expr::Opcode(Opcode::Eq)]))), x.3.clone())).collect::<Vec<Expr>>());
+
+        if let Some(wildcard) = o3 {
+            output_code.push(Expr::ElseBlock(wildcard.3.clone()))
+        }
+
+        Expr::Condition(Box::from(Expr::Op(Box::from([to_match.clone(), first.0.clone(), Expr::Opcode(Opcode::Eq)]))),Box::from(output_code))
+    }
+}
+
+
 WhileBlock: Expr = {
     "while" <o1: Expression> "{" <o2:Code> "}" => Expr::WhileBlock(Box::from(o1), o2)
 }
@@ -100,6 +123,7 @@ Statement: Expr = {
     ConditionalBlock => <>,
     WhileBlock => <>,
     ForLoop => <>,
+    MatchBlock => <>,
     Function => <>,
     Line => <>
 }
@@ -352,7 +376,7 @@ Term: Expr = {
     },
     <f: FunctionCall> => <>,
     <o: ObjFunctionCall> => <>,
-};
+}
 
 FunctionCall: Expr = {
     <namespace: (Var "::")+?> <o1: r#"([a-zA-Z_]*)\("#> <o2: Expression?> <o3: ("," Expression)+?> ")" => {
@@ -396,12 +420,12 @@ ObjFunctionCall:Expr = {
 
 Num: Num = {
     <n: r"([0-9]*[.])?[0-9]+"> => Num::from_str(n).unwrap_or_else(|_| {error_b!(format_args!("Invalid number: '{color_red}{n}{color_reset}'"));})
-};
+}
 
 Bool: bool = {
     "true" => true,
     "false" => false,
-};
+}
 
 String: String = {
     <s: r#"\"(?:\"\"|[^\"])*\""#> => String::from(s.trim_matches('"'))
