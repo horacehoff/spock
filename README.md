@@ -180,6 +180,37 @@ for w in x {
   print(w);
 }
 ```
+### Arithmetic Operations
+```rs
+let x = 0;
+
+x = x + 1;
+x += 1;
+
+x = x - 1;
+x -= 1;
+
+x = x * 1;
+x *= 1;
+
+x = x / 1;
+x /= 1;
+
+x = x % 1;
+x %= 1;
+
+x = x ^ 1;
+x ^= 1;
+
+print(x == 1);
+print(x != 1);
+print(x > 1);
+print(x >= 1);
+print(x < 1);
+print(x <= 1);
+print(x > 1 || x < 1);
+print(x > 1 && x < 1);
+```
 
 ## Types
 - `Boolean` (`true`/`false`)
