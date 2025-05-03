@@ -40,7 +40,7 @@ This is useful in cases where `i64` can be faster than `f64`. Please note that, 
 Spock uses an instruction set with a size of 8 bytes.
 The available instructions can be seen [here](src/main.rs).
 
-```
+```rs
 let x = 20;
 // parentheses are optional
 if (x < 200) {
@@ -57,7 +57,7 @@ becomes...
 
 ---
 
-```
+```rs
 let n = 40;
 let a=0;
 let b=1;
@@ -85,7 +85,7 @@ becomes...
 ```
 ## Syntax
 ### Conditions
-```
+```rs
 let x = 20;
 if x == 20 {
   print("20!");
@@ -96,7 +96,7 @@ if x == 20 {
 }
 ```
 ### While loops
-```
+```rs
 let i = 0;
 while i < 10 {
   print(i);
@@ -104,7 +104,7 @@ while i < 10 {
 }
 ```
 ### For loops
-```
+```rs
 for x in [0,1,2,3] {
   for y in "abcd" {
     print(x);
@@ -114,7 +114,7 @@ for x in [0,1,2,3] {
 ```
 ### Match statements
 > Match statements currently don't support binding variables
-```
+```rs
 let x = "hello";
 match x {
   "hello" => {
@@ -129,7 +129,7 @@ match x {
 }
 ```
 ### Loop flow control
-```
+```rs
 let i = 0;
 while i < 10 {
   print(i);
@@ -140,7 +140,7 @@ while i < 10 {
   }
 }
 ```
-```
+```rs
 for x in [0,1,2,3] {
   for y in "abcd" {
     if x == 2 {
@@ -172,7 +172,7 @@ demo();
 }
 ```
 ### Arrays
-```
+```rs
 let x = [0,1,2,3,4];
 print(x[0]);
 x[1] = "test!";
