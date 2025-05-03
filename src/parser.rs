@@ -1,6 +1,6 @@
 use crate::display::print_instructions;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
-use crate::{Data, Instr, Num, Opcode, error};
+use crate::{Data, Instr, Num, Opcode, error, error_b};
 use crate::{check_args, check_args_range, print};
 use fnv::FnvHashMap;
 use inline_colorization::*;
@@ -483,7 +483,8 @@ fn parser_to_instr_set(
                 }
             }
             Expr::Condition(x, y) => {
-                let mut condition_blocks: Vec<(Vec<Instr>, Vec<Instr>)> = Vec::new();
+                let mut condition_blocks: Vec<(Vec<Instr>, Vec<Instr>)> =
+                    Vec::with_capacity(y.len() + 1);
                 // check if condition is not var/str/num (it's supposed to be a bool)
                 if matches!(**x, Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", x));
@@ -555,23 +556,21 @@ fn parser_to_instr_set(
                 });
 
                 // computes the jump size for every condition_block, if the condition is true it will jump over any remaining condition blocks
-                let jumps: Vec<u16> = (0..condition_blocks.len())
-                    .map(|i| {
-                        condition_blocks
-                            .iter()
-                            .skip(i + 1)
-                            .map(|x| {
-                                if x.0.is_empty() {
-                                    (x.1.len() + 1) as u16
-                                } else {
-                                    (x.0.len() + x.1.len() + 2) as u16
-                                }
-                            })
-                            .sum::<u16>()
-                    })
-                    .collect();
+                let mut jumps = (0..condition_blocks.len()).map(|i| {
+                    condition_blocks
+                        .iter()
+                        .skip(i + 1)
+                        .map(|x| {
+                            if x.0.is_empty() {
+                                (x.1.len() + 1) as u16
+                            } else {
+                                (x.0.len() + x.1.len() + 2) as u16
+                            }
+                        })
+                        .sum::<u16>()
+                });
 
-                for (i, (x, y)) in condition_blocks.into_iter().enumerate() {
+                for (x, y) in &condition_blocks {
                     // if no condition (= else block), simply add it and stop the loo
                     if x.is_empty() {
                         output.extend(y);
@@ -580,7 +579,7 @@ fn parser_to_instr_set(
                     // add the condition, get its id, and retrieve the jump id of the current condition block
                     output.extend(x);
                     let condition_id = get_tgt_id(*output.last().unwrap()).unwrap();
-                    let jump_size = jumps[i];
+                    let jump_size = jumps.next().unwrap();
                     if jump_size == 0 {
                         // if jump_size == 0, then else_if block is the last, so no need for a Jmp, simply add cmp and code
                         add_cmp(
@@ -734,8 +733,7 @@ fn parser_to_instr_set(
 
                 let elem_id = get_id(w, v, consts, &mut output, &ctx, fns, arrs, fn_state, id);
 
-                let to_push = Instr::ArrayMod(id, elem_id, final_id);
-                output.push(to_push);
+                output.push(Instr::ArrayMod(id, elem_id, final_id));
             }
             Expr::VarAssign(x, y) => {
                 let id = v
@@ -744,7 +742,7 @@ fn parser_to_instr_set(
                     .unwrap_or_else(|| {
                         error!(
                             ctx,
-                            format_args!("Unknown variable {x}"),
+                            format_args!("Unknown variable {color_red}{x}{color_reset}"),
                             format_args!("Add 'let {x} = 0;'")
                         );
                     })
@@ -759,9 +757,9 @@ fn parser_to_instr_set(
                 output.extend(value);
             }
             Expr::FunctionCall(args, namespace) => {
-                // let name = namespace[0];
-                let name: &str = namespace.last().unwrap();
-                let namespace: Vec<&String> = namespace.iter().rev().skip(1).rev().collect();
+                let len = namespace.len() - 1;
+                let name = namespace[len].as_str();
+                let namespace = &namespace[0..len];
                 if namespace.is_empty() {
                     match name {
                         "print" => {
@@ -1432,27 +1430,7 @@ fn parser_to_instr_set(
 }
 
 pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, FnvHashMap<u16, Vec<Data>>) {
-    let mut functions: Vec<Expr> = grammar::FileParser::new().parse(contents).unwrap();
-    print!("funcs {functions:?}");
-    let main_function: Vec<Expr> = {
-        if let Some(fctn) = functions.iter().position(|a| {
-            if let Expr::FunctionDecl(name, _) = a {
-                name.first().unwrap().trim_end_matches('(') == "main"
-            } else {
-                false
-            }
-        }) {
-            if let Expr::FunctionDecl(_, code) = functions.swap_remove(fctn) {
-                code.to_vec()
-            } else {
-                error!(contents, "No main function");
-            }
-        } else {
-            error!(contents, "No main function");
-        }
-    };
-
-    // let mut functions: Vec<(Intern<String>, Box<[String]>, Box<[Expr]>)> = functions
+    let functions: Vec<Expr> = grammar::FileParser::new().parse(contents).unwrap();
     let mut functions: Vec<Function> = functions
         .iter()
         .map(|w| {
@@ -1478,7 +1456,15 @@ pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, FnvHashMap<u16, Vec<Data
     let mut consts: Vec<Data> = Vec::new();
     let mut arrays: FnvHashMap<u16, Vec<Data>> = FnvHashMap::default();
     let instructions = parser_to_instr_set(
-        &main_function,
+        functions
+            .iter()
+            .find(|x| x.0 == "main")
+            .unwrap_or_else(|| {
+                error_b!("Could not find main function");
+            })
+            .2
+            .to_vec()
+            .as_slice(),
         &mut variables,
         &mut consts,
         &mut functions,
