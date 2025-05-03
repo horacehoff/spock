@@ -83,26 +83,102 @@ becomes...
 6 JMP 5 true
 7 PRINT 3
 ```
-
-## Syntax examples
+## Syntax
+### Conditions
 ```
 let x = 20;
-// parentheses are optional
-if (x == 20) {
-  print("TRUE!");
+if x == 20 {
+  print("20!");
+} else if x == 15 {
+  print("15!");
+} else {
+  print("else!");
+}
+```
+### While loops
+```
+let i = 0;
+while i < 10 {
+  print(i);
+  i += 1;
+}
+```
+### For loops
+```
+for x in [0,1,2,3] {
+  for y in "abcd" {
+    print(x);
+    print(y);
+  }
+}
+```
+### Match statements
+> Match statements currently don't support binding variables
+```
+let x = "hello";
+match x {
+  "hello" => {
+    print("Hi!");
+  }
+  "goodbye" => {
+    print("Bye!");
+  }
+  _ => {
+    print("You said: "+x);
+  }
+}
+```
+### Loop flow control
+```
+let i = 0;
+while i < 10 {
+  print(i);
+  i += 1;
+  if i > 5 {
+    // exits the loop
+    break;
+  }
 }
 ```
 ```
-let x = 0;
-// parentheses are optional
-while (x < 10) {
-  print(x);
-  x = x+1;
+for x in [0,1,2,3] {
+  for y in "abcd" {
+    if x == 2 {
+      // skip to the next loop iteration
+      continue;
+    }
+    print(x);
+    print(y);
+  }
 }
 ```
+### Imports
+You can import functions from other `.spock` files by using the `import` keyword like shown below.
+Please note that import statements are directly replaced by the file's contents, and as such error messages will not be
+able to specify which file the error comes from.
+- `otherfile.spock`:
 ```
-let x = [10, 20, 30, 40];
+func demo() {
+print("Hello World!");
+}
+```
+
+- `main.spock`:
+```
+import path/to/otherfile.spock;
+
+func main() {
+demo();
+}
+```
+### Arrays
+```
+let x = [0,1,2,3,4];
 print(x[0]);
+x[1] = "test!";
+for w in x {
+  print(w);
+}
 ```
 
 ## Types
@@ -155,22 +231,4 @@ print(x[0]);
   times.
 - `<Array>.push(<object: Any>)` - Appends the given object to the end of the array
 
-## Imports
-You can import functions from other `.spock` files by using the `import` keyword like shown below.
-Please note that import statements are directly replaced by the file's contents, and as such error messages will not be
-able to specify which file the error comes from.
-- `otherfile.spock`:
-```
-func demo() {
-print("Hello World!");
-}
-```
 
-- `main.spock`:
-```
-import path/to/otherfile.spock;
-
-func main() {
-demo();
-}
-```
