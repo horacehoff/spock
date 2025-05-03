@@ -74,22 +74,17 @@ ConditionalBlock: Expr = {
 
 MatchBlock:Expr = {
     "match" <o1: Expression> "{" <o2: (Expression "=>" "{" Code "}")+> <o3: ("_" "=>" "{" Code "}")?> "}" => {
-        let to_match = o1;
-        let main_matches = o2.clone();
+        let match_obj = o1;
+        let first_match = o2.first().unwrap();
 
-        let first = main_matches.first().unwrap();
-
-        let other_matches = &main_matches[1..];
-        println!("{other_matches:?}");
-
-        let mut output_code:Vec<Expr> = first.3.to_vec();
-        output_code.extend(other_matches.iter().map(|x| Expr::ElseIfBlock(Box::from(Expr::Op(Box::from([to_match.clone(), x.0.clone(), Expr::Opcode(Opcode::Eq)]))), x.3.clone())).collect::<Vec<Expr>>());
+        let mut output_code:Vec<Expr> = first_match.3.to_vec();
+        output_code.extend(o2.iter().skip(1).map(|x| Expr::ElseIfBlock(Box::from(Expr::Op(Box::from([match_obj.clone(), x.0.clone(), Expr::Opcode(Opcode::Eq)]))), x.3.clone())));
 
         if let Some(wildcard) = o3 {
             output_code.push(Expr::ElseBlock(wildcard.3.clone()))
         }
 
-        Expr::Condition(Box::from(Expr::Op(Box::from([to_match.clone(), first.0.clone(), Expr::Opcode(Opcode::Eq)]))),Box::from(output_code))
+        Expr::Condition(Box::from(Expr::Op(Box::from([match_obj, first_match.0.clone(), Expr::Opcode(Opcode::Eq)]))),Box::from(output_code))
     }
 }
 
