@@ -7,8 +7,6 @@ Spock
 
 A work-in-progress programming language written in Rust for the best performance possible, whose syntax takes inspiration from Rust and Python. Basically, its goal is to provide a faster alternative to Python, and one that's closer to low-level languages, while still being accessible to a wide audience.
 
-Spock uses f64 as its numeric type. However, you can run/build Spock with i64 as the numeric type instead of f64 , by passing the `--features "int"` flag to cargo. This is done because i64 can be faster than f64 in some cases. Please note that, unless you know what you're doing, you should use the default numeric type.
-
 Key info:
 
 - ~5-10x faster than Python in most cases.
@@ -27,10 +25,15 @@ git clone https://github.com/horacehoff/spock
 + Using --release is very recommended, as it's much faster and doesn't print Spock debug information
 cargo run --release
 cargo build --release
-+ To use i64 as the numeric type instead of f64, use the following flag
+```
+
+## Numeric type
+By default, Spock uses `f64` as its numeric type. If desired, you can run/build Spock with `i64` as the numeric type instead of `f64` by enabling the "int" feature:
+```sh
 cargo run --release --features "int"
 cargo build --release --features "int"
 ```
+This is useful in cases where `i64` can be faster than `f64`. Please note that, unless you know what you're doing, you should use the default numeric type.
 
 ## Instruction Set
 
