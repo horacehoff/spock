@@ -109,11 +109,21 @@ Line: Expr = {
     <a: VarAssign> ";" => a,
     <a: OpVarAssign> ";" => a,
     <a: ReturnLn> ";" => a,
+    <a: BreakLoop> ";" => a,
+    <a: ContinueLoop> ";" => a,
     <a: Expression> ";" => a,
 }
 
 ReturnLn: Expr = {
     "return" <e: Expression?> => Expr::ReturnVal(Box::new(e))
+}
+
+BreakLoop:Expr = {
+    "break" => Expr::Break
+}
+
+ContinueLoop:Expr = {
+    "continue" => Expr::Continue
 }
 
 VarDeclare: Expr = {

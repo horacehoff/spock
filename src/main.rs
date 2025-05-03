@@ -10,6 +10,7 @@ use likely_stable::{if_likely, likely, unlikely};
 use std::cmp::PartialEq;
 use std::fs;
 use std::fs::File;
+use std::hint::unreachable_unchecked;
 use std::io::Write;
 use std::time::Instant;
 
@@ -121,6 +122,10 @@ pub enum Instr {
     Push(u16, u16),
     // array/str - dest
     Len(u16, u16),
+
+    // TEMP - NEVER APPEARS IN FINAL CODE
+    Break(u16),
+    Continue(u16),
 }
 
 // struct CallFrame {
@@ -632,6 +637,7 @@ pub fn execute(
                     error_b!(format_args!("Cannot compute square root of {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
                 }}
             }
+            Instr::Break(_) | Instr::Continue(_) => unsafe { unreachable_unchecked() },
         }
         i += 1;
     }
