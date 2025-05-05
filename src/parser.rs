@@ -99,6 +99,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::TheAnswer(y)
         | Instr::Len(_, y)
         | Instr::Sqrt(_, y)
+        | Instr::Split(_, _, y)
         | Instr::Str(_, y) => *y = tgt_id,
         _ => unreachable!(),
     }
@@ -136,6 +137,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::TheAnswer(y)
         | Instr::Len(_, y)
         | Instr::Sqrt(_, y)
+        | Instr::Split(_, _, y)
         | Instr::Str(_, y) => Some(y),
         _ => None,
     }
@@ -1333,6 +1335,22 @@ fn parser_to_instr_set(
 
                             output.push(Instr::ApplyFunc(16, id, f_id));
                             id = f_id;
+                        }
+                        "split" => {
+                            check_args!(args, 1, "split", ctx);
+                            let arg_id = get_id(
+                                &args[0],
+                                v,
+                                consts,
+                                &mut output,
+                                &ctx,
+                                fns,
+                                arrs,
+                                fn_state,
+                                id,
+                            );
+                            consts.push(Data::Null);
+                            output.push(Instr::Split(id, arg_id, (consts.len() - 1) as u16));
                         }
                         other => {
                             error!(

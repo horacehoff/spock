@@ -151,13 +151,7 @@ VarDeclare: Expr = {
 
 VarAssign: Expr = {
     <v: Var> "=" <e: Expression> => Expr::VarAssign(Intern::from(v), Box::from(e)),
-    <i: IndexAccess> "=" <e: Expression> => {
-        if let Expr::GetIndex(a,b) = i {
-            Expr::ArrayModify(a,b,Box::new(e))
-        } else {
-          unreachable!()
-        }
-    },
+    <t: Term> <f: ("[" Expression "]")+> "=" <e: Expression> => Expr::ArrayModify(Box::from(t), f.iter().map(|x| x.1.clone()).collect::<Vec<Expr>>().into_boxed_slice(), Box::from(e)),
     ! => {
         error_b!(format_parser_error_recovery(<>, "VARIABLE ASSIGNMENT"));
     }
@@ -181,7 +175,7 @@ IndexAccess: Expr = {
 Expression: Expr = {
     <o:Operation> => o,
     <t: Term> => t,
-    <i: IndexAccess> => i,
+    //<i: IndexAccess> => i,
 }
 
 Operation: Expr = {
@@ -361,16 +355,10 @@ Term: Expr = {
     <b: Bool> => Expr::Bool(b),
     <s: String> => Expr::String(s),
     <v: Var> => Expr::Var(Intern::from(v)),
-    "[" <t: Expression?> <f: ("," Expression)*> "]" => {
-        let mut terms = Vec::new();
-        if let Some(x) = t {
-            terms.push(x);
-        }
-        terms.extend(f.iter().map(|x| x.1.clone()).collect::<Vec<_>>());
-        Expr::Array(terms.into_boxed_slice())
-    },
+    <a: Array> => <>,
     <f: FunctionCall> => <>,
     <o: ObjFunctionCall> => <>,
+    //<i: ArrayIndex> => <>,
 }
 
 FunctionCall: Expr = {
@@ -410,6 +398,17 @@ ObjFunctionCall:Expr = {
             }
         }
         Expr::ObjFunctionCall(Box::from(t), Box::from(func_calls))
+    }
+}
+
+Array:Expr = {
+    "[" "]" => {
+        Expr::Array(Box::from([]))
+    },
+    "[" <t: Expression> <f: ("," Expression)*> "]" => {
+        let mut terms = vec![t];
+        terms.extend(f.iter().map(|x| x.1.clone()).collect::<Vec<_>>());
+        Expr::Array(terms.into_boxed_slice())
     }
 }
 

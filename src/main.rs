@@ -122,6 +122,8 @@ pub enum Instr {
     Push(u16, u16),
     // array/str - dest
     Len(u16, u16),
+    // tgt - separator - dest
+    Split(u16, u16, u16),
 
     // TEMP - NEVER APPEARS IN FINAL CODE
     Break(u16),
@@ -636,6 +638,20 @@ pub fn execute(
                 } else {
                     error_b!(format_args!("Cannot compute square root of {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
                 }}
+            }
+            Instr::Split(tgt, sep, dest) => {
+                if let Data::String(str) = consts[tgt as usize] {
+                    if let Data::String(separator) = consts[sep as usize] {
+                        let id = arrays.len() as u16;
+                        arrays.insert(
+                            id,
+                            str.split(separator.as_str())
+                                .map(|x| Data::String(Intern::from_ref(x)))
+                                .collect(),
+                        );
+                        consts[dest as usize] = Data::Array(id);
+                    }
+                }
             }
             Instr::Break(_) | Instr::Continue(_) => unsafe { unreachable_unchecked() },
         }
