@@ -650,6 +650,26 @@ pub fn execute(
                                 .collect(),
                         );
                         consts[dest as usize] = Data::Array(id);
+                    } else if let Data::Array(separator) = consts[sep as usize] {
+                        let seps: Vec<&str> = arrays[&separator]
+                            .iter()
+                            .map(|x| {
+                                if let Data::String(str) = x {
+                                    str.as_str()
+                                } else {
+                                    error_b!(format_args!(
+                                        "Invalid separator: {color_red}{x:?}{color_reset}"
+                                    ));
+                                }
+                            })
+                            .collect();
+                        let id = arrays.len() as u16;
+                        arrays.insert(
+                            id,
+                            str.split(|x: &str| seps.contains(x))
+                                .map(|x| Data::String(Intern::from_ref(x)))
+                                .collect(),
+                        );
                     }
                 }
             }
