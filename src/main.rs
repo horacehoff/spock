@@ -654,18 +654,18 @@ pub fn execute(
                         error_b!(format_args!("Invalid string separator: {color_red}{:?}{color_reset}", consts[sep as usize]));
                     }
                 } else if let Data::Array(array_id) = consts[tgt as usize] {
-                    let array = arrays[&array_id].to_vec();
-                    let mut ids:Vec<u16> = Vec::new();
+                    let array = arrays[&array_id].as_slice();
+                    let split:Vec<&[Data]> = array.split(|x| x == &consts[sep as usize]).collect();
 
-                    for x in array.split(|x| x == &consts[sep as usize]) {
-                        let id = arrays.len() as u16;
-                        arrays.insert(id, x.to_vec());
-                        ids.push(id)
+                    for x in split {
+                        arrays.insert(arrays.len() as u16, x.to_vec());
                     }
 
-                    let id = arrays.len() as u16;
-                    arrays.insert(id, ids.iter().map(|x| Data::Array(*x)).collect());
-                    consts[dest as usize] = Data::Array(id);
+
+
+
+                    // arrays.insert(id, ids.iter().map(|(x,_)| Data::Array(*x)).collect());
+                    // consts[dest as usize] = Data::Array(id);
                 }
             }
             Instr::Break(_) | Instr::Continue(_) => unsafe { unreachable_unchecked() },
