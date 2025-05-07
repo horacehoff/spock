@@ -650,27 +650,22 @@ pub fn execute(
                                 .collect(),
                         );
                         consts[dest as usize] = Data::Array(id);
-                    } else if let Data::Array(separator) = consts[sep as usize] {
-                        let seps: Vec<&str> = arrays[&separator]
-                            .iter()
-                            .map(|x| {
-                                if let Data::String(str) = x {
-                                    str.as_str()
-                                } else {
-                                    error_b!(format_args!(
-                                        "Invalid separator: {color_red}{x:?}{color_reset}"
-                                    ));
-                                }
-                            })
-                            .collect();
-                        let id = arrays.len() as u16;
-                        arrays.insert(
-                            id,
-                            str.split(|x: &str| seps.contains(x))
-                                .map(|x| Data::String(Intern::from_ref(x)))
-                                .collect(),
-                        );
+                    } else {
+                        error_b!(format_args!("Invalid string separator: {color_red}{:?}{color_reset}", consts[sep as usize]));
                     }
+                } else if let Data::Array(array_id) = consts[tgt as usize] {
+                    let array = arrays[&array_id].to_vec();
+                    let mut ids:Vec<u16> = Vec::new();
+
+                    for x in array.split(|x| x == &consts[sep as usize]) {
+                        let id = arrays.len() as u16;
+                        arrays.insert(id, x.to_vec());
+                        ids.push(id)
+                    }
+
+                    let id = arrays.len() as u16;
+                    arrays.insert(id, ids.iter().map(|x| Data::Array(*x)).collect());
+                    consts[dest as usize] = Data::Array(id);
                 }
             }
             Instr::Break(_) | Instr::Continue(_) => unsafe { unreachable_unchecked() },
