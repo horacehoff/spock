@@ -13,6 +13,7 @@ use std::fs::File;
 use std::hint::unreachable_unchecked;
 use std::io::Write;
 use std::time::Instant;
+use util::SPOCK_LOGO;
 
 mod builtin_funcs;
 mod display;
@@ -776,8 +777,23 @@ fn get_vec_capacity(instructions: &[Instr]) -> (usize, usize) {
 
 // Live long and prosper
 fn main() {
-    let mut contents = fs::read_to_string("test.spock").unwrap();
-    contents = clean_contents(&contents, "test.spock");
+    let args: Vec<String> = std::env::args().collect();
+
+    #[cfg(debug_assertions)]
+    let filename = "test.spock";
+
+    #[cfg(not(debug_assertions))]
+    let filename = args.get(1).unwrap_or_else(|| {
+        println!("{}", SPOCK_LOGO);
+        std::process::exit(0);
+    });
+
+    let mut contents = fs::read_to_string(filename).unwrap_or_else(|_| {
+        error_b!(format_args!(
+            "Unable to read contents of file {color_red}{filename}{color_reset}"
+        ));
+    });
+    contents = clean_contents(&contents, filename);
     print!("{contents:?}");
 
     let (instructions, mut consts, mut arrays) = parse(&contents);

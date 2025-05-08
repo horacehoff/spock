@@ -166,3 +166,5 @@ macro_rules! check_args_range {
         }
     };
 }
+
+pub const SPOCK_LOGO: &str = r#"SPOCK"#;
