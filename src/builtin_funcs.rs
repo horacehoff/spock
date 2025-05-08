@@ -49,25 +49,28 @@ fn contains(
     args: &mut Vec<u16>,
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
-    let target = consts[tgt as usize];
-    if let Data::String(str) = target {
-        let arg = args.swap_remove(0);
-        if_likely! { let Data::String(arg) = consts[arg as usize] => {
-            consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
-        } else {
+    match consts[tgt as usize] {
+        Data::String(str) => {
+            let arg = args.swap_remove(0);
+            if_likely! { let Data::String(arg) = consts[arg as usize] => {
+                consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
+            } else {
+                error_b!(format_args!(
+                    "{color_red}{}{color_reset} is not a String",
+                    format_data(consts[arg as usize], arrays)
+                ));
+            }}
+        }
+        Data::Array(x) => {
+            let arg = consts[args.swap_remove(0) as usize];
+            consts[dest as usize] = Data::Bool(arrays[&x].contains(&arg))
+        }
+        invalid => {
             error_b!(format_args!(
                 "{color_red}{}{color_reset} is not a String",
-                format_data(consts[arg as usize], arrays)
+                format_data(invalid, arrays)
             ));
-        }}
-    } else if let Data::Array(x) = target {
-        let arg = consts[args.swap_remove(0) as usize];
-        consts[dest as usize] = Data::Bool(arrays[&x].contains(&arg))
-    } else {
-        error_b!(format_args!(
-            "{color_red}{}{color_reset} is not a String",
-            format_data(consts[tgt as usize], arrays)
-        ));
+        }
     }
 }
 
@@ -122,29 +125,32 @@ fn index(
     args: &mut Vec<u16>,
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
-    let target = consts[tgt as usize];
-    if let Data::String(str) = target {
-        let arg = consts[args.swap_remove(0) as usize];
-        if_likely! { let Data::String(arg) = arg => {
-            consts[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
-                error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
+    match consts[tgt as usize] {
+        Data::String(str) => {
+            let arg = consts[args.swap_remove(0) as usize];
+            if_likely! { let Data::String(arg) = arg => {
+                consts[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
+                    error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
+                }) as Num);
+            } else {
+                error_b!(format_args!(
+                    "{color_red}{}{color_reset} is not a String",
+                    format_data(arg, arrays)
+                ));
+            }}
+        }
+        Data::Array(x) => {
+            let arg = consts[args.swap_remove(0) as usize];
+            consts[dest as usize] = Data::Number(arrays[&x].iter().position(|x| x == &arg).unwrap_or_else(|| {
+                error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{:?}{color_reset}", arg, format_data(Data::Array(x), arrays)));
             }) as Num);
-        } else {
+        }
+        invalid => {
             error_b!(format_args!(
-                "{color_red}{}{color_reset} is not a String",
-                format_data(arg, arrays)
+                "Cannot index type {color_red}{}{color_reset}",
+                get_type(invalid)
             ));
-        }}
-    } else if let Data::Array(x) = target {
-        let arg = consts[args.swap_remove(0) as usize];
-        consts[dest as usize] = Data::Number(arrays[&x].iter().position(|x| x == &arg).unwrap_or_else(|| {
-            error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{:?}{color_reset}", arg, format_data(target, arrays)));
-        }) as Num);
-    } else {
-        error_b!(format_args!(
-            "Cannot index type {color_red}{}{color_reset}",
-            get_type(target)
-        ));
+        }
     }
 }
 
@@ -250,29 +256,32 @@ fn rindex(
     args: &mut Vec<u16>,
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
-    let target = consts[tgt as usize];
-    if let Data::String(str) = target {
-        let arg = consts[args.swap_remove(0) as usize];
-        if_likely! { let Data::String(arg) = arg => {
-            consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
-                error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
+    match consts[tgt as usize] {
+        Data::String(str) => {
+            let arg = consts[args.swap_remove(0) as usize];
+            if_likely! { let Data::String(arg) = arg => {
+                consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
+                    error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
+                }) as Num);
+            } else {
+                error_b!(format_args!(
+                    "{color_red}{}{color_reset} is not a String",
+                    format_data(arg, arrays)
+                ));
+            }}
+        }
+        Data::Array(x) => {
+            let arg = consts[args.swap_remove(0) as usize];
+            consts[dest as usize] = Data::Number(arrays[&x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
+                error_b!(format_args!("Cannot get index of {color_red}{}{color_reset} in {color_blue}{}{color_reset}", format_data(arg, arrays), format_data(Data::Array(x), arrays)));
             }) as Num);
-        } else {
+        }
+        invalid => {
             error_b!(format_args!(
-                "{color_red}{}{color_reset} is not a String",
-                format_data(arg, arrays)
+                "Cannot index type {color_red}{}{color_reset}",
+                get_type(invalid)
             ));
-        }}
-    } else if let Data::Array(x) = target {
-        let arg = consts[args.swap_remove(0) as usize];
-        consts[dest as usize] = Data::Number(arrays[&x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
-            error_b!(format_args!("Cannot get index of {color_red}{}{color_reset} in {color_blue}{}{color_reset}", format_data(arg, arrays), format_data(target, arrays)));
-        }) as Num);
-    } else {
-        error_b!(format_args!(
-            "Cannot index type {color_red}{}{color_reset}",
-            get_type(target)
-        ));
+        }
     }
 }
 
@@ -283,33 +292,37 @@ fn repeat(
     args: &mut Vec<u16>,
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
 ) {
-    if let Data::String(str) = consts[tgt as usize] {
-        let arg = args.swap_remove(0);
-        if_likely! { let Data::Number(arg) = consts[arg as usize] => {
-            consts[dest as usize] = Data::String(Intern::from(str.repeat(arg as usize)))
-        } else {
-            error_b!(format_args!(
+    match consts[tgt as usize] {
+        Data::String(str) => {
+            let arg = args.swap_remove(0);
+            if_likely! { let Data::Number(arg) = consts[arg as usize] => {
+                consts[dest as usize] = Data::String(Intern::from(str.repeat(arg as usize)))
+            } else {
+                error_b!(format_args!(
+                    "{color_red}{}{color_reset} is not a Number",
+                    format_data(consts[arg as usize], arrays)
+                ));
+            }}
+        }
+        Data::Array(x) => {
+            let arg = args.swap_remove(0);
+            if_likely! { let Data::Number(arg) = consts[arg as usize] => {
+                let id = arrays.len() as u16;
+                arrays.insert(id, arrays[&x].repeat(arg as usize));
+                consts[dest as usize] = Data::Array(id);
+            } else {
+                error_b!(format_args!(
                 "{color_red}{}{color_reset} is not a Number",
-                format_data(consts[arg as usize], arrays)
-            ));
-        }}
-    } else if let Data::Array(x) = consts[tgt as usize] {
-        let arg = args.swap_remove(0);
-        if_likely! { let Data::Number(arg) = consts[arg as usize] => {
-            let id = arrays.len() as u16;
-            arrays.insert(id, arrays[&x].repeat(arg as usize));
-            consts[dest as usize] = Data::Array(id);
-        } else {
+                    format_data(consts[arg as usize], arrays)
+                ));
+            }}
+        }
+        invalid => {
             error_b!(format_args!(
-            "{color_red}{}{color_reset} is not a Number",
-                format_data(consts[arg as usize], arrays)
+                "{color_red}{}{color_reset} is not a String",
+                format_data(invalid, arrays)
             ));
-        }}
-    } else {
-        error_b!(format_args!(
-            "{color_red}{}{color_reset} is not a String",
-            format_data(consts[tgt as usize], arrays)
-        ));
+        }
     }
 }
 
@@ -382,7 +395,30 @@ fn write(
     }}
 }
 
-pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>); 17] = [
+fn reverse(
+    tgt: u16,
+    dest: u16,
+    consts: &mut [Data],
+    _: &mut Vec<u16>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+) {
+    match consts[tgt as usize] {
+        Data::Array(id) => {
+            let array_id = arrays.len();
+            let mut array = arrays[&id].to_vec();
+            array.reverse();
+            arrays.insert(array_id as u16, array);
+        }
+        invalid => {
+            error_b!(format_args!(
+                "Cannot reverse type {color_red}{}{color_reset}",
+                get_type(invalid)
+            ));
+        }
+    }
+}
+
+pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>); 18] = [
     uppercase,
     lowercase,
     contains,
@@ -400,4 +436,5 @@ pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, 
     abs,
     read,
     write,
+    reverse,
 ];

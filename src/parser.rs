@@ -277,8 +277,7 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
     match *output.last().unwrap() {
         Instr::Inf(o1, o2, o3) => {
             if o3 == condition_id {
-                output.pop();
-                output.push(Instr::InfCmp(o1, o2, *len));
+                *output.last_mut().unwrap() = Instr::InfCmp(o1, o2, *len);
                 if jmp_backwards {
                     *len -= 1;
                 }
@@ -288,8 +287,7 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
         }
         Instr::InfEq(o1, o2, o3) => {
             if o3 == condition_id {
-                output.pop();
-                output.push(Instr::InfEqCmp(o1, o2, *len));
+                *output.last_mut().unwrap() = Instr::InfEqCmp(o1, o2, *len);
                 if jmp_backwards {
                     *len -= 1;
                 }
@@ -299,8 +297,7 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
         }
         Instr::Sup(o1, o2, o3) => {
             if o3 == condition_id {
-                output.pop();
-                output.push(Instr::SupCmp(o1, o2, *len));
+                *output.last_mut().unwrap() = Instr::SupCmp(o1, o2, *len);
                 if jmp_backwards {
                     *len -= 1;
                 }
@@ -310,8 +307,7 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
         }
         Instr::SupEq(o1, o2, o3) => {
             if o3 == condition_id {
-                output.pop();
-                output.push(Instr::SupEqCmp(o1, o2, *len));
+                *output.last_mut().unwrap() = Instr::SupEqCmp(o1, o2, *len);
                 if jmp_backwards {
                     *len -= 1;
                 }
@@ -321,8 +317,7 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
         }
         Instr::Eq(o1, o2, o3) => {
             if o3 == condition_id {
-                output.pop();
-                output.push(Instr::EqCmp(o1, o2, *len));
+                *output.last_mut().unwrap() = Instr::EqCmp(o1, o2, *len);
                 if jmp_backwards {
                     *len -= 1;
                 }
@@ -332,8 +327,7 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
         }
         Instr::NotEq(o1, o2, o3) => {
             if o3 == condition_id {
-                output.pop();
-                output.push(Instr::NotEqCmp(o1, o2, *len));
+                *output.last_mut().unwrap() = Instr::NotEqCmp(o1, o2, *len);
                 if jmp_backwards {
                     *len -= 1;
                 }
@@ -1336,6 +1330,15 @@ fn parser_to_instr_set(
                             output.push(Instr::ApplyFunc(16, id, f_id));
                             id = f_id;
                         }
+                        "reverse" => {
+                            check_args!(args, 0, "reverse", ctx);
+
+                            let f_id = consts.len() as u16;
+                            consts.push(Data::Null);
+
+                            output.push(Instr::ApplyFunc(17, id, f_id));
+                            id = f_id;
+                        }
                         "split" => {
                             check_args!(args, 1, "split", ctx);
                             let arg_id = get_id(
@@ -1351,6 +1354,21 @@ fn parser_to_instr_set(
                             );
                             consts.push(Data::Null);
                             output.push(Instr::Split(id, arg_id, (consts.len() - 1) as u16));
+                        }
+                        "remove" => {
+                            check_args!(args, 1, "remove", ctx);
+                            let arg_id = get_id(
+                                &args[0],
+                                v,
+                                consts,
+                                &mut output,
+                                &ctx,
+                                fns,
+                                arrs,
+                                fn_state,
+                                id,
+                            );
+                            output.push(Instr::Remove(id, arg_id));
                         }
                         other => {
                             error!(

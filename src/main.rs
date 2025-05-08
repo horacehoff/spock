@@ -120,6 +120,8 @@ pub enum Instr {
     TheAnswer(u16),
     // array - element
     Push(u16, u16),
+    // array - index
+    Remove(u16, u16),
     // array/str - dest
     Len(u16, u16),
     // tgt - separator - dest
@@ -639,9 +641,9 @@ pub fn execute(
                     error_b!(format_args!("Cannot compute square root of {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
                 }}
             }
-            Instr::Split(tgt, sep, dest) => {
-                if let Data::String(str) = consts[tgt as usize] {
-                    if let Data::String(separator) = consts[sep as usize] {
+            Instr::Split(tgt, sep, dest) => match consts[tgt as usize] {
+                Data::String(str) => {
+                    if_likely! { let Data::String(separator) = consts[sep as usize] => {
                         let id = arrays.len() as u16;
                         arrays.insert(
                             id,
@@ -655,8 +657,9 @@ pub fn execute(
                             "Invalid string separator: {color_red}{:?}{color_reset}",
                             consts[sep as usize]
                         ));
-                    }
-                } else if let Data::Array(array_id) = consts[tgt as usize] {
+                    }}
+                }
+                Data::Array(array_id) => {
                     let array = arrays[&array_id].to_vec();
                     let split = array.split(|x| x == &consts[sep as usize]);
                     let base_id = arrays.len() as u16;
@@ -668,6 +671,23 @@ pub fn execute(
                     let id = arrays.len() as u16;
                     arrays.insert(id, (base_id..id).map(|x| Data::Array(x as u16)).collect());
                     consts[dest as usize] = Data::Array(id as u16);
+                }
+                invalid => {
+                    error_b!(format_args!(
+                        "Cannot split type {color_red}{}{color_reset}",
+                        get_type(invalid)
+                    ));
+                }
+            },
+            Instr::Remove(array, idx) => {
+                if_likely! {let Data::Number(idx) = consts[idx as usize] => {
+                        arrays.get_mut(&array).unwrap().remove(idx as usize);
+                } else {
+                    error_b!(format_args!(
+                        "Invalid index: {color_red}{:?}{color_reset}",
+                        consts[idx as usize]
+                    ));
+                }
                 }
             }
             Instr::Break(_) | Instr::Continue(_) => unsafe { unreachable_unchecked() },
