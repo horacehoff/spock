@@ -651,21 +651,23 @@ pub fn execute(
                         );
                         consts[dest as usize] = Data::Array(id);
                     } else {
-                        error_b!(format_args!("Invalid string separator: {color_red}{:?}{color_reset}", consts[sep as usize]));
+                        error_b!(format_args!(
+                            "Invalid string separator: {color_red}{:?}{color_reset}",
+                            consts[sep as usize]
+                        ));
                     }
                 } else if let Data::Array(array_id) = consts[tgt as usize] {
-                    let array = arrays[&array_id].as_slice();
-                    let split:Vec<&[Data]> = array.split(|x| x == &consts[sep as usize]).collect();
-
-                    for x in split {
-                        arrays.insert(arrays.len() as u16, x.to_vec());
-                    }
-
-
-
-
-                    // arrays.insert(id, ids.iter().map(|(x,_)| Data::Array(*x)).collect());
-                    // consts[dest as usize] = Data::Array(id);
+                    let array = arrays[&array_id].to_vec();
+                    let split = array.split(|x| x == &consts[sep as usize]);
+                    let base_id = arrays.len() as u16;
+                    arrays.extend(
+                        split
+                            .enumerate()
+                            .map(|(i, x)| (base_id + i as u16, x.to_vec())),
+                    );
+                    let id = arrays.len() as u16;
+                    arrays.insert(id, (base_id..id).map(|x| Data::Array(x as u16)).collect());
+                    consts[dest as usize] = Data::Array(id as u16);
                 }
             }
             Instr::Break(_) | Instr::Continue(_) => unsafe { unreachable_unchecked() },
