@@ -54,13 +54,34 @@ ElseIfBlock:Expr = {
     "else" "if" <o1: Expression> "{" <o2:Code> "}" => Expr::ElseIfBlock(Box::from(o1), o2)
 }
 
+
+InlineElseIfBlock:Expr = {
+    "else" "if" <o1: Expression> "{" <o2:Expression> "}" => Expr::ElseIfBlock(Box::from(o1), Box::from(vec![o2]))
+}
+
 ElseBlock:Expr = {
     "else" "{" <o2:Code> "}" => Expr::ElseBlock(o2)
+}
+
+InlineElseBlock:Expr = {
+    "else" "{" <o2:Expression> "}" => Expr::ElseBlock(Box::from(vec![o2]))
 }
 
 ConditionalBlock: Expr = {
     "if" <o1: Expression> "{" <o2:Code> "}" <o3: ElseIfBlock*> <o4: ElseBlock?> => {
         let mut code = o2.to_vec();
+        for x in o3 {
+            code.push(x);
+        }
+        if let Some(x) = o4 {
+            code.push(x);
+        }
+        Expr::Condition(Box::from(o1), code.into_boxed_slice())
+    }
+}
+InlineConditionalBlock: Expr = {
+    "if" <o1: Expression> "{" <o2:Expression> "}" <o3: InlineElseIfBlock*> <o4: InlineElseBlock?> => {
+        let mut code = vec![o2];
         for x in o3 {
             code.push(x);
         }
@@ -172,10 +193,12 @@ IndexAccess: Expr = {
     }
 }
 
+
+
 Expression: Expr = {
     <o:Operation> => o,
     <t: Term> => t,
-    //<i: IndexAccess> => i,
+    <i: IndexAccess> => i,
 }
 
 Operation: Expr = {
@@ -358,6 +381,7 @@ Term: Expr = {
     <a: Array> => <>,
     <f: FunctionCall> => <>,
     <o: ObjFunctionCall> => <>,
+    <c: InlineConditionalBlock> => <>,
     //<i: ArrayIndex> => <>,
 }
 

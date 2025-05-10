@@ -404,10 +404,19 @@ fn reverse(
 ) {
     match consts[tgt as usize] {
         Data::Array(id) => {
-            let array_id = arrays.len();
-            let mut array = arrays[&id].to_vec();
-            array.reverse();
-            arrays.insert(array_id as u16, array);
+            // let array_id = arrays.len();
+            // let mut array = arrays[&id].to_vec();
+            // array.reverse();
+            // arrays.insert(array_id as u16, array);
+            //
+            // reverses the array and returns it, maybe a bad idea?
+            //
+            arrays.get_mut(&id).unwrap().reverse();
+            consts[dest as usize] = Data::Array(id)
+        }
+        Data::String(str) => {
+            consts[dest as usize] =
+                Data::String(Intern::from(str.chars().rev().collect::<String>()))
         }
         invalid => {
             error_b!(format_args!(

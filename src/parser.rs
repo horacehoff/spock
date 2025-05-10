@@ -45,6 +45,7 @@ pub enum Expr {
     // ForLoop(String, Box<Expr>, Box<[Expr]>),
     ForLoop(Intern<String>, Box<[Expr]>),
     Import(String),
+    Closure(Box<[String]>, Box<[Expr]>),
 
     Break,
     Continue,
@@ -183,12 +184,12 @@ macro_rules! handle_ops {
 
 fn get_id(
     x: &Expr,
-    variables: &mut Vec<(Intern<String>, u16)>,
+    v: &mut Vec<(Intern<String>, u16)>,
     consts: &mut Vec<Data>,
-    instr: &mut Vec<Instr>,
-    line: &str,
-    functions: &mut Vec<Function>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    output: &mut Vec<Instr>,
+    ctx: &str,
+    fns: &mut Vec<Function>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
     fn_state: Option<&FunctionState>,
     id: u16,
 ) -> u16 {
@@ -206,53 +207,169 @@ fn get_id(
             (consts.len() - 1) as u16
         }
         Expr::Var(name) => {
-            if let Some((_, id)) = variables.iter().find(|(var, _)| *name == *var) {
+            if let Some((_, id)) = v.iter().find(|(var, _)| *name == *var) {
                 *id
             } else {
                 error!(
-                    line,
+                    ctx,
                     format_args!("Unknown variable {color_red}{}{color_reset}", name),
                     format_args!("Add 'let {name} = 0;'")
                 );
             }
         }
         Expr::Array(elems) => {
-            let id = arrays.len() as u16;
-            arrays.insert(id, Vec::new());
+            let id = arrs.len() as u16;
+            arrs.insert(id, Vec::new());
             for elem in elems {
-                let x = parser_to_instr_set(
-                    slice::from_ref(elem),
-                    variables,
-                    consts,
-                    functions,
-                    fn_state,
-                    arrays,
-                    id,
-                );
+                let x =
+                    parser_to_instr_set(slice::from_ref(elem), v, consts, fns, fn_state, arrs, id);
                 if !x.is_empty() {
                     let c_id = get_tgt_id(*x.last().unwrap()).unwrap();
-                    arrays.get_mut(&id).unwrap().push(Data::Null);
+                    arrs.get_mut(&id).unwrap().push(Data::Null);
 
-                    instr.extend(x);
-                    instr.push(Instr::ArrayMov(c_id, id, (arrays[&id].len() - 1) as u16));
+                    output.extend(x);
+                    output.push(Instr::ArrayMov(c_id, id, (arrs[&id].len() - 1) as u16));
                 } else {
-                    arrays.get_mut(&id).unwrap().push(consts.pop().unwrap());
+                    arrs.get_mut(&id).unwrap().push(consts.pop().unwrap());
                 }
             }
             consts.push(Data::Array(id));
             (consts.len() - 1) as u16
         }
-        other => {
-            instr.extend(parser_to_instr_set(
-                slice::from_ref(other),
-                variables,
+        Expr::Condition(main_condition, condition_code) => {
+            let return_id = consts.len() as u16;
+            consts.push(Data::Null);
+
+            let mut condition_blocks: Vec<(Vec<Instr>, u16)> =
+                Vec::with_capacity(condition_code.len() + 1);
+
+            let condition = parser_to_instr_set(
+                slice::from_ref(main_condition),
+                v,
                 consts,
-                functions,
+                fns,
                 fn_state,
-                arrays,
+                arrs,
+                id,
+            );
+            condition_blocks.push((
+                condition,
+                get_id(
+                    condition_code.first().unwrap(),
+                    v,
+                    consts,
+                    output,
+                    ctx,
+                    fns,
+                    arrs,
+                    fn_state,
+                    id,
+                ),
+            ));
+
+            // process each else if / else block
+            condition_code.iter().for_each(|x| {
+                if let Expr::ElseIfBlock(condition, code) = x {
+                    // check if condition is str/num (it's supposed to be a bool)
+                    if matches!(&**condition, Expr::String(_) | Expr::Num(_)) {
+                        error!(ctx, format_args!("{} is not a bool", condition));
+                    }
+                    // same thing, parse condition and code and add it to condition_blocks, don't add it to output yet
+                    let condition = parser_to_instr_set(
+                        slice::from_ref(condition),
+                        v,
+                        consts,
+                        fns,
+                        fn_state,
+                        arrs,
+                        id,
+                    );
+                    condition_blocks.push((
+                        condition,
+                        get_id(
+                            code.first().unwrap(),
+                            v,
+                            consts,
+                            output,
+                            ctx,
+                            fns,
+                            arrs,
+                            fn_state,
+                            id,
+                        ),
+                    ));
+                } else if let Expr::ElseBlock(code) = x {
+                    // no condition, parse only the code block and use empty vec as condition
+                    condition_blocks.push((
+                        Vec::new(),
+                        get_id(
+                            code.first().unwrap(),
+                            v,
+                            consts,
+                            output,
+                            ctx,
+                            fns,
+                            arrs,
+                            fn_state,
+                            id,
+                        ),
+                    ));
+                }
+            });
+
+            println!("condit {condition_blocks:?}");
+
+            let mut jumps = (0..condition_blocks.len()).map(|i| {
+                condition_blocks
+                    .iter()
+                    .skip(i + 1)
+                    .map(|x| {
+                        if x.0.is_empty() {
+                            (1 + 1) as u16
+                        } else {
+                            x.0.len() as u16 + 2
+                        }
+                    })
+                    .sum::<u16>()
+            });
+
+            for (x, y) in &condition_blocks {
+                // if no condition (= else block), simply add it and stop the loop
+                if x.is_empty() {
+                    output.push(Instr::Mov(*y, return_id));
+                    break;
+                }
+                // add the condition, get its id, and retrieve the jump id of the current condition block
+                output.extend(x);
+                let condition_id = get_tgt_id(*output.last().unwrap()).unwrap();
+                let jump_size = jumps.next().unwrap();
+                if jump_size == 0 {
+                    // if jump_size == 0, then else_if block is the last, so no need for a Jmp, simply add cmp and code
+                    println!("ye sorry...");
+                    add_cmp(condition_id, &mut ((1 + 1) as u16), output, false);
+                    output.push(Instr::Mov(*y, return_id));
+                } else {
+                    println!("fucking works!");
+                    // if jump_size != 0, then add cmp and code (which contains Jmp to skip all other succeeding blocks if condition is true)
+                    add_cmp(condition_id, &mut ((1 + 2) as u16), output, false);
+                    output.push(Instr::Mov(*y, return_id));
+                    output.push(Instr::Jmp(jump_size, false));
+                }
+            }
+
+            return_id
+        }
+        other => {
+            output.extend(parser_to_instr_set(
+                slice::from_ref(other),
+                v,
+                consts,
+                fns,
+                fn_state,
+                arrs,
                 id,
             ));
-            get_tgt_id_vec(instr)
+            get_tgt_id_vec(output)
         }
     }
 }
@@ -478,20 +595,28 @@ fn parser_to_instr_set(
                     id = (consts.len() - 1) as u16;
                 }
             }
-            Expr::Condition(x, y) => {
+            Expr::Condition(main_condition, condition_code) => {
                 let mut condition_blocks: Vec<(Vec<Instr>, Vec<Instr>)> =
-                    Vec::with_capacity(y.len() + 1);
+                    Vec::with_capacity(condition_code.len() + 1);
                 // check if condition is not var/str/num (it's supposed to be a bool)
-                if matches!(**x, Expr::String(_) | Expr::Num(_)) {
-                    error!(ctx, format_args!("{} is not a bool", x));
+                if matches!(**main_condition, Expr::String(_) | Expr::Num(_)) {
+                    error!(ctx, format_args!("{} is not a bool", main_condition));
                 }
                 // parse the main condition
-                let condition =
-                    parser_to_instr_set(slice::from_ref(x), v, consts, fns, fn_state, arrs, id);
+                let condition = parser_to_instr_set(
+                    slice::from_ref(main_condition),
+                    v,
+                    consts,
+                    fns,
+                    fn_state,
+                    arrs,
+                    id,
+                );
                 let mut priv_vars = v.clone();
                 // parse the main code block
                 let cond_code = parser_to_instr_set(
-                    y.iter()
+                    condition_code
+                        .iter()
                         .filter(|x| !matches!(x, Expr::ElseIfBlock(_, _) | Expr::ElseBlock(_)))
                         .cloned()
                         .collect::<Vec<Expr>>()
@@ -508,7 +633,7 @@ fn parser_to_instr_set(
                 condition_blocks.push((condition, cond_code));
 
                 // process each else if / else block
-                y.iter().for_each(|x| {
+                condition_code.iter().for_each(|x| {
                     if let Expr::ElseIfBlock(condition, code) = x {
                         // check if condition is str/num (it's supposed to be a bool)
                         if matches!(&**condition, Expr::String(_) | Expr::Num(_)) {
@@ -686,19 +811,29 @@ fn parser_to_instr_set(
                 output.push(Instr::Mov((consts.len() - 1) as u16, index_id));
             }
             Expr::VarDeclare(x, y) => {
-                let mut val =
-                    parser_to_instr_set(slice::from_ref(y), v, consts, fns, fn_state, arrs, id);
-                print!("VAL IS {val:?}");
-                if val.is_empty() {
-                    print!("VAR {x:?} IS EMPTY");
+                // let mut val =
+                //     parser_to_instr_set(slice::from_ref(y), v, consts, fns, fn_state, arrs, id);
+                // print!("VAL IS {val:?}");
+                // if val.is_empty() {
+                //     print!("VAR {x:?} IS EMPTY");
+                //     v.push((*x, (consts.len() - 1) as u16));
+                // } else {
+                //     if can_move(*val.last().unwrap()) {
+                //         consts.push(Data::Null);
+                //     }
+                //     move_to_id(&mut val, (consts.len() - 1) as u16);
+                //     v.push((*x, (consts.len() - 1) as u16));
+                //     output.extend(val);
+                // }
+
+                let output_len = output.len();
+                let obj_id = get_id(y, v, consts, &mut output, &ctx, fns, arrs, fn_state, id);
+                if output.len() != output_len {
+                    consts.push(Data::Null);
+                    output.push(Instr::Mov(obj_id, (consts.len() - 1) as u16));
                     v.push((*x, (consts.len() - 1) as u16));
                 } else {
-                    if can_move(*val.last().unwrap()) {
-                        consts.push(Data::Null);
-                    }
-                    move_to_id(&mut val, (consts.len() - 1) as u16);
-                    v.push((*x, (consts.len() - 1) as u16));
-                    output.extend(val);
+                    v.push((*x, obj_id));
                 }
             }
             // x[y]... = z;
