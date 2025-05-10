@@ -13,7 +13,6 @@ use std::fs::File;
 use std::hint::unreachable_unchecked;
 use std::io::Write;
 use std::time::Instant;
-use util::SPOCK_LOGO;
 
 mod builtin_funcs;
 mod display;
@@ -784,7 +783,7 @@ fn main() {
 
     #[cfg(not(debug_assertions))]
     let filename = args.get(1).unwrap_or_else(|| {
-        println!("{}", SPOCK_LOGO);
+        println!("{}", util::SPOCK_LOGO);
         std::process::exit(0);
     });
 
