@@ -49,6 +49,8 @@ pub enum Expr {
 
     Break,
     Continue,
+
+    EvalBlock(Box<[Expr]>),
 }
 
 lalrpop_mod!(pub grammar);
@@ -596,31 +598,37 @@ fn parser_to_instr_set(
                 }
             }
             Expr::Condition(main_condition, condition_code) => {
-                let mut condition_blocks: Vec<(Vec<Instr>, Vec<Instr>)> =
-                    Vec::with_capacity(condition_code.len() + 1);
                 // check if condition is not var/str/num (it's supposed to be a bool)
                 if matches!(**main_condition, Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", main_condition));
                 }
+                let mut cmp_markers: Vec<usize> = Vec::new();
+                let mut jmp_markers: Vec<usize> = Vec::new();
+                let mut condition_markers: Vec<usize> = Vec::new();
+
+                let main_code_limit = condition_code
+                    .iter()
+                    .position(|x| matches!(x, Expr::ElseIfBlock(_, _) | Expr::ElseBlock(_)))
+                    .unwrap_or(condition_code.len());
+
                 // parse the main condition
-                let condition = parser_to_instr_set(
-                    slice::from_ref(main_condition),
+                let condition_id = get_id(
+                    main_condition,
                     v,
                     consts,
+                    &mut output,
+                    &ctx,
                     fns,
-                    fn_state,
                     arrs,
+                    fn_state,
                     id,
                 );
+                output.push(Instr::Cmp(condition_id, 0));
+                cmp_markers.push(output.len() - 1);
                 let mut priv_vars = v.clone();
                 // parse the main code block
                 let cond_code = parser_to_instr_set(
-                    condition_code
-                        .iter()
-                        .filter(|x| !matches!(x, Expr::ElseIfBlock(_, _) | Expr::ElseBlock(_)))
-                        .cloned()
-                        .collect::<Vec<Expr>>()
-                        .as_slice(),
+                    &condition_code[0..main_code_limit],
                     &mut priv_vars,
                     consts,
                     fns,
@@ -628,99 +636,72 @@ fn parser_to_instr_set(
                     arrs,
                     id,
                 );
+                output.extend(cond_code);
+                if main_code_limit != condition_code.len() {
+                    output.push(Instr::Jmp(0, false));
+                    jmp_markers.push(output.len() - 1);
+                }
 
-                // don't add them to output yet, add them to condition_blocks
-                condition_blocks.push((condition, cond_code));
-
-                // process each else if / else block
-                condition_code.iter().for_each(|x| {
-                    if let Expr::ElseIfBlock(condition, code) = x {
-                        // check if condition is str/num (it's supposed to be a bool)
-                        if matches!(&**condition, Expr::String(_) | Expr::Num(_)) {
-                            error!(ctx, format_args!("{} is not a bool", condition));
-                        }
-                        // same thing, parse condition and code and add it to condition_blocks, don't add it to output yet
-                        let condition = parser_to_instr_set(
-                            slice::from_ref(condition),
+                for elem in &condition_code[main_code_limit..] {
+                    if let Expr::ElseIfBlock(condition, code) = elem {
+                        condition_markers.push(output.len());
+                        let condition_id = get_id(
+                            condition,
                             v,
                             consts,
-                            fns,
-                            fn_state,
-                            arrs,
-                            id,
-                        );
-                        let mut priv_vars = v.clone();
-                        let cond_code = parser_to_instr_set(
-                            code,
-                            &mut priv_vars,
-                            consts,
-                            fns,
-                            fn_state,
-                            arrs,
-                            id,
-                        );
-                        condition_blocks.push((condition, cond_code));
-                    } else if let Expr::ElseBlock(code) = x {
-                        // no condition, parse only the code block and use empty vec as condition
-                        let mut priv_vars = v.clone();
-                        let cond_code = parser_to_instr_set(
-                            code,
-                            &mut priv_vars,
-                            consts,
-                            fns,
-                            fn_state,
-                            arrs,
-                            id,
-                        );
-                        condition_blocks.push((Vec::new(), cond_code));
-                    }
-                });
-
-                // computes the jump size for every condition_block, if the condition is true it will jump over any remaining condition blocks
-                let mut jumps = (0..condition_blocks.len()).map(|i| {
-                    condition_blocks
-                        .iter()
-                        .skip(i + 1)
-                        .map(|x| {
-                            if x.0.is_empty() {
-                                (x.1.len() + 1) as u16
-                            } else {
-                                (x.0.len() + x.1.len() + 2) as u16
-                            }
-                        })
-                        .sum::<u16>()
-                });
-
-                for (x, y) in &condition_blocks {
-                    // if no condition (= else block), simply add it and stop the loo
-                    if x.is_empty() {
-                        output.extend(y);
-                        break;
-                    }
-                    // add the condition, get its id, and retrieve the jump id of the current condition block
-                    output.extend(x);
-                    let condition_id = get_tgt_id(*output.last().unwrap()).unwrap();
-                    let jump_size = jumps.next().unwrap();
-                    if jump_size == 0 {
-                        // if jump_size == 0, then else_if block is the last, so no need for a Jmp, simply add cmp and code
-                        add_cmp(
-                            condition_id,
-                            &mut ((y.len() + 1) as u16),
                             &mut output,
-                            false,
+                            &ctx,
+                            fns,
+                            arrs,
+                            fn_state,
+                            id,
                         );
-                        output.extend(y);
+                        output.push(Instr::Cmp(condition_id, 0));
+                        cmp_markers.push(output.len() - 1);
+                        let mut priv_vars = v.clone();
+                        let cond_code = parser_to_instr_set(
+                            code,
+                            &mut priv_vars,
+                            consts,
+                            fns,
+                            fn_state,
+                            arrs,
+                            id,
+                        );
+                        output.extend(cond_code);
+                        output.push(Instr::Jmp(0, false));
+                        jmp_markers.push(output.len() - 1);
+                    } else if let Expr::ElseBlock(code) = elem {
+                        condition_markers.push(output.len());
+                        let mut priv_vars = v.clone();
+                        let cond_code = parser_to_instr_set(
+                            code,
+                            &mut priv_vars,
+                            consts,
+                            fns,
+                            fn_state,
+                            arrs,
+                            id,
+                        );
+                        output.extend(cond_code);
+                    }
+                }
+
+                for y in jmp_markers {
+                    let diff = output.len() - y;
+                    output[y] = Instr::Jmp(diff as u16, false);
+                }
+                let mut i = 0;
+                for y in cmp_markers {
+                    let diff = if i >= condition_markers.len() {
+                        output.len() - 1 - y
                     } else {
-                        // if jump_size != 0, then add cmp and code (which contains Jmp to skip all other succeeding blocks if condition is true)
-                        add_cmp(
-                            condition_id,
-                            &mut ((y.len() + 2) as u16),
-                            &mut output,
-                            false,
-                        );
-                        output.extend(y);
-                        output.push(Instr::Jmp(jump_size, false));
+                        condition_markers[i] - y
+                    };
+                    if let Some(Instr::Cmp(_, jump_size)) = output.get_mut(y) {
+                        *jump_size = diff as u16;
                     }
+                    i += 1;
                 }
             }
             Expr::WhileBlock(x, y) => {
@@ -1592,6 +1573,12 @@ fn parser_to_instr_set(
             }
             Expr::Break => output.push(Instr::Break(id)),
             Expr::Continue => output.push(Instr::Continue(id)),
+            Expr::EvalBlock(code) => {
+                let mut vars = v.clone();
+                output.extend(parser_to_instr_set(
+                    code, &mut vars, consts, fns, fn_state, arrs, id,
+                ))
+            }
             other => {
                 unreachable!("Not implemented {:?}", other);
             }

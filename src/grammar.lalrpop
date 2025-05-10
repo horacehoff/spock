@@ -69,6 +69,9 @@ InlineElseBlock:Expr = {
 
 ConditionalBlock: Expr = {
     "if" <o1: Expression> "{" <o2:Code> "}" <o3: ElseIfBlock*> <o4: ElseBlock?> => {
+        if o1 == Expr::Bool(true) {
+            return Expr::EvalBlock(o2);
+        }
         let mut code = o2.to_vec();
         for x in o3 {
             code.push(x);
