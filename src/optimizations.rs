@@ -62,6 +62,7 @@ pub fn while_loop_summation(
     }
     false
 }
+
 //
 pub fn for_loop_summation(
     output: &mut Vec<Instr>,

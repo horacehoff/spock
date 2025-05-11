@@ -263,7 +263,7 @@ fn get_id(
                 v,
                 consts,
                 output,
-                &ctx,
+                ctx,
                 fns,
                 arrs,
                 fn_state,
@@ -304,7 +304,7 @@ fn get_id(
                     }
                     condition_markers.push(output.len());
                     let condition_id =
-                        get_id(condition, v, consts, output, &ctx, fns, arrs, fn_state, id);
+                        get_id(condition, v, consts, output, ctx, fns, arrs, fn_state, id);
                     add_cmp(condition_id, &mut 0, output, false);
                     cmp_markers.push(output.len() - 1);
                     let mut priv_vars = v.clone();
@@ -392,11 +392,10 @@ fn expr_to_data(input: &Expr) -> Data {
 }
 
 #[inline(always)]
-fn can_move(x: Instr) -> bool {
+fn can_move(x: &Instr) -> bool {
     !matches!(x, Instr::ArrayMov(_, _, _))
 }
 
-#[inline(always)]
 fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwards: bool) {
     if output.is_empty() {
         return output.push(Instr::Cmp(condition_id, *len));
@@ -813,29 +812,36 @@ fn parser_to_instr_set(
                 output.push(Instr::Mov((consts.len() - 1) as u16, index_id));
             }
             Expr::VarDeclare(x, y) => {
-                // let mut val =
-                //     parser_to_instr_set(slice::from_ref(y), v, consts, fns, fn_state, arrs, id);
-                // print!("VAL IS {val:?}");
-                // if val.is_empty() {
-                //     print!("VAR {x:?} IS EMPTY");
-                //     v.push((*x, (consts.len() - 1) as u16));
-                // } else {
-                //     if can_move(*val.last().unwrap()) {
-                //         consts.push(Data::Null);
-                //     }
-                //     move_to_id(&mut val, (consts.len() - 1) as u16);
-                //     v.push((*x, (consts.len() - 1) as u16));
-                //     output.extend(val);
-                // }
-
                 let output_len = output.len();
                 let obj_id = get_id(y, v, consts, &mut output, &ctx, fns, arrs, fn_state, id);
                 if output.len() != output_len {
-                    consts.push(Data::Null);
-                    output.push(Instr::Mov(obj_id, (consts.len() - 1) as u16));
+                    if can_move(output.last().unwrap()) {
+                        consts.push(Data::Null);
+                    }
+                    move_to_id(&mut output, (consts.len() - 1) as u16);
                     v.push((*x, (consts.len() - 1) as u16));
                 } else {
                     v.push((*x, obj_id));
+                }
+            }
+            Expr::VarAssign(x, y) => {
+                let id = v
+                    .iter()
+                    .find(|(w, _)| w == x)
+                    .unwrap_or_else(|| {
+                        error!(
+                            ctx,
+                            format_args!("Unknown variable {color_red}{x}{color_reset}"),
+                            format_args!("Add 'let {x} = 0;'")
+                        );
+                    })
+                    .1;
+                let output_len = output.len();
+                let obj_id = get_id(y, v, consts, &mut output, &ctx, fns, arrs, fn_state, id);
+                if output.len() != output_len {
+                    move_to_id(&mut output, id);
+                } else {
+                    output.push(Instr::Mov(obj_id, id));
                 }
             }
             // x[y]... = z;
@@ -867,38 +873,6 @@ fn parser_to_instr_set(
                 let elem_id = get_id(w, v, consts, &mut output, &ctx, fns, arrs, fn_state, id);
 
                 output.push(Instr::ArrayMod(id, elem_id, final_id));
-            }
-            Expr::VarAssign(x, y) => {
-                let id = v
-                    .iter()
-                    .find(|(w, _)| w == x)
-                    .unwrap_or_else(|| {
-                        error!(
-                            ctx,
-                            format_args!("Unknown variable {color_red}{x}{color_reset}"),
-                            format_args!("Add 'let {x} = 0;'")
-                        );
-                    })
-                    .1;
-
-                // let mut value =
-                //     parser_to_instr_set(slice::from_ref(y), v, consts, fns, fn_state, arrs, id);
-                // move_to_id(&mut value, id);
-                // if value.is_empty() {
-                //     output.push(Instr::Mov((consts.len() - 1) as u16, id));
-                // }
-                // output.extend(value);
-                let output_len = output.len();
-                let obj_id = get_id(y, v, consts, &mut output, &ctx, fns, arrs, fn_state, id);
-                if output.len() != output_len {
-                    // consts.push(Data::Null);
-                    // output.push(Instr::Mov(obj_id, (consts.len() - 1) as u16));
-                    // v.push((*x, (consts.len() - 1) as u16));
-                    move_to_id(&mut output, id);
-                } else {
-                    output.push(Instr::Mov(obj_id, id));
-                    // v.push((*x, obj_id));
-                }
             }
             Expr::FunctionCall(args, namespace) => {
                 let len = namespace.len() - 1;

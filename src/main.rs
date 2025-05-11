@@ -670,7 +670,7 @@ pub fn execute(
                     );
                     let id = arrays.len() as u16;
                     arrays.insert(id, (base_id..id).map(|x| Data::Array(x as u16)).collect());
-                    consts[dest as usize] = Data::Array(id as u16);
+                    consts[dest as usize] = Data::Array(id);
                 }
                 invalid => {
                     error_b!(format_args!(
