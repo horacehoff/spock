@@ -5,13 +5,32 @@ use fnv::FnvHashMap;
 use inline_colorization::*;
 use lalrpop_util::lexer::Token;
 use lalrpop_util::{ErrorRecovery, ParseError};
-use std::fmt::Formatter;
+use std::fmt::{Formatter, format};
 
 pub fn format_data(x: Data, arrays: &FnvHashMap<u16, Vec<Data>>) -> String {
     match x {
         Data::Number(num) => num.to_string(),
         Data::Bool(bool) => bool.to_string(),
         Data::String(str) => str.to_string(),
+        Data::Array(a) => concat_string!(
+            "[",
+            arrays[&a]
+                .iter()
+                .map(|x| format_data(*x, arrays))
+                .collect::<Vec<_>>()
+                .join(","),
+            "]"
+        ),
+        Data::Null => String::from("NULL"),
+        Data::File(path) => format!("FILE({path:?})"),
+    }
+}
+
+pub fn format_err(x: Data, arrays: &FnvHashMap<u16, Vec<Data>>) -> String {
+    match x {
+        Data::Number(num) => num.to_string(),
+        Data::Bool(bool) => bool.to_string(),
+        Data::String(str) => format!("\"{str}\""),
         Data::Array(a) => concat_string!(
             "[",
             arrays[&a]

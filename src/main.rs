@@ -1,4 +1,5 @@
 use crate::display::format_data;
+use crate::display::format_err;
 use crate::parser::parse;
 use crate::util::get_type;
 use builtin_funcs::FUNCS;
@@ -207,9 +208,9 @@ pub fn execute(
                 }
                 (a, b) => {
                     error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} + {:?}",
-                        format_data(a, arrays),
-                        format_data(b, arrays)
+                        "UNSUPPORTED OPERATION: {color_red}{}{color_reset} + {color_red}{}{color_reset}",
+                        format_err(a, arrays),
+                        format_err(b, arrays)
                     ));
                 }
             },
@@ -218,8 +219,8 @@ pub fn execute(
                     consts[dest as usize] = Data::Number(parent * child);
                 } else {
                     error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} * {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
+                        "UNSUPPORTED OPERATION: {} * {}",
+                        format_err(consts[o1 as usize], arrays), format_err(consts[o2 as usize], arrays)
                     ));
                 }}
             }
@@ -228,8 +229,8 @@ pub fn execute(
                     consts[dest as usize] = Data::Number(parent / child);
                 } else {
                     error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} / {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
+                        "UNSUPPORTED OPERATION: {} / {}",
+                        format_err(consts[o1 as usize], arrays), format_err(consts[o2 as usize], arrays)
                     ));
                 }}
             }
@@ -238,8 +239,8 @@ pub fn execute(
                     consts[dest as usize] = Data::Number(parent - child);
                 } else {
                     error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} - {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
+                        "UNSUPPORTED OPERATION: {} - {}",
+                        format_err(consts[o1 as usize], arrays), format_err(consts[o2 as usize], arrays)
                     ));
                 }}
             }

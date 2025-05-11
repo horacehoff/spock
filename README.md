@@ -13,6 +13,7 @@ Key info:
   Comparisons [here](COMPARISONS.md)
 - Inlined functions
 - Constant folding
+- Constant propagation
 - Peephole optimization
 - Basic optimization of conditions
 - Basic loop summation optimization (will get better)
