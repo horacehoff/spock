@@ -85,7 +85,7 @@ ConditionalBlock: Expr = {
 InlineConditionalBlock: Expr = {
     "if" <o1: Expression> "{" <o2:Expression> "}" <o3: InlineElseIfBlock*> <o4: InlineElseBlock?> => {
         if o1 == Expr::Bool(true) {
-            return Expr::EvalBlock(o2);
+            return o2;
         }
         let mut code = vec![o2];
         for x in o3 {

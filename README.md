@@ -88,6 +88,16 @@ becomes...
 7 PRINT 3
 ```
 ## Syntax
+### Blocks
+```rs
+print("Beginning of program");
+let y = 20;
+// All blocks are anonymous namespace scopes (e.g trying to access x outside of the following block would yield an error)
+{
+    let x = 10 + y;
+    print(x);
+}
+```
 ### Conditions
 ```rs
 let x = 20;
@@ -98,6 +108,12 @@ if x == 20 {
 } else {
   print("else!");
 }
+```
+### Inline conditions
+```rs
+let y = 10;
+print(if y == 10 {"y is: 10"} else {"y is "+str(y)});
+let x = if y == 42 {5} else {10};
 ```
 ### While loops
 ```rs
