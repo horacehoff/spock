@@ -361,17 +361,18 @@ fn get_id(
 
             return_id
         }
+        Expr::Priority(contents) => {
+            get_id(contents, v, consts, output, ctx, fns, arrs, fn_state, id)
+        }
         other => {
-            output.extend(parser_to_instr_set(
-                slice::from_ref(other),
-                v,
-                consts,
-                fns,
-                fn_state,
-                arrs,
-                id,
-            ));
-            get_tgt_id_vec(output)
+            let output_code =
+                parser_to_instr_set(slice::from_ref(other), v, consts, fns, fn_state, arrs, id);
+            if !output_code.is_empty() {
+                output.extend(output_code);
+                get_tgt_id_vec(output)
+            } else {
+                (consts.len() - 1) as u16
+            }
         }
     }
 }
@@ -597,19 +598,22 @@ fn parser_to_instr_set(
                     id = (consts.len() - 1) as u16;
                 }
             }
-            Expr::Condition(main_condition, condition_code) => {
+            Expr::Condition(main_condition, code) => {
                 // check if condition is not var/str/num (it's supposed to be a bool)
                 if matches!(**main_condition, Expr::String(_) | Expr::Num(_)) {
                     error!(ctx, format_args!("{} is not a bool", main_condition));
                 }
-                let mut cmp_markers: Vec<usize> = Vec::new();
-                let mut jmp_markers: Vec<usize> = Vec::new();
-                let mut condition_markers: Vec<usize> = Vec::new();
 
-                let main_code_limit = condition_code
+                // get first code limit (after which there are only else(if) blocks)
+                let main_code_limit = code
                     .iter()
                     .position(|x| matches!(x, Expr::ElseIfBlock(_, _) | Expr::ElseBlock(_)))
-                    .unwrap_or(condition_code.len());
+                    .unwrap_or(code.len());
+
+                let condition_blocks_count = code.len() - main_code_limit;
+                let mut cmp_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
+                let mut jmp_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
+                let mut condition_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
 
                 // parse the main condition
                 let condition_id = get_id(
@@ -623,12 +627,12 @@ fn parser_to_instr_set(
                     fn_state,
                     id,
                 );
-                output.push(Instr::Cmp(condition_id, 0));
+                add_cmp(condition_id, &mut 0, &mut output, false);
                 cmp_markers.push(output.len() - 1);
                 let mut priv_vars = v.clone();
                 // parse the main code block
                 let cond_code = parser_to_instr_set(
-                    &condition_code[0..main_code_limit],
+                    &code[0..main_code_limit],
                     &mut priv_vars,
                     consts,
                     fns,
@@ -637,13 +641,16 @@ fn parser_to_instr_set(
                     id,
                 );
                 output.extend(cond_code);
-                if main_code_limit != condition_code.len() {
+                if main_code_limit != code.len() {
                     output.push(Instr::Jmp(0, false));
                     jmp_markers.push(output.len() - 1);
                 }
 
-                for elem in &condition_code[main_code_limit..] {
+                for elem in &code[main_code_limit..] {
                     if let Expr::ElseIfBlock(condition, code) = elem {
+                        if matches!(**condition, Expr::String(_) | Expr::Num(_)) {
+                            error!(ctx, format_args!("{} is not a bool", main_condition));
+                        }
                         condition_markers.push(output.len());
                         let condition_id = get_id(
                             condition,
@@ -656,7 +663,7 @@ fn parser_to_instr_set(
                             fn_state,
                             id,
                         );
-                        output.push(Instr::Cmp(condition_id, 0));
+                        add_cmp(condition_id, &mut 0, &mut output, false);
                         cmp_markers.push(output.len() - 1);
                         let mut priv_vars = v.clone();
                         let cond_code = parser_to_instr_set(
@@ -691,17 +698,24 @@ fn parser_to_instr_set(
                     let diff = output.len() - y;
                     output[y] = Instr::Jmp(diff as u16, false);
                 }
-                let mut i = 0;
-                for y in cmp_markers {
+                for (i, y) in cmp_markers.iter().enumerate() {
                     let diff = if i >= condition_markers.len() {
                         output.len() - 1 - y
                     } else {
                         condition_markers[i] - y
                     };
-                    if let Some(Instr::Cmp(_, jump_size)) = output.get_mut(y) {
+                    if let Some(
+                        Instr::Cmp(_, jump_size)
+                        | Instr::InfCmp(_, _, jump_size)
+                        | Instr::InfEqCmp(_, _, jump_size)
+                        | Instr::SupCmp(_, _, jump_size)
+                        | Instr::SupEqCmp(_, _, jump_size)
+                        | Instr::EqCmp(_, _, jump_size)
+                        | Instr::NotEqCmp(_, _, jump_size),
+                    ) = output.get_mut(*y)
+                    {
                         *jump_size = diff as u16;
                     }
-                    i += 1;
                 }
             }
             Expr::WhileBlock(x, y) => {
@@ -860,13 +874,24 @@ fn parser_to_instr_set(
                     })
                     .1;
 
-                let mut value =
-                    parser_to_instr_set(slice::from_ref(y), v, consts, fns, fn_state, arrs, id);
-                move_to_id(&mut value, id);
-                if value.is_empty() {
-                    output.push(Instr::Mov((consts.len() - 1) as u16, id));
+                // let mut value =
+                //     parser_to_instr_set(slice::from_ref(y), v, consts, fns, fn_state, arrs, id);
+                // move_to_id(&mut value, id);
+                // if value.is_empty() {
+                //     output.push(Instr::Mov((consts.len() - 1) as u16, id));
+                // }
+                // output.extend(value);
+                let output_len = output.len();
+                let obj_id = get_id(y, v, consts, &mut output, &ctx, fns, arrs, fn_state, id);
+                if output.len() != output_len {
+                    // consts.push(Data::Null);
+                    // output.push(Instr::Mov(obj_id, (consts.len() - 1) as u16));
+                    // v.push((*x, (consts.len() - 1) as u16));
+                    move_to_id(&mut output, id);
+                } else {
+                    output.push(Instr::Mov(obj_id, id));
+                    // v.push((*x, obj_id));
                 }
-                output.extend(value);
             }
             Expr::FunctionCall(args, namespace) => {
                 let len = namespace.len() - 1;

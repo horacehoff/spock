@@ -209,7 +209,7 @@ Operation: Expr = {
         if let Expr::Num(x) = t {
             return Expr::Num(-x);
         }
-        return Expr::Op(Box::from([Expr::Num(0.0 as Num), Expr::Opcode(Opcode::Neg), t]));
+        return Expr::Op(Box::from([Expr::Num(0.0 as Num), t, Expr::Opcode(Opcode::Neg)]));
     },
     <o1: Term> <o3: (<Op> <Term>)+> => {
         let mut output_op:Vec<Expr> = vec![o1];
