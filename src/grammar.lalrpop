@@ -84,6 +84,9 @@ ConditionalBlock: Expr = {
 }
 InlineConditionalBlock: Expr = {
     "if" <o1: Expression> "{" <o2:Expression> "}" <o3: InlineElseIfBlock*> <o4: InlineElseBlock?> => {
+        if o1 == Expr::Bool(true) {
+            return Expr::EvalBlock(o2);
+        }
         let mut code = vec![o2];
         for x in o3 {
             code.push(x);
@@ -138,11 +141,18 @@ pub Import:Expr = {
     }
 }
 
+EvalBlock:Expr = {
+    "{" <o1: Code> "}" => {
+        Expr::EvalBlock(o1)
+    }
+}
+
 Statement: Expr = {
     ConditionalBlock => <>,
     WhileBlock => <>,
     ForLoop => <>,
     MatchBlock => <>,
+    EvalBlock => <>,
     Function => <>,
     Line => <>
 }

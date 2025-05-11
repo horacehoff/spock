@@ -45,8 +45,7 @@ pub enum Expr {
     // ForLoop(String, Box<Expr>, Box<[Expr]>),
     ForLoop(Intern<String>, Box<[Expr]>),
     Import(String),
-    Closure(Box<[String]>, Box<[Expr]>),
-
+    // Closure(Box<[String]>, Box<[Expr]>),
     Break,
     Continue,
 
@@ -238,127 +237,132 @@ fn get_id(
             consts.push(Data::Array(id));
             (consts.len() - 1) as u16
         }
-        Expr::Condition(main_condition, condition_code) => {
+        Expr::Condition(main_condition, code) => {
             let return_id = consts.len() as u16;
             consts.push(Data::Null);
 
-            let mut condition_blocks: Vec<(Vec<Instr>, u16)> =
-                Vec::with_capacity(condition_code.len() + 1);
+            // check if condition is not var/str/num (it's supposed to be a bool)
+            if matches!(**main_condition, Expr::String(_) | Expr::Num(_)) {
+                error!(ctx, format_args!("{} is not a bool", main_condition));
+            }
 
-            let condition = parser_to_instr_set(
-                slice::from_ref(main_condition),
+            // get first code limit (after which there are only else(if) blocks)
+            let main_code_limit = code
+                .iter()
+                .position(|x| matches!(x, Expr::ElseIfBlock(_, _) | Expr::ElseBlock(_)))
+                .unwrap_or(code.len());
+
+            let condition_blocks_count = code.len() - main_code_limit;
+            let mut cmp_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
+            let mut jmp_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
+            let mut condition_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
+
+            // parse the main condition
+            let condition_id = get_id(
+                main_condition,
                 v,
+                consts,
+                output,
+                &ctx,
+                fns,
+                arrs,
+                fn_state,
+                id,
+            );
+            add_cmp(condition_id, &mut 0, output, false);
+            cmp_markers.push(output.len() - 1);
+            let mut priv_vars = v.clone();
+            // parse the main code block
+            let cond_code = parser_to_instr_set(
+                &code[0..main_code_limit],
+                &mut priv_vars,
                 consts,
                 fns,
                 fn_state,
                 arrs,
                 id,
             );
-            condition_blocks.push((
-                condition,
-                get_id(
-                    condition_code.first().unwrap(),
-                    v,
-                    consts,
-                    output,
-                    ctx,
-                    fns,
-                    arrs,
-                    fn_state,
-                    id,
-                ),
-            ));
-
-            // process each else if / else block
-            condition_code.iter().for_each(|x| {
-                if let Expr::ElseIfBlock(condition, code) = x {
-                    // check if condition is str/num (it's supposed to be a bool)
-                    if matches!(&**condition, Expr::String(_) | Expr::Num(_)) {
-                        error!(ctx, format_args!("{} is not a bool", condition));
-                    }
-                    // same thing, parse condition and code and add it to condition_blocks, don't add it to output yet
-                    let condition = parser_to_instr_set(
-                        slice::from_ref(condition),
-                        v,
-                        consts,
-                        fns,
-                        fn_state,
-                        arrs,
-                        id,
-                    );
-                    condition_blocks.push((
-                        condition,
-                        get_id(
-                            code.first().unwrap(),
-                            v,
-                            consts,
-                            output,
-                            ctx,
-                            fns,
-                            arrs,
-                            fn_state,
-                            id,
-                        ),
-                    ));
-                } else if let Expr::ElseBlock(code) = x {
-                    // no condition, parse only the code block and use empty vec as condition
-                    condition_blocks.push((
-                        Vec::new(),
-                        get_id(
-                            code.first().unwrap(),
-                            v,
-                            consts,
-                            output,
-                            ctx,
-                            fns,
-                            arrs,
-                            fn_state,
-                            id,
-                        ),
-                    ));
-                }
-            });
-
-            println!("condit {condition_blocks:?}");
-
-            let mut jumps = (0..condition_blocks.len()).map(|i| {
-                condition_blocks
-                    .iter()
-                    .skip(i + 1)
-                    .map(|x| {
-                        if x.0.is_empty() {
-                            (1 + 1) as u16
-                        } else {
-                            x.0.len() as u16 + 2
-                        }
-                    })
-                    .sum::<u16>()
-            });
-
-            for (x, y) in &condition_blocks {
-                // if no condition (= else block), simply add it and stop the loop
-                if x.is_empty() {
-                    output.push(Instr::Mov(*y, return_id));
-                    break;
-                }
-                // add the condition, get its id, and retrieve the jump id of the current condition block
-                output.extend(x);
-                let condition_id = get_tgt_id(*output.last().unwrap()).unwrap();
-                let jump_size = jumps.next().unwrap();
-                if jump_size == 0 {
-                    // if jump_size == 0, then else_if block is the last, so no need for a Jmp, simply add cmp and code
-                    println!("ye sorry...");
-                    add_cmp(condition_id, &mut ((1 + 1) as u16), output, false);
-                    output.push(Instr::Mov(*y, return_id));
+            let is_empty = cond_code.is_empty();
+            output.extend(cond_code);
+            output.push(Instr::Mov(
+                if is_empty {
+                    (consts.len() - 1) as u16
                 } else {
-                    println!("fucking works!");
-                    // if jump_size != 0, then add cmp and code (which contains Jmp to skip all other succeeding blocks if condition is true)
-                    add_cmp(condition_id, &mut ((1 + 2) as u16), output, false);
-                    output.push(Instr::Mov(*y, return_id));
-                    output.push(Instr::Jmp(jump_size, false));
+                    get_tgt_id_vec(output)
+                },
+                return_id,
+            ));
+            if main_code_limit != code.len() {
+                output.push(Instr::Jmp(0, false));
+                jmp_markers.push(output.len() - 1);
+            }
+
+            for elem in &code[main_code_limit..] {
+                if let Expr::ElseIfBlock(condition, code) = elem {
+                    if matches!(**condition, Expr::String(_) | Expr::Num(_)) {
+                        error!(ctx, format_args!("{} is not a bool", main_condition));
+                    }
+                    condition_markers.push(output.len());
+                    let condition_id =
+                        get_id(condition, v, consts, output, &ctx, fns, arrs, fn_state, id);
+                    add_cmp(condition_id, &mut 0, output, false);
+                    cmp_markers.push(output.len() - 1);
+                    let mut priv_vars = v.clone();
+                    let cond_code =
+                        parser_to_instr_set(code, &mut priv_vars, consts, fns, fn_state, arrs, id);
+                    let is_empty = cond_code.is_empty();
+                    output.extend(cond_code);
+                    output.push(Instr::Mov(
+                        if is_empty {
+                            (consts.len() - 1) as u16
+                        } else {
+                            get_tgt_id_vec(output)
+                        },
+                        return_id,
+                    ));
+                    output.push(Instr::Jmp(0, false));
+                    jmp_markers.push(output.len() - 1);
+                } else if let Expr::ElseBlock(code) = elem {
+                    condition_markers.push(output.len());
+                    let mut priv_vars = v.clone();
+                    let cond_code =
+                        parser_to_instr_set(code, &mut priv_vars, consts, fns, fn_state, arrs, id);
+                    let is_empty = cond_code.is_empty();
+                    output.extend(cond_code);
+                    output.push(Instr::Mov(
+                        if is_empty {
+                            (consts.len() - 1) as u16
+                        } else {
+                            get_tgt_id_vec(output)
+                        },
+                        return_id,
+                    ));
                 }
             }
 
+            for y in jmp_markers {
+                let diff = output.len() - y;
+                output[y] = Instr::Jmp(diff as u16, false);
+            }
+            for (i, y) in cmp_markers.iter().enumerate() {
+                let diff = if i >= condition_markers.len() {
+                    output.len() - 1 - y
+                } else {
+                    condition_markers[i] - y
+                };
+                if let Some(
+                    Instr::Cmp(_, jump_size)
+                    | Instr::InfCmp(_, _, jump_size)
+                    | Instr::InfEqCmp(_, _, jump_size)
+                    | Instr::SupCmp(_, _, jump_size)
+                    | Instr::SupEqCmp(_, _, jump_size)
+                    | Instr::EqCmp(_, _, jump_size)
+                    | Instr::NotEqCmp(_, _, jump_size),
+                ) = output.get_mut(*y)
+                {
+                    *jump_size = diff as u16;
+                }
+            }
             return_id
         }
         Expr::Priority(contents) => {
@@ -394,6 +398,9 @@ fn can_move(x: Instr) -> bool {
 
 #[inline(always)]
 fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwards: bool) {
+    if output.is_empty() {
+        return output.push(Instr::Cmp(condition_id, *len));
+    }
     match *output.last().unwrap() {
         Instr::Inf(o1, o2, o3) => {
             if o3 == condition_id {

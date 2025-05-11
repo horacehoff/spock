@@ -207,7 +207,7 @@ pub fn execute(
                 }
                 (a, b) => {
                     error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {} + {}",
+                        "UNSUPPORTED OPERATION: {:?} + {:?}",
                         format_data(a, arrays),
                         format_data(b, arrays)
                     ));

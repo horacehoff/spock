@@ -12,6 +12,10 @@ Key info:
 - ~5-10x faster than Python in most cases.
   Comparisons [here](COMPARISONS.md)
 - Inlined functions
+- Constant folding
+- Peephole optimization
+- Basic optimization of conditions
+- Basic loop summation optimization (will get better)
 
 ## Installation
 No binaries are provided yet. You need to compile Spock yourself.
@@ -261,5 +265,3 @@ print(x > 1 && x < 1);
 - `<Array/String>.repeat(<n: Number>) -> Array/String` - Returns an Array or a String with the set itself repeated n
   times.
 - `<Array>.push(<object: Any>)` - Appends the given object to the end of the array
-
-
