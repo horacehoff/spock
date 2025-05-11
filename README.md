@@ -92,7 +92,8 @@ becomes...
 ```rs
 print("Beginning of program");
 let y = 20;
-// All blocks are anonymous namespace scopes (e.g trying to access x outside of the following block would yield an error)
+// All blocks are anonymous namespace scopes
+// (e.g. trying to access x outside of the following block would yield an error)
 {
     let x = 10 + y;
     print(x);
