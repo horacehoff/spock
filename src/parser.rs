@@ -50,6 +50,7 @@ pub enum Expr {
     Continue,
 
     EvalBlock(Box<[Expr]>),
+    LoopBlock(Box<[Expr]>),
 }
 
 lalrpop_mod!(pub grammar);
@@ -514,6 +515,20 @@ fn parse_loop_flow_control(
     });
 }
 
+fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_length: u16) {
+    loop_code.iter_mut().enumerate().for_each(|x| {
+        if let Instr::Break(break_id) = x.1 {
+            if *break_id == loop_id {
+                *x.1 = Instr::Jmp(code_length - x.0 as u16, false);
+            }
+        } else if let Instr::Continue(continue_id) = x.1 {
+            if *continue_id == loop_id {
+                *x.1 = Instr::Jmp(code_length - x.0 as u16 - 3, false);
+            }
+        }
+    });
+}
+
 type Function = (String, Box<[String]>, Box<[Expr]>);
 type FunctionState = (String, u16, Vec<(Intern<String>, u16)>, Option<u16>);
 
@@ -810,6 +825,16 @@ fn parser_to_instr_set(
                 // clean up, reset the index variable
                 consts.push(Data::Number(0.0 as Num));
                 output.push(Instr::Mov((consts.len() - 1) as u16, index_id));
+            }
+            Expr::LoopBlock(code) => {
+                let loop_id = id + 1;
+                let mut vars = v.clone();
+                let mut compiled =
+                    parser_to_instr_set(code, &mut vars, consts, fns, fn_state, arrs, loop_id);
+                let code_length = compiled.len() as u16 + 1;
+                parse_indef_loop_flow_control(&mut compiled, loop_id, code_length);
+                output.extend(compiled);
+                output.push(Instr::Jmp(code_length, true));
             }
             Expr::VarDeclare(x, y) => {
                 let output_len = output.len();

@@ -147,6 +147,12 @@ EvalBlock:Expr = {
     }
 }
 
+LoopBlock:Expr = {
+    "loop" "{" <o1: Code> "}" => {
+        Expr::LoopBlock(o1)
+    }
+}
+
 Statement: Expr = {
     ConditionalBlock => <>,
     WhileBlock => <>,
@@ -154,6 +160,7 @@ Statement: Expr = {
     MatchBlock => <>,
     EvalBlock => <>,
     Function => <>,
+    LoopBlock => <>,
     Line => <>
 }
 
