@@ -735,7 +735,7 @@ fn parser_to_instr_set(
                         | Instr::NotEqCmp(_, _, jump_size),
                     ) = output.get_mut(*y)
                     {
-                        *jump_size = diff as u16;
+                        *jump_size = diff as u16 + 1;
                     }
                 }
             }
@@ -831,8 +831,8 @@ fn parser_to_instr_set(
                 let mut vars = v.clone();
                 let mut compiled =
                     parser_to_instr_set(code, &mut vars, consts, fns, fn_state, arrs, loop_id);
-                let code_length = compiled.len() as u16 + 1;
-                parse_indef_loop_flow_control(&mut compiled, loop_id, code_length);
+                let code_length = compiled.len() as u16;
+                parse_indef_loop_flow_control(&mut compiled, loop_id, code_length + 1);
                 output.extend(compiled);
                 output.push(Instr::Jmp(code_length, true));
             }
