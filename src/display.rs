@@ -211,7 +211,8 @@ where
         ParseError::InvalidToken { .. } => {
             unreachable!("InvalidTokenError")
         }
-        ParseError::UnrecognizedEof { .. } => {
+        ParseError::UnrecognizedEof { location, expected } => {
+            println!("{ctx:?}");
             unreachable!("UnrecognizedEofError")
         }
         ParseError::UnrecognizedToken { token, expected } => {

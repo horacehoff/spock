@@ -3,11 +3,14 @@ use crate::display::format_err;
 use crate::parser::parse;
 use crate::util::get_type;
 use builtin_funcs::FUNCS;
+use chumsky::container::Seq;
+use chumsky::prelude::*;
 use concat_string::concat_string;
 use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
 use likely_stable::{if_likely, likely, unlikely};
+use parser::*;
 use std::cmp::PartialEq;
 use std::fs;
 use std::fs::File;
@@ -775,6 +778,30 @@ fn get_vec_capacity(instructions: &[Instr]) -> (usize, usize) {
     (func_args_count_max, call_stack_count_max)
 }
 
+fn parser<'src>() -> impl Parser<'src, &'src str, Expr> {
+    recursive(|value| {
+        // let string = just("\"");
+        let number = just('-')
+            .or_not()
+            .then(text::int(10))
+            .to_slice()
+            .map(|s: &str| s.parse().unwrap())
+            .map(Expr::Num);
+
+        let op = choice((
+            just("+").padded().to(Expr::Opcode(Opcode::Add)),
+            just("-").padded().to(Expr::Opcode(Opcode::Sub)),
+        ));
+
+        choice((
+            just("true").padded().to(Expr::Bool(true)),
+            just("false").padded().to(Expr::Bool(false)),
+            op,
+            number,
+        ))
+    })
+}
+
 // Live long and prosper
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -793,12 +820,22 @@ fn main() {
             "Unable to read contents of file {color_red}{filename}{color_reset}"
         ));
     });
+
+    let parser_result = parser().parse(&contents).into_result();
+    println!("{:?}", parser_result);
+    return;
+
+    // #[cfg(debug_assertions)]
+    let now = Instant::now();
+
     contents = clean_contents(&contents, filename);
-    print!("{contents:?}");
 
     let (instructions, mut consts, mut arrays) = parse(&contents);
 
     let (func_args_count, call_stack_count) = get_vec_capacity(&instructions);
+
+    // #[cfg(debug_assertions)]
+    println!("PARSING TIME {:.2?}", now.elapsed());
 
     println!("INSTR {instructions:?}");
     println!("CONSTS {consts:?}");

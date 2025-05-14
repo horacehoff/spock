@@ -548,7 +548,7 @@ fn parser_to_instr_set(
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::with_capacity(input.len());
     for x in input {
-        print!("PARSING {x}");
+        // print!("PARSING {x}");
         // ctx => for errors
         let ctx = x.to_string();
         match x {
@@ -1619,7 +1619,9 @@ fn parser_to_instr_set(
 }
 
 pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, FnvHashMap<u16, Vec<Data>>) {
+    let now = std::time::Instant::now();
     let functions: Vec<Expr> = grammar::FileParser::new().parse(contents).unwrap();
+    println!("LALRPOP TIME {:.2?}", now.elapsed());
     let mut functions: Vec<Function> = functions
         .iter()
         .map(|w| {
