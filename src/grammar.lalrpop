@@ -16,59 +16,59 @@ use crate::display::format_expr_type;
 
 grammar;
 
+match {
+    r#"[\s^a_z]*"# => { },
+    r"//[^\n\r]*[\n\r]*" => { }, // `// comment`
+} else {_}
+
+Comma<T>: Vec<T> = {
+    <mut v:(<T> ",")*> <e:T?> => match e {
+        None => v,
+        Some(e) => {
+            v.push(e);
+            v
+        }
+    }
+};
+
+Args<T>: Vec<T> = {
+    "(" <args: Comma<T>> ")" => args
+}
+
+Block<T>: T = {
+    "{" <o1: T> "}" => o1
+}
+
 
 pub File:Vec<Expr> = {
     <o: Function*> => o,
 }
 
 pub Function:Expr = {
-    "fn" <o1: r#"([a-zA-Z_]*)\("#> <o2: (Var ("," Var)*)?>  ")" "{" <o3:Code> "}" => {
-        let mut final_args:Vec<String> = vec![o1.to_string()];
-        if let Some(fn_args) = o2 {
-            let args = fn_args;
-            final_args.push(args.0);
-            if !args.1.is_empty() {
-                final_args.extend(args.1.iter().map(|(_,b)|b.clone()).collect::<Vec<String>>())
-            }
-        }
-        return Expr::FunctionDecl(final_args.into_boxed_slice(), o3);
-    },
-    "fn" <o1:Var> "(" <o2: (Var ("," Var)*)?>  ")" "{" <o3:Code> "}" => {
-            let mut final_args:Vec<String> = vec![o1.to_string()];
-            if let Some(fn_args) = o2 {
-                let args = fn_args;
-                final_args.push(args.0);
-                if !args.1.is_empty() {
-                    final_args.extend(args.1.iter().map(|(_,b)|b.clone()).collect::<Vec<String>>())
-                }
-            }
-            return Expr::FunctionDecl(final_args.into_boxed_slice(), o3);
-        },
-    ! => {
-        error_b!(format_parser_error_recovery(<>, "FUNCTION"));
+    "fn" <o1:Var> <args: Args<Var>> <o3: Block<Code>> => {
+        return Expr::FunctionDecl(Box::from([&[o1], args.as_slice()].concat()), o3);
     }
-
 }
 
 ElseIfBlock:Expr = {
-    "else" "if" <o1: Expression> "{" <o2:Code> "}" => Expr::ElseIfBlock(Box::from(o1), o2)
+    "else" "if" <o1: Expression> <o2: Block<Code>> => Expr::ElseIfBlock(Box::from(o1), o2)
 }
 
 
 InlineElseIfBlock:Expr = {
-    "else" "if" <o1: Expression> "{" <o2:Expression> "}" => Expr::ElseIfBlock(Box::from(o1), Box::from(vec![o2]))
+    "else" "if" <o1: Expression> <o2: Block<Expression>> => Expr::ElseIfBlock(Box::from(o1), Box::from([o2]))
 }
 
 ElseBlock:Expr = {
-    "else" "{" <o2:Code> "}" => Expr::ElseBlock(o2)
+    "else" <o2: Block<Code>> => Expr::ElseBlock(o2)
 }
 
 InlineElseBlock:Expr = {
-    "else" "{" <o2:Expression> "}" => Expr::ElseBlock(Box::from(vec![o2]))
+    "else" <o2: Block<Expression>> => Expr::ElseBlock(Box::from([o2]))
 }
 
 ConditionalBlock: Expr = {
-    "if" <o1: Expression> "{" <o2:Code> "}" <o3: ElseIfBlock*> <o4: ElseBlock?> => {
+    "if" <o1: Expression> <o2: Block<Code>> <o3: ElseIfBlock*> <o4: ElseBlock?> => {
         if o1 == Expr::Bool(true) {
             return Expr::EvalBlock(o2);
         }
@@ -83,7 +83,7 @@ ConditionalBlock: Expr = {
     }
 }
 InlineConditionalBlock: Expr = {
-    "if" <o1: Expression> "{" <o2:Expression> "}" <o3: InlineElseIfBlock*> <o4: InlineElseBlock?> => {
+    "if" <o1: Expression> <o2: Block<Expression>> <o3: InlineElseIfBlock*> <o4: InlineElseBlock?> => {
         if o1 == Expr::Bool(true) {
             return o2;
         }
@@ -100,15 +100,15 @@ InlineConditionalBlock: Expr = {
 
 
 MatchBlock:Expr = {
-    "match" <o1: Expression> "{" <o2: (Expression "=>" "{" Code "}")+> <o3: ("_" "=>" "{" Code "}")?> "}" => {
+    "match" <o1: Expression> "{" <o2: (Expression "=>" Block<Code>)+> <o3: ("_" "=>" Block<Code>)?> "}" => {
         let match_obj = o1;
         let first_match = o2.first().unwrap();
 
-        let mut output_code:Vec<Expr> = first_match.3.to_vec();
-        output_code.extend(o2.iter().skip(1).map(|x| Expr::ElseIfBlock(Box::from(Expr::Op(Box::from([match_obj.clone(), x.0.clone(), Expr::Opcode(Opcode::Eq)]))), x.3.clone())));
+        let mut output_code:Vec<Expr> = first_match.2.to_vec();
+        output_code.extend(o2.iter().skip(1).map(|x| Expr::ElseIfBlock(Box::from(Expr::Op(Box::from([match_obj.clone(), x.0.clone(), Expr::Opcode(Opcode::Eq)]))), x.2.clone())));
 
         if let Some(wildcard) = o3 {
-            output_code.push(Expr::ElseBlock(wildcard.3.clone()))
+            output_code.push(Expr::ElseBlock(wildcard.2.clone()))
         }
 
         Expr::Condition(Box::from(Expr::Op(Box::from([match_obj, first_match.0.clone(), Expr::Opcode(Opcode::Eq)]))),Box::from(output_code))
@@ -117,11 +117,11 @@ MatchBlock:Expr = {
 
 
 WhileBlock: Expr = {
-    "while" <o1: Expression> "{" <o2:Code> "}" => Expr::WhileBlock(Box::from(o1), o2)
+    "while" <o1: Expression> <o2: Block<Code>> => Expr::WhileBlock(Box::from(o1), o2)
 }
 
 ForLoop:Expr = {
-    "for" <o1:Var> "in" <o2: Expression> "{" <o3:Code> "}" => {
+    "for" <o1:Var> "in" <o2: Expression> <o3: Block<Code>> => {
         let mut output = vec![o2];
         output.extend(o3);
         Expr::ForLoop(Intern::from(o1),output.into_boxed_slice())
@@ -132,6 +132,7 @@ pub Code: Box<[Expr]> = {
     <s: Statement*> => s.into_boxed_slice()
 }
 
+// TO-DO
 pub Import:Expr = {
     <path: r"import [a-zA-Z_.\/-]*"> => {
         Expr::Import(String::from(path.trim_start_matches("import").trim()))
@@ -142,13 +143,13 @@ pub Import:Expr = {
 }
 
 EvalBlock:Expr = {
-    "{" <o1: Code> "}" => {
-        Expr::EvalBlock(o1)
+    Block<Code> => {
+        Expr::EvalBlock(<>)
     }
 }
 
 LoopBlock:Expr = {
-    "loop" "{" <o1: Code> "}" => {
+    "loop" <o1: Block<Code>> => {
         Expr::LoopBlock(o1)
     }
 }
@@ -161,17 +162,17 @@ Statement: Expr = {
     EvalBlock => <>,
     Function => <>,
     LoopBlock => <>,
-    Line => <>
+    <l: Line> ";" => l,
 }
 
 Line: Expr = {
-    <a: VarDeclare> ";" => a,
-    <a: VarAssign> ";" => a,
-    <a: OpVarAssign> ";" => a,
-    <a: ReturnLn> ";" => a,
-    <a: BreakLoop> ";" => a,
-    <a: ContinueLoop> ";" => a,
-    <a: Expression> ";" => a,
+    VarDeclare => <>,
+    VarAssign => <>,
+    OpVarAssign => <>,
+    ReturnLn => <>,
+    BreakLoop => <>,
+    ContinueLoop => <>,
+    Expression  => <>,
 }
 
 ReturnLn: Expr = {
@@ -400,59 +401,41 @@ Term: Expr = {
     <v: Var> => Expr::Var(Intern::from(v)),
     <a: Array> => <>,
     <f: FunctionCall> => <>,
-    <o: ObjFunctionCall> => <>,
+    //<o: ObjFunctionCall> => <>,
     <c: InlineConditionalBlock> => <>,
     //<i: ArrayIndex> => <>,
 }
 
+ItemBefore<T,S>: T = {
+    <l: T> S => l
+}
+ItemAfter<S,T>: T = {
+    S <l: T> => l
+}
+
 FunctionCall: Expr = {
-    <namespace: (Var "::")+?> <o1: r#"([a-zA-Z_]*)\("#> <o2: Expression?> <o3: ("," Expression)+?> ")" => {
-        let mut args:Vec<Expr> = Vec::new();
-        if let Some(arg) = o2 {
-            args.push(arg);
-        }
-        if let Some(add_args) = o3 {
-            args.extend(add_args.iter().map(|(_, x)|x.clone()));
-        }
+    <namespace: ItemBefore<Var, "::">+?> <o1: Var> <args: Args<Expression>> => {
         Expr::FunctionCall(args.into_boxed_slice(), {
             if let Some(ns) = namespace {
-                let mut ns = ns.iter().map(|x| x.0.to_string()).collect::<Vec<String>>();
-                ns.push(String::from(o1.trim_end_matches('(')));
-                ns.into_boxed_slice()
+                Box::from([ns.as_slice(), &[o1]].concat())
             } else {
-                Box::from(vec![String::from(o1.trim_end_matches('('))])
+                Box::from(vec![String::from(o1)])
             }
         })
     }
 }
 
 ObjFunctionCall:Expr = {
-    <t: Term> <o1: r#"\.([a-zA-Z_]*)\("#> <o2: Expression?> <o3: ("," Expression)+?> ")" <o: ("." FunctionCall)*> => {
-        let mut args:Vec<Expr> = Vec::new();
-        if let Some(arg) = o2 {
-            args.push(arg);
-        }
-        if let Some(add_args) = o3 {
-            args.extend(add_args.iter().map(|(_, x)|x.clone()));
-        }
-        let mut func_calls = vec![(String::from(o1.trim_end_matches('(').trim_start_matches('.')),args.into_boxed_slice())];
-        for x in o.iter().map(|x| x.1.clone()) {
-            if let Expr::FunctionCall(y,x) = x {
-                func_calls.push((x.last().unwrap().to_string(),y))
-            }
-        }
+    <t: Term> <o: ItemAfter<".", FunctionCall>+> => {
+        let mut func_calls = Vec::new();
+        for x in o { if let Expr::FunctionCall(y,x) = x { func_calls.push((x.last().unwrap().to_string(),y)) } }
         Expr::ObjFunctionCall(Box::from(t), Box::from(func_calls))
     }
 }
 
 Array:Expr = {
-    "[" "]" => {
-        Expr::Array(Box::from([]))
-    },
-    "[" <t: Expression> <f: ("," Expression)*> "]" => {
-        let mut terms = vec![t];
-        terms.extend(f.iter().map(|x| x.1.clone()).collect::<Vec<_>>());
-        Expr::Array(terms.into_boxed_slice())
+    "[" <arr: Comma<Expression>> "]" => {
+        Expr::Array(arr.into_boxed_slice())
     }
 }
 

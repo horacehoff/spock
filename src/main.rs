@@ -16,6 +16,8 @@ use std::fs;
 use std::fs::File;
 use std::hint::unreachable_unchecked;
 use std::io::Write;
+use std::os::unix::fs::OpenOptionsExt;
+use std::primitive;
 use std::time::Instant;
 
 mod builtin_funcs;
@@ -719,88 +721,82 @@ pub enum Opcode {
     Neg,
 }
 
-fn clean_contents(inp: &str, base_name: &str) -> String {
-    inp.lines()
-        .filter_map(|mut line| {
-            if line.starts_with("//") {
-                None
-            } else if let Some(idx) = line.find("//") {
-                let mut in_str = false;
-                for c in line.chars().take(idx + 2) {
-                    if c == '"' {
-                        in_str = !in_str;
-                    } else if !in_str && c == '/' {
-                        line = &line[..idx];
-                    }
-                }
-                Some(line.to_string())
-            } else if line.starts_with("import") {
-                let import_path = line
-                    .trim_start_matches("import")
-                    .trim_end_matches(';')
-                    .trim();
-                if import_path != base_name {
-                    let path = clean_contents(&fs::read_to_string(import_path).unwrap_or_else(|_| {
-                        error!(line, format_args!("Unable to read & import file '{color_red}{import_path}{color_reset}'"));
-                    }), base_name);
-                    Some(path)
-                } else {
-                    None
-                }
-            } else {
-                Some(line.to_string())
-            }
-        })
-        .collect::<Vec<String>>()
-        .join("\r\n")
-}
-
 fn get_vec_capacity(instructions: &[Instr]) -> (usize, usize) {
-    let mut func_args_count = 0;
-    let mut func_args_count_max = 0;
-    let mut call_stack_count = 0;
-    let mut call_stack_count_max = 0;
-    for x in instructions {
-        if matches!(x, Instr::StoreFuncArg(_)) {
-            func_args_count += 1;
-        } else if matches!(x, Instr::ApplyFunc(_, _, _)) && func_args_count > func_args_count_max {
-            func_args_count_max = func_args_count;
-            func_args_count = 0;
-        }
+    let (mut func_args, mut max_func_args) = (0, 0);
+    let (mut call_depth, mut max_call_depth) = (0, 0);
 
-        if matches!(x, Instr::Call(_, _)) {
-            call_stack_count += 1;
-        } else if matches!(x, Instr::Ret(_, _)) && call_stack_count > call_stack_count_max {
-            call_stack_count_max = call_stack_count;
-            call_stack_count -= 1;
+    for instr in instructions {
+        match instr {
+            Instr::StoreFuncArg(_) => func_args += 1,
+            Instr::ApplyFunc(_, _, _) => {
+                max_func_args = max_func_args.max(func_args);
+                func_args = 0;
+            }
+            Instr::Call(_, _) => {
+                call_depth += 1;
+                max_call_depth = max_call_depth.max(call_depth);
+            }
+            Instr::Ret(_, _) => {
+                if call_depth > 0 {
+                    call_depth -= 1;
+                }
+            }
+            _ => {}
         }
     }
-    (func_args_count_max, call_stack_count_max)
+    (max_func_args, max_call_depth)
 }
 
-fn parser<'src>() -> impl Parser<'src, &'src str, Expr> {
-    recursive(|value| {
-        // let string = just("\"");
-        let number = just('-')
-            .or_not()
-            .then(text::int(10))
-            .to_slice()
-            .map(|s: &str| s.parse().unwrap())
-            .map(Expr::Num);
+// fn parser<'src>() -> impl Parser<'src, &'src str, Expr> {
+//     recursive(|value| {
+//         // let string = just("\"");
+//         let number = just('-')
+//             .or_not()
+//             .then(text::int(10))
+//             .to_slice()
+//             .map(|s: &str| s.parse().unwrap())
+//             .map(Expr::Num);
 
-        let op = choice((
-            just("+").padded().to(Expr::Opcode(Opcode::Add)),
-            just("-").padded().to(Expr::Opcode(Opcode::Sub)),
-        ));
+//         let op = choice((
+//             just("+").padded().to(Expr::Opcode(Opcode::Add)),
+//             just("-").padded().to(Expr::Opcode(Opcode::Sub)),
+//         ));
 
-        choice((
-            just("true").padded().to(Expr::Bool(true)),
-            just("false").padded().to(Expr::Bool(false)),
-            op,
-            number,
-        ))
-    })
-}
+//         let primitive = choice((
+//             just("true").padded().to(Expr::Bool(true)),
+//             just("false").padded().to(Expr::Bool(false)),
+//             number,
+//         ));
+
+//         let operation = primitive.then(op.then(primitive)).repeated().boxed();
+//         choice((operation, op))
+//     })
+// }
+// //
+// peg::parser! {
+//   grammar spock_parser() for str {
+//         rule w() = quiet!{[' ' | '\n' | '\t' | '\r']+}
+
+//         pub rule number() -> f64
+//         = n:$(['0'..='9']+ ("." ['0'..='9'])?) {? n.parse().or(Err("u32")) }
+
+//         pub rule str() -> String
+//         = "\"" s:(['a'..='z' | 'A'..='Z']*) "\"" { s.iter().collect()}
+
+//         pub rule bool() -> bool =
+//             "true" {true} |
+//             "false" {false}
+
+//         pub rule var() -> String
+//         = v:['a'..='z' | 'A'..='Z']* { v.iter().collect()}
+
+//         pub rule var_declare() -> Expr
+//         = "let" w()? v:var() w()? "=" w()? n:number() ";" {Expr::VarDeclare(Intern::from(v), Box::from(Expr::Continue))}
+
+//         pub rule code() -> Vec<Expr>
+//            = w()? l:var_declare()* w()? {l}
+//   }
+// }
 
 // Live long and prosper
 fn main() {
@@ -821,14 +817,12 @@ fn main() {
         ));
     });
 
-    let parser_result = parser().parse(&contents).into_result();
-    println!("{:?}", parser_result);
-    return;
+    // let parser_result = spock_parser::code(&contents);
+    // println!("{:?}", parser_result);
+    // return;
 
     // #[cfg(debug_assertions)]
     let now = Instant::now();
-
-    contents = clean_contents(&contents, filename);
 
     let (instructions, mut consts, mut arrays) = parse(&contents);
 

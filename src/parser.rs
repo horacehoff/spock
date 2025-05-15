@@ -1622,19 +1622,12 @@ pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, FnvHashMap<u16, Vec<Data
     let now = std::time::Instant::now();
     let functions: Vec<Expr> = grammar::FileParser::new().parse(contents).unwrap();
     println!("LALRPOP TIME {:.2?}", now.elapsed());
+    println!("FUNCS {functions:?}");
     let mut functions: Vec<Function> = functions
-        .iter()
+        .into_iter()
         .map(|w| {
             if let Expr::FunctionDecl(x, y) = w {
-                (
-                    x.first().unwrap().trim_end_matches('(').to_string(),
-                    x.iter()
-                        .skip(1)
-                        .map(ToString::to_string)
-                        .collect::<Vec<String>>()
-                        .into_boxed_slice(),
-                    y.clone(),
-                )
+                (x[0].to_string(), x[1..].into(), y)
             } else {
                 error!(contents, "Function expected");
             }
