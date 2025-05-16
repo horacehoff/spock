@@ -70,15 +70,16 @@ ConditionalBlock: Expr = {
         if o1 == Expr::Bool(true) {
             return Expr::EvalBlock(o2);
         }
-        Expr::Condition(Box::from(o1),
-        Box::from(
-            [&(*o2),
-            o3.as_slice(),
-            match o4 {
-                Some(ref value) => std::slice::from_ref(value),
-                None => &[],
-            }]
-        .concat()
+        Expr::Condition(
+            Box::from(o1),
+            Box::from(
+                [&(*o2),
+                o3.as_slice(),
+                match o4 {
+                    Some(ref value) => std::slice::from_ref(value),
+                    None => &[],
+                }]
+            .concat()
         ))
     }
 }
@@ -87,14 +88,18 @@ InlineConditionalBlock: Expr = {
         if o1 == Expr::Bool(true) {
             return o2;
         }
-        let mut code = vec![o2];
-        for x in o3 {
-            code.push(x);
-        }
-        if let Some(x) = o4 {
-            code.push(x);
-        }
-        Expr::Condition(Box::from(o1), code.into_boxed_slice())
+        Expr::Condition(
+            Box::from(o1),
+            Box::from(
+                [
+                std::slice::from_ref(&o2),
+                o3.as_slice(),
+                match o4 {
+                    Some(ref value) => std::slice::from_ref(value),
+                    None => &[],
+                }]
+            .concat()
+        ))
     }
 }
 
@@ -250,7 +255,7 @@ IndexAccess: Expr = {
 
 Expression: Expr = {
     #[precedence(level="0")]
-    <t: Term> => t,
+    Term,
 
     // OPS
     #[precedence(level="1")] #[assoc(side="left")]
@@ -287,7 +292,8 @@ Expression: Expr = {
     <l:Expression> "+" <r:Expression> => l + r,
     #[precedence(level="7")] #[assoc(side="left")]
     <l:Expression> "-" <r:Expression> => l - r,
-    // NEG TODO
+    #[precedence(level="8")] #[assoc(side="left")]
+    "-" <r:Expression> => -r,
 }
 
 Term: Expr = {
@@ -300,8 +306,6 @@ Term: Expr = {
     <f: FunctionCall> => <>,
     //<o: ObjFunctionCall> => <>,
     <c: InlineConditionalBlock> => <>,
-    //#[precedence(level="1")]
-    //<i: ArrayIndex> => <>,
 }
 
 ItemBefore<T,S>: T = {

@@ -58,3 +58,14 @@ impl std::ops::Rem<Expr> for Expr {
         }
     }
 }
+
+impl std::ops::Neg for Expr {
+    type Output = Expr;
+
+    fn neg(self) -> Expr {
+        match self {
+            Expr::Num(x) => Expr::Num(-x),
+            l => Expr::Neg(Box::from(l)),
+        }
+    }
+}

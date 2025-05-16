@@ -3,8 +3,6 @@ use crate::display::format_err;
 use crate::parser::parse;
 use crate::util::get_type;
 use builtin_funcs::FUNCS;
-use chumsky::container::Seq;
-use chumsky::prelude::*;
 use concat_string::concat_string;
 use fnv::FnvHashMap;
 use inline_colorization::*;
@@ -16,8 +14,6 @@ use std::fs;
 use std::fs::File;
 use std::hint::unreachable_unchecked;
 use std::io::Write;
-use std::os::unix::fs::OpenOptionsExt;
-use std::primitive;
 use std::time::Instant;
 
 mod builtin_funcs;
