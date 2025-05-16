@@ -52,10 +52,6 @@ impl std::fmt::Display for Expr {
             Expr::Bool(x) => write!(f, "{x}"),
             Expr::String(x) => write!(f, "\"{x}\""),
             Expr::Var(x) => write!(f, "{}", x),
-            Expr::Opcode(x) => write!(f, "{}", x),
-            Expr::Op(x) => {
-                write!(f, "{:?}", x,)
-            }
             Expr::Condition(x, y) => {
                 write!(
                     f,

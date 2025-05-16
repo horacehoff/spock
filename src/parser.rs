@@ -13,8 +13,6 @@ use std::slice;
 pub enum Expr {
     Num(Num),
     Bool(bool),
-    Op(Box<[Expr]>),
-    Opcode(Opcode),
     Priority(Box<Expr>),
     String(String),
     Var(Intern<String>),

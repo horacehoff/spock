@@ -105,13 +105,21 @@ MatchBlock:Expr = {
         let first_match = o2.first().unwrap();
 
         let mut output_code:Vec<Expr> = first_match.2.to_vec();
-        output_code.extend(o2.iter().skip(1).map(|x| Expr::ElseIfBlock(Box::from(Expr::Op(Box::from([match_obj.clone(), x.0.clone(), Expr::Opcode(Opcode::Eq)]))), x.2.clone())));
+        output_code.extend(o2.iter().skip(1).map(|x| Expr::ElseIfBlock(
+            Box::from(
+                Expr::Eq(
+                    Box::from(match_obj.clone()),
+                    Box::from(x.0.clone())
+                )
+            ),
+            x.2.clone()
+        )));
 
         if let Some(wildcard) = o3 {
             output_code.push(Expr::ElseBlock(wildcard.2.clone()))
         }
 
-        Expr::Condition(Box::from(Expr::Op(Box::from([match_obj, first_match.0.clone(), Expr::Opcode(Opcode::Eq)]))),Box::from(output_code))
+        Expr::Condition(Box::from(Expr::Eq(Box::from(match_obj), Box::from(first_match.0.clone()))),Box::from(output_code))
     }
 }
 
@@ -269,16 +277,16 @@ Expression: Expr = {
     <l:Expression> "^" <r:Expression> => Expr::Pow(Box::from(l),Box::from(r)),
 
     #[precedence(level="6")] #[assoc(side="left")]
-    <l:Expression> "*" <r:Expression> => Expr::Mul(Box::from(l),Box::from(r)),
+    <l:Expression> "*" <r:Expression> => l * r,
     #[precedence(level="6")] #[assoc(side="left")]
-    <l:Expression> "/" <r:Expression> => Expr::Div(Box::from(l),Box::from(r)),
+    <l:Expression> "/" <r:Expression> => l / r,
     #[precedence(level="6")] #[assoc(side="left")]
-    <l:Expression> "%" <r:Expression> => Expr::Mod(Box::from(l),Box::from(r)),
+    <l:Expression> "%" <r:Expression> => l % r,
 
     #[precedence(level="7")] #[assoc(side="left")]
     <l:Expression> "+" <r:Expression> => l + r,
     #[precedence(level="7")] #[assoc(side="left")]
-    <l:Expression> "-" <r:Expression> => Expr::Sub(Box::from(l),Box::from(r)),
+    <l:Expression> "-" <r:Expression> => l - r,
     // NEG TODO
 }
 
