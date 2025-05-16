@@ -269,9 +269,11 @@ pub fn execute(
                     ));
                 }}
             }
+            // FIX FOR ARRAYS
             Instr::Eq(o1, o2, dest) => {
                 consts[dest as usize] = Data::Bool(consts[o1 as usize] == consts[o2 as usize]);
             }
+            // FIX FOR ARRAYS
             Instr::EqCmp(o1, o2, jump_size) => {
                 if consts[o1 as usize] != consts[o2 as usize] {
                     i += jump_size as usize;

@@ -51,6 +51,22 @@ pub enum Expr {
 
     EvalBlock(Box<[Expr]>),
     LoopBlock(Box<[Expr]>),
+
+    Mul(Box<Expr>, Box<Expr>),
+    Div(Box<Expr>, Box<Expr>),
+    Add(Box<Expr>, Box<Expr>),
+    Sub(Box<Expr>, Box<Expr>),
+    Mod(Box<Expr>, Box<Expr>),
+    Pow(Box<Expr>, Box<Expr>),
+    Eq(Box<Expr>, Box<Expr>),
+    NotEq(Box<Expr>, Box<Expr>),
+    Sup(Box<Expr>, Box<Expr>),
+    SupEq(Box<Expr>, Box<Expr>),
+    Inf(Box<Expr>, Box<Expr>),
+    InfEq(Box<Expr>, Box<Expr>),
+    BoolAnd(Box<Expr>, Box<Expr>),
+    BoolOr(Box<Expr>, Box<Expr>),
+    Neg(Box<Expr>),
 }
 
 lalrpop_mod!(pub grammar);
@@ -238,6 +254,126 @@ fn get_id(
             consts.push(Data::Array(id));
             (consts.len() - 1) as u16
         }
+        Expr::Mul(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::Mul(id_l, id_r, id));
+            id
+        }
+        Expr::Div(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::Div(id_l, id_r, id));
+            id
+        }
+        Expr::Add(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::Add(id_l, id_r, id));
+            id
+        }
+        Expr::Sub(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::Sub(id_l, id_r, id));
+            id
+        }
+        Expr::Mod(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::Mod(id_l, id_r, id));
+            id
+        }
+        Expr::Pow(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::Pow(id_l, id_r, id));
+            id
+        }
+        Expr::Eq(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::Eq(id_l, id_r, id));
+            id
+        }
+        Expr::NotEq(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::NotEq(id_l, id_r, id));
+            id
+        }
+        Expr::Sup(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::Sup(id_l, id_r, id));
+            id
+        }
+        Expr::SupEq(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::SupEq(id_l, id_r, id));
+            id
+        }
+        Expr::Inf(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::Inf(id_l, id_r, id));
+            id
+        }
+        Expr::InfEq(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::InfEq(id_l, id_r, id));
+            id
+        }
+        Expr::BoolAnd(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::BoolAnd(id_l, id_r, id));
+            id
+        }
+        Expr::BoolOr(l, r) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::BoolOr(id_l, id_r, id));
+            id
+        }
+        Expr::Neg(l) => {
+            let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id);
+            let id = consts.len() as u16;
+            consts.push(Data::Null);
+            output.push(Instr::Neg(id_l, id));
+            id
+        }
+
         Expr::Condition(main_condition, code) => {
             let return_id = consts.len() as u16;
             consts.push(Data::Null);
@@ -1541,55 +1677,6 @@ fn parser_to_instr_set(
                     x.iter().skip(1).map(ToString::to_string).collect(),
                     y.clone(),
                 ));
-            }
-            Expr::Op(items) => {
-                let final_stack_capacity = items
-                    .iter()
-                    .filter(|x| matches!(x, Expr::Opcode(_)))
-                    .count();
-                let mut item_stack: Vec<&Expr> =
-                    Vec::with_capacity(items.len() - final_stack_capacity);
-                let mut final_stack: Vec<Instr> = Vec::with_capacity(final_stack_capacity);
-                for x in items {
-                    if let Expr::Opcode(op) = x {
-                        if final_stack.is_empty() {
-                            let last = item_stack.pop().unwrap();
-                            let first = item_stack.pop().unwrap();
-
-                            let first_v = get_id(
-                                first,
-                                v,
-                                consts,
-                                &mut output,
-                                &ctx,
-                                fns,
-                                arrs,
-                                fn_state,
-                                id,
-                            );
-                            let second_v =
-                                get_id(last, v, consts, &mut output, &ctx, fns, arrs, fn_state, id);
-                            consts.push(Data::Null);
-                            let x = first_v;
-                            let y = second_v;
-                            let z = consts.len() - 1;
-                            handle_ops!(final_stack, x, y, z as u16, op, consts);
-                        } else {
-                            let old_id = get_tgt_id(*final_stack.last().unwrap()).unwrap();
-                            let new = item_stack.pop().unwrap();
-                            let new_v =
-                                get_id(new, v, consts, &mut output, &ctx, fns, arrs, fn_state, id);
-                            consts.push(Data::Null);
-                            let x = new_v;
-                            let y = old_id;
-                            let z = consts.len() - 1;
-                            handle_ops!(final_stack, x, y, z as u16, op, consts);
-                        }
-                    } else {
-                        item_stack.push(x);
-                    }
-                }
-                output.extend(final_stack);
             }
             Expr::Priority(x) => {
                 output.extend(parser_to_instr_set(

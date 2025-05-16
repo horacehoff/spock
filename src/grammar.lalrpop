@@ -7,8 +7,6 @@ use crate::error_b;
 use crate::Num;
 use crate::is_float;
 use internment::Intern;
-use crate::ops::remove_priority;
-use crate::ops::op_to_rpn;
 use crate::display::format_parser_error_recovery;
 use concat_string::concat_string;
 use crate::display::format_expr_type;
@@ -72,14 +70,16 @@ ConditionalBlock: Expr = {
         if o1 == Expr::Bool(true) {
             return Expr::EvalBlock(o2);
         }
-        let mut code = o2.to_vec();
-        for x in o3 {
-            code.push(x);
-        }
-        if let Some(x) = o4 {
-            code.push(x);
-        }
-        Expr::Condition(Box::from(o1), code.into_boxed_slice())
+        Expr::Condition(Box::from(o1),
+        Box::from(
+            [&(*o2),
+            o3.as_slice(),
+            match o4 {
+                Some(ref value) => std::slice::from_ref(value),
+                None => &[],
+            }]
+        .concat()
+        ))
     }
 }
 InlineConditionalBlock: Expr = {
@@ -200,12 +200,36 @@ VarAssign: Expr = {
 }
 
 OpVarAssign: Expr = {
-    <v: Var> "+=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),e, Expr::Opcode(Opcode::Add)])))),
-    <v: Var> "-=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),e, Expr::Opcode(Opcode::Sub)])))),
-    <v: Var> "*=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),e,Expr::Opcode(Opcode::Mul)])))),
-    <v: Var> "/=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),e,Expr::Opcode(Opcode::Div)])))),
-    <v: Var> "%=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),e,Expr::Opcode(Opcode::Mod)])))),
-    <v: Var> "^=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(Expr::Op(Box::from([Expr::Var(Intern::from(v)),e,Expr::Opcode(Opcode::Pow)])))),
+    <v: Var> "+=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    Expr::Add(
+        Box::from(Expr::Var(Intern::from_ref(&v))),
+        Box::from(e),
+    ))),
+    <v: Var> "-=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    Expr::Sub(
+        Box::from(Expr::Var(Intern::from_ref(&v))),
+        Box::from(e),
+    ))),
+    <v: Var> "*=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    Expr::Mul(
+        Box::from(Expr::Var(Intern::from_ref(&v))),
+        Box::from(e),
+    ))),
+    <v: Var> "/=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    Expr::Div(
+        Box::from(Expr::Var(Intern::from_ref(&v))),
+        Box::from(e),
+    ))),
+    <v: Var> "%=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    Expr::Mod(
+        Box::from(Expr::Var(Intern::from_ref(&v))),
+        Box::from(e),
+    ))),
+    <v: Var> "^=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    Expr::Pow(
+        Box::from(Expr::Var(Intern::from_ref(&v))),
+        Box::from(e),
+    ))),
 }
 
 IndexAccess: Expr = {
@@ -217,180 +241,45 @@ IndexAccess: Expr = {
 
 
 Expression: Expr = {
-    <o:Operation> => o,
+    #[precedence(level="0")]
     <t: Term> => t,
-    <i: IndexAccess> => i,
-}
 
-Operation: Expr = {
-    "-" <t: Term> => {
-        if let Expr::Num(x) = t {
-            return Expr::Num(-x);
-        }
-        return Expr::Op(Box::from([Expr::Num(0.0 as Num), t, Expr::Opcode(Opcode::Neg)]));
-    },
-    <o1: Term> <o3: (<Op> <Term>)+> => {
-        let mut output_op:Vec<Expr> = vec![o1];
-        for x in o3 {
-            output_op.push(Expr::Opcode(x.0));
-            output_op.extend(remove_priority(x.1));
-        }
-        output_op = op_to_rpn(output_op);
+    // OPS
+    #[precedence(level="1")] #[assoc(side="left")]
+    <l:Expression> "||" <r:Expression> => Expr::BoolOr(Box::from(l),Box::from(r)),
 
+    #[precedence(level="2")] #[assoc(side="left")]
+    <l:Expression> "&&" <r:Expression> => Expr::BoolAnd(Box::from(l),Box::from(r)),
 
-        // constant folding
-        if output_op.iter().any(|x| !matches!(x, Expr::Num(_) | Expr::Bool(_) | Expr::String(_) | Expr::Opcode(_))) {
-            Expr::Op(output_op.into_boxed_slice())
-        } else {
-            let mut output_num:Expr = Expr::Num(0.0 as Num);
-            let mut stack:Vec<Expr> = Vec::new();
-            for x in output_op {
-                if let Expr::Opcode(op) = x {
-                    let last = stack.pop().unwrap();
-                    let first = {
-                        if let Some(num) = stack.pop() {
-                            num
-                        } else {
-                            output_num
-                        }
-                    };
-                    output_num = match op {
-                        Opcode::Add => {
-                            match (first,last) {
-                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(x+y),
-                            (Expr::String(x),Expr::String(y)) => Expr::String(concat_string!(x,y)),
-                            (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} + {}",
-                                  format_expr_type(x),
-                                  format_expr_type(y)
-                              ));}
-                            }
-                        },
-                        Opcode::Mul => {
-                            match (first,last) {
-                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(x*y),
-                            (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} * {}",
-                                  format_expr_type(x),
-                                  format_expr_type(y)
-                              ));}
-                            }
-                        },
-                        Opcode::Div => {
-                            match (first,last) {
-                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(x/y),
-                            (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} / {}",
-                                  format_expr_type(x),
-                                  format_expr_type(y)
-                              ));}
-                            }
-                        },
-                        Opcode::Sub => {
-                            match (first,last) {
-                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(x-y),
-                            (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} - {}",
-                                  format_expr_type(x),
-                                  format_expr_type(y)
-                              ));}
-                            }
-                        },
-                        Opcode::Mod => {
-                            match (first,last) {
-                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(x%y),
-                            (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} % {}",
-                                  format_expr_type(x),
-                                  format_expr_type(y)
-                              ));}
-                            }
-                        },
-                        Opcode::Pow => {
-                            match (first,last) {
-                            (Expr::Num(x),Expr::Num(y)) => Expr::Num(is_float!(x.powf(y),x.pow(y as u32))),
-                            (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} ^ {}",
-                                  format_expr_type(x),
-                                  format_expr_type(y)
-                              ));}
-                            }
-                        },
-                        Opcode::Eq => {
-                            Expr::Bool(first == last)
-                        },
-                        Opcode::NotEq => {
-                            Expr::Bool(first != last)
-                        },
-                        Opcode::Sup => {
-                            match (first,last) {
-                            (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x > y),
-                            (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} > {}",
-                                  format_expr_type(x),
-                                  format_expr_type(y)
-                              ));}
-                            }
-                        },
-                        Opcode::SupEq => {
-                            match (first,last) {
-                            (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x >= y),
-                            (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} >= {}",
-                                  format_expr_type(x),
-                                  format_expr_type(y)
-                              ));}
-                            }
-                        },
-                        Opcode::Inf => {
-                            match (first,last) {
-                            (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x < y),
-                            (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} < {}",
-                                  format_expr_type(x),
-                                  format_expr_type(y)
-                              ));}
-                            }
-                        },
-                        Opcode::InfEq => {
-                            match (first,last) {
-                            (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x <= y),
-                            (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} <= {}",
-                                  format_expr_type(x),
-                                  format_expr_type(y)
-                              ));}
-                            }
-                        },
-                        Opcode::BoolAnd => {
-                            match (first,last) {
-                            (Expr::Bool(x),Expr::Bool(y)) => Expr::Bool(x && y),
-                            (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} && {}",
-                                  format_expr_type(x),
-                                  format_expr_type(y)
-                              ));}
-                            }
-                        },
-                        Opcode::BoolOr => {
-                            match (first,last) {
-                            (Expr::Bool(x),Expr::Bool(y)) => Expr::Bool(x || y),
-                            (x,y) => {error_b!(format_args!(
-                                  "UNSUPPORTED OPERATION: {} || {}",
-                                  format_expr_type(x),
-                                  format_expr_type(y)
-                              ));}
-                            }
-                        }
-                        _ => unreachable!()
-                        }
-                } else {
-                    stack.push(x);
-                }
-            }
-            output_num
-        }
-    }
+    #[precedence(level="3")] #[assoc(side="left")]
+    <l:Expression> "==" <r:Expression> => Expr::Eq(Box::from(l),Box::from(r)),
+    #[precedence(level="3")] #[assoc(side="left")]
+    <l:Expression> "!=" <r:Expression> => Expr::NotEq(Box::from(l),Box::from(r)),
+
+    #[precedence(level="4")] #[assoc(side="left")]
+    <l:Expression> "<" <r:Expression> => Expr::Inf(Box::from(l),Box::from(r)),
+    #[precedence(level="4")] #[assoc(side="left")]
+    <l:Expression> "<=" <r:Expression> => Expr::InfEq(Box::from(l),Box::from(r)),
+    #[precedence(level="4")] #[assoc(side="left")]
+    <l:Expression> ">" <r:Expression> => Expr::Sup(Box::from(l),Box::from(r)),
+    #[precedence(level="4")] #[assoc(side="left")]
+    <l:Expression> ">=" <r:Expression> => Expr::SupEq(Box::from(l),Box::from(r)),
+
+    #[precedence(level="5")] #[assoc(side="right")]
+    <l:Expression> "^" <r:Expression> => Expr::Pow(Box::from(l),Box::from(r)),
+
+    #[precedence(level="6")] #[assoc(side="left")]
+    <l:Expression> "*" <r:Expression> => Expr::Mul(Box::from(l),Box::from(r)),
+    #[precedence(level="6")] #[assoc(side="left")]
+    <l:Expression> "/" <r:Expression> => Expr::Div(Box::from(l),Box::from(r)),
+    #[precedence(level="6")] #[assoc(side="left")]
+    <l:Expression> "%" <r:Expression> => Expr::Mod(Box::from(l),Box::from(r)),
+
+    #[precedence(level="7")] #[assoc(side="left")]
+    <l:Expression> "+" <r:Expression> => l + r,
+    #[precedence(level="7")] #[assoc(side="left")]
+    <l:Expression> "-" <r:Expression> => Expr::Sub(Box::from(l),Box::from(r)),
+    // NEG TODO
 }
 
 Term: Expr = {
@@ -403,6 +292,7 @@ Term: Expr = {
     <f: FunctionCall> => <>,
     //<o: ObjFunctionCall> => <>,
     <c: InlineConditionalBlock> => <>,
+    //#[precedence(level="1")]
     //<i: ArrayIndex> => <>,
 }
 
@@ -439,6 +329,12 @@ Array:Expr = {
     }
 }
 
+ArrayIndex:Expr = {
+    <t: Expression> "[" <arr: Expression> "]" => {
+        Expr::GetIndex(Box::from(t), Box::from([arr]))
+    }
+}
+
 Num: Num = {
     <n: r"([0-9]*[.])?[0-9]+"> => Num::from_str(n).unwrap_or_else(|_| {error_b!(format_args!("Invalid number: '{color_red}{n}{color_reset}'"));})
 }
@@ -454,21 +350,4 @@ String: String = {
 
 Var: String = {
     <v: r#"[a-zA-Z_]*"#> => String::from(v),
-}
-
-Op: Opcode = {
-    "*" => Opcode::Mul,
-    "+" => Opcode::Add,
-    "/" => Opcode::Div,
-    "-" => Opcode::Sub,
-    "%" => Opcode::Mod,
-    "^" => Opcode::Pow,
-    "==" => Opcode::Eq,
-    "!="  =>  Opcode::NotEq,
-    ">"  =>  Opcode::Sup,
-     ">="  => Opcode::SupEq,
-     "<" =>   Opcode::Inf,
-     "<="  => Opcode::InfEq,
-     "&&"  => Opcode::BoolAnd,
-     "||"  => Opcode::BoolOr,
 }
