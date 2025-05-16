@@ -26,7 +26,7 @@ pub enum Expr {
     WhileBlock(Box<Expr>, Box<[Expr]>),
     // args - (optional namespace + name)
     FunctionCall(Box<[Expr]>, Box<[String]>),
-    ObjFunctionCall(Box<Expr>, Box<[(String, Box<[Expr]>)]>),
+    ObjFunctionCall(Box<Expr>, Box<[Expr]>, Box<[String]>),
 
     // name+args -- code
     FunctionDecl(Box<[String]>, Box<[Expr]>),
@@ -1415,242 +1415,222 @@ fn parser_to_instr_set(
                     output.push(Instr::Jmp(65535, false));
                 }
             }
-            Expr::ObjFunctionCall(obj, funcs) => {
-                let mut id = get_id(obj, v, consts, &mut output, &ctx, fns, arrs, fn_state, id);
-                for func in funcs {
-                    let args = &func.1;
-                    match func.0.as_str() {
-                        "uppercase" => {
-                            check_args!(args, 0, "uppercase", ctx);
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-                            output.push(Instr::ApplyFunc(0, id, f_id));
-                            id = f_id;
-                        }
-                        "lowercase" => {
-                            check_args!(args, 0, "lowercase", ctx);
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-                            output.push(Instr::ApplyFunc(1, id, f_id));
-                            id = f_id;
-                        }
-                        "len" => {
-                            check_args!(args, 0, "len", ctx);
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-                            output.push(Instr::Len(id, f_id));
-                            id = f_id;
-                        }
-                        "contains" => {
-                            check_args!(args, 1, "contains", ctx);
+            Expr::ObjFunctionCall(obj, args, namespace) => {
+                let id = get_id(obj, v, consts, &mut output, &ctx, fns, arrs, fn_state, id);
+                let len = namespace.len() - 1;
+                let name = namespace[len].as_str();
+                let namespace = &namespace[0..len];
+                match name {
+                    "uppercase" => {
+                        check_args!(args, 0, "uppercase", ctx);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+                        output.push(Instr::ApplyFunc(0, id, f_id));
+                    }
+                    "lowercase" => {
+                        check_args!(args, 0, "lowercase", ctx);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+                        output.push(Instr::ApplyFunc(1, id, f_id));
+                    }
+                    "len" => {
+                        check_args!(args, 0, "len", ctx);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+                        output.push(Instr::Len(id, f_id));
+                    }
+                    "contains" => {
+                        check_args!(args, 1, "contains", ctx);
 
-                            add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
+                        add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
 
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
 
-                            output.push(Instr::ApplyFunc(2, id, f_id));
-                            id = f_id;
+                        output.push(Instr::ApplyFunc(2, id, f_id));
+                    }
+                    "trim" => {
+                        check_args!(args, 0, "trim", ctx);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+                        output.push(Instr::ApplyFunc(3, id, f_id));
+                    }
+                    "trim_sequence" => {
+                        check_args!(args, 1, "trim_sequence", ctx);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+
+                        add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
+                        output.push(Instr::ApplyFunc(4, id, f_id));
+                    }
+                    "index" => {
+                        check_args!(args, 1, "index", ctx);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+
+                        add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
+                        output.push(Instr::ApplyFunc(5, id, f_id));
+                    }
+                    "is_num" => {
+                        check_args!(args, 0, "is_num", ctx);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+                        output.push(Instr::ApplyFunc(6, id, f_id));
+                    }
+                    "trim_left" => {
+                        check_args!(args, 0, "trim_left", ctx);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+                        output.push(Instr::ApplyFunc(7, id, f_id));
+                    }
+                    "trim_right" => {
+                        check_args!(args, 0, "trim_right", ctx);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+                        output.push(Instr::ApplyFunc(8, id, f_id));
+                    }
+                    "trim_sequence_left" => {
+                        check_args!(args, 1, "trim_sequence_left", ctx);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+
+                        add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
+                        output.push(Instr::ApplyFunc(9, id, f_id));
+                    }
+                    "trim_sequence_right" => {
+                        check_args!(args, 1, "trim_sequence_right", ctx);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+
+                        add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
+                        output.push(Instr::ApplyFunc(10, id, f_id));
+                    }
+                    "rindex" => {
+                        check_args!(args, 1, "rindex", ctx);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+
+                        add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
+                        output.push(Instr::ApplyFunc(11, id, f_id));
+                    }
+                    "repeat" => {
+                        check_args!(args, 1, "repeat", ctx);
+                        add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
+
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+
+                        output.push(Instr::ApplyFunc(12, id, f_id));
+                    }
+                    "push" => {
+                        check_args!(args, 1, "push", ctx);
+                        let arg_id = get_id(
+                            &args[0],
+                            v,
+                            consts,
+                            &mut output,
+                            &ctx,
+                            fns,
+                            arrs,
+                            fn_state,
+                            id,
+                        );
+
+                        output.push(Instr::Push(id, arg_id));
+                    }
+                    "sqrt" => {
+                        check_args!(args, 0, "sqrt", ctx);
+
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+
+                        output.push(Instr::Sqrt(id, f_id));
+                    }
+                    "round" => {
+                        check_args!(args, 0, "round", ctx);
+
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+
+                        output.push(Instr::ApplyFunc(13, id, f_id));
+                    }
+                    "abs" => {
+                        check_args!(args, 0, "abs", ctx);
+
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+
+                        output.push(Instr::ApplyFunc(14, id, f_id));
+                    }
+                    // io::read
+                    "read" => {
+                        check_args!(args, 0, "read", ctx);
+
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
+
+                        output.push(Instr::ApplyFunc(15, id, f_id));
+                    }
+                    // io::write
+                    "write" => {
+                        check_args_range!(args, 1, 2, "write", ctx);
+
+                        let len = args.len();
+                        add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
+                        if len == 1 {
+                            consts.push(Data::Bool(false));
+                            output.push(Instr::StoreFuncArg((consts.len() - 1) as u16));
                         }
-                        "trim" => {
-                            check_args!(args, 0, "trim", ctx);
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-                            output.push(Instr::ApplyFunc(3, id, f_id));
-                            id = f_id;
-                        }
-                        "trim_sequence" => {
-                            check_args!(args, 1, "trim_sequence", ctx);
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
 
-                            add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
-                            output.push(Instr::ApplyFunc(4, id, f_id));
-                            id = f_id;
-                        }
-                        "index" => {
-                            check_args!(args, 1, "index", ctx);
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
 
-                            add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
-                            output.push(Instr::ApplyFunc(5, id, f_id));
-                            id = f_id;
-                        }
-                        "is_num" => {
-                            check_args!(args, 0, "is_num", ctx);
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-                            output.push(Instr::ApplyFunc(6, id, f_id));
-                            id = f_id;
-                        }
-                        "trim_left" => {
-                            check_args!(args, 0, "trim_left", ctx);
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-                            output.push(Instr::ApplyFunc(7, id, f_id));
-                            id = f_id;
-                        }
-                        "trim_right" => {
-                            check_args!(args, 0, "trim_right", ctx);
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-                            output.push(Instr::ApplyFunc(8, id, f_id));
-                            id = f_id;
-                        }
-                        "trim_sequence_left" => {
-                            check_args!(args, 1, "trim_sequence_left", ctx);
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
+                        output.push(Instr::ApplyFunc(16, id, f_id));
+                    }
+                    "reverse" => {
+                        check_args!(args, 0, "reverse", ctx);
 
-                            add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
-                            output.push(Instr::ApplyFunc(9, id, f_id));
-                            id = f_id;
-                        }
-                        "trim_sequence_right" => {
-                            check_args!(args, 1, "trim_sequence_right", ctx);
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
+                        let f_id = consts.len() as u16;
+                        consts.push(Data::Null);
 
-                            add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
-                            output.push(Instr::ApplyFunc(10, id, f_id));
-                            id = f_id;
-                        }
-                        "rindex" => {
-                            check_args!(args, 1, "rindex", ctx);
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-
-                            add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
-                            output.push(Instr::ApplyFunc(11, id, f_id));
-                            id = f_id;
-                        }
-                        "repeat" => {
-                            check_args!(args, 1, "repeat", ctx);
-                            add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
-
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-
-                            output.push(Instr::ApplyFunc(12, id, f_id));
-                            id = f_id;
-                        }
-                        "push" => {
-                            check_args!(args, 1, "push", ctx);
-                            let arg_id = get_id(
-                                &args[0],
-                                v,
-                                consts,
-                                &mut output,
-                                &ctx,
-                                fns,
-                                arrs,
-                                fn_state,
-                                id,
-                            );
-
-                            output.push(Instr::Push(id, arg_id));
-                        }
-                        "sqrt" => {
-                            check_args!(args, 0, "sqrt", ctx);
-
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-
-                            output.push(Instr::Sqrt(id, f_id));
-                            id = f_id;
-                        }
-                        "round" => {
-                            check_args!(args, 0, "round", ctx);
-
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-
-                            output.push(Instr::ApplyFunc(13, id, f_id));
-                            id = f_id;
-                        }
-                        "abs" => {
-                            check_args!(args, 0, "abs", ctx);
-
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-
-                            output.push(Instr::ApplyFunc(14, id, f_id));
-                            id = f_id;
-                        }
-                        // io::read
-                        "read" => {
-                            check_args!(args, 0, "read", ctx);
-
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-
-                            output.push(Instr::ApplyFunc(15, id, f_id));
-                            id = f_id;
-                        }
-                        // io::write
-                        "write" => {
-                            check_args_range!(args, 1, 2, "write", ctx);
-
-                            let len = args.len();
-                            add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id);
-                            if len == 1 {
-                                consts.push(Data::Bool(false));
-                                output.push(Instr::StoreFuncArg((consts.len() - 1) as u16));
-                            }
-
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-
-                            output.push(Instr::ApplyFunc(16, id, f_id));
-                            id = f_id;
-                        }
-                        "reverse" => {
-                            check_args!(args, 0, "reverse", ctx);
-
-                            let f_id = consts.len() as u16;
-                            consts.push(Data::Null);
-
-                            output.push(Instr::ApplyFunc(17, id, f_id));
-                            id = f_id;
-                        }
-                        "split" => {
-                            check_args!(args, 1, "split", ctx);
-                            let arg_id = get_id(
-                                &args[0],
-                                v,
-                                consts,
-                                &mut output,
-                                &ctx,
-                                fns,
-                                arrs,
-                                fn_state,
-                                id,
-                            );
-                            consts.push(Data::Null);
-                            output.push(Instr::Split(id, arg_id, (consts.len() - 1) as u16));
-                        }
-                        "remove" => {
-                            check_args!(args, 1, "remove", ctx);
-                            let arg_id = get_id(
-                                &args[0],
-                                v,
-                                consts,
-                                &mut output,
-                                &ctx,
-                                fns,
-                                arrs,
-                                fn_state,
-                                id,
-                            );
-                            output.push(Instr::Remove(id, arg_id));
-                        }
-                        other => {
-                            error!(
-                                ctx,
-                                format_args!("Unknown function {color_red}{other}{color_reset}")
-                            );
-                        }
+                        output.push(Instr::ApplyFunc(17, id, f_id));
+                    }
+                    "split" => {
+                        check_args!(args, 1, "split", ctx);
+                        let arg_id = get_id(
+                            &args[0],
+                            v,
+                            consts,
+                            &mut output,
+                            &ctx,
+                            fns,
+                            arrs,
+                            fn_state,
+                            id,
+                        );
+                        consts.push(Data::Null);
+                        output.push(Instr::Split(id, arg_id, (consts.len() - 1) as u16));
+                    }
+                    "remove" => {
+                        check_args!(args, 1, "remove", ctx);
+                        let arg_id = get_id(
+                            &args[0],
+                            v,
+                            consts,
+                            &mut output,
+                            &ctx,
+                            fns,
+                            arrs,
+                            fn_state,
+                            id,
+                        );
+                        output.push(Instr::Remove(id, arg_id));
+                    }
+                    other => {
+                        error!(
+                            ctx,
+                            format_args!("Unknown function {color_red}{other}{color_reset}")
+                        );
                     }
                 }
             }

@@ -106,23 +106,23 @@ impl std::fmt::Display for Expr {
                         .join(",")
                 )
             }
-            Expr::ObjFunctionCall(x, y) => {
-                write!(
-                    f,
-                    "{x}{}",
-                    y.iter()
-                        .map(|x| format!(
-                            ".{}({})",
-                            x.0,
-                            x.1.iter()
-                                .map(|w| format!("{w}"))
-                                .collect::<Vec<String>>()
-                                .join(",")
-                        ))
-                        .collect::<Vec<String>>()
-                        .join("")
-                )
-            }
+            // Expr::ObjFunctionCall(x, y) => {
+            //     write!(
+            //         f,
+            //         "{x}{}",
+            //         y.iter()
+            //             .map(|x| format!(
+            //                 ".{}({})",
+            //                 x.0,
+            //                 x.1.iter()
+            //                     .map(|w| format!("{w}"))
+            //                     .collect::<Vec<String>>()
+            //                     .join(",")
+            //             ))
+            //             .collect::<Vec<String>>()
+            //             .join("")
+            //     )
+            // }
             Expr::ReturnVal(x) => {
                 write!(
                     f,

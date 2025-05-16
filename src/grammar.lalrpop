@@ -255,10 +255,16 @@ IndexAccess: Expr = {
 
 Expression: Expr = {
     #[precedence(level="0")]
-    IndexAccess,
-
-    #[precedence(level="0")]
     Term,
+    IndexAccess,
+    // method call
+    <l:Expression> "." <f:FunctionCall> => {
+        if let Expr::FunctionCall(x,y) = f {
+            return Expr::ObjFunctionCall(Box::from(l),x,y);
+        } else {
+            unreachable!()
+        }
+    },
 
     // OPS
     #[precedence(level="1")] #[assoc(side="left")]
@@ -307,7 +313,6 @@ Term: Expr = {
     <v: Var> => Expr::Var(Intern::from(v)),
     <a: Array> => <>,
     <f: FunctionCall> => <>,
-    //<o: ObjFunctionCall> => <>,
     <c: InlineConditionalBlock> => <>,
 }
 
@@ -330,24 +335,8 @@ FunctionCall: Expr = {
     }
 }
 
-ObjFunctionCall:Expr = {
-    <t: Term> <o: ItemAfter<".", FunctionCall>+> => {
-        let mut func_calls = Vec::new();
-        for x in o { if let Expr::FunctionCall(y,x) = x { func_calls.push((x.last().unwrap().to_string(),y)) } }
-        Expr::ObjFunctionCall(Box::from(t), Box::from(func_calls))
-    }
-}
-
 Array:Expr = {
-    "[" <arr: Comma<Expression>> "]" => {
-        Expr::Array(arr.into_boxed_slice())
-    }
-}
-
-ArrayIndex:Expr = {
-    <t: Expression> "[" <arr: Expression> "]" => {
-        Expr::GetIndex(Box::from(t), Box::from([arr]))
-    }
+    "[" <arr: Comma<Expression>> "]" => Expr::Array(arr.into_boxed_slice())
 }
 
 Num: Num = {
