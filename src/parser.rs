@@ -13,7 +13,6 @@ use std::slice;
 pub enum Expr {
     Num(Num),
     Bool(bool),
-    Priority(Box<Expr>),
     String(String),
     Var(Intern<String>),
     Array(Box<[Expr]>),
@@ -28,8 +27,6 @@ pub enum Expr {
     // args - (optional namespace + name)
     FunctionCall(Box<[Expr]>, Box<[String]>),
     ObjFunctionCall(Box<Expr>, Box<[(String, Box<[Expr]>)]>),
-    LPAREN,
-    RPAREN,
 
     // name+args -- code
     FunctionDecl(Box<[String]>, Box<[Expr]>),
@@ -499,9 +496,6 @@ fn get_id(
                 }
             }
             return_id
-        }
-        Expr::Priority(contents) => {
-            get_id(contents, v, consts, output, ctx, fns, arrs, fn_state, id)
         }
         other => {
             let output_code =
@@ -1674,17 +1668,6 @@ fn parser_to_instr_set(
                     x.first().unwrap().to_string(),
                     x.iter().skip(1).map(ToString::to_string).collect(),
                     y.clone(),
-                ));
-            }
-            Expr::Priority(x) => {
-                output.extend(parser_to_instr_set(
-                    slice::from_ref(x),
-                    v,
-                    consts,
-                    fns,
-                    fn_state,
-                    arrs,
-                    id,
                 ));
             }
             Expr::Break => output.push(Instr::Break(id)),

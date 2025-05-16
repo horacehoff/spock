@@ -297,7 +297,7 @@ Expression: Expr = {
 }
 
 Term: Expr = {
-    "(" <o2: Expression> ")" => Expr::Priority(Box::new(o2)),
+    "(" <e: Expression> ")" => e,
     <t: Num> => Expr::Num(t),
     <b: Bool> => Expr::Bool(b),
     <s: String> => Expr::String(s),
