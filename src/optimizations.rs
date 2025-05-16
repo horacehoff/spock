@@ -1,5 +1,5 @@
 use crate::parser::Expr;
-use crate::{Data, Instr, Num, Opcode, is_float};
+use crate::{Data, Instr, Num, is_float};
 use fnv::FnvHashMap;
 use internment::Intern;
 

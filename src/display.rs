@@ -1,5 +1,5 @@
 use crate::parser::Expr;
-use crate::{Data, Instr, Opcode, format_lines};
+use crate::{Data, Instr, format_lines};
 use concat_string::concat_string;
 use fnv::FnvHashMap;
 use inline_colorization::*;
@@ -136,32 +136,6 @@ impl std::fmt::Display for Expr {
             }
             _ => write!(f, "{self:?}"),
         }
-    }
-}
-
-impl std::fmt::Display for Opcode {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Opcode::Mul => "*",
-                Opcode::Div => "/",
-                Opcode::Add => "+",
-                Opcode::Sub => "-",
-                Opcode::Mod => "%",
-                Opcode::Pow => "^",
-                Opcode::Eq => "==",
-                Opcode::NotEq => "!=",
-                Opcode::Sup => ">",
-                Opcode::SupEq => ">=",
-                Opcode::Inf => "<",
-                Opcode::InfEq => "<=",
-                Opcode::BoolAnd => "&&",
-                Opcode::BoolOr => "||",
-                Opcode::Neg => "-",
-            }
-        )
     }
 }
 

@@ -1,5 +1,4 @@
 use std::str::FromStr;
-use crate::Opcode;
 use crate::parser::Expr;
 use crate::display::format_parser_error;
 use inline_colorization::*;
@@ -250,8 +249,6 @@ IndexAccess: Expr = {
         Expr::GetIndex(Box::from(t), f.iter().map(|x| x.1.clone()).collect::<Vec<Expr>>().into_boxed_slice())
     }
 }
-
-
 
 Expression: Expr = {
     #[precedence(level="0")]

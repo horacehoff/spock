@@ -1,6 +1,6 @@
 use crate::display::print_instructions;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
-use crate::{Data, Instr, Num, Opcode, error, error_b};
+use crate::{Data, Instr, Num, error, error_b};
 use crate::{check_args, check_args_range, print};
 use fnv::FnvHashMap;
 use inline_colorization::*;
@@ -1419,6 +1419,7 @@ fn parser_to_instr_set(
                 let id = get_id(obj, v, consts, &mut output, &ctx, fns, arrs, fn_state, id);
                 let len = namespace.len() - 1;
                 let name = namespace[len].as_str();
+                // not in use for now
                 let namespace = &namespace[0..len];
                 match name {
                     "uppercase" => {

@@ -700,25 +700,6 @@ pub fn execute(
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Opcode {
-    Mul,
-    Div,
-    Add,
-    Sub,
-    Mod,
-    Pow,
-    Eq,
-    NotEq,
-    Sup,
-    SupEq,
-    Inf,
-    InfEq,
-    BoolAnd,
-    BoolOr,
-    Neg,
-}
-
 fn get_vec_capacity(instructions: &[Instr]) -> (usize, usize) {
     let (mut func_args, mut max_func_args) = (0, 0);
     let (mut call_depth, mut max_call_depth) = (0, 0);
@@ -745,57 +726,6 @@ fn get_vec_capacity(instructions: &[Instr]) -> (usize, usize) {
     (max_func_args, max_call_depth)
 }
 
-// fn parser<'src>() -> impl Parser<'src, &'src str, Expr> {
-//     recursive(|value| {
-//         // let string = just("\"");
-//         let number = just('-')
-//             .or_not()
-//             .then(text::int(10))
-//             .to_slice()
-//             .map(|s: &str| s.parse().unwrap())
-//             .map(Expr::Num);
-
-//         let op = choice((
-//             just("+").padded().to(Expr::Opcode(Opcode::Add)),
-//             just("-").padded().to(Expr::Opcode(Opcode::Sub)),
-//         ));
-
-//         let primitive = choice((
-//             just("true").padded().to(Expr::Bool(true)),
-//             just("false").padded().to(Expr::Bool(false)),
-//             number,
-//         ));
-
-//         let operation = primitive.then(op.then(primitive)).repeated().boxed();
-//         choice((operation, op))
-//     })
-// }
-// //
-// peg::parser! {
-//   grammar spock_parser() for str {
-//         rule w() = quiet!{[' ' | '\n' | '\t' | '\r']+}
-
-//         pub rule number() -> f64
-//         = n:$(['0'..='9']+ ("." ['0'..='9'])?) {? n.parse().or(Err("u32")) }
-
-//         pub rule str() -> String
-//         = "\"" s:(['a'..='z' | 'A'..='Z']*) "\"" { s.iter().collect()}
-
-//         pub rule bool() -> bool =
-//             "true" {true} |
-//             "false" {false}
-
-//         pub rule var() -> String
-//         = v:['a'..='z' | 'A'..='Z']* { v.iter().collect()}
-
-//         pub rule var_declare() -> Expr
-//         = "let" w()? v:var() w()? "=" w()? n:number() ";" {Expr::VarDeclare(Intern::from(v), Box::from(Expr::Continue))}
-
-//         pub rule code() -> Vec<Expr>
-//            = w()? l:var_declare()* w()? {l}
-//   }
-// }
-
 // Live long and prosper
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -809,7 +739,7 @@ fn main() {
         std::process::exit(0);
     });
 
-    let mut contents = fs::read_to_string(filename).unwrap_or_else(|_| {
+    let contents = fs::read_to_string(filename).unwrap_or_else(|_| {
         error_b!(format_args!(
             "Unable to read contents of file {color_red}{filename}{color_reset}"
         ));
