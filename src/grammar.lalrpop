@@ -255,6 +255,9 @@ IndexAccess: Expr = {
 
 Expression: Expr = {
     #[precedence(level="0")]
+    IndexAccess,
+
+    #[precedence(level="0")]
     Term,
 
     // OPS
