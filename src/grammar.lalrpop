@@ -104,26 +104,27 @@ InlineConditionalBlock: Expr = {
 
 
 MatchBlock:Expr = {
-    "match" <o1: Expression> "{" <o2: (Expression "=>" Block<Code>)+> <o3: ("_" "=>" Block<Code>)?> "}" => {
-        let match_obj = o1;
-        let first_match = o2.first().unwrap();
-
-        let mut output_code:Vec<Expr> = first_match.2.to_vec();
-        output_code.extend(o2.iter().skip(1).map(|x| Expr::ElseIfBlock(
-            Box::from(
-                Expr::Eq(
-                    Box::from(match_obj.clone()),
-                    Box::from(x.0.clone())
+    "match" <match_obj: Expression> "{" <o2: (Expression "=>" Block<Code>)+> <o3: ("_" "=>" Block<Code>)?> "}" => {
+        let mut output_code:Vec<Expr> = o2.into_iter().enumerate().map(|(i,(condition,_,code))|
+            if i == 0 {condition}
+            else {
+                Expr::ElseIfBlock(
+                    Box::from(
+                        Expr::Eq(
+                            Box::from(match_obj.clone()),
+                            Box::from(condition)
+                        )
+                    ),
+                    code
                 )
-            ),
-            x.2.clone()
-        )));
+            }
+        ).collect();
 
-        if let Some(wildcard) = o3 {
-            output_code.push(Expr::ElseBlock(wildcard.2.clone()))
+        if let Some((_,_,wildcard_code)) = o3 {
+            output_code.push(Expr::ElseBlock(wildcard_code))
         }
 
-        Expr::Condition(Box::from(Expr::Eq(Box::from(match_obj), Box::from(first_match.0.clone()))),Box::from(output_code))
+        Expr::Condition(Box::from(Expr::Eq(Box::from(match_obj), Box::from(output_code[0].clone()))),Box::from(output_code))
     }
 }
 
@@ -205,7 +206,7 @@ VarDeclare: Expr = {
 
 VarAssign: Expr = {
     <v: Var> "=" <e: Expression> => Expr::VarAssign(Intern::from(v), Box::from(e)),
-    <t: Term> <f: ("[" Expression "]")+> "=" <e: Expression> => Expr::ArrayModify(Box::from(t), f.iter().map(|x| x.1.clone()).collect::<Vec<Expr>>().into_boxed_slice(), Box::from(e)),
+    <t: Term> <f: ("[" Expression "]")+> "=" <e: Expression> => Expr::ArrayModify(Box::from(t), f.into_iter().map(|(_,x,_)| x).collect::<Vec<Expr>>().into_boxed_slice(), Box::from(e)),
     ! => {
         error_b!(format_parser_error_recovery(<>, "VARIABLE ASSIGNMENT"));
     }
@@ -244,16 +245,16 @@ OpVarAssign: Expr = {
     ))),
 }
 
-IndexAccess: Expr = {
+ArrayIndex: Expr = {
     <t: Term> <f: ("[" Expression "]")+> => {
-        Expr::GetIndex(Box::from(t), f.iter().map(|x| x.1.clone()).collect::<Vec<Expr>>().into_boxed_slice())
+        Expr::GetIndex(Box::from(t), f.into_iter().map(|(_,x,_)| x).collect::<Vec<_>>().into_boxed_slice())
     }
 }
 
 Expression: Expr = {
     #[precedence(level="0")]
     Term,
-    IndexAccess,
+    ArrayIndex,
     // method call
     <l:Expression> "." <f:FunctionCall> => {
         if let Expr::FunctionCall(x,y) = f {
@@ -265,27 +266,58 @@ Expression: Expr = {
 
     // OPS
     #[precedence(level="1")] #[assoc(side="left")]
-    <l:Expression> "||" <r:Expression> => Expr::BoolOr(Box::from(l),Box::from(r)),
+    <l:Expression> "||" <r:Expression> => match (l,r) {
+        (Expr::Bool(l), Expr::Bool(r)) => Expr::Bool(l || r),
+        (l,r) => Expr::BoolOr(Box::from(l),Box::from(r))
+    },
 
     #[precedence(level="2")] #[assoc(side="left")]
-    <l:Expression> "&&" <r:Expression> => Expr::BoolAnd(Box::from(l),Box::from(r)),
+    <l:Expression> "&&" <r:Expression> => match (l,r) {
+        (Expr::Bool(l), Expr::Bool(r)) => Expr::Bool(l && r),
+        (l,r) => Expr::BoolAnd(Box::from(l),Box::from(r))
+    },
 
     #[precedence(level="3")] #[assoc(side="left")]
-    <l:Expression> "==" <r:Expression> => Expr::Eq(Box::from(l),Box::from(r)),
+    <l:Expression> "==" <r:Expression> => match (l,r) {
+        (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x==y),
+        (Expr::Bool(x),Expr::Bool(y)) => Expr::Bool(x==y),
+        (Expr::String(x),Expr::String(y)) => Expr::Bool(x==y),
+        (l,r) => Expr::Eq(Box::from(l),Box::from(r)),
+    },
     #[precedence(level="3")] #[assoc(side="left")]
-    <l:Expression> "!=" <r:Expression> => Expr::NotEq(Box::from(l),Box::from(r)),
+    <l:Expression> "!=" <r:Expression> => match (l,r) {
+        (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x!=y),
+        (Expr::Bool(x),Expr::Bool(y)) => Expr::Bool(x!=y),
+        (Expr::String(x),Expr::String(y)) => Expr::Bool(x!=y),
+        (l,r) => Expr::NotEq(Box::from(l),Box::from(r)),
+    },
 
     #[precedence(level="4")] #[assoc(side="left")]
-    <l:Expression> "<" <r:Expression> => Expr::Inf(Box::from(l),Box::from(r)),
+    <l:Expression> "<" <r:Expression> => match (l,r) {
+        (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x < y),
+        (l,r) => Expr::Inf(Box::from(l),Box::from(r))
+    },
     #[precedence(level="4")] #[assoc(side="left")]
-    <l:Expression> "<=" <r:Expression> => Expr::InfEq(Box::from(l),Box::from(r)),
+    <l:Expression> "<=" <r:Expression> => match (l,r) {
+        (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x <= y),
+        (l,r) => Expr::InfEq(Box::from(l),Box::from(r))
+    },
     #[precedence(level="4")] #[assoc(side="left")]
-    <l:Expression> ">" <r:Expression> => Expr::Sup(Box::from(l),Box::from(r)),
+    <l:Expression> ">" <r:Expression> => match (l,r) {
+        (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x > y),
+        (l,r) => Expr::Sup(Box::from(l),Box::from(r))
+    },
     #[precedence(level="4")] #[assoc(side="left")]
-    <l:Expression> ">=" <r:Expression> => Expr::SupEq(Box::from(l),Box::from(r)),
+    <l:Expression> ">=" <r:Expression> => match (l,r) {
+        (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x >= y),
+        (l,r) => Expr::SupEq(Box::from(l),Box::from(r))
+    },
 
     #[precedence(level="5")] #[assoc(side="right")]
-    <l:Expression> "^" <r:Expression> => Expr::Pow(Box::from(l),Box::from(r)),
+    <l:Expression> "^" <r:Expression> => match (l,r) {
+        (Expr::Num(x),Expr::Num(y)) => Expr::Num(x.powf(y)),
+        (l,r) => Expr::Pow(Box::from(l),Box::from(r))
+    },
 
     #[precedence(level="6")] #[assoc(side="left")]
     <l:Expression> "*" <r:Expression> => l * r,

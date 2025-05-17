@@ -2,7 +2,7 @@
 mod tests {
     use crate::Data::*;
     use crate::Instr::{
-        Add, ApplyFunc, Cmp, GetIndex, Inf, InfCmp, IoDelete, IoOpen, Jmp, Mod, Mov, Mul, Num,
+        Add, CallFunc, Cmp, GetIndex, Inf, InfCmp, IoDelete, IoOpen, Jmp, Mod, Mov, Mul, Num,
         Print, Range, StoreFuncArg, Str, Sub, SupCmp, Type,
     };
     use crate::{Data, execute};

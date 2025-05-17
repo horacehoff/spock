@@ -108,7 +108,7 @@ pub enum Instr {
     IoDelete(u16),
 
     StoreFuncArg(u16),
-    ApplyFunc(u8, u16, u16),
+    CallFunc(u8, u16, u16),
 
     ArrayMov(u16, u16, u16),
     // different than ArrayMov => looks into the consts
@@ -462,7 +462,7 @@ pub fn execute(
                 }}
             }
             Instr::StoreFuncArg(id) => func_args.push(id),
-            Instr::ApplyFunc(fctn_id, tgt, dest) => {
+            Instr::CallFunc(fctn_id, tgt, dest) => {
                 FUNCS[fctn_id as usize](tgt, dest, consts, func_args, arrays);
             }
             // takes tgt from consts, moves it to dest-th array at idx-th index
@@ -707,7 +707,7 @@ fn get_vec_capacity(instructions: &[Instr]) -> (usize, usize) {
     for instr in instructions {
         match instr {
             Instr::StoreFuncArg(_) => func_args += 1,
-            Instr::ApplyFunc(_, _, _) => {
+            Instr::CallFunc(_, _, _) => {
                 max_func_args = max_func_args.max(func_args);
                 func_args = 0;
             }
@@ -744,10 +744,6 @@ fn main() {
             "Unable to read contents of file {color_red}{filename}{color_reset}"
         ));
     });
-
-    // let parser_result = spock_parser::code(&contents);
-    // println!("{:?}", parser_result);
-    // return;
 
     // #[cfg(debug_assertions)]
     let now = Instant::now();
