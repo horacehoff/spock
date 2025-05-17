@@ -68,18 +68,37 @@ ConditionalBlock: Expr = {
     "if" <o1: Expression> <o2: Block<Code>> <o3: ElseIfBlock*> <o4: ElseBlock?> => {
         if o1 == Expr::Bool(true) {
             return Expr::EvalBlock(o2);
+        } else if o1 == Expr::Bool(false) {
+            if o3.is_empty() {
+                return Expr::EvalBlock(Box::from([]));
+            }
+            if let Expr::ElseIfBlock(condition,code) = &o3[0] {
+                Expr::Condition(
+                    condition.clone(),
+                    Box::from(
+                        [&(**code),
+                        &o3[1..],
+                        match o4 {
+                            Some(ref value) => std::slice::from_ref(value),
+                            None => &[],
+                        }]
+                    .concat()
+                ))
+            } else {unreachable!()}
+        } else {
+            Expr::Condition(
+                Box::from(o1),
+                Box::from(
+                    [&(*o2),
+                    o3.as_slice(),
+                    match o4 {
+                        Some(ref value) => std::slice::from_ref(value),
+                        None => &[],
+                    }]
+                .concat()
+            ))
         }
-        Expr::Condition(
-            Box::from(o1),
-            Box::from(
-                [&(*o2),
-                o3.as_slice(),
-                match o4 {
-                    Some(ref value) => std::slice::from_ref(value),
-                    None => &[],
-                }]
-            .concat()
-        ))
+
     }
 }
 InlineConditionalBlock: Expr = {
