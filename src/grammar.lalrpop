@@ -70,23 +70,28 @@ ConditionalBlock: Expr = {
             return Expr::EvalBlock(o2);
         } else if o1 == Expr::Bool(false) {
             if o3.is_empty() {
-                return Expr::EvalBlock(Box::from([]));
+                if let Some(code) = o4 {
+                    Expr::EvalBlock(o2)
+                } else {
+                    Expr::EvalBlock(Box::from([]))
+                }
+            } else {
+                if let Expr::ElseIfBlock(condition,code) = &o3[0] {
+                    Expr::Condition(
+                        condition.clone(),
+                        Box::from(
+                            [&(**code),
+                            &o3[1..],
+                            match o4 {
+                                Some(ref value) => std::slice::from_ref(value),
+                                None => &[],
+                            }]
+                        .concat()
+                    ))
+                } else {unreachable!();}
             }
-            if let Expr::ElseIfBlock(condition,code) = &o3[0] {
-                Expr::Condition(
-                    condition.clone(),
-                    Box::from(
-                        [&(**code),
-                        &o3[1..],
-                        match o4 {
-                            Some(ref value) => std::slice::from_ref(value),
-                            None => &[],
-                        }]
-                    .concat()
-                ))
-            } else {unreachable!()}
         } else {
-            Expr::Condition(
+            return Expr::Condition(
                 Box::from(o1),
                 Box::from(
                     [&(*o2),
@@ -96,7 +101,7 @@ ConditionalBlock: Expr = {
                         None => &[],
                     }]
                 .concat()
-            ))
+            ));
         }
 
     }
@@ -105,19 +110,43 @@ InlineConditionalBlock: Expr = {
     "if" <o1: Expression> <o2: Block<Expression>> <o3: InlineElseIfBlock*> <o4: InlineElseBlock?> => {
         if o1 == Expr::Bool(true) {
             return o2;
+        } else if o1 == Expr::Bool(false) {
+            if o3.is_empty() {
+                if let Some(code) = o4 {
+                    Expr::EvalBlock(Box::from([o2]))
+                } else {
+                    Expr::EvalBlock(Box::from([]))
+                }
+            } else {
+                if let Expr::ElseIfBlock(condition,code) = &o3[0] {
+                    Expr::Condition(
+                        condition.clone(),
+                        Box::from(
+                            [&(**code),
+                            &o3[1..],
+                            match o4 {
+                                Some(ref value) => std::slice::from_ref(value),
+                                None => &[],
+                            }]
+                        .concat()
+                    ))
+                } else {unreachable!();}
+            }
+        } else {
+            Expr::Condition(
+                Box::from(o1),
+                Box::from(
+                    [
+                    std::slice::from_ref(&o2),
+                    o3.as_slice(),
+                    match o4 {
+                        Some(ref value) => std::slice::from_ref(value),
+                        None => &[],
+                    }]
+                .concat()
+                )
+            )
         }
-        Expr::Condition(
-            Box::from(o1),
-            Box::from(
-                [
-                std::slice::from_ref(&o2),
-                o3.as_slice(),
-                match o4 {
-                    Some(ref value) => std::slice::from_ref(value),
-                    None => &[],
-                }]
-            .concat()
-        ))
     }
 }
 
