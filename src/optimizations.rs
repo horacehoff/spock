@@ -72,56 +72,48 @@ pub fn for_loop_summation(
     array: u16,
     code: &[Expr],
 ) -> bool {
-    // if code.len() == 1 {
-    //     if let Expr::VarAssign(name, x) = code.first().unwrap() {
-    //         if let Expr::Op(items) = &**x {
-    //             if items.len() == 3 {
-    //                 if &Expr::Var(*name) == items.first().unwrap() {
-    //                     let var_id = v.iter().find(|(w, _)| w == name).unwrap().1;
-    //                     if let Expr::Num(reps) = items.last().unwrap() {
-    //                         let op = if let Expr::Opcode(x) = items[1] {
-    //                             x
-    //                         } else {
-    //                             unreachable!()
-    //                         };
-
-    //                         if let Data::Array(id) = consts[array as usize] {
-    //                             let len = arrs[&id].len();
-    //                             if op == Opcode::Add {
-    //                                 consts.push(Data::Number(reps * len as Num));
-    //                             } else if op == Opcode::Mul {
-    //                                 consts.push(Data::Number(is_float!(
-    //                                     reps.powi(len as i32),
-    //                                     reps.pow(len as u32)
-    //                                 )));
-    //                             }
-    //                             output.push(Instr::Mov((consts.len() - 1) as u16, var_id));
-    //                         } else {
-    //                             consts.push(Data::Null);
-    //                             output.push(Instr::ApplyFunc(2, array, (consts.len() - 1) as u16));
-    //                             consts.push(Data::Number(*reps));
-    //                             consts.push(Data::Null);
-    //                             if op == Opcode::Add {
-    //                                 output.push(Instr::Mul(
-    //                                     (consts.len() - 3) as u16,
-    //                                     (consts.len() - 2) as u16,
-    //                                     (consts.len() - 1) as u16,
-    //                                 ));
-    //                             } else if op == Opcode::Mul {
-    //                                 output.push(Instr::Pow(
-    //                                     (consts.len() - 2) as u16,
-    //                                     (consts.len() - 3) as u16,
-    //                                     (consts.len() - 1) as u16,
-    //                                 ));
-    //                             }
-    //                             output.push(Instr::Mov((consts.len() - 1) as u16, var_id));
-    //                         }
-    //                         return true;
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+    if code.len() == 1 {
+        if let Expr::VarAssign(name, value) = code.first().unwrap() {
+            if let Expr::Add(l, reps) = &**value {
+                if **l == Expr::Var(*name) {
+                    let var_id = v.iter().find(|(w, _)| w == name).unwrap().1;
+                    consts.push(Data::Null);
+                    output.push(Instr::Len(array, (consts.len() - 1) as u16));
+                    consts.push(Data::Number(if let Expr::Num(x) = **reps {
+                        x
+                    } else {
+                        unreachable!()
+                    }));
+                    consts.push(Data::Null);
+                    output.push(Instr::Mul(
+                        (consts.len() - 3) as u16,
+                        (consts.len() - 2) as u16,
+                        (consts.len() - 1) as u16,
+                    ));
+                    output.push(Instr::Add((consts.len() - 1) as u16, var_id, var_id));
+                    return true;
+                }
+            } else if let Expr::Mul(l, reps) = &**value {
+                if **l == Expr::Var(*name) {
+                    let var_id = v.iter().find(|(w, _)| w == name).unwrap().1;
+                    consts.push(Data::Null);
+                    output.push(Instr::Len(array, (consts.len() - 1) as u16));
+                    consts.push(Data::Number(if let Expr::Num(x) = **reps {
+                        x
+                    } else {
+                        unreachable!()
+                    }));
+                    consts.push(Data::Null);
+                    output.push(Instr::Pow(
+                        (consts.len() - 2) as u16,
+                        (consts.len() - 3) as u16,
+                        (consts.len() - 1) as u16,
+                    ));
+                    output.push(Instr::Mul((consts.len() - 1) as u16, var_id, var_id));
+                    return true;
+                }
+            }
+        }
+    }
     false
 }
