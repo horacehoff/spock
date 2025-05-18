@@ -134,6 +134,19 @@ for x in [0,1,2,3] {
   }
 }
 ```
+### Loops
+> Loops indefinitely until flow is stopped
+```rs
+let i = 0;
+loop {
+    i += 1;
+    print("i is: "+str(i));
+    if i == 10 {
+        break;
+    }
+}
+print("End of the loop!");
+```
 ### Match statements
 > Match statements currently don't support binding variables
 ```rs
@@ -179,17 +192,17 @@ You can import functions from other `.spock` files by using the `import` keyword
 Please note that import statements are directly replaced by the file's contents, and as such error messages will not be
 able to specify which file the error comes from.
 - `otherfile.spock`:
-```
-func demo() {
+```rs
+fn demo() {
 print("Hello World!");
 }
 ```
 
 - `main.spock`:
-```
+```rs
 import path/to/otherfile.spock;
 
-func main() {
+fn main() {
 demo();
 }
 ```
@@ -236,7 +249,7 @@ print(x > 1 && x < 1);
 
 ## Types
 - `Boolean` (`true`/`false`)
-- `Number` (internally an f64)
+- `Number` (internally an f64 by default)
 - `Array` (`[1, 2, 3, "4", 5.0, true]`)
 - `String`
 #### Converting types

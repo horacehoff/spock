@@ -255,9 +255,6 @@ VarDeclare: Expr = {
 VarAssign: Expr = {
     <v: Var> "=" <e: Expression> => Expr::VarAssign(Intern::from(v), Box::from(e)),
     <t: Term> <f: ("[" Expression "]")+> "=" <e: Expression> => Expr::ArrayModify(Box::from(t), f.into_iter().map(|(_,x,_)| x).collect::<Vec<Expr>>().into_boxed_slice(), Box::from(e)),
-    ! => {
-        error_b!(format_parser_error_recovery(<>, "VARIABLE ASSIGNMENT"));
-    }
 }
 
 OpVarAssign: Expr = {
