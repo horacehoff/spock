@@ -6,7 +6,6 @@ use crate::error_b;
 use crate::Num;
 use crate::is_float;
 use internment::Intern;
-use crate::display::format_parser_error_recovery;
 use concat_string::concat_string;
 use crate::display::format_expr_type;
 
@@ -14,8 +13,8 @@ use crate::display::format_expr_type;
 grammar;
 
 match {
-    r#"[\s^a_z]*"# => { },
-    r"//[^\n\r]*[\n\r]*" => { }, // `// comment`
+    r#"[\s]*"# => { },
+    //r"//[^\n\r]*[\n\r]*" => { }, // `// comment`
 } else {_}
 
 Comma<T>: Vec<T> = {
@@ -197,9 +196,6 @@ pub Code: Box<[Expr]> = {
 pub Import:Expr = {
     <path: r"import [a-zA-Z_.\/-]*"> => {
         Expr::Import(String::from(path.trim_start_matches("import").trim()))
-    },
-    ! => {
-        error_b!(format_parser_error_recovery(<>, "IMPORT STATEMENT"));
     }
 }
 
@@ -383,8 +379,8 @@ Term: Expr = {
     "(" <e: Expression> ")" => e,
     <t: Num> => Expr::Num(t),
     <b: Bool> => Expr::Bool(b),
-    <s: String> => Expr::String(s),
     <v: Var> => Expr::Var(Intern::from(v)),
+    <s: String> => Expr::String(s),
     <a: Array> => <>,
     <f: FunctionCall> => <>,
     <c: InlineConditionalBlock> => <>,
@@ -427,5 +423,5 @@ String: String = {
 }
 
 Var: String = {
-    <v: r#"[a-zA-Z_]*"#> => String::from(v),
+    <v: r"[a-zA-Z_]+"> => String::from(v)
 }

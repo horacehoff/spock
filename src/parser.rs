@@ -1,4 +1,5 @@
-use crate::display::print_instructions;
+use crate::display::{parser_error, print_instructions};
+use crate::grammar::Token;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::{Data, Instr, Num, error, error_b};
 use crate::{check_args, check_args_range, print};
@@ -1644,9 +1645,18 @@ fn parser_to_instr_set(
     output
 }
 
-pub fn parse(contents: &str) -> (Vec<Instr>, Vec<Data>, FnvHashMap<u16, Vec<Data>>) {
+pub fn parse(
+    contents: &str,
+    filename: &str,
+) -> (Vec<Instr>, Vec<Data>, FnvHashMap<u16, Vec<Data>>) {
     let now = std::time::Instant::now();
-    let functions: Vec<Expr> = grammar::FileParser::new().parse(contents).unwrap();
+    let functions: Vec<Expr> = grammar::FileParser::new()
+        .parse(contents)
+        .unwrap_or_else(|x| {
+            eprintln!("{color_red}SPOCK ERROR{color_reset}");
+            parser_error::<usize, Token<'_>, &str>(x, contents, filename);
+            std::process::exit(1);
+        });
     println!("LALRPOP TIME {:.2?}", now.elapsed());
     println!("FUNCS {functions:?}");
     let mut functions: Vec<Function> = functions

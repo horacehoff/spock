@@ -1,5 +1,6 @@
 use crate::parser::Expr;
 use crate::{Data, Instr, format_lines};
+use ariadne::*;
 use concat_string::concat_string;
 use fnv::FnvHashMap;
 use inline_colorization::*;
@@ -139,7 +140,22 @@ impl std::fmt::Display for Expr {
     }
 }
 
-pub fn format_parser_error<'a, L, T, E>(x: ParseError<L, T, E>, ctx: &str) -> String
+fn token_recognition(token: &String) -> String {
+    match token.as_str() {
+        "r#\"[a-zA-Z_]+\"#" => String::from("identifier"),
+        "r#\"([0-9]*[.])?[0-9]+\"#" => String::from("number"),
+        "\"true\"" => String::from("boolean"),
+        other => {
+            if other.contains("|[^") {
+                String::from("string")
+            } else {
+                other.trim_matches('\"').to_string()
+            }
+        }
+    }
+}
+
+pub fn parser_error<'a, L, T, E>(x: ParseError<usize, T, &str>, file: &str, filename: &str)
 where
     Token<'a>: From<T>,
 {
@@ -147,57 +163,49 @@ where
         ParseError::InvalidToken { .. } => {
             unreachable!("InvalidTokenError")
         }
-        ParseError::UnrecognizedEof { .. } => {
-            unreachable!("UnrecognizedEofError")
-        }
-        ParseError::UnrecognizedToken { token, expected } => {
-            format!(
-                "PARSING: {ctx}\nExpected token {color_blue}{}{color_reset} but got '{color_red}{}{color_reset}'",
-                expected
-                    .iter()
-                    .map(|x| x.trim_matches('"'))
-                    .collect::<Vec<&str>>()
-                    .join(" / "),
-                {
-                    let tok: Token = token.1.into();
-                    tok.1
-                }
-            )
-        }
-        ParseError::ExtraToken { .. } => {
-            unreachable!("ExtraTokenError")
-        }
-        ParseError::User { .. } => {
-            unreachable!("UserError")
-        }
-    }
-}
-
-pub fn format_parser_error_recovery<'a, L, T, E>(x: ErrorRecovery<L, T, E>, ctx: &str) -> String
-where
-    Token<'a>: From<T>,
-{
-    match x.error {
-        ParseError::InvalidToken { .. } => {
-            unreachable!("InvalidTokenError")
-        }
         ParseError::UnrecognizedEof { location, expected } => {
-            println!("{ctx:?}");
-            unreachable!("UnrecognizedEofError")
+            Report::build(ReportKind::Error, (filename, location..location + 1))
+                .with_message("Unrecognized EOF")
+                .with_label(
+                    Label::new((filename, location..location + 1))
+                        .with_message(format!(
+                            "Expected one or more {color_bright_blue}{style_bold}}}{style_reset}{color_reset}"
+                        ))
+                        .with_color(Color::Red),
+                )
+                .finish()
+                .print((filename, Source::from(file)))
+                .unwrap();
         }
         ParseError::UnrecognizedToken { token, expected } => {
-            format!(
-                "PARSING: {ctx}\nExpected token {color_blue}{}{color_reset} but got '{color_red}{}{color_reset}'",
-                expected
-                    .iter()
-                    .map(|x| x.trim_matches('"'))
-                    .collect::<Vec<&str>>()
-                    .join(" / "),
-                {
-                    let tok: Token = token.1.into();
-                    tok.1
-                }
-            )
+            let begin = token.0;
+            let end = token.2;
+
+            let expected_tokens = expected
+                .iter()
+                .filter_map(|x| {
+                    if x == "\"false\"" {
+                        None
+                    } else {
+                        Some(format!(
+                            "{color_bright_blue}{style_bold}{}{style_reset}{color_reset}",
+                            token_recognition(x)
+                        ))
+                    }
+                })
+                .collect::<Vec<String>>()
+                .join(" OR ");
+
+            Report::build(ReportKind::Error, (filename, begin..end))
+                .with_message("Unrecognized token")
+                .with_label(
+                    Label::new((filename, begin..end))
+                        .with_message(format!("Expected {}", expected_tokens))
+                        .with_color(Color::Red),
+                )
+                .finish()
+                .print((filename, Source::from(file)))
+                .unwrap();
         }
         ParseError::ExtraToken { .. } => {
             unreachable!("ExtraTokenError")

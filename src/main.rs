@@ -748,7 +748,7 @@ fn main() {
     // #[cfg(debug_assertions)]
     let now = Instant::now();
 
-    let (instructions, mut consts, mut arrays) = parse(&contents);
+    let (instructions, mut consts, mut arrays) = parse(&contents, filename);
 
     let (func_args_count, call_stack_count) = get_vec_capacity(&instructions);
 
