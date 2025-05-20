@@ -1250,7 +1250,7 @@ fn parser_to_instr_set(
                             output.push(Instr::Bool(id, (consts.len() - 1) as u16));
                         }
                         "input" => {
-                            check_args_range!(args, 0, 1, "input", ctx);
+                            check_args_range!(args, 0, 1, "input", src.0, src.1, *start, *end);
                             if !args.is_empty() {
                                 let id = get_id(
                                     &args[0],
@@ -1274,7 +1274,7 @@ fn parser_to_instr_set(
                             }
                         }
                         "range" => {
-                            check_args_range!(args, 1, 2, "range", ctx);
+                            check_args_range!(args, 1, 2, "range", src.0, src.1, *start, *end);
                             if args.len() == 1 {
                                 let id_x = get_id(
                                     &args[0],
@@ -1458,7 +1458,7 @@ fn parser_to_instr_set(
                 } else if *namespace == ["io"] {
                     match name {
                         "open" => {
-                            check_args_range!(args, 1, 2, "open", ctx);
+                            check_args_range!(args, 1, 2, "open", src.0, src.1, *start, *end);
                             consts.push(Data::Null);
                             let arg_id = get_id(
                                 &args[0],
@@ -1744,7 +1744,7 @@ fn parser_to_instr_set(
                     }
                     // io::write
                     "write" => {
-                        check_args_range!(args, 1, 2, "write", ctx);
+                        check_args_range!(args, 1, 2, "write", src.0, src.1, *start, *end);
 
                         let len = args.len();
                         add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id, src);

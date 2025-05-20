@@ -124,12 +124,16 @@ macro_rules! check_args {
 
 #[macro_export]
 macro_rules! check_args_range {
-    ($args:expr, $min_args_len:expr,$max_args_len:expr, $fn_name:expr, $ctx: expr) => {
+    ($args:expr, $min_args_len:expr,$max_args_len:expr, $fn_name:expr, $filename:expr,$src:expr,$start:expr,$end:expr) => {
         if $args.len() < $min_args_len {
-            error!(
-                $ctx,
+            parser_error!(
+                $filename,
+                $src,
+                $start,
+                $end,
+                "Incorrect arguments for function",
                 format_args!(
-                    "Function '{}' expects at least {} argument{}",
+                    "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects at least {} argument{}",
                     $fn_name,
                     $min_args_len,
                     if $min_args_len > 1 { "s" } else { "" }
@@ -145,10 +149,14 @@ macro_rules! check_args_range {
                 )
             );
         } else if $args.len() > $max_args_len {
-            error!(
-                $ctx,
+            parser_error!(
+                $filename,
+                $src,
+                $start,
+                $end,
+                "Incorrect arguments for function",
                 format_args!(
-                    "Function '{}' expects at most {} argument{}",
+                    "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects at most {} argument{}",
                     $fn_name,
                     $max_args_len,
                     if $max_args_len > 1 { "s" } else { "" }
