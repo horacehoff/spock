@@ -19,7 +19,7 @@ pub enum Expr {
     Var(Intern<String>, usize, usize),
     Array(Box<[Expr]>),
     VarDeclare(Intern<String>, Box<Expr>),
-    VarAssign(Intern<String>, Box<Expr>),
+    VarAssign(Intern<String>, Box<Expr>, usize, usize),
     // condition - code (contains else_if_blocks and potentially else_block)
     Condition(Box<Expr>, Box<[Expr]>),
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
@@ -27,8 +27,8 @@ pub enum Expr {
 
     WhileBlock(Box<Expr>, Box<[Expr]>),
     // args - (optional namespace + name)
-    FunctionCall(Box<[Expr]>, Box<[String]>),
-    ObjFunctionCall(Box<Expr>, Box<[Expr]>, Box<[String]>),
+    FunctionCall(Box<[Expr]>, Box<[String]>, usize, usize),
+    ObjFunctionCall(Box<Expr>, Box<[Expr]>, Box<[String]>, usize, usize),
 
     // name+args -- code
     FunctionDecl(Box<[String]>, Box<[Expr]>),
@@ -696,6 +696,7 @@ fn parser_to_instr_set(
     // arrays
     arrs: &mut FnvHashMap<u16, Vec<Data>>,
     id: u16,
+    // (filename, contents)
     src: (&str, &str),
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::with_capacity(input.len());
@@ -791,11 +792,6 @@ fn parser_to_instr_set(
                 }
             }
             Expr::Condition(main_condition, code) => {
-                // check if condition is not var/str/num (it's supposed to be a bool)
-                if matches!(**main_condition, Expr::String(_) | Expr::Num(_)) {
-                    error!(ctx, format_args!("{} is not a bool", main_condition));
-                }
-
                 // get first code limit (after which there are only else(if) blocks)
                 let main_code_limit = code
                     .iter()
@@ -916,9 +912,6 @@ fn parser_to_instr_set(
                 }
             }
             Expr::WhileBlock(x, y) => {
-                if matches!(&**x, Expr::Var(_, _, _) | Expr::String(_) | Expr::Num(_)) {
-                    error!(ctx, format_args!("{} is not a bool", *x));
-                }
                 // try to optimize it (if it's a summation loop)
                 if while_loop_summation(&mut output, consts, v, x, y) {
                     continue;
@@ -1074,15 +1067,21 @@ fn parser_to_instr_set(
                     v.push((*x, obj_id));
                 }
             }
-            Expr::VarAssign(x, y) => {
+            Expr::VarAssign(name, y, start, end) => {
                 let id = v
                     .iter()
-                    .find(|(w, _)| w == x)
+                    .find(|(w, _)| w == name)
                     .unwrap_or_else(|| {
-                        error!(
-                            ctx,
-                            format_args!("Unknown variable {color_red}{x}{color_reset}"),
-                            format_args!("Add 'let {x} = 0;'")
+                        parser_error!(
+                            src.0,
+                            src.1,
+                            *start,
+                            *end,
+                            "Unknown variable",
+                            format_args!(
+                                "Variable {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} has not been declared yet"
+                            ),
+                            format_args!("Declare it with {color_green}let {name} = 0;{color_reset}")
                         );
                     })
                     .1;
@@ -1169,8 +1168,9 @@ fn parser_to_instr_set(
 
                 output.push(Instr::ArrayMod(id, elem_id, final_id));
             }
-            Expr::FunctionCall(args, namespace) => {
+            Expr::FunctionCall(args, namespace, start, end) => {
                 let len = namespace.len() - 1;
+                let full_name = namespace.join("::");
                 let name = namespace[len].as_str();
                 let namespace = &namespace[0..len];
                 if namespace.is_empty() {
@@ -1193,7 +1193,7 @@ fn parser_to_instr_set(
                             }
                         }
                         "type" => {
-                            check_args!(args, 1, "type", ctx);
+                            check_args!(args, 1, "type", src.0, src.1, *start, *end);
                             let id = get_id(
                                 &args[0],
                                 v,
@@ -1210,7 +1210,7 @@ fn parser_to_instr_set(
                             output.push(Instr::Type(id, (consts.len() - 1) as u16));
                         }
                         "Num" => {
-                            check_args!(args, 1, "Num", ctx);
+                            check_args!(args, 1, "Num", src.0, src.1, *start, *end);
                             let id = get_id(
                                 &args[0],
                                 v,
@@ -1227,7 +1227,7 @@ fn parser_to_instr_set(
                             output.push(Instr::Num(id, (consts.len() - 1) as u16));
                         }
                         "str" => {
-                            check_args!(args, 1, "str", ctx);
+                            check_args!(args, 1, "str", src.0, src.1, *start, *end);
                             let id = get_id(
                                 &args[0],
                                 v,
@@ -1244,7 +1244,7 @@ fn parser_to_instr_set(
                             output.push(Instr::Str(id, (consts.len() - 1) as u16));
                         }
                         "bool" => {
-                            check_args!(args, 1, "bool", ctx);
+                            check_args!(args, 1, "bool", src.0, src.1, *start, *end);
                             let id = get_id(
                                 &args[0],
                                 v,
@@ -1336,7 +1336,7 @@ fn parser_to_instr_set(
                             }
                         }
                         "floor" => {
-                            check_args!(args, 1, "floor", ctx);
+                            check_args!(args, 1, "floor", src.0, src.1, *start, *end);
                             let id = get_id(
                                 &args[0],
                                 v,
@@ -1353,7 +1353,7 @@ fn parser_to_instr_set(
                             output.push(Instr::Num(id, (consts.len() - 1) as u16));
                         }
                         "the_answer" => {
-                            check_args!(args, 0, "the_answer", ctx);
+                            check_args!(args, 0, "the_answer", src.0, src.1, *start, *end);
                             consts.push(Data::Null);
                             output.push(Instr::TheAnswer((consts.len() - 1) as u16));
                         }
@@ -1362,17 +1362,20 @@ fn parser_to_instr_set(
                                 .iter()
                                 .find(|(a, _, _)| *a == function)
                                 .unwrap_or_else(|| {
-                                    error!(
-                                        ctx,
+                                    parser_error!(
+                                        src.0,
+                                        src.1,
+                                        *start,
+                                        *end,
+                                        "Unknown function",
                                         format_args!(
-                                            "Unknown function {color_red}{}{color_reset}",
-                                            function
+                                            "Function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} does not exist or has not been declared yet"
                                         )
                                     );
                                 });
 
                             let args_len = user_function.1.len();
-                            check_args!(args, args_len, function, ctx);
+                            check_args!(args, args_len, function, src.0, src.1, *start, *end);
 
                             if let Some((name, loc, func_args, _)) = fn_state {
                                 if name == function {
@@ -1506,7 +1509,7 @@ fn parser_to_instr_set(
                             ));
                         }
                         "delete" => {
-                            check_args!(args, 1, "delete", ctx);
+                            check_args!(args, 1, "delete", src.0, src.1, *start, *end);
                             let arg_id = get_id(
                                 &args[0],
                                 v,
@@ -1521,12 +1524,15 @@ fn parser_to_instr_set(
                             );
                             output.push(Instr::IoDelete(arg_id));
                         }
-                        other => {
-                            error!(
-                                ctx,
+                        _ => {
+                            parser_error!(
+                                src.0,
+                                src.1,
+                                *start,
+                                *end,
+                                "Unknown function in namespace",
                                 format_args!(
-                                    "Unknown function {color_red}{}{color_reset} in namespace {color_red}{}{color_reset}",
-                                    other,
+                                    "Namespace {color_bright_blue}{style_bold}{}{color_reset}{style_reset} does not contain function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset}",
                                     namespace
                                         .iter()
                                         .map(|x| (*x).to_string())
@@ -1537,10 +1543,14 @@ fn parser_to_instr_set(
                         }
                     }
                 } else {
-                    error!(
-                        ctx,
+                    parser_error!(
+                        src.0,
+                        src.1,
+                        *start,
+                        *end,
+                        "Unknown namespace",
                         format_args!(
-                            "Unknown namespace {color_red}{}{color_reset}",
+                            "Namespace {color_bright_blue}{style_bold}{}{color_reset}{style_reset} does not exist",
                             namespace
                                 .iter()
                                 .map(|x| (*x).to_string())
@@ -1574,7 +1584,7 @@ fn parser_to_instr_set(
                     output.push(Instr::Jmp(65535, false));
                 }
             }
-            Expr::ObjFunctionCall(obj, args, namespace) => {
+            Expr::ObjFunctionCall(obj, args, namespace, start, end) => {
                 let id = get_id(
                     obj,
                     v,
@@ -1593,25 +1603,25 @@ fn parser_to_instr_set(
                 let namespace = &namespace[0..len];
                 match name {
                     "uppercase" => {
-                        check_args!(args, 0, "uppercase", ctx);
+                        check_args!(args, 0, "uppercase", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::CallFunc(0, id, f_id));
                     }
                     "lowercase" => {
-                        check_args!(args, 0, "lowercase", ctx);
+                        check_args!(args, 0, "lowercase", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::CallFunc(1, id, f_id));
                     }
                     "len" => {
-                        check_args!(args, 0, "len", ctx);
+                        check_args!(args, 0, "len", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::Len(id, f_id));
                     }
                     "contains" => {
-                        check_args!(args, 1, "contains", ctx);
+                        check_args!(args, 1, "contains", src.0, src.1, *start, *end);
 
                         add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id, src);
 
@@ -1621,13 +1631,13 @@ fn parser_to_instr_set(
                         output.push(Instr::CallFunc(2, id, f_id));
                     }
                     "trim" => {
-                        check_args!(args, 0, "trim", ctx);
+                        check_args!(args, 0, "trim", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::CallFunc(3, id, f_id));
                     }
                     "trim_sequence" => {
-                        check_args!(args, 1, "trim_sequence", ctx);
+                        check_args!(args, 1, "trim_sequence", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
 
@@ -1635,7 +1645,7 @@ fn parser_to_instr_set(
                         output.push(Instr::CallFunc(4, id, f_id));
                     }
                     "index" => {
-                        check_args!(args, 1, "index", ctx);
+                        check_args!(args, 1, "index", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
 
@@ -1643,25 +1653,25 @@ fn parser_to_instr_set(
                         output.push(Instr::CallFunc(5, id, f_id));
                     }
                     "is_num" => {
-                        check_args!(args, 0, "is_num", ctx);
+                        check_args!(args, 0, "is_num", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::CallFunc(6, id, f_id));
                     }
                     "trim_left" => {
-                        check_args!(args, 0, "trim_left", ctx);
+                        check_args!(args, 0, "trim_left", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::CallFunc(7, id, f_id));
                     }
                     "trim_right" => {
-                        check_args!(args, 0, "trim_right", ctx);
+                        check_args!(args, 0, "trim_right", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::CallFunc(8, id, f_id));
                     }
                     "trim_sequence_left" => {
-                        check_args!(args, 1, "trim_sequence_left", ctx);
+                        check_args!(args, 1, "trim_sequence_left", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
 
@@ -1669,7 +1679,7 @@ fn parser_to_instr_set(
                         output.push(Instr::CallFunc(9, id, f_id));
                     }
                     "trim_sequence_right" => {
-                        check_args!(args, 1, "trim_sequence_right", ctx);
+                        check_args!(args, 1, "trim_sequence_right", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
 
@@ -1677,7 +1687,7 @@ fn parser_to_instr_set(
                         output.push(Instr::CallFunc(10, id, f_id));
                     }
                     "rindex" => {
-                        check_args!(args, 1, "rindex", ctx);
+                        check_args!(args, 1, "rindex", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
 
@@ -1685,7 +1695,7 @@ fn parser_to_instr_set(
                         output.push(Instr::CallFunc(11, id, f_id));
                     }
                     "repeat" => {
-                        check_args!(args, 1, "repeat", ctx);
+                        check_args!(args, 1, "repeat", src.0, src.1, *start, *end);
                         add_args!(args, v, consts, output, ctx, fns, arrs, fn_state, id, src);
 
                         let f_id = consts.len() as u16;
@@ -1694,7 +1704,7 @@ fn parser_to_instr_set(
                         output.push(Instr::CallFunc(12, id, f_id));
                     }
                     "push" => {
-                        check_args!(args, 1, "push", ctx);
+                        check_args!(args, 1, "push", src.0, src.1, *start, *end);
                         let arg_id = get_id(
                             &args[0],
                             v,
@@ -1711,7 +1721,7 @@ fn parser_to_instr_set(
                         output.push(Instr::Push(id, arg_id));
                     }
                     "sqrt" => {
-                        check_args!(args, 0, "sqrt", ctx);
+                        check_args!(args, 0, "sqrt", src.0, src.1, *start, *end);
 
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
@@ -1719,7 +1729,7 @@ fn parser_to_instr_set(
                         output.push(Instr::Sqrt(id, f_id));
                     }
                     "round" => {
-                        check_args!(args, 0, "round", ctx);
+                        check_args!(args, 0, "round", src.0, src.1, *start, *end);
 
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
@@ -1727,7 +1737,7 @@ fn parser_to_instr_set(
                         output.push(Instr::CallFunc(13, id, f_id));
                     }
                     "abs" => {
-                        check_args!(args, 0, "abs", ctx);
+                        check_args!(args, 0, "abs", src.0, src.1, *start, *end);
 
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
@@ -1736,7 +1746,7 @@ fn parser_to_instr_set(
                     }
                     // io::read
                     "read" => {
-                        check_args!(args, 0, "read", ctx);
+                        check_args!(args, 0, "read", src.0, src.1, *start, *end);
 
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
@@ -1760,7 +1770,7 @@ fn parser_to_instr_set(
                         output.push(Instr::CallFunc(16, id, f_id));
                     }
                     "reverse" => {
-                        check_args!(args, 0, "reverse", ctx);
+                        check_args!(args, 0, "reverse", src.0, src.1, *start, *end);
 
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
@@ -1768,7 +1778,7 @@ fn parser_to_instr_set(
                         output.push(Instr::CallFunc(17, id, f_id));
                     }
                     "split" => {
-                        check_args!(args, 1, "split", ctx);
+                        check_args!(args, 1, "split", src.0, src.1, *start, *end);
                         let arg_id = get_id(
                             &args[0],
                             v,
@@ -1785,7 +1795,7 @@ fn parser_to_instr_set(
                         output.push(Instr::Split(id, arg_id, (consts.len() - 1) as u16));
                     }
                     "remove" => {
-                        check_args!(args, 1, "remove", ctx);
+                        check_args!(args, 1, "remove", src.0, src.1, *start, *end);
                         let arg_id = get_id(
                             &args[0],
                             v,
@@ -1800,10 +1810,16 @@ fn parser_to_instr_set(
                         );
                         output.push(Instr::Remove(id, arg_id));
                     }
-                    other => {
-                        error!(
-                            ctx,
-                            format_args!("Unknown function {color_red}{other}{color_reset}")
+                    _ => {
+                        parser_error!(
+                            src.0,
+                            src.1,
+                            *start,
+                            *end,
+                            "Unknown function",
+                            format_args!(
+                                "Function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} does not exist"
+                            )
                         );
                     }
                 }

@@ -248,8 +248,8 @@ VarDeclare: Expr = {
 }
 
 VarAssign: Expr = {
-    <v: Var> "=" <e: Expression> => Expr::VarAssign(Intern::from(v), Box::from(e)),
-    <t: Term> <f: ("[" Expression "]")+> "=" <e: Expression> => Expr::ArrayModify(Box::from(t), f.into_iter().map(|(_,x,_)| x).collect::<Vec<Expr>>().into_boxed_slice(), Box::from(e)),
+    <start: @L> <v: Var> <end: @R> "=" <e: Expression>  => Expr::VarAssign(Intern::from(v), Box::from(e), start, end),
+    <start: @L> <t: Term> <f: ("[" Expression "]")+> <end: @R> "=" <e: Expression> => Expr::ArrayModify(Box::from(t), f.into_iter().map(|(_,x,_)| x).collect::<Vec<Expr>>().into_boxed_slice(), Box::from(e)),
 }
 
 OpVarAssign: Expr = {
@@ -257,32 +257,32 @@ OpVarAssign: Expr = {
     Expr::Add(
         Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
-    ))),
+    )), start, end),
     <start: @L> <v: Var> <end: @R> "-=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Sub(
         Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
-    ))),
+    )), start, end),
     <start: @L> <v: Var> <end: @R> "*=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Mul(
         Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
-    ))),
+    )), start, end),
     <start: @L> <v: Var> <end: @R> "/=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Div(
         Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
-    ))),
+    )), start, end),
     <start: @L> <v: Var> <end: @R> "%=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Mod(
         Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
-    ))),
+    )), start, end),
     <start: @L> <v: Var> <end: @R> "^=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Pow(
         Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
-    ))),
+    )), start, end),
 }
 
 ArrayIndex: Expr = {
@@ -296,9 +296,9 @@ Expression: Expr = {
     Term,
     ArrayIndex,
     // method call
-    <l:Expression> "." <f:FunctionCall> => {
-        if let Expr::FunctionCall(x,y) = f {
-            return Expr::ObjFunctionCall(Box::from(l),x,y);
+    <l:Expression> <start: @L> "." <f:FunctionCall> <end: @R> => {
+        if let Expr::FunctionCall(x,y,_,_) = f {
+            return Expr::ObjFunctionCall(Box::from(l),x,y,start,end);
         } else {
             unreachable!()
         }
@@ -393,14 +393,14 @@ ItemAfter<S,T>: T = {
 }
 
 FunctionCall: Expr = {
-    <namespace: ItemBefore<Var, "::">+?> <o1: Var> <args: Args<Expression>> => {
+    <start: @L> <namespace: ItemBefore<Var, "::">+?> <o1: Var> <args: Args<Expression>> <end: @R> => {
         Expr::FunctionCall(args.into_boxed_slice(), {
             if let Some(ns) = namespace {
                 Box::from([ns.as_slice(), &[o1]].concat())
             } else {
                 Box::from(vec![String::from(o1)])
             }
-        })
+        }, start, end)
     }
 }
 

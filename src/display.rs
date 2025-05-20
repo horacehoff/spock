@@ -85,13 +85,13 @@ impl std::fmt::Display for Expr {
                         .join("")
                 )
             }
-            Expr::VarAssign(x, y) => {
+            Expr::VarAssign(x, y, start, end) => {
                 write!(f, "{x} = {y}")
             }
             Expr::VarDeclare(x, y) => {
                 write!(f, "let {x} = {y}")
             }
-            Expr::FunctionCall(y, z) => {
+            Expr::FunctionCall(y, z, _, _) => {
                 write!(
                     f,
                     "{}{}({})",

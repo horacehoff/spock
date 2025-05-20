@@ -70,23 +70,23 @@ pub fn get_type(x: Data) -> String {
 
 #[macro_export]
 macro_rules! check_args {
-    ($args:expr, $expected_args_len:expr, $fn_name:expr, $ctx: expr) => {
+    ($args:expr, $expected_args_len:expr, $fn_name:expr, $filename:expr,$src:expr,$start:expr,$end:expr) => {
         if $args.len() > $expected_args_len {
-            error!(
-                $ctx,
+            parser_error!(
+                $filename,
+                $src,
+                $start,
+                $end,
+                "Incorrect arguments for function",
                 format_args!(
-                    "Function '{}'{} expects {} argument{}",
+                    "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset}{} expects {} argument{}",
                     $fn_name,
                     if $expected_args_len != 0 { " only" } else { "" },
                     $expected_args_len,
-                    if $expected_args_len > 1 || $expected_args_len == 0 {
-                        "s"
-                    } else {
-                        ""
-                    }
+                    if $expected_args_len == 1 { "" } else { "s" }
                 ),
                 format_args!(
-                    "Replace with '{}({})'",
+                    "Replace with {color_green}{}({}){color_reset}",
                     $fn_name,
                     $args[0..$expected_args_len]
                         .iter()
@@ -96,17 +96,17 @@ macro_rules! check_args {
                 )
             );
         } else if $args.len() < $expected_args_len {
-            error!(
-                $ctx,
+            parser_error!(
+                $filename,
+                $src,
+                $start,
+                $end,
+                "Incorrect arguments for function",
                 format_args!(
-                    "Function '{}' expects {} argument{}",
+                    "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects {} argument{}",
                     $fn_name,
                     $expected_args_len,
-                    if $expected_args_len > 1 || $expected_args_len == 0 {
-                        "s"
-                    } else {
-                        ""
-                    }
+                    if $expected_args_len == 1 { "" } else { "s" }
                 ),
                 format_args!(
                     "Add {} additional argument{}",
