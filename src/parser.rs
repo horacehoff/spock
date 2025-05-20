@@ -368,11 +368,6 @@ fn get_id(
             let return_id = consts.len() as u16;
             consts.push(Data::Null);
 
-            // check if condition is not var/str/num (it's supposed to be a bool)
-            if matches!(**main_condition, Expr::String(_) | Expr::Num(_)) {
-                error!(ctx, format_args!("{} is not a bool", main_condition));
-            }
-
             // get first code limit (after which there are only else(if) blocks)
             let main_code_limit = code
                 .iter()
@@ -428,9 +423,6 @@ fn get_id(
 
             for elem in &code[main_code_limit..] {
                 if let Expr::ElseIfBlock(condition, code) = elem {
-                    if matches!(**condition, Expr::String(_) | Expr::Num(_)) {
-                        error!(ctx, format_args!("{} is not a bool", main_condition));
-                    }
                     condition_markers.push(output.len());
                     let condition_id = get_id(
                         condition, v, consts, output, ctx, fns, arrs, fn_state, id, src,
@@ -838,9 +830,6 @@ fn parser_to_instr_set(
 
                 for elem in &code[main_code_limit..] {
                     if let Expr::ElseIfBlock(condition, code) = elem {
-                        if matches!(**condition, Expr::String(_) | Expr::Num(_)) {
-                            error!(ctx, format_args!("{} is not a bool", main_condition));
-                        }
                         condition_markers.push(output.len());
                         let condition_id = get_id(
                             condition,
