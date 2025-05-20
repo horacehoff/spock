@@ -1,6 +1,5 @@
 use std::str::FromStr;
 use crate::parser::Expr;
-use crate::display::format_parser_error;
 use inline_colorization::*;
 use crate::error_b;
 use crate::Num;
@@ -254,34 +253,34 @@ VarAssign: Expr = {
 }
 
 OpVarAssign: Expr = {
-    <v: Var> "+=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "+=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Add(
-        Box::from(Expr::Var(Intern::from_ref(&v))),
+        Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
     ))),
-    <v: Var> "-=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "-=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Sub(
-        Box::from(Expr::Var(Intern::from_ref(&v))),
+        Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
     ))),
-    <v: Var> "*=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "*=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Mul(
-        Box::from(Expr::Var(Intern::from_ref(&v))),
+        Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
     ))),
-    <v: Var> "/=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "/=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Div(
-        Box::from(Expr::Var(Intern::from_ref(&v))),
+        Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
     ))),
-    <v: Var> "%=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "%=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Mod(
-        Box::from(Expr::Var(Intern::from_ref(&v))),
+        Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
     ))),
-    <v: Var> "^=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "^=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Pow(
-        Box::from(Expr::Var(Intern::from_ref(&v))),
+        Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
     ))),
 }
@@ -379,7 +378,7 @@ Term: Expr = {
     "(" <e: Expression> ")" => e,
     <t: Num> => Expr::Num(t),
     <b: Bool> => Expr::Bool(b),
-    <v: Var> => Expr::Var(Intern::from(v)),
+    <start: @L> <v: Var> <end: @R> => Expr::Var(Intern::from(v), start, end),
     <s: String> => Expr::String(s),
     <a: Array> => <>,
     <f: FunctionCall> => <>,

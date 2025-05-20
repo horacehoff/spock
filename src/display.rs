@@ -52,7 +52,7 @@ impl std::fmt::Display for Expr {
             Expr::Num(x) => write!(f, "{x}"),
             Expr::Bool(x) => write!(f, "{x}"),
             Expr::String(x) => write!(f, "\"{x}\""),
-            Expr::Var(x) => write!(f, "{}", x),
+            Expr::Var(x, _, _) => write!(f, "{}", x),
             Expr::Condition(x, y) => {
                 write!(
                     f,
@@ -140,7 +140,7 @@ impl std::fmt::Display for Expr {
     }
 }
 
-fn token_recognition(token: &String) -> String {
+fn token_recognition(token: String) -> String {
     match token.as_str() {
         "r#\"[a-zA-Z_]+\"#" => String::from("identifier"),
         "r#\"([0-9]*[.])?[0-9]+\"#" => String::from("number"),
@@ -155,10 +155,56 @@ fn token_recognition(token: &String) -> String {
     }
 }
 
-pub fn parser_error<'a, L, T, E>(x: ParseError<usize, T, &str>, file: &str, filename: &str)
+#[macro_export]
+macro_rules! parser_error {
+    ($filename: expr,
+    $source: expr,
+    $start: expr,
+   $end: expr,
+    $error_general: expr,
+    $msg:expr) => {
+        eprintln!("{color_red}SPOCK ERROR{color_reset}");
+        Report::build(ReportKind::Error, ($filename, $start..$end))
+            .with_message($error_general)
+            .with_label(
+                Label::new(($filename, $start..$end))
+                    .with_message($msg)
+                    .with_color(Color::Red),
+            )
+            .finish()
+            .print(($filename, Source::from($source)))
+            .unwrap();
+        std::process::exit(1);
+    };
+    ($filename: expr,
+    $source: expr,
+    $start: expr,
+   $end: expr,
+    $error_general: expr,
+    $msg:expr,
+    $note: expr
+    ) => {
+        eprintln!("{color_red}SPOCK ERROR{color_reset}");
+        Report::build(ReportKind::Error, ($filename, $start..$end))
+            .with_message($error_general)
+            .with_label(
+                Label::new(($filename, $start..$end))
+                    .with_message($msg)
+                    .with_color(Color::Red),
+            )
+            .with_note($note)
+            .finish()
+            .print(($filename, Source::from($source)))
+            .unwrap();
+        std::process::exit(1);
+    };
+}
+
+pub fn lalrpop_error<'a, L, T, E>(x: ParseError<usize, T, &str>, file: &str, filename: &str)
 where
     Token<'a>: From<T>,
 {
+    eprintln!("{color_red}SPOCK ERROR{color_reset}");
     match x {
         ParseError::InvalidToken { .. } => {
             unreachable!("InvalidTokenError")
@@ -168,7 +214,7 @@ where
                 .with_message("Unrecognized EOF")
                 .with_label(
                     Label::new((filename, location..location + 1))
-                        .with_message(format!(
+                        .with_message(format_args!(
                             "Expected one or more {color_bright_blue}{style_bold}}}{style_reset}{color_reset}"
                         ))
                         .with_color(Color::Red),
@@ -182,7 +228,7 @@ where
             let end = token.2;
 
             let expected_tokens = expected
-                .iter()
+                .into_iter()
                 .filter_map(|x| {
                     if x == "\"false\"" {
                         None
@@ -200,7 +246,7 @@ where
                 .with_message("Unrecognized token")
                 .with_label(
                     Label::new((filename, begin..end))
-                        .with_message(format!("Expected {}", expected_tokens))
+                        .with_message(format_args!("Expected {}", expected_tokens))
                         .with_color(Color::Red),
                 )
                 .finish()
@@ -214,6 +260,7 @@ where
             unreachable!("UserError")
         }
     }
+    std::process::exit(1);
 }
 
 pub fn print_instructions(instructions: &[Instr]) {
