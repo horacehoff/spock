@@ -1,3 +1,4 @@
+use std::fmt::Formatter;
 use crate::parser::Expr;
 use crate::{Data, Instr, format_lines};
 use ariadne::*;
@@ -5,8 +6,7 @@ use concat_string::concat_string;
 use fnv::FnvHashMap;
 use inline_colorization::*;
 use lalrpop_util::lexer::Token;
-use lalrpop_util::{ErrorRecovery, ParseError};
-use std::fmt::{Formatter, format};
+use lalrpop_util::{ParseError};
 
 pub fn format_data(x: Data, arrays: &FnvHashMap<u16, Vec<Data>>) -> String {
     match x {
@@ -63,7 +63,7 @@ impl std::fmt::Display for Expr {
                         .join(""),
                 )
             }
-            Expr::FunctionDecl(x, y) => {
+            Expr::FunctionDecl(x, y,_,_) => {
                 write!(
                     f,
                     "fn {}({}) {{\n{}}}",
@@ -153,11 +153,6 @@ fn token_recognition(token: String) -> String {
             }
         }
     }
-}
-
-#[macro_export]
-macro_rules! ops_error {
-    ($l:expr,$r:expr,$op:expr) => {};
 }
 
 #[macro_export]

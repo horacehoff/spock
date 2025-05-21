@@ -1,7 +1,7 @@
 use crate::display::format_data;
-use crate::display::format_err;
 use crate::parser::parse;
 use crate::util::get_type;
+use ariadne::*;
 use builtin_funcs::FUNCS;
 use concat_string::concat_string;
 use fnv::FnvHashMap;
@@ -146,11 +146,30 @@ pub fn execute(
     func_args: &mut Vec<u16>,
     arrays: &mut FnvHashMap<u16, Vec<Data>>,
     call_stack: &mut Vec<CallFrame>,
+    instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
 ) {
-    let mut stuff: Vec<Data> = Vec::with_capacity(consts.len() * call_stack.capacity());
-    let len = instructions.len();
+    let mut call_frames: Vec<Data> = Vec::with_capacity(consts.len() * call_stack.capacity());
     let mut i: usize = 0;
-    while i < len {
+
+    let instr_op_error = |instr: Instr, op: &str, l: Data, r: Data| {
+        let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &instr).unwrap();
+        parser_error!(
+            filename,
+            src,
+            *start,
+            *end,
+            "Invalid operation",
+            format_args!(
+                "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{op}{color_bright_blue} {}{color_reset}{style_reset}",
+                get_type(l),
+                get_type(r)
+            )
+        );
+    };
+
+    while i < instructions.len() {
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
                 if is_neg {
@@ -172,13 +191,13 @@ pub fn execute(
             Instr::Call(x, y) => {
                 call_stack.push((i + 1, y));
                 i = x as usize;
-                stuff.extend_from_slice(consts.as_ref());
+                call_frames.extend_from_slice(consts.as_ref());
                 continue;
             }
             Instr::Ret(x, y) => {
                 let val = consts[x as usize];
                 if let Some((ret_i, dest)) = call_stack.pop() {
-                    let consts_part = stuff.split_off(stuff.len() - consts.len());
+                    let consts_part = call_frames.split_off(call_frames.len() - consts.len());
                     consts.copy_from_slice(&consts_part);
                     consts[dest as usize] = val;
                     i = ret_i;
@@ -206,62 +225,43 @@ pub fn execute(
                     arrays.insert(id, combined);
                     consts[dest as usize] = Data::Array(id);
                 }
-                (a, b) => {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {color_red}{}{color_reset} + {color_red}{}{color_reset}",
-                        format_err(a, arrays),
-                        format_err(b, arrays)
-                    ));
+                (a,b) => {
+                    instr_op_error(Instr::Add(o1, o2, dest), "+", a,b);
                 }
             },
             Instr::Mul(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent * child);
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {} * {}",
-                        format_err(consts[o1 as usize], arrays), format_err(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::Mul(o1, o2, dest), "*",consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::Div(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent / child);
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {} / {}",
-                        format_err(consts[o1 as usize], arrays), format_err(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::Div(o1, o2, dest), "/", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::Sub(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent - child);
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {} - {}",
-                        format_err(consts[o1 as usize], arrays), format_err(consts[o2 as usize], arrays)
-                    ));
+                   instr_op_error(Instr::Sub(o1, o2, dest), "-", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::Mod(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent % child);
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} % {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::Mod(o1, o2, dest), "%", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::Pow(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(is_float!(parent.powf(child), parent.pow(child as u32)));
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} ^ {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::Pow(o1, o2, dest), "^", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             // FIX FOR ARRAYS
@@ -288,10 +288,7 @@ pub fn execute(
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent > child);
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} > {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::Sup(o1, o2, dest), ">", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::SupCmp(o1, o2, jump_size) => {
@@ -301,20 +298,14 @@ pub fn execute(
                         continue;
                     }
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} > {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::SupCmp(o1, o2, jump_size), ">",consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::SupEq(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent >= child);
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} >= {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::SupEq(o1, o2, dest), ">=", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::SupEqCmp(o1, o2, jump_size) => {
@@ -324,20 +315,14 @@ pub fn execute(
                         continue;
                     }
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} >= {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::SupEqCmp(o1, o2, jump_size), ">=", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::Inf(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent < child);
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} < {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::Inf(o1, o2, dest), "<", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::InfCmp(o1, o2, jump_size) => {
@@ -347,20 +332,16 @@ pub fn execute(
                     continue;
                 }
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} < {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::InfCmp(o1, o2, jump_size), "<", consts[o1 as usize], consts[o2 as usize]);
+
                 }}
             }
             Instr::InfEq(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent <= child);
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} <= {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::InfEq(o1, o2, dest), "<=", consts[o1 as usize], consts[o2 as usize]);
+
                 }}
             }
             Instr::InfEqCmp(o1, o2, jump_size) => {
@@ -370,30 +351,21 @@ pub fn execute(
                         continue;
                     }
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} <= {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::InfEqCmp(o1, o2, jump_size), "<=", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::BoolAnd(o1, o2, dest) => {
                 if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent && child);
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} && {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::BoolAnd(o1, o2, dest), "&&", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::BoolOr(o1, o2, dest) => {
                 if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent || child);
                 } else {
-                    error_b!(format_args!(
-                        "UNSUPPORTED OPERATION: {:?} || {:?}",
-                        format_data(consts[o1 as usize], arrays), format_data(consts[o2 as usize], arrays)
-                    ));
+                    instr_op_error(Instr::BoolOr(o1, o2, dest), "||", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::Mov(tgt, dest) | Instr::MovAnon(tgt, dest) => {
@@ -404,7 +376,18 @@ pub fn execute(
                 if_likely! {let Data::Number(x) = consts[tgt as usize] => {
                     consts[dest as usize] = Data::Number(-x);
                 } else {
-                    error_b!(format_args!("UNSUPPORTED OPERATION: -{}", format_data(consts[tgt as usize], arrays)));
+                    let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &Instr::Neg(tgt, dest)).unwrap();
+                    parser_error!(
+                        filename,
+                        src,
+                        *start,
+                        *end,
+                        "Invalid operation",
+                        format_args!(
+                            "Cannot negate {style_bold}{color_bright_blue}{}{color_reset}{style_reset}",
+                            get_type(consts[tgt as usize])
+                        )
+                    );
                 }}
             }
             Instr::Print(target) => {
@@ -671,7 +654,7 @@ pub fn execute(
                             .map(|(i, x)| (base_id + i as u16, x.to_vec())),
                     );
                     let id = arrays.len() as u16;
-                    arrays.insert(id, (base_id..id).map(|x| Data::Array(x as u16)).collect());
+                    arrays.insert(id, (base_id..id).map(|x| Data::Array(x)).collect());
                     consts[dest as usize] = Data::Array(id);
                 }
                 invalid => {
@@ -700,7 +683,7 @@ pub fn execute(
 
 fn get_vec_capacity(instructions: &[Instr]) -> (usize, usize) {
     let (mut func_args, mut max_func_args) = (0, 0);
-    let (mut call_depth, mut max_call_depth) = (0, 0);
+    let (mut call_depth, mut max_call_depth) = (0usize, 0usize);
 
     for instr in instructions {
         match instr {
@@ -714,9 +697,7 @@ fn get_vec_capacity(instructions: &[Instr]) -> (usize, usize) {
                 max_call_depth = max_call_depth.max(call_depth);
             }
             Instr::Ret(_, _) => {
-                if call_depth > 0 {
-                    call_depth -= 1;
-                }
+                call_depth = call_depth.saturating_sub(1);
             }
             _ => {}
         }
@@ -746,7 +727,7 @@ fn main() {
     // #[cfg(debug_assertions)]
     let now = Instant::now();
 
-    let (instructions, mut consts, mut arrays) = parse(&contents, filename);
+    let (instructions, mut consts, mut arrays, instr_src) = parse(&contents, filename);
 
     let (func_args_count, call_stack_count) = get_vec_capacity(&instructions);
 
@@ -765,6 +746,9 @@ fn main() {
         &mut Vec::with_capacity(func_args_count),
         &mut arrays,
         &mut Vec::with_capacity(call_stack_count * 2),
+        &instr_src,
+        &contents,
+        &filename,
     );
     println!("EXEC TIME {:.2?}", now.elapsed());
 }

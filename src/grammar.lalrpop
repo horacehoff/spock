@@ -41,8 +41,8 @@ pub File:Vec<Expr> = {
 }
 
 pub Function:Expr = {
-    "fn" <o1:Var> <args: Args<Var>> <o3: Block<Code>> => {
-        return Expr::FunctionDecl(Box::from([&[o1], args.as_slice()].concat()), o3);
+    <start: @L> "fn" <o1:Var> <args: Args<Var>> <o3: Block<Code>> <end: @R> => {
+        return Expr::FunctionDecl(Box::from([&[o1], args.as_slice()].concat()), o3, start, end);
     }
 }
 
