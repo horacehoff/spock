@@ -18,7 +18,6 @@ use std::time::Instant;
 
 mod builtin_funcs;
 mod display;
-mod ops;
 mod optimizations;
 mod parser;
 mod tests;
@@ -277,8 +276,7 @@ pub fn execute(
                 }
             }
             Instr::NotEq(o1, o2, dest) => {
-                let val = consts[o1 as usize] != consts[o2 as usize];
-                consts[dest as usize] = Data::Bool(val);
+                consts[dest as usize] = Data::Bool(consts[o1 as usize] != consts[o2 as usize]);
             }
             Instr::NotEqCmp(o1, o2, jump_size) => {
                 if consts[o1 as usize] == consts[o2 as usize] {

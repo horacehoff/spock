@@ -1,4 +1,5 @@
 use crate::Data;
+use crate::parser::Expr;
 
 #[macro_export]
 macro_rules! error {
@@ -65,6 +66,16 @@ pub fn get_type(x: Data) -> String {
         Data::Array(_) => String::from("Array"),
         Data::Null => String::from("NULL"),
         Data::File(_) => String::from("File"),
+    }
+}
+
+pub fn get_type_expr(x: &Expr) -> String {
+    match x {
+        Expr::Num(_) => String::from("Number"),
+        Expr::Bool(_) => String::from("Bool"),
+        Expr::String(_) => String::from("String"),
+        Expr::Array(_) => String::from("Array"),
+        _ => unreachable!(),
     }
 }
 

@@ -1,6 +1,7 @@
 use crate::display::{lalrpop_error, print_instructions};
 use crate::grammar::Token;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
+use crate::util::get_type_expr;
 use crate::{Data, Instr, Num, error, error_b};
 use crate::{check_args, check_args_range, parser_error, print};
 use ariadne::*;
@@ -48,21 +49,21 @@ pub enum Expr {
     EvalBlock(Box<[Expr]>),
     LoopBlock(Box<[Expr]>),
 
-    Mul(Box<Expr>, Box<Expr>),
-    Div(Box<Expr>, Box<Expr>),
-    Add(Box<Expr>, Box<Expr>),
-    Sub(Box<Expr>, Box<Expr>),
-    Mod(Box<Expr>, Box<Expr>),
-    Pow(Box<Expr>, Box<Expr>),
+    Mul(Box<Expr>, Box<Expr>, usize, usize),
+    Div(Box<Expr>, Box<Expr>, usize, usize),
+    Add(Box<Expr>, Box<Expr>, usize, usize),
+    Sub(Box<Expr>, Box<Expr>, usize, usize),
+    Mod(Box<Expr>, Box<Expr>, usize, usize),
+    Pow(Box<Expr>, Box<Expr>, usize, usize),
     Eq(Box<Expr>, Box<Expr>),
     NotEq(Box<Expr>, Box<Expr>),
-    Sup(Box<Expr>, Box<Expr>),
-    SupEq(Box<Expr>, Box<Expr>),
-    Inf(Box<Expr>, Box<Expr>),
-    InfEq(Box<Expr>, Box<Expr>),
-    BoolAnd(Box<Expr>, Box<Expr>),
-    BoolOr(Box<Expr>, Box<Expr>),
-    Neg(Box<Expr>),
+    Sup(Box<Expr>, Box<Expr>, usize, usize),
+    SupEq(Box<Expr>, Box<Expr>, usize, usize),
+    Inf(Box<Expr>, Box<Expr>, usize, usize),
+    InfEq(Box<Expr>, Box<Expr>, usize, usize),
+    BoolAnd(Box<Expr>, Box<Expr>, usize, usize),
+    BoolOr(Box<Expr>, Box<Expr>, usize, usize),
+    Neg(Box<Expr>, usize, usize),
 }
 
 lalrpop_mod!(pub grammar);
@@ -174,6 +175,19 @@ fn get_tgt_id_vec(x: &[Instr]) -> u16 {
     unreachable!();
 }
 
+#[macro_export]
+macro_rules! are_consts {
+    ($l:expr,$r:expr) => {
+        matches!(
+            $l,
+            Expr::String(_) | Expr::Num(_) | Expr::Bool(_) | Expr::Array(_)
+        ) && matches!(
+            $r,
+            Expr::String(_) | Expr::Num(_) | Expr::Bool(_) | Expr::Array(_)
+        )
+    };
+}
+
 fn get_id(
     x: &Expr,
     v: &mut Vec<(Intern<String>, u16)>,
@@ -187,6 +201,20 @@ fn get_id(
     // (filename, contents)
     src: (&str, &str),
 ) -> u16 {
+    let op_error = |l: &Box<Expr>, r: &Box<Expr>, op: &str, start: &usize, end: &usize| {
+        parser_error!(
+            src.0,
+            src.1,
+            *start,
+            *end,
+            "Invalid operation",
+            format_args!(
+                "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{op}{color_bright_blue} {}{color_reset}{style_reset}",
+                get_type_expr(l),
+                get_type_expr(r)
+            )
+        );
+    };
     match x {
         Expr::Num(num) => {
             consts.push(Data::Number(*num as Num));
@@ -244,7 +272,12 @@ fn get_id(
             consts.push(Data::Array(id));
             (consts.len() - 1) as u16
         }
-        Expr::Mul(l, r) => {
+        Expr::Mul(l, r, start, end) => {
+            if are_consts!(**l, **r)
+                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            {
+                op_error(l, r, "*", start, end);
+            }
             let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id = consts.len() as u16;
@@ -252,7 +285,12 @@ fn get_id(
             output.push(Instr::Mul(id_l, id_r, id));
             id
         }
-        Expr::Div(l, r) => {
+        Expr::Div(l, r, start, end) => {
+            if are_consts!(**l, **r)
+                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            {
+                op_error(l, r, "/", start, end);
+            }
             let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id = consts.len() as u16;
@@ -260,7 +298,14 @@ fn get_id(
             output.push(Instr::Div(id_l, id_r, id));
             id
         }
-        Expr::Add(l, r) => {
+        Expr::Add(l, r, start, end) => {
+            if are_consts!(**l, **r)
+                && (!(matches!(**l, Expr::Num(_)) && matches!(**r, Expr::Num(_)))
+                    || !(matches!(**l, Expr::String(_)) && matches!(**r, Expr::String(_)))
+                    || !(matches!(**l, Expr::Array(_)) && matches!(**r, Expr::Array(_))))
+            {
+                op_error(l, r, "+", start, end);
+            }
             let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id = consts.len() as u16;
@@ -268,7 +313,12 @@ fn get_id(
             output.push(Instr::Add(id_l, id_r, id));
             id
         }
-        Expr::Sub(l, r) => {
+        Expr::Sub(l, r, start, end) => {
+            if are_consts!(**l, **r)
+                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            {
+                op_error(l, r, "-", start, end);
+            }
             let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id = consts.len() as u16;
@@ -276,7 +326,12 @@ fn get_id(
             output.push(Instr::Sub(id_l, id_r, id));
             id
         }
-        Expr::Mod(l, r) => {
+        Expr::Mod(l, r, start, end) => {
+            if are_consts!(**l, **r)
+                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            {
+                op_error(l, r, "%", start, end);
+            }
             let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id = consts.len() as u16;
@@ -284,7 +339,12 @@ fn get_id(
             output.push(Instr::Mod(id_l, id_r, id));
             id
         }
-        Expr::Pow(l, r) => {
+        Expr::Pow(l, r, start, end) => {
+            if are_consts!(**l, **r)
+                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            {
+                op_error(l, r, "^", start, end);
+            }
             let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id = consts.len() as u16;
@@ -308,7 +368,12 @@ fn get_id(
             output.push(Instr::NotEq(id_l, id_r, id));
             id
         }
-        Expr::Sup(l, r) => {
+        Expr::Sup(l, r, start, end) => {
+            if are_consts!(**l, **r)
+                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            {
+                op_error(l, r, ">", start, end);
+            }
             let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id = consts.len() as u16;
@@ -316,7 +381,12 @@ fn get_id(
             output.push(Instr::Sup(id_l, id_r, id));
             id
         }
-        Expr::SupEq(l, r) => {
+        Expr::SupEq(l, r, start, end) => {
+            if are_consts!(**l, **r)
+                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            {
+                op_error(l, r, ">=", start, end);
+            }
             let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id = consts.len() as u16;
@@ -324,7 +394,12 @@ fn get_id(
             output.push(Instr::SupEq(id_l, id_r, id));
             id
         }
-        Expr::Inf(l, r) => {
+        Expr::Inf(l, r, start, end) => {
+            if are_consts!(**l, **r)
+                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            {
+                op_error(l, r, "<", start, end);
+            }
             let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id = consts.len() as u16;
@@ -332,7 +407,12 @@ fn get_id(
             output.push(Instr::Inf(id_l, id_r, id));
             id
         }
-        Expr::InfEq(l, r) => {
+        Expr::InfEq(l, r, start, end) => {
+            if are_consts!(**l, **r)
+                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            {
+                op_error(l, r, "<=", start, end);
+            }
             let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id = consts.len() as u16;
@@ -340,7 +420,12 @@ fn get_id(
             output.push(Instr::InfEq(id_l, id_r, id));
             id
         }
-        Expr::BoolAnd(l, r) => {
+        Expr::BoolAnd(l, r, start, end) => {
+            if are_consts!(**l, **r)
+                && (!matches!(**l, Expr::Bool(_)) || !matches!(**r, Expr::Bool(_)))
+            {
+                op_error(l, r, "||", start, end);
+            }
             let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id = consts.len() as u16;
@@ -348,7 +433,12 @@ fn get_id(
             output.push(Instr::BoolAnd(id_l, id_r, id));
             id
         }
-        Expr::BoolOr(l, r) => {
+        Expr::BoolOr(l, r, start, end) => {
+            if are_consts!(**l, **r)
+                && (!matches!(**l, Expr::Bool(_)) || !matches!(**r, Expr::Bool(_)))
+            {
+                op_error(l, r, "||", start, end);
+            }
             let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id_r = get_id(r, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id = consts.len() as u16;
@@ -356,7 +446,20 @@ fn get_id(
             output.push(Instr::BoolOr(id_l, id_r, id));
             id
         }
-        Expr::Neg(l) => {
+        Expr::Neg(l, start, end) => {
+            if are_consts!(**l, **l) && !matches!(**l, Expr::Num(_)) {
+                parser_error!(
+                    src.0,
+                    src.1,
+                    *start,
+                    *end,
+                    "Invalid operation",
+                    format_args!(
+                        "Cannot negate {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                        get_type_expr(l),
+                    )
+                );
+            }
             let id_l = get_id(l, v, consts, output, ctx, fns, arrs, fn_state, id, src);
             let id = consts.len() as u16;
             consts.push(Data::Null);

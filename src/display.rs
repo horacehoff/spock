@@ -156,6 +156,11 @@ fn token_recognition(token: String) -> String {
 }
 
 #[macro_export]
+macro_rules! ops_error {
+    ($l:expr,$r:expr,$op:expr) => {};
+}
+
+#[macro_export]
 macro_rules! parser_error {
     ($filename: expr,
     $source: expr,

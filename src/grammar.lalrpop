@@ -7,6 +7,7 @@ use crate::is_float;
 use internment::Intern;
 use concat_string::concat_string;
 use crate::display::format_expr_type;
+use crate::are_consts;
 
 
 grammar;
@@ -253,35 +254,41 @@ VarAssign: Expr = {
 }
 
 OpVarAssign: Expr = {
-    <start: @L> <v: Var> <end: @R> "+=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "+=" <e: Expression> <op_end: @R> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Add(
         Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
+        start,op_end
     )), start, end),
-    <start: @L> <v: Var> <end: @R> "-=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "-=" <e: Expression> <op_end: @R> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Sub(
         Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
+        start,op_end
     )), start, end),
-    <start: @L> <v: Var> <end: @R> "*=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "*=" <e: Expression> <op_end: @R> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Mul(
         Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
+        start,op_end
     )), start, end),
-    <start: @L> <v: Var> <end: @R> "/=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "/=" <e: Expression> <op_end: @R> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Div(
         Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
+        start,op_end
     )), start, end),
-    <start: @L> <v: Var> <end: @R> "%=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "%=" <e: Expression> <op_end: @R> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Mod(
         Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
+        start,op_end
     )), start, end),
-    <start: @L> <v: Var> <end: @R> "^=" <e: Expression> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "^=" <e: Expression> <op_end: @R> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
     Expr::Pow(
         Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
         Box::from(e),
+        start,op_end
     )), start, end),
 }
 
@@ -306,26 +313,26 @@ Expression: Expr = {
 
     // OPS
     #[precedence(level="1")] #[assoc(side="left")]
-    <l:Expression> "||" <r:Expression> => match (l,r) {
+    <start: @L> <l:Expression> "||" <r:Expression> <end: @R> => match (l,r) {
         (Expr::Bool(l), Expr::Bool(r)) => Expr::Bool(l || r),
-        (l,r) => Expr::BoolOr(Box::from(l),Box::from(r))
+        (l,r) => Expr::BoolOr(Box::from(l),Box::from(r), start, end)
     },
 
     #[precedence(level="2")] #[assoc(side="left")]
-    <l:Expression> "&&" <r:Expression> => match (l,r) {
+    <start: @L> <l: Expression> "&&" <r: Expression> <end: @R> => match (l,r) {
         (Expr::Bool(l), Expr::Bool(r)) => Expr::Bool(l && r),
-        (l,r) => Expr::BoolAnd(Box::from(l),Box::from(r))
+        (l,r) => Expr::BoolAnd(Box::from(l),Box::from(r), start, end)
     },
 
     #[precedence(level="3")] #[assoc(side="left")]
-    <l:Expression> "==" <r:Expression> => match (l,r) {
+    <l: Expression> "==" <r: Expression> => match (l,r) {
         (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x==y),
         (Expr::Bool(x),Expr::Bool(y)) => Expr::Bool(x==y),
         (Expr::String(x),Expr::String(y)) => Expr::Bool(x==y),
         (l,r) => Expr::Eq(Box::from(l),Box::from(r)),
     },
     #[precedence(level="3")] #[assoc(side="left")]
-    <l:Expression> "!=" <r:Expression> => match (l,r) {
+    <l: Expression> "!=" <r: Expression> => match (l,r) {
         (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x!=y),
         (Expr::Bool(x),Expr::Bool(y)) => Expr::Bool(x!=y),
         (Expr::String(x),Expr::String(y)) => Expr::Bool(x!=y),
@@ -333,45 +340,65 @@ Expression: Expr = {
     },
 
     #[precedence(level="4")] #[assoc(side="left")]
-    <l:Expression> "<" <r:Expression> => match (l,r) {
+    <start: @L> <l: Expression> "<" <r: Expression> <end: @R> => match (l,r) {
         (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x < y),
-        (l,r) => Expr::Inf(Box::from(l),Box::from(r))
+        (l,r) => Expr::Inf(Box::from(l),Box::from(r), start, end)
     },
     #[precedence(level="4")] #[assoc(side="left")]
-    <l:Expression> "<=" <r:Expression> => match (l,r) {
+    <start: @L> <l: Expression> "<=" <r: Expression> <end: @R> => match (l,r) {
         (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x <= y),
-        (l,r) => Expr::InfEq(Box::from(l),Box::from(r))
+        (l,r) => Expr::InfEq(Box::from(l),Box::from(r), start, end)
     },
     #[precedence(level="4")] #[assoc(side="left")]
-    <l:Expression> ">" <r:Expression> => match (l,r) {
+    <start: @L> <l: Expression> ">" <r: Expression> <end: @R> => match (l,r) {
         (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x > y),
-        (l,r) => Expr::Sup(Box::from(l),Box::from(r))
+        (l,r) => Expr::Sup(Box::from(l),Box::from(r), start, end)
     },
     #[precedence(level="4")] #[assoc(side="left")]
-    <l:Expression> ">=" <r:Expression> => match (l,r) {
+    <start: @L> <l: Expression> ">=" <r: Expression> <end: @R> => match (l,r) {
         (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x >= y),
-        (l,r) => Expr::SupEq(Box::from(l),Box::from(r))
+        (l,r) => Expr::SupEq(Box::from(l),Box::from(r), start, end)
     },
 
     #[precedence(level="5")] #[assoc(side="right")]
-    <l:Expression> "^" <r:Expression> => match (l,r) {
+    <start: @L> <l: Expression> "^" <r: Expression> <end: @R> => match (l,r) {
         (Expr::Num(x),Expr::Num(y)) => Expr::Num(x.powf(y)),
-        (l,r) => Expr::Pow(Box::from(l),Box::from(r))
+        (l,r) => Expr::Pow(Box::from(l),Box::from(r), start, end)
     },
 
     #[precedence(level="6")] #[assoc(side="left")]
-    <l:Expression> "*" <r:Expression> => l * r,
+    <start: @L> <l: Expression> "*" <r: Expression> <end: @R> => match (l, r) {
+            (Expr::Num(x), Expr::Num(y)) => Expr::Num(x * y),
+            (l, r) => Expr::Mul(Box::from(l), Box::from(r), start, end),
+    },
     #[precedence(level="6")] #[assoc(side="left")]
-    <l:Expression> "/" <r:Expression> => l / r,
+    <start: @L> <l: Expression> "/" <r: Expression> <end: @R> => match (l, r) {
+            (Expr::Num(x), Expr::Num(y)) => Expr::Num(x / y),
+            (l, r) => Expr::Div(Box::from(l), Box::from(r), start, end),
+    },
     #[precedence(level="6")] #[assoc(side="left")]
-    <l:Expression> "%" <r:Expression> => l % r,
+    <start: @L> <l: Expression> "%" <r: Expression> <end: @R> =>  match (l, r) {
+            (Expr::Num(x), Expr::Num(y)) => Expr::Num(x % y),
+            (l, r) => Expr::Mod(Box::from(l), Box::from(r), start, end),
+    },
 
     #[precedence(level="7")] #[assoc(side="left")]
-    <l:Expression> "+" <r:Expression> => l + r,
+    <start: @L> <l: Expression> "+" <r: Expression> <end: @R> => match (l, r) {
+            (Expr::Num(x), Expr::Num(y)) => Expr::Num(x + y),
+            (Expr::String(x), Expr::String(y)) => Expr::String(concat_string!(x, y)),
+            (Expr::Array(x), Expr::Array(y)) => Expr::Array(Box::from([x, y].concat())),
+            (l, r) => Expr::Add(Box::from(l), Box::from(r), start, end),
+    },
     #[precedence(level="7")] #[assoc(side="left")]
-    <l:Expression> "-" <r:Expression> => l - r,
+    <start: @L> <l: Expression> "-" <r: Expression> <end: @R> => match (l, r) {
+            (Expr::Num(x), Expr::Num(y)) => Expr::Num(x - y),
+            (l, r) => Expr::Sub(Box::from(l), Box::from(r), start, end),
+    },
     #[precedence(level="8")] #[assoc(side="left")]
-    "-" <r:Expression> => -r,
+    <start: @L> "-" <r:Expression> <end: @R> => match r {
+            Expr::Num(x) => Expr::Num(-x),
+            l => Expr::Neg(Box::from(l), start, end),
+    },
 }
 
 Term: Expr = {
