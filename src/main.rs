@@ -10,6 +10,7 @@ use internment::Intern;
 use likely_stable::{if_likely, likely, unlikely};
 use parser::*;
 use std::cmp::PartialEq;
+use std::fmt::Arguments;
 use std::fs;
 use std::fs::File;
 use std::hint::unreachable_unchecked;
@@ -169,6 +170,11 @@ pub fn execute(
         );
     };
 
+    let error = |instr: Instr, general_error: &str, msg: Arguments| {
+        let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &instr).unwrap();
+        parser_error!(filename, src, *start, *end, general_error, msg);
+    };
+
     while i < instructions.len() {
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
@@ -225,8 +231,8 @@ pub fn execute(
                     arrays.insert(id, combined);
                     consts[dest as usize] = Data::Array(id);
                 }
-                (a,b) => {
-                    instr_op_error(Instr::Add(o1, o2, dest), "+", a,b);
+                (a, b) => {
+                    instr_op_error(Instr::Add(o1, o2, dest), "+", a, b);
                 }
             },
             Instr::Mul(o1, o2, dest) => {
@@ -399,15 +405,26 @@ pub fn execute(
             Instr::Num(tgt, dest) => match consts[tgt as usize] {
                 Data::String(str) => {
                     consts[dest as usize] = Data::Number(str.parse::<Num>().unwrap_or_else(|_| {
-                        error_b!(format_args!("CANNOT CONVERT '{str}' TO NUMBER"));
+                        error(
+                            Instr::Num(tgt, dest),
+                            "Invalid type",
+                            format_args!(
+                                "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a number",
+                                str
+                            ),
+                        )
                     }));
                 }
                 Data::Number(num) => consts[dest as usize] = Data::Number(num),
                 other => {
-                    error_b!(format_args!(
-                        "CANNOT CONVERT {} TO NUMBER",
-                        format_data(other, arrays)
-                    ));
+                    error(
+                        Instr::Num(tgt, dest),
+                        "Invalid type",
+                        format_args!(
+                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a number",
+                            format_data(other, arrays)
+                        ),
+                    );
                 }
             },
             Instr::Str(tgt, dest) => {
