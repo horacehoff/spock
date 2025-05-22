@@ -250,7 +250,7 @@ VarDeclare: Expr = {
 
 VarAssign: Expr = {
     <start: @L> <v: Var> <end: @R> "=" <e: Expression>  => Expr::VarAssign(Intern::from(v), Box::from(e), start, end),
-    <start: @L> <t: Term> <f: ("[" Expression "]")+> <end: @R> "=" <e: Expression> => Expr::ArrayModify(Box::from(t), f.into_iter().map(|(_,x,_)| x).collect::<Vec<Expr>>().into_boxed_slice(), Box::from(e)),
+    <start: @L> <t: Term> <f: ("[" Expression "]")+> <end: @R> "=" <e: Expression> => Expr::ArrayModify(Box::from(t), f.into_iter().map(|(_,x,_)| x).collect::<Vec<Expr>>().into_boxed_slice(), Box::from(e), start, end),
 }
 
 OpVarAssign: Expr = {
@@ -293,8 +293,8 @@ OpVarAssign: Expr = {
 }
 
 ArrayIndex: Expr = {
-    <t: Term> <f: ("[" Expression "]")+> => {
-        Expr::GetIndex(Box::from(t), f.into_iter().map(|(_,x,_)| x).collect::<Vec<_>>().into_boxed_slice())
+    <start: @L> <t: Term> <f: ("[" Expression "]")+> <end: @R> => {
+        Expr::GetIndex(Box::from(t), f.into_iter().map(|(_,x,_)| x).collect::<Vec<_>>().into_boxed_slice(), start, end)
     }
 }
 

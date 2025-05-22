@@ -37,8 +37,8 @@ pub enum Expr {
 
     ReturnVal(Box<Option<Expr>>),
 
-    GetIndex(Box<Expr>, Box<[Expr]>),
-    ArrayModify(Box<Expr>, Box<[Expr]>, Box<Expr>),
+    GetIndex(Box<Expr>, Box<[Expr]>,usize,usize),
+    ArrayModify(Box<Expr>, Box<[Expr]>, Box<Expr>, usize,usize),
 
     // id name -- array as first + code
     ForLoop(Intern<String>, Box<[Expr]>),
@@ -932,7 +932,7 @@ fn parser_to_instr_set(
                 print!("ARRAYS {arrs:?}");
             }
             // array[index]
-            Expr::GetIndex(target, index) => {
+            Expr::GetIndex(target, index, start,end) => {
                 // process the array/string that is being indexed
                 let mut id = get_id(
                     target,
@@ -961,6 +961,7 @@ fn parser_to_instr_set(
                         instr_src,
                     );
                     consts.push(Data::Null);
+                    instr_src.push((Instr::GetIndex(id, f_id, (consts.len() - 1) as u16), *start, *end));
                     output.push(Instr::GetIndex(id, f_id, (consts.len() - 1) as u16));
                     id = (consts.len() - 1) as u16;
                 }
@@ -1282,7 +1283,7 @@ fn parser_to_instr_set(
                 }
             }
             // x[y]... = z;
-            Expr::ArrayModify(x, z, w) => {
+            Expr::ArrayModify(x, z, w, start, end) => {
                 // get the id of the target array
                 let mut id = get_id(
                     x,
@@ -1343,6 +1344,7 @@ fn parser_to_instr_set(
                     instr_src,
                 );
 
+                instr_src.push((Instr::ArrayMod(id, elem_id, final_id), *start, *end));
                 output.push(Instr::ArrayMod(id, elem_id, final_id));
             }
             Expr::FunctionCall(args, namespace, start, end) => {
@@ -1440,12 +1442,20 @@ fn parser_to_instr_set(
                                 instr_src,
                             );
                             consts.push(Data::Null);
+                            instr_src.push((
+                                Instr::Bool(id, (consts.len() - 1) as u16),
+                                *start,
+                                *end,
+                            ));
                             output.push(Instr::Bool(id, (consts.len() - 1) as u16));
                         }
                         "input" => {
                             check_args_range!(args, 0, 1, "input", src.0, src.1, *start, *end);
-                            if !args.is_empty() {
-                                let id = get_id(
+                            let id = if args.is_empty() {
+                                consts.push(Data::String(Intern::from(String::new())));
+                                (consts.len() - 1) as u16
+                            } else {
+                                get_id(
                                     &args[0],
                                     v,
                                     consts,
@@ -1456,15 +1466,16 @@ fn parser_to_instr_set(
                                     id,
                                     src,
                                     instr_src,
-                                );
-                                consts.push(Data::Null);
-                                output.push(Instr::Input(id, (consts.len() - 1) as u16));
-                            } else {
-                                consts.push(Data::String(Intern::from(String::new())));
-                                let id = (consts.len() - 1) as u16;
-                                consts.push(Data::Null);
-                                output.push(Instr::Input(id, (consts.len() - 1) as u16));
-                            }
+                                )
+                            };
+                            consts.push(Data::Null);
+                            instr_src.push((
+                               Instr::Input(id, (consts.len() - 1) as u16),
+                                *start,
+                                *end,
+                            ));
+                            output.push(Instr::Input(id, (consts.len() - 1) as u16));
+
                         }
                         "range" => {
                             check_args_range!(args, 1, 2, "range", src.0, src.1, *start, *end);
