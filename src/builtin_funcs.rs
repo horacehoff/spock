@@ -1,27 +1,52 @@
 use crate::display::format_data;
 use crate::util::get_type;
-use crate::{Data, Num, error_b, is_float};
+use crate::{Data, Num, error_b, is_float, Instr, parser_error};
 use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
 use likely_stable::if_likely;
 use std::fs::OpenOptions;
 use std::io::Write;
+use ariadne::*;
+
+macro_rules! builtin_error {
+    ($instr_src: expr, $self_i:expr, $filename: expr, $src:expr, $general_error: expr, $msg:expr) => {
+        let (_, start, end) = $instr_src.iter().find(|(x, _, _)| x == &$self_i).unwrap();
+        parser_error!(
+            $filename,
+            $src,
+            *start,
+            *end,
+            $general_error,
+            $msg
+        );
+    };
+}
+
+macro_rules! type_error {
+    ($instr_src: expr, $self_i:expr, $filename: expr, $src:expr, $expected: expr, $received: expr) => {
+       builtin_error!($instr_src, $self_i, $filename, $src, "Invalid type", format_args!(
+            "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+            $expected, get_type($received),
+        ));
+    };
+}
+
 
 fn uppercase(
     tgt: u16,
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
     } else {
-        error_b!(format_args!(
-            "{color_red}{}{color_reset} is not a String",
-            format_data(consts[tgt as usize], arrs)
-        ));
+        type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -30,15 +55,15 @@ fn lowercase(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     if_likely! {let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
     } else {
-        error_b!(format_args!(
-            "{color_red}{}{color_reset} is not a String",
-            format_data(consts[tgt as usize], arrs)
-        ));
+       type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -47,7 +72,10 @@ fn contains(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
@@ -55,10 +83,10 @@ fn contains(
             if_likely! { let Data::String(arg) = consts[arg as usize] => {
                 consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
             } else {
-                error_b!(format_args!(
-                    "{color_red}{}{color_reset} is not a String",
-                    format_data(consts[arg as usize], arrays)
-                ));
+                builtin_error!(instr_src, self_i, filename, src, "Invalid argument type", format_args!(
+                "Expected string as argument, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                get_type(consts[arg as usize]),
+            ));
             }}
         }
         Data::Array(x) => {
@@ -66,10 +94,7 @@ fn contains(
             consts[dest as usize] = Data::Bool(arrays[&x].contains(&arg))
         }
         invalid => {
-            error_b!(format_args!(
-                "{color_red}{}{color_reset} is not a String",
-                format_data(invalid, arrays)
-            ));
+            type_error!(instr_src, self_i, filename, src, "string or array", invalid);
         }
     }
 }
@@ -79,24 +104,28 @@ fn trim(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
     } else {
-        error_b!(format_args!(
-            "{color_red}{}{color_reset} is not a String",
-            format_data(consts[tgt as usize], arrs)
-        ));
+        type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
+
 
 fn trim_sequence(
     tgt: u16,
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
@@ -105,16 +134,13 @@ fn trim_sequence(
             consts[dest as usize] =
                 Data::String(Intern::from(str.trim_matches(&chars[..]).to_string()));
         } else {
-            error_b!(format_args!(
-                "{color_red}{}{color_reset} is not a String",
-                format_data(consts[arg as usize], arrs)
+            builtin_error!(instr_src, self_i, filename, src, "Invalid argument type", format_args!(
+                "Expected string as argument, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                get_type(consts[arg as usize]),
             ));
         }}
     } else {
-        error_b!(format_args!(
-            "{color_red}{}{color_reset} is not a String",
-            format_data(consts[tgt as usize], arrs)
-        ));
+        type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -123,7 +149,10 @@ fn index(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
@@ -146,10 +175,7 @@ fn index(
             }) as Num);
         }
         invalid => {
-            error_b!(format_args!(
-                "Cannot index type {color_red}{}{color_reset}",
-                get_type(invalid)
-            ));
+            type_error!(instr_src, self_i, filename, src, "string or array", invalid);
         }
     }
 }
@@ -159,10 +185,15 @@ fn is_num(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,
+    _: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::Bool(str.parse::<f64>().is_ok())
+    } else {
+       type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -171,11 +202,16 @@ fn trim_left(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,
+    _: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim_start().to_string()))
-    }}
+     else {
+       type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
+    }}}
 }
 
 fn trim_right(
@@ -183,15 +219,15 @@ fn trim_right(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,
+    _: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim_end().to_string()))
     } else {
-        error_b!(format_args!(
-            "{color_red}{:?}{color_reset} is not a String",
-            consts[tgt as usize]
-        ));
+       type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -200,7 +236,10 @@ fn trim_sequence_left(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
@@ -209,16 +248,13 @@ fn trim_sequence_left(
             consts[dest as usize] =
                 Data::String(Intern::from(str.trim_start_matches(&chars[..]).to_string()));
         } else {
-            error_b!(format_args!(
-                "{color_red}{}{color_reset} is not a String",
-                format_data(consts[arg as usize], arrs)
+            builtin_error!(instr_src, self_i, filename, src, "Invalid argument type", format_args!(
+                "Expected string as argument, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                get_type(consts[arg as usize]),
             ));
         }}
     } else {
-        error_b!(format_args!(
-            "{color_red}{}{color_reset} is not a String",
-            format_data(consts[tgt as usize], arrs)
-        ));
+        type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -227,25 +263,25 @@ fn trim_sequence_right(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
-        let arg = args.swap_remove(0);
-        if_likely!{ let Data::String(arg) = consts[arg as usize] => {
+        let arg = consts[args.swap_remove(0) as usize];
+        if_likely!{ let Data::String(arg) = arg => {
             let chars: Vec<char> = arg.chars().collect();
             consts[dest as usize] =
                 Data::String(Intern::from(str.trim_end_matches(&chars[..]).to_string()));
         } else {
-            error_b!(format_args!(
-                "{color_red}{}{color_reset} is not a String",
-                format_data(consts[arg as usize], arrs)
+            builtin_error!(instr_src, self_i, filename, src, "Invalid argument type", format_args!(
+                "Expected string as argument, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                get_type(arg),
             ));
         }}
     } else {
-        error_b!(format_args!(
-            "{color_red}{:?}{color_blue} is not a String",
-            format_data(consts[tgt as usize], arrs)
-        ));
+        type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -254,7 +290,10 @@ fn rindex(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
@@ -264,9 +303,9 @@ fn rindex(
                     error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
                 }) as Num);
             } else {
-                error_b!(format_args!(
-                    "{color_red}{}{color_reset} is not a String",
-                    format_data(arg, arrays)
+                builtin_error!(instr_src, self_i, filename, src, "Invalid type", format_args!(
+                    "Expected string, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                    get_type(arg),
                 ));
             }}
         }
@@ -277,10 +316,7 @@ fn rindex(
             }) as Num);
         }
         invalid => {
-            error_b!(format_args!(
-                "Cannot index type {color_red}{}{color_reset}",
-                get_type(invalid)
-            ));
+            type_error!(instr_src, self_i, filename, src, "string or array", invalid);
         }
     }
 }
@@ -290,7 +326,10 @@ fn repeat(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
@@ -318,10 +357,7 @@ fn repeat(
             }}
         }
         invalid => {
-            error_b!(format_args!(
-                "{color_red}{}{color_reset} is not a String",
-                format_data(invalid, arrays)
-            ));
+            type_error!(instr_src, self_i, filename, src, "string or array", invalid);
         }
     }
 }
@@ -331,12 +367,15 @@ fn round(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     if_likely! {let Data::Number(num) = consts[tgt as usize] => {
         consts[dest as usize] = Data::Number(is_float!(num.round(),num));
     } else {
-        error_b!(format_args!("Cannot round {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
+        type_error!(instr_src, self_i, filename, src, "number", consts[tgt as usize]);
     }}
 }
 
@@ -345,12 +384,15 @@ fn abs(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     if_likely! {let Data::Number(num) = consts[tgt as usize] => {
         consts[dest as usize] = Data::Number(is_float!(num.abs(),num))
     } else {
-        error_b!(format_args!("Cannot get absolute value of {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
+        type_error!(instr_src, self_i, filename, src, "number", consts[tgt as usize]);
     }}
 }
 
@@ -359,14 +401,17 @@ fn read(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     if_likely! {let Data::File(path) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(std::fs::read_to_string(path.as_str()).unwrap_or_else(|_| {
             error_b!(format_args!("Cannot read file {color_red}{path}{color_reset}"));
         })))
     } else {
-        error_b!(format_args!("Cannot get absolute value of {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
+        type_error!(instr_src, self_i, filename, src, "file", consts[tgt as usize]);
     }}
 }
 
@@ -375,7 +420,10 @@ fn write(
     _: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     if_likely! {let Data::File(path) = consts[tgt as usize] => {
         if_likely!{let Data::String(contents) = consts[args.swap_remove(0) as usize] => {
@@ -391,7 +439,7 @@ fn write(
             }}
         }}
     } else {
-        error_b!(format_args!("Invalid file: {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
+        type_error!(instr_src, self_i, filename, src, "file", consts[tgt as usize]);
     }}
 }
 
@@ -400,7 +448,10 @@ fn reverse(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    self_i:Instr,
 ) {
     match consts[tgt as usize] {
         Data::Array(id) => {
@@ -419,15 +470,14 @@ fn reverse(
                 Data::String(Intern::from(str.chars().rev().collect::<String>()))
         }
         invalid => {
-            error_b!(format_args!(
-                "Cannot reverse type {color_red}{}{color_reset}",
-                get_type(invalid)
-            ));
+            type_error!(instr_src, self_i, filename, src, "string or array", invalid);
         }
     }
 }
 
-pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>); 18] = [
+pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>, &[(Instr, usize, usize)],
+                     &str,
+                     &str, Instr); 18] = [
     uppercase,
     lowercase,
     contains,

@@ -1543,6 +1543,7 @@ fn parser_to_instr_set(
                                 instr_src,
                             );
                             consts.push(Data::Null);
+                            instr_src.push((Instr::Num(id, (consts.len() - 1) as u16), *start, *end));
                             output.push(Instr::Num(id, (consts.len() - 1) as u16));
                         }
                         "the_answer" => {
@@ -1698,6 +1699,11 @@ fn parser_to_instr_set(
                                 )
                             };
 
+                            instr_src.push((Instr::IoOpen(
+                                arg_id,
+                                (consts.len() - 1) as u16,
+                                second_arg,
+                            ), *start, *end));
                             output.push(Instr::IoOpen(
                                 arg_id,
                                 (consts.len() - 1) as u16,
@@ -1718,6 +1724,7 @@ fn parser_to_instr_set(
                                 src,
                                 instr_src,
                             );
+                            instr_src.push((Instr::IoDelete(arg_id), *start, *end));
                             output.push(Instr::IoDelete(arg_id));
                         }
                         _ => {
@@ -1814,6 +1821,7 @@ fn parser_to_instr_set(
                         check_args!(args, 0, "len", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
+                        instr_src.push((Instr::Len(id, f_id), *start, *end));
                         output.push(Instr::Len(id, f_id));
                     }
                     "contains" => {
@@ -1928,6 +1936,7 @@ fn parser_to_instr_set(
                             instr_src,
                         );
 
+                        instr_src.push((Instr::Push(id, arg_id), *start, *end));
                         output.push(Instr::Push(id, arg_id));
                     }
                     "sqrt" => {
@@ -1936,6 +1945,7 @@ fn parser_to_instr_set(
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
 
+                        instr_src.push((Instr::Sqrt(id, f_id), *start, *end));
                         output.push(Instr::Sqrt(id, f_id));
                     }
                     "round" => {
@@ -2004,6 +2014,7 @@ fn parser_to_instr_set(
                             instr_src,
                         );
                         consts.push(Data::Null);
+                        instr_src.push((Instr::Split(id, arg_id, (consts.len() - 1) as u16), *start, *end));
                         output.push(Instr::Split(id, arg_id, (consts.len() - 1) as u16));
                     }
                     "remove" => {
@@ -2020,6 +2031,7 @@ fn parser_to_instr_set(
                             src,
                             instr_src,
                         );
+                        instr_src.push((Instr::Remove(id, arg_id), *start, *end));
                         output.push(Instr::Remove(id, arg_id));
                     }
                     _ => {

@@ -478,7 +478,7 @@ pub fn execute(
             }
             Instr::StoreFuncArg(id) => func_args.push(id),
             Instr::CallFunc(fctn_id, tgt, dest) => {
-                FUNCS[fctn_id as usize](tgt, dest, consts, func_args, arrays);
+                FUNCS[fctn_id as usize](tgt, dest, consts, func_args, arrays, instr_src,src, filename, Instr::CallFunc(fctn_id, tgt, dest));
             }
             // takes tgt from consts, moves it to dest-th array at idx-th index
             Instr::ArrayMov(tgt, dest, idx) => {
@@ -605,8 +605,7 @@ pub fn execute(
                 }}
             }
             Instr::Range(min, max, dest) => {
-                if_likely! {
-                    let Data::Number(x) = consts[min as usize] => {
+                if_likely! {let Data::Number(x) = consts[min as usize] => {
                         if_likely! {let Data::Number(y) = consts[max as usize] => {
                             let id = arrays.len() as u16;
                             arrays.insert(id, (x as u64..y as u64).map(|x| Data::Number(x as Num)).collect());
@@ -620,37 +619,41 @@ pub fn execute(
                     if_likely!{let Data::Bool(create) = consts[create as usize] => {
                         if create {
                             File::create(str.as_str()).unwrap_or_else(|_| {
-                                error_b!(format_args!("Cannot create file {color_red}{str}{color_reset}"));
+                                // error_b!(format_args!("Cannot create file {color_red}{str}{color_reset}"));
+                                todo!()
                             });
                         } else if unlikely(!fs::exists(str.as_str()).unwrap_or_else(|_| {
-                            error_b!(format_args!("Cannot check existence of file {color_red}{str}{color_reset}"));
+                                todo!()
+                            // error_b!(format_args!("Cannot check existence of file {color_red}{str}{color_reset}"));
                         })) {
-                            error_b!(format_args!("File {color_red}{str}{color_reset} does not exist"));
+                            // error_b!(format_args!("File {color_red}{str}{color_reset} does not exist"));
                         }
                         consts[dest as usize] = Data::File(str);
                     } else {
-                        error_b!(format_args!("Invalid create option: {color_red}{}{color_reset}", format_data(consts[create as usize], arrays)));
+                        // error_b!(format_args!("Invalid create option: {color_red}{}{color_reset}", format_data(consts[create as usize], arrays)));
                     }}
                 } else {
-                    error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", format_data(consts[path as usize], arrays)));
+                    // error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", format_data(consts[path as usize], arrays)));
                 }}
             }
             Instr::IoDelete(path) => {
                 if_likely! {let Data::String(str) = consts[path as usize] => {
                     fs::remove_file(str.as_str()).unwrap_or_else(|_| {
-                        error_b!(format_args!("Cannot remove file {color_red}{str}{color_reset}"));
+                        // error_b!(format_args!("Cannot remove file {color_red}{str}{color_reset}"));
+                        todo!()
                     });
                 } else {
-                    error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", format_data(consts[path as usize], arrays)));
+                    todo!()
+                    // error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", format_data(consts[path as usize], arrays)));
                 }}
             }
             Instr::Floor(tgt, dest) => {
                 if_likely! {let Data::Number(x) = consts[tgt as usize] => {
                     consts[dest as usize] = Data::Number(is_float!(x.floor(),x));
                 } else {
-                    error_b!(format_args!(
-                        "Cannot floor {color_red}{}{color_reset}",
-                        format_data(consts[tgt as usize], arrays)
+                    error(Instr::Floor(tgt, dest), "Invalid type", format_args!(
+                        "Cannot floor type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                        get_type(consts[tgt as usize])
                     ));
                 }}
             }
@@ -667,16 +670,16 @@ pub fn execute(
                         .unwrap()
                         .push(consts[element as usize]);
                 } else {
-                    error_b!(format_args!("Cannot push element to {color_red}{}{color_reset}", format_data(consts[array as usize], arrays)));
+                    error(Instr::Push(array, element), "Invalid type", format_args!("Cannot push element to {color_bright_blue}{style_bold}{}{color_reset}{style_reset}", format_data(consts[array as usize], arrays)));
                 }}
             }
             Instr::Len(tgt, dest) => {
-                consts[dest as usize] = match consts[tgt as usize] {
-                    Data::Array(arr) => Data::Number(arrays[&arr].len() as Num),
-                    Data::String(str) => Data::Number(str.chars().count() as Num),
+                match consts[tgt as usize] {
+                    Data::Array(arr) => consts[dest as usize] = Data::Number(arrays[&arr].len() as Num),
+                    Data::String(str) => consts[dest as usize] = Data::Number(str.chars().count() as Num),
                     x => {
-                        error_b!(format_args!(
-                            "Cannot get length of type {color_red}{}{color_reset}",
+                        error(Instr::Len(tgt, dest), "Invalid type", format_args!(
+                            "Cannot get length of type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                             get_type(x)
                         ));
                     }
@@ -686,7 +689,7 @@ pub fn execute(
                 if_likely! {let Data::Number(num) = consts[tgt as usize] => {
                     consts[dest as usize] = Data::Number(is_float!(num.sqrt(), num.isqrt()))
                 } else {
-                    error_b!(format_args!("Cannot compute square root of {color_red}{}{color_reset}", format_data(consts[tgt as usize], arrays)));
+                    error(Instr::Sqrt(tgt, dest), "Invalid type", format_args!("Cannot compute square root of {color_bright_blue}{style_bold}{}{color_reset}{style_reset}", format_data(consts[tgt as usize], arrays)));
                 }}
             }
             Instr::Split(tgt, sep, dest) => match consts[tgt as usize] {
@@ -701,10 +704,7 @@ pub fn execute(
                         );
                         consts[dest as usize] = Data::Array(id);
                     } else {
-                        error_b!(format_args!(
-                            "Invalid string separator: {color_red}{:?}{color_reset}",
-                            consts[sep as usize]
-                        ));
+                        error(Instr::Split(tgt, sep, dest), "Invalid separator", format_args!("Invalid string separator: {color_bright_blue}{style_bold}{}{color_reset}{style_reset}", format_data(consts[sep as usize], arrays)));
                     }}
                 }
                 Data::Array(array_id) => {
@@ -721,20 +721,21 @@ pub fn execute(
                     consts[dest as usize] = Data::Array(id);
                 }
                 invalid => {
-                    error_b!(format_args!(
-                        "Cannot split type {color_red}{}{color_reset}",
-                        get_type(invalid)
-                    ));
+                    error(Instr::Split(tgt, sep, dest), "Invalid type", format_args!("Cannot split type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}", get_type(invalid)));
                 }
             },
             Instr::Remove(array, idx) => {
                 if_likely! {let Data::Number(idx) = consts[idx as usize] => {
                         arrays.get_mut(&array).unwrap().remove(idx as usize);
                 } else {
-                    error_b!(format_args!(
-                        "Invalid index: {color_red}{:?}{color_reset}",
-                        consts[idx as usize]
-                    ));
+                    error(
+                        Instr::Remove(array, idx),
+                        "Invalid index",
+                        format_args!(
+                            "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a valid index",
+                             format_data(consts[idx as usize], arrays)
+                        ),
+                    );
                 }
                 }
             }
