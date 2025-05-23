@@ -45,7 +45,6 @@ macro_rules! is_float {
     }};
 }
 
-
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Data {
@@ -167,6 +166,22 @@ pub fn execute(
                 "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{op}{color_bright_blue} {}{color_reset}{style_reset}",
                 get_type(l),
                 get_type(r)
+            )
+        );
+    };
+
+    let instr_type_error = |instr: Instr, expected: &str, r: Data| {
+        let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &instr).unwrap();
+        parser_error!(
+            filename,
+            src,
+            *start,
+            *end,
+            "Invalid operation",
+            format_args!(
+                "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                expected,
+                get_type(r),
             )
         );
     };
@@ -478,7 +493,17 @@ pub fn execute(
             }
             Instr::StoreFuncArg(id) => func_args.push(id),
             Instr::CallFunc(fctn_id, tgt, dest) => {
-                FUNCS[fctn_id as usize](tgt, dest, consts, func_args, arrays, instr_src,src, filename, Instr::CallFunc(fctn_id, tgt, dest));
+                FUNCS[fctn_id as usize](
+                    tgt,
+                    dest,
+                    consts,
+                    func_args,
+                    arrays,
+                    instr_src,
+                    src,
+                    filename,
+                    Instr::CallFunc(fctn_id, tgt, dest),
+                );
             }
             // takes tgt from consts, moves it to dest-th array at idx-th index
             Instr::ArrayMov(tgt, dest, idx) => {
@@ -675,13 +700,21 @@ pub fn execute(
             }
             Instr::Len(tgt, dest) => {
                 match consts[tgt as usize] {
-                    Data::Array(arr) => consts[dest as usize] = Data::Number(arrays[&arr].len() as Num),
-                    Data::String(str) => consts[dest as usize] = Data::Number(str.chars().count() as Num),
+                    Data::Array(arr) => {
+                        consts[dest as usize] = Data::Number(arrays[&arr].len() as Num)
+                    }
+                    Data::String(str) => {
+                        consts[dest as usize] = Data::Number(str.chars().count() as Num)
+                    }
                     x => {
-                        error(Instr::Len(tgt, dest), "Invalid type", format_args!(
-                            "Cannot get length of type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            get_type(x)
-                        ));
+                        error(
+                            Instr::Len(tgt, dest),
+                            "Invalid type",
+                            format_args!(
+                                "Cannot get length of type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                                get_type(x)
+                            ),
+                        );
                     }
                 };
             }
@@ -721,7 +754,14 @@ pub fn execute(
                     consts[dest as usize] = Data::Array(id);
                 }
                 invalid => {
-                    error(Instr::Split(tgt, sep, dest), "Invalid type", format_args!("Cannot split type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}", get_type(invalid)));
+                    error(
+                        Instr::Split(tgt, sep, dest),
+                        "Invalid type",
+                        format_args!(
+                            "Cannot split type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                            get_type(invalid)
+                        ),
+                    );
                 }
             },
             Instr::Remove(array, idx) => {

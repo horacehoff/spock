@@ -1,47 +1,48 @@
 use crate::display::format_data;
 use crate::util::get_type;
-use crate::{Data, Num, error_b, is_float, Instr, parser_error};
+use crate::{Data, Instr, Num, error_b, is_float, parser_error};
+use ariadne::*;
 use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
 use likely_stable::if_likely;
 use std::fs::OpenOptions;
 use std::io::Write;
-use ariadne::*;
 
 macro_rules! builtin_error {
     ($instr_src: expr, $self_i:expr, $filename: expr, $src:expr, $general_error: expr, $msg:expr) => {
         let (_, start, end) = $instr_src.iter().find(|(x, _, _)| x == &$self_i).unwrap();
-        parser_error!(
-            $filename,
-            $src,
-            *start,
-            *end,
-            $general_error,
-            $msg
-        );
+        parser_error!($filename, $src, *start, *end, $general_error, $msg);
     };
 }
 
 macro_rules! type_error {
     ($instr_src: expr, $self_i:expr, $filename: expr, $src:expr, $expected: expr, $received: expr) => {
-       builtin_error!($instr_src, $self_i, $filename, $src, "Invalid type", format_args!(
-            "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-            $expected, get_type($received),
-        ));
+        builtin_error!(
+            $instr_src,
+            $self_i,
+            $filename,
+            $src,
+            "Invalid type",
+            format_args!(
+                "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                $expected,
+                get_type($received),
+            )
+        );
     };
 }
-
 
 fn uppercase(
     tgt: u16,
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
@@ -55,10 +56,11 @@ fn lowercase(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     if_likely! {let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
@@ -72,10 +74,11 @@ fn contains(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
@@ -104,10 +107,11 @@ fn trim(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
@@ -116,16 +120,16 @@ fn trim(
     }}
 }
 
-
 fn trim_sequence(
     tgt: u16,
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
@@ -149,10 +153,11 @@ fn index(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
@@ -185,10 +190,11 @@ fn is_num(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    _: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::Bool(str.parse::<f64>().is_ok())
@@ -202,16 +208,17 @@ fn trim_left(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    _: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
-        consts[dest as usize] = Data::String(Intern::from(str.trim_start().to_string()))
-     else {
+        consts[dest as usize] = Data::String(Intern::from(str.trim_start().to_string()));
+    } else {
        type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
-    }}}
+    }}
 }
 
 fn trim_right(
@@ -219,10 +226,11 @@ fn trim_right(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    _: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim_end().to_string()))
@@ -236,10 +244,11 @@ fn trim_sequence_left(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
@@ -263,10 +272,11 @@ fn trim_sequence_right(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = consts[args.swap_remove(0) as usize];
@@ -290,10 +300,11 @@ fn rindex(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
@@ -326,10 +337,11 @@ fn repeat(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
@@ -367,10 +379,11 @@ fn round(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     if_likely! {let Data::Number(num) = consts[tgt as usize] => {
         consts[dest as usize] = Data::Number(is_float!(num.round(),num));
@@ -384,10 +397,11 @@ fn abs(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     if_likely! {let Data::Number(num) = consts[tgt as usize] => {
         consts[dest as usize] = Data::Number(is_float!(num.abs(),num))
@@ -401,10 +415,11 @@ fn read(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     if_likely! {let Data::File(path) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(std::fs::read_to_string(path.as_str()).unwrap_or_else(|_| {
@@ -420,10 +435,11 @@ fn write(
     _: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     if_likely! {let Data::File(path) = consts[tgt as usize] => {
         if_likely!{let Data::String(contents) = consts[args.swap_remove(0) as usize] => {
@@ -448,10 +464,11 @@ fn reverse(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,instr_src: &[(Instr, usize, usize)],
+    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
-    self_i:Instr,
+    self_i: Instr,
 ) {
     match consts[tgt as usize] {
         Data::Array(id) => {
@@ -475,9 +492,17 @@ fn reverse(
     }
 }
 
-pub const FUNCS: [fn(u16, u16, &mut [Data], &mut Vec<u16>, &mut FnvHashMap<u16, Vec<Data>>, &[(Instr, usize, usize)],
-                     &str,
-                     &str, Instr); 18] = [
+pub const FUNCS: [fn(
+    u16,
+    u16,
+    &mut [Data],
+    &mut Vec<u16>,
+    &mut FnvHashMap<u16, Vec<Data>>,
+    &[(Instr, usize, usize)],
+    &str,
+    &str,
+    Instr,
+); 18] = [
     uppercase,
     lowercase,
     contains,
