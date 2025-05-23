@@ -151,7 +151,7 @@ InlineConditionalBlock: Expr = {
 
 
 MatchBlock:Expr = {
-    "match" <match_obj: Expression> "{" <o2: (Expression "=>" Block<Code>)+> <o3: ("_" "=>" Block<Code>)?> "}" => {
+    "match" <match_obj: Expression> "{" <o2: (Expression "=>" Block<Code>)+> <o3: (r"[a-zA-Z_]+\s*=>" Block<Code>)?> "}" => {
         let mut output_code:Vec<Expr> = o2.into_iter().enumerate().map(|(i,(condition,_,code))|
             if i == 0 {condition}
             else {
@@ -167,7 +167,7 @@ MatchBlock:Expr = {
             }
         ).collect();
 
-        if let Some((_,_,wildcard_code)) = o3 {
+        if let Some((_,wildcard_code)) = o3 {
             output_code.push(Expr::ElseBlock(wildcard_code))
         }
 

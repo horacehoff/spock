@@ -127,6 +127,7 @@ while i < 10 {
 ```
 ### For loops
 ```rs
+// NOTE: using _ as the variable name in a for loop will discard the value, making the program faster, but restricting access to the element
 for x in [0,1,2,3] {
   for y in "abcd" {
     print(x);

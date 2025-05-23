@@ -854,5 +854,6 @@ fn main() {
         &contents,
         &filename,
     );
-    println!("EXEC TIME {:.2?}", now.elapsed());
+    let end = now.elapsed();
+    println!("EXEC TIME {:.2?}", end);
 }

@@ -37,8 +37,8 @@ pub enum Expr {
 
     ReturnVal(Box<Option<Expr>>),
 
-    GetIndex(Box<Expr>, Box<[Expr]>,usize,usize),
-    ArrayModify(Box<Expr>, Box<[Expr]>, Box<Expr>, usize,usize),
+    GetIndex(Box<Expr>, Box<[Expr]>, usize, usize),
+    ArrayModify(Box<Expr>, Box<[Expr]>, Box<Expr>, usize, usize),
 
     // id name -- array as first + code
     ForLoop(Intern<String>, Box<[Expr]>),
@@ -932,7 +932,7 @@ fn parser_to_instr_set(
                 print!("ARRAYS {arrs:?}");
             }
             // array[index]
-            Expr::GetIndex(target, index, start,end) => {
+            Expr::GetIndex(target, index, start, end) => {
                 // process the array/string that is being indexed
                 let mut id = get_id(
                     target,
@@ -961,7 +961,11 @@ fn parser_to_instr_set(
                         instr_src,
                     );
                     consts.push(Data::Null);
-                    instr_src.push((Instr::GetIndex(id, f_id, (consts.len() - 1) as u16), *start, *end));
+                    instr_src.push((
+                        Instr::GetIndex(id, f_id, (consts.len() - 1) as u16),
+                        *start,
+                        *end,
+                    ));
                     output.push(Instr::GetIndex(id, f_id, (consts.len() - 1) as u16));
                     id = (consts.len() - 1) as u16;
                 }
@@ -1130,6 +1134,8 @@ fn parser_to_instr_set(
                 output.push(Instr::Jmp(len, true));
             }
             Expr::ForLoop(var_name, array_code) => {
+                let real_var = var_name.as_str() != "_";
+
                 // parse the array, get its id (the target array is the first Expr in array_code)
                 let array = array_code.first().unwrap();
                 let code = &array_code[1..];
@@ -1166,8 +1172,10 @@ fn parser_to_instr_set(
                 output.push(Instr::Inf(index_id, array_len_id, condition_id));
 
                 // set up the variable for the current element (for current_element_id in ... {}) => current_element_id = array[index]
-                consts.push(Data::Null);
-                let current_element_id = (consts.len() - 1) as u16;
+                let current_element_id = consts.len() as u16;
+                if real_var {
+                    consts.push(Data::Null);
+                }
 
                 // parse everything, add the current element variable to temp_vars so that the loop code can interact with it
                 let mut temp_vars = v.clone();
@@ -1191,11 +1199,13 @@ fn parser_to_instr_set(
                 temp_vars.remove(current_element_variable_id);
 
                 // add the condition ('i < len') jumping logic
-                let mut len = (cond_code.len() + 4) as u16;
+                let mut len = (cond_code.len() + 3) as u16 + if real_var { 1 } else { 0 };
                 add_cmp(condition_id, &mut len, &mut output, true);
 
                 // instruction to make current_element actually hold the array index's value
-                output.push(Instr::GetIndex(array, index_id, current_element_id));
+                if real_var {
+                    output.push(Instr::GetIndex(array, index_id, current_element_id));
+                }
                 parse_loop_flow_control(&mut cond_code, loop_id, len, true);
                 // then add the condition code
                 output.extend(cond_code);
@@ -1470,12 +1480,11 @@ fn parser_to_instr_set(
                             };
                             consts.push(Data::Null);
                             instr_src.push((
-                               Instr::Input(id, (consts.len() - 1) as u16),
+                                Instr::Input(id, (consts.len() - 1) as u16),
                                 *start,
                                 *end,
                             ));
                             output.push(Instr::Input(id, (consts.len() - 1) as u16));
-
                         }
                         "range" => {
                             check_args_range!(args, 1, 2, "range", src.0, src.1, *start, *end);
@@ -1543,7 +1552,11 @@ fn parser_to_instr_set(
                                 instr_src,
                             );
                             consts.push(Data::Null);
-                            instr_src.push((Instr::Num(id, (consts.len() - 1) as u16), *start, *end));
+                            instr_src.push((
+                                Instr::Num(id, (consts.len() - 1) as u16),
+                                *start,
+                                *end,
+                            ));
                             output.push(Instr::Num(id, (consts.len() - 1) as u16));
                         }
                         "the_answer" => {
@@ -1699,11 +1712,11 @@ fn parser_to_instr_set(
                                 )
                             };
 
-                            instr_src.push((Instr::IoOpen(
-                                arg_id,
-                                (consts.len() - 1) as u16,
-                                second_arg,
-                            ), *start, *end));
+                            instr_src.push((
+                                Instr::IoOpen(arg_id, (consts.len() - 1) as u16, second_arg),
+                                *start,
+                                *end,
+                            ));
                             output.push(Instr::IoOpen(
                                 arg_id,
                                 (consts.len() - 1) as u16,
@@ -2014,7 +2027,11 @@ fn parser_to_instr_set(
                             instr_src,
                         );
                         consts.push(Data::Null);
-                        instr_src.push((Instr::Split(id, arg_id, (consts.len() - 1) as u16), *start, *end));
+                        instr_src.push((
+                            Instr::Split(id, arg_id, (consts.len() - 1) as u16),
+                            *start,
+                            *end,
+                        ));
                         output.push(Instr::Split(id, arg_id, (consts.len() - 1) as u16));
                     }
                     "remove" => {
@@ -2101,7 +2118,7 @@ pub fn parse(
             std::process::exit(1);
         });
     println!("LALRPOP TIME {:.2?}", now.elapsed());
-    println!("FUNCS {functions:?}");
+    // println!("FUNCS {functions:?}");
     let mut functions: Vec<Function> = functions
         .into_iter()
         .map(|w| {
@@ -2113,7 +2130,7 @@ pub fn parse(
         })
         .collect();
 
-    print!("{functions:?}");
+    // print!("{functions:?}");
 
     let mut variables: Vec<(Intern<String>, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
@@ -2138,9 +2155,9 @@ pub fn parse(
         (filename, contents),
         &mut instr_src,
     );
-    print!("CONSTS are {consts:?}");
-    print!("{consts:?}");
-    print!("{arrays:?}");
+    // print!("CONSTS are {consts:?}");
+    // print!("{consts:?}");
+    // print!("{arrays:?}");
     #[cfg(debug_assertions)]
     {
         print_instructions(&instructions);
