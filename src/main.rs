@@ -849,7 +849,7 @@ fn main() {
         &mut consts,
         &mut Vec::with_capacity(func_args_count),
         &mut arrays,
-        &mut Vec::with_capacity(call_stack_count * 2),
+        &mut Vec::with_capacity(call_stack_count),
         &instr_src,
         &contents,
         &filename,

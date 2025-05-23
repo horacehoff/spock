@@ -51,7 +51,7 @@ end</code></pre></td>
  </tr>
 <tr>
 <td>
-0.0023s (404x faster)
+0.002s (465x faster)
 </td>
 <td>
 0.93s
