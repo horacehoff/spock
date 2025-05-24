@@ -177,9 +177,9 @@ pub fn execute(
             src,
             *start,
             *end,
-            "Invalid operation",
+            "Invalid type",
             format_args!(
-                "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                "Expected {} but found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                 expected,
                 get_type(r),
             )
@@ -473,22 +473,14 @@ pub fn execute(
                 }}
             }
             Instr::Input(msg, dest) => {
-                let base = consts[msg as usize];
-                if_likely! {let Data::String(str) = base => {
+                if_likely! {let Data::String(str) = consts[msg as usize] => {
                     println!("{str}");
                     std::io::stdout().flush().unwrap();
                     let mut line = String::new();
                     std::io::stdin().read_line(&mut line).unwrap();
                     consts[dest as usize] = Data::String(Intern::from(line.trim().to_string()));
                 } else {
-                    error(
-                        Instr::Input(msg, dest),
-                        "Invalid type",
-                        format_args!(
-                            "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a string",
-                            format_data(base, arrays)
-                        ),
-                    );
+                    instr_type_error(Instr::Input(msg, dest), "string", consts[msg as usize]);
                 }}
             }
             Instr::StoreFuncArg(id) => func_args.push(id),

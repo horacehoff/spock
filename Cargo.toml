@@ -23,6 +23,14 @@ panic = 'unwind'
 debug-assertions = true
 opt-level = 1
 
+[profile.opt]
+inherits = "dev"
+opt-level = 1
+lto = "fat"
+debug = false
+strip = true
+debug-assertions = false
+
 [profile.release]
 opt-level = 3
 lto = "fat"

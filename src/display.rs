@@ -1,12 +1,12 @@
-use std::fmt::Formatter;
 use crate::parser::Expr;
 use crate::{Data, Instr, format_lines};
 use ariadne::*;
 use concat_string::concat_string;
 use fnv::FnvHashMap;
 use inline_colorization::*;
+use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
-use lalrpop_util::{ParseError};
+use std::fmt::Formatter;
 
 pub fn format_data(x: Data, arrays: &FnvHashMap<u16, Vec<Data>>) -> String {
     match x {
@@ -63,7 +63,7 @@ impl std::fmt::Display for Expr {
                         .join(""),
                 )
             }
-            Expr::FunctionDecl(x, y,_,_) => {
+            Expr::FunctionDecl(x, y, _, _) => {
                 write!(
                     f,
                     "fn {}({}) {{\n{}}}",
@@ -179,7 +179,7 @@ macro_rules! parser_error {
     ($filename: expr,
     $source: expr,
     $start: expr,
-   $end: expr,
+    $end: expr,
     $error_general: expr,
     $msg:expr,
     $note: expr
@@ -200,6 +200,7 @@ macro_rules! parser_error {
     };
 }
 
+#[cold]
 pub fn lalrpop_error<'a, L, T, E>(x: ParseError<usize, T, &str>, file: &str, filename: &str)
 where
     Token<'a>: From<T>,
