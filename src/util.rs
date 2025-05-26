@@ -1,5 +1,5 @@
-use crate::Data;
 use crate::parser::{DataType, Expr};
+use crate::Data;
 
 #[macro_export]
 macro_rules! error {

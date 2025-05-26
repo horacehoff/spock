@@ -1,11 +1,11 @@
 use crate::parser::Expr;
-use crate::{Data, Instr, format_lines};
+use crate::{format_lines, Data, Instr};
 use ariadne::*;
 use concat_string::concat_string;
 use fnv::FnvHashMap;
 use inline_colorization::*;
-use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
+use lalrpop_util::ParseError;
 use std::fmt::Formatter;
 
 pub fn format_data(x: Data, arrays: &FnvHashMap<u16, Vec<Data>>) -> String {
