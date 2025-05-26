@@ -1,7 +1,7 @@
 use crate::parser::Expr;
 use crate::{Data, Instr};
-use fnv::FnvHashMap;
 use internment::Intern;
+use slab::Slab;
 
 pub fn while_loop_summation(
     output: &mut Vec<Instr>,
@@ -68,7 +68,7 @@ pub fn for_loop_summation(
     output: &mut Vec<Instr>,
     consts: &mut Vec<Data>,
     v: &mut [(Intern<String>, u16)],
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut Slab<Vec<Data>>,
     array: u16,
     code: &[Expr],
 ) -> bool {

@@ -4,7 +4,6 @@ use crate::util::format_type;
 use ariadne::*;
 use builtin_funcs::FUNCS;
 use concat_string::concat_string;
-use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
 use likely_stable::{if_likely, likely, unlikely};
@@ -16,6 +15,7 @@ use std::fs::File;
 use std::hint::unreachable_unchecked;
 use std::io::Write;
 use std::time::Instant;
+use slab::Slab;
 
 mod builtin_funcs;
 mod display;
@@ -52,7 +52,7 @@ pub enum Data {
     Number(Num),
     Bool(bool),
     String(Intern<String>),
-    Array(u16),
+    Array(usize),
     Null,
     File(Intern<String>),
 }
@@ -152,7 +152,7 @@ pub fn execute(
     instructions: &[Instr],
     consts: &mut [Data],
     func_args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut Slab<Vec<Data>>,
     call_stack: &mut Vec<CallFrame>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
@@ -251,14 +251,13 @@ pub fn execute(
             }
             Instr::ArrayAdd(o1, o2, dest) => {
                 if_likely! {let (Data::Array(a), Data::Array(b)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                    let id = arrays.len() as u16;
-                    let arr_a = &arrays[&a];
-                    let arr_b = &arrays[&b];
+                    let arr_a = &arrays[a];
+                    let arr_b = &arrays[b];
 
                     let mut combined = Vec::with_capacity(arr_a.len() + arr_b.len());
                     combined.extend_from_slice(arr_a);
                     combined.extend_from_slice(arr_b);
-                    arrays.insert(id, combined);
+                    let id = arrays.insert(combined);
                     consts[dest as usize] = Data::Array(id);
                 } else {
                     instr_op_error(Instr::ArrayAdd(o1, o2, dest), "+",consts[o1 as usize], consts[o2 as usize]);
@@ -304,7 +303,7 @@ pub fn execute(
             }
             Instr::ArrayEq(o1, o2, dest) => {
                 if_likely! {let (Data::Array(a1),Data::Array(a2)) = (consts[o1 as usize],consts[o2 as usize]) => {
-                    consts[dest as usize] = Data::Bool(arrays[&a1] == arrays[&a2])
+                    consts[dest as usize] = Data::Bool(arrays[a1] == arrays[a2])
                 }}
             }
             Instr::EqCmp(o1, o2, jump_size) => {
@@ -315,7 +314,7 @@ pub fn execute(
             }
             Instr::ArrayEqCmp(o1, o2, jump_size) => {
                 if_likely! {let (Data::Array(a1),Data::Array(a2)) = (consts[o1 as usize],consts[o2 as usize]) => {
-                    if arrays[&a1] != arrays[&a2] {
+                    if arrays[a1] != arrays[a2] {
                         i += jump_size as usize;
                         continue;
                     }
@@ -326,7 +325,7 @@ pub fn execute(
             }
             Instr::ArrayNotEq(o1, o2, dest) => {
                 if_likely! {let (Data::Array(a1),Data::Array(a2)) = (consts[o1 as usize],consts[o2 as usize]) => {
-                    consts[dest as usize] = Data::Bool(arrays[&a1] != arrays[&a2])
+                    consts[dest as usize] = Data::Bool(arrays[a1] != arrays[a2])
                 }}
             }
             Instr::NotEqCmp(o1, o2, jump_size) => {
@@ -337,7 +336,7 @@ pub fn execute(
             }
             Instr::ArrayNotEqCmp(o1, o2, jump_size) => {
                 if_likely! {let (Data::Array(a1),Data::Array(a2)) = (consts[o1 as usize],consts[o2 as usize]) => {
-                    if arrays[&a1] == arrays[&a2] {
+                    if arrays[a1] == arrays[a2] {
                         i += jump_size as usize;
                         continue;
                     }
@@ -537,14 +536,14 @@ pub fn execute(
             }
             // takes tgt from consts, moves it to dest-th array at idx-th index
             Instr::ArrayMov(tgt, dest, idx) => {
-                arrays.get_mut(&dest).unwrap()[idx as usize] = consts[tgt as usize];
+                // arrays.get_mut(dest).unwrap()[idx as usize] = consts[tgt as usize];
             }
             // takes tgt from consts, idx from consts,
             Instr::ArrayMod(tgt, dest, idx) => {
                 if_likely! {let Data::Number(index) = consts[idx as usize] => {
                     let requested_mod = consts[dest as usize];
                     if let Data::Array(array_id) = consts[tgt as usize] {
-                        let array = arrays.get_mut(&array_id).unwrap();
+                        let array = arrays.get_mut(array_id).unwrap();
                         print!("ARRAY is {array:?}");
                         if likely(array.len() > index as usize) {
                             array[index as usize] = requested_mod;
@@ -605,7 +604,7 @@ pub fn execute(
                     let idx = idx as usize;
                     match consts[tgt as usize] {
                         Data::Array(x) => {
-                            let array = &arrays[&x];
+                            let array = &arrays[x];
                             if likely(array.len() > idx) {
                                 consts[dest as usize] = array[idx];
                             } else {
@@ -662,8 +661,7 @@ pub fn execute(
             Instr::Range(min, max, dest) => {
                 if_likely! {let Data::Number(x) = consts[min as usize] => {
                         if_likely! {let Data::Number(y) = consts[max as usize] => {
-                            let id = arrays.len() as u16;
-                            arrays.insert(id, (x as u64..y as u64).map(|x| Data::Number(x as Num)).collect());
+                            let id = arrays.insert((x as u64..y as u64).map(|x| Data::Number(x as Num)).collect());
                             consts[dest as usize] = Data::Array(id);
                         }}
                     }
@@ -721,7 +719,7 @@ pub fn execute(
             Instr::Push(array, element) => {
                 if_likely! {let Data::Array(id) = consts[array as usize] => {
                     arrays
-                        .get_mut(&id)
+                        .get_mut(id)
                         .unwrap()
                         .push(consts[element as usize]);
                 } else {
@@ -731,7 +729,7 @@ pub fn execute(
             Instr::Len(tgt, dest) => {
                 match consts[tgt as usize] {
                     Data::Array(arr) => {
-                        consts[dest as usize] = Data::Number(arrays[&arr].len() as Num)
+                        consts[dest as usize] = Data::Number(arrays[arr].len() as Num)
                     }
                     Data::String(str) => {
                         consts[dest as usize] = Data::Number(str.chars().count() as Num)
@@ -758,9 +756,7 @@ pub fn execute(
             Instr::Split(tgt, sep, dest) => match consts[tgt as usize] {
                 Data::String(str) => {
                     if_likely! { let Data::String(separator) = consts[sep as usize] => {
-                        let id = arrays.len() as u16;
-                        arrays.insert(
-                            id,
+                        let id = arrays.insert(
                             str.split(separator.as_str())
                                 .map(|x| Data::String(Intern::from_ref(x)))
                                 .collect(),
@@ -771,17 +767,16 @@ pub fn execute(
                     }}
                 }
                 Data::Array(array_id) => {
-                    let array = arrays[&array_id].to_vec();
-                    let split = array.split(|x| x == &consts[sep as usize]);
-                    let base_id = arrays.len() as u16;
-                    arrays.extend(
-                        split
-                            .enumerate()
-                            .map(|(i, x)| (base_id + i as u16, x.to_vec())),
-                    );
-                    let id = arrays.len() as u16;
-                    arrays.insert(id, (base_id..id).map(Data::Array).collect());
-                    consts[dest as usize] = Data::Array(id);
+                    // let array = arrays[array_id].to_vec();
+                    // let split = array.split(|x| x == &consts[sep as usize]);
+                    // let base_id = arrays.len() as u16;
+                    // arrays.extend(
+                    //     split
+                    //         .enumerate()
+                    //         .map(|(i, x)| (base_id + i as u16, x.to_vec())),
+                    // );
+                    // let id = arrays.insert((base_id..arrays.len() as u16).map(Data::Array).collect());
+                    // consts[dest as usize] = Data::Array(id);
                 }
                 invalid => {
                     error(
@@ -796,7 +791,7 @@ pub fn execute(
             },
             Instr::Remove(array, idx) => {
                 if_likely! {let Data::Number(idx) = consts[idx as usize] => {
-                        arrays.get_mut(&array).unwrap().remove(idx as usize);
+                        // arrays.get_mut(array).unwrap().remove(idx as usize);
                 } else {
                     error(
                         Instr::Remove(array, idx),

@@ -6,11 +6,11 @@ use crate::util::{format_datatype, format_type_expr};
 use crate::{check_args, check_args_range, parser_error, print, type_inference};
 use crate::{error, error_b, Data, Instr, Num};
 use ariadne::*;
-use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
 use std::slice;
+use slab::Slab;
 
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
@@ -191,7 +191,7 @@ fn get_id(
     consts: &mut Vec<Data>,
     output: &mut Vec<Instr>,
     fns: &mut Vec<Function>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut Slab<Vec<Data>>,
     fn_state: Option<&FunctionState>,
     id: u16,
     // (filename, contents)
@@ -243,8 +243,7 @@ fn get_id(
             }
         }
         Expr::Array(elems) => {
-            let id = arrs.len() as u16;
-            arrs.insert(id, Vec::new());
+            let array_id = arrs.insert(Vec::new());
             for elem in elems {
                 let x = parser_to_instr_set(
                     slice::from_ref(elem),
@@ -260,15 +259,15 @@ fn get_id(
                 );
                 if !x.is_empty() {
                     let c_id = get_tgt_id(*x.last().unwrap()).unwrap();
-                    arrs.get_mut(&id).unwrap().push(Data::Null);
+                    arrs.get_mut(array_id).unwrap().push(Data::Null);
 
                     output.extend(x);
-                    output.push(Instr::ArrayMov(c_id, id, (arrs[&id].len() - 1) as u16));
+                    output.push(Instr::ArrayMov(c_id, id, (arrs[array_id].len() - 1) as u16));
                 } else {
-                    arrs.get_mut(&id).unwrap().push(consts.pop().unwrap());
+                    arrs.get_mut(array_id).unwrap().push(consts.pop().unwrap());
                 }
             }
-            consts.push(Data::Array(id));
+            consts.push(Data::Array(array_id));
             (consts.len() - 1) as u16
         }
         Expr::Mul(l, r, start, end) => {
@@ -908,7 +907,7 @@ fn parser_to_instr_set(
     fns: &mut Vec<Function>,
     fn_state: Option<&FunctionState>,
     // arrays
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut Slab<Vec<Data>>,
     id: u16,
     // (filename, contents)
     src: (&str, &str),
@@ -943,8 +942,7 @@ fn parser_to_instr_set(
             }
             Expr::Array(elems) => {
                 // create new blank array with latest id
-                let id = arrs.len() as u16;
-                arrs.insert(id, Vec::new());
+                let array_id = arrs.insert(Vec::new());
                 for elem in elems {
                     // process each array element
                     let x = parser_to_instr_set(
@@ -961,16 +959,16 @@ fn parser_to_instr_set(
                     );
                     // if there are no instructions, then that means the element has been pushed to the constants, so pop it and push it directly to the array
                     if x.is_empty() {
-                        arrs.get_mut(&id).unwrap().push(consts.pop().unwrap());
+                        arrs.get_mut(array_id).unwrap().push(consts.pop().unwrap());
                     } else {
                         // if there are instructions, then push everything, add a null to the array, and then add an instruction to move the element to the array at runtime with ArrayMov
                         let c_id = get_tgt_id(*x.last().unwrap()).unwrap();
                         output.extend(x);
-                        arrs.get_mut(&id).unwrap().push(Data::Null);
-                        output.push(Instr::ArrayMov(c_id, id, (arrs[&id].len() - 1) as u16));
+                        arrs.get_mut(array_id).unwrap().push(Data::Null);
+                        output.push(Instr::ArrayMov(c_id, id, (arrs[array_id].len() - 1) as u16));
                     }
                 }
-                consts.push(Data::Array(id));
+                consts.push(Data::Array(array_id));
                 print!("ARRAYS {arrs:?}");
             }
             // array[index]
@@ -2224,7 +2222,7 @@ pub fn parse(
 ) -> (
     Vec<Instr>,
     Vec<Data>,
-    FnvHashMap<u16, Vec<Data>>,
+    Slab<Vec<Data>>,
     Vec<(Instr, usize, usize)>,
 ) {
     let now = std::time::Instant::now();
@@ -2251,7 +2249,7 @@ pub fn parse(
 
     let mut variables: Vec<(Intern<String>, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
-    let mut arrays: FnvHashMap<u16, Vec<Data>> = FnvHashMap::default();
+    let mut arrays:Slab<Vec<Data>> = Slab::with_capacity(20);
     let mut instr_src = Vec::new();
     let mut var_types: Vec<(Intern<String>, DataType)> = Vec::new();
     let instructions = parser_to_instr_set(

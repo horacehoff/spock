@@ -2,12 +2,12 @@ use crate::display::format_data;
 use crate::util::format_type;
 use crate::{error_b, is_float, parser_error, Data, Instr, Num};
 use ariadne::*;
-use fnv::FnvHashMap;
 use inline_colorization::*;
 use internment::Intern;
 use likely_stable::if_likely;
 use std::fs::OpenOptions;
 use std::io::Write;
+use slab::Slab;
 
 macro_rules! builtin_error {
     ($instr_src: expr, $self_i:expr, $filename: expr, $src:expr, $general_error: expr, $msg:expr) => {
@@ -38,7 +38,7 @@ fn uppercase(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -56,7 +56,7 @@ fn lowercase(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -74,7 +74,7 @@ fn contains(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -94,7 +94,7 @@ fn contains(
         }
         Data::Array(x) => {
             let arg = consts[args.swap_remove(0) as usize];
-            consts[dest as usize] = Data::Bool(arrays[&x].contains(&arg))
+            consts[dest as usize] = Data::Bool(arrays[x].contains(&arg))
         }
         invalid => {
             type_error!(instr_src, self_i, filename, src, "string or array", invalid);
@@ -107,7 +107,7 @@ fn trim(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -125,7 +125,7 @@ fn trim_sequence(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -153,7 +153,7 @@ fn index(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -175,7 +175,7 @@ fn index(
         }
         Data::Array(x) => {
             let arg = consts[args.swap_remove(0) as usize];
-            consts[dest as usize] = Data::Number(arrays[&x].iter().position(|x| x == &arg).unwrap_or_else(|| {
+            consts[dest as usize] = Data::Number(arrays[x].iter().position(|x| x == &arg).unwrap_or_else(|| {
                 error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{:?}{color_reset}", arg, format_data(Data::Array(x), arrays)));
             }) as Num);
         }
@@ -190,7 +190,7 @@ fn is_num(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,
+    _: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -208,7 +208,7 @@ fn trim_left(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,
+    _: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -226,7 +226,7 @@ fn trim_right(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    _: &mut FnvHashMap<u16, Vec<Data>>,
+    _: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -244,7 +244,7 @@ fn trim_sequence_left(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -272,7 +272,7 @@ fn trim_sequence_right(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrs: &mut FnvHashMap<u16, Vec<Data>>,
+    arrs: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -300,7 +300,7 @@ fn rindex(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -322,7 +322,7 @@ fn rindex(
         }
         Data::Array(x) => {
             let arg = consts[args.swap_remove(0) as usize];
-            consts[dest as usize] = Data::Number(arrays[&x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
+            consts[dest as usize] = Data::Number(arrays[x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
                 error_b!(format_args!("Cannot get index of {color_red}{}{color_reset} in {color_blue}{}{color_reset}", format_data(arg, arrays), format_data(Data::Array(x), arrays)));
             }) as Num);
         }
@@ -337,7 +337,7 @@ fn repeat(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -358,8 +358,7 @@ fn repeat(
         Data::Array(x) => {
             let arg = args.swap_remove(0);
             if_likely! { let Data::Number(arg) = consts[arg as usize] => {
-                let id = arrays.len() as u16;
-                arrays.insert(id, arrays[&x].repeat(arg as usize));
+                let id = arrays.insert(arrays[x].repeat(arg as usize));
                 consts[dest as usize] = Data::Array(id);
             } else {
                 error_b!(format_args!(
@@ -379,7 +378,7 @@ fn round(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -397,7 +396,7 @@ fn abs(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -415,7 +414,7 @@ fn read(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -435,7 +434,7 @@ fn write(
     _: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -464,7 +463,7 @@ fn reverse(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut FnvHashMap<u16, Vec<Data>>,
+    arrays: &mut Slab<Vec<Data>>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
@@ -479,7 +478,7 @@ fn reverse(
             //
             // reverses the array and returns it, maybe a bad idea?
             //
-            arrays.get_mut(&id).unwrap().reverse();
+            arrays.get_mut(id).unwrap().reverse();
             consts[dest as usize] = Data::Array(id)
         }
         Data::String(str) => {
@@ -497,7 +496,7 @@ pub const FUNCS: [fn(
     u16,
     &mut [Data],
     &mut Vec<u16>,
-    &mut FnvHashMap<u16, Vec<Data>>,
+    &mut Slab<Vec<Data>>,
     &[(Instr, usize, usize)],
     &str,
     &str,
