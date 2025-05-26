@@ -319,10 +319,11 @@ fn get_id(
             id
         }
         Expr::Add(l, r, start, end) => {
-            if !(matches!(infer_type(l, var_types), DataType::Number)
-                && matches!(infer_type(r, var_types), DataType::Number))
-                || !(matches!(**l, Expr::String(_)) && matches!(**r, Expr::String(_)))
-                || !(matches!(**l, Expr::Array(_, _, _)) && matches!(**r, Expr::Array(_, _, _)))
+            if infer_type(l, var_types) != infer_type(r, var_types)
+                || !matches!(
+                    infer_type(l, var_types),
+                    DataType::String | DataType::Array(_) | DataType::Number
+                )
             {
                 op_error(l, r, "+", start, end);
             }
