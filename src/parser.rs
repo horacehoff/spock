@@ -1,6 +1,7 @@
 use crate::display::{lalrpop_error, print_instructions};
 use crate::grammar::Token;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
+use crate::type_inference::{infer_type, DataType};
 use crate::util::{format_datatype, format_type_expr};
 use crate::{check_args, check_args_range, parser_error, print, type_inference};
 use crate::{error, error_b, Data, Instr, Num};
@@ -10,7 +11,6 @@ use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
 use std::slice;
-use crate::type_inference::DataType;
 
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
@@ -1886,12 +1886,14 @@ fn parser_to_instr_set(
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::CallFunc(0, id, f_id));
+                        instr_src.push((Instr::CallFunc(0, id, f_id), *start, *end));
                     }
                     "lowercase" => {
                         check_args!(args, 0, "lowercase", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::CallFunc(1, id, f_id));
+                        instr_src.push((Instr::CallFunc(1, id, f_id), *start, *end))
                     }
                     "len" => {
                         check_args!(args, 0, "len", src.0, src.1, *start, *end);
@@ -1912,12 +1914,14 @@ fn parser_to_instr_set(
                         consts.push(Data::Null);
 
                         output.push(Instr::CallFunc(2, id, f_id));
+                        instr_src.push((Instr::CallFunc(2, id, f_id), *start, *end))
                     }
                     "trim" => {
                         check_args!(args, 0, "trim", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::CallFunc(3, id, f_id));
+                        instr_src.push((Instr::CallFunc(3, id, f_id), *start, *end))
                     }
                     "trim_sequence" => {
                         check_args!(args, 1, "trim_sequence", src.0, src.1, *start, *end);
@@ -1929,6 +1933,7 @@ fn parser_to_instr_set(
                             instr_src
                         );
                         output.push(Instr::CallFunc(4, id, f_id));
+                        instr_src.push((Instr::CallFunc(4, id, f_id), *start, *end))
                     }
                     "index" => {
                         check_args!(args, 1, "index", src.0, src.1, *start, *end);
@@ -1940,24 +1945,28 @@ fn parser_to_instr_set(
                             instr_src
                         );
                         output.push(Instr::CallFunc(5, id, f_id));
+                        instr_src.push((Instr::CallFunc(5, id, f_id), *start, *end))
                     }
                     "is_num" => {
                         check_args!(args, 0, "is_num", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::CallFunc(6, id, f_id));
+                        instr_src.push((Instr::CallFunc(6, id, f_id), *start, *end))
                     }
                     "trim_left" => {
                         check_args!(args, 0, "trim_left", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::CallFunc(7, id, f_id));
+                        instr_src.push((Instr::CallFunc(7, id, f_id), *start, *end))
                     }
                     "trim_right" => {
                         check_args!(args, 0, "trim_right", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::CallFunc(8, id, f_id));
+                        instr_src.push((Instr::CallFunc(8, id, f_id), *start, *end))
                     }
                     "trim_sequence_left" => {
                         check_args!(args, 1, "trim_sequence_left", src.0, src.1, *start, *end);
@@ -1969,6 +1978,7 @@ fn parser_to_instr_set(
                             instr_src
                         );
                         output.push(Instr::CallFunc(9, id, f_id));
+                        instr_src.push((Instr::CallFunc(9, id, f_id), *start, *end))
                     }
                     "trim_sequence_right" => {
                         check_args!(args, 1, "trim_sequence_right", src.0, src.1, *start, *end);
@@ -1980,6 +1990,7 @@ fn parser_to_instr_set(
                             instr_src
                         );
                         output.push(Instr::CallFunc(10, id, f_id));
+                        instr_src.push((Instr::CallFunc(10, id, f_id), *start, *end))
                     }
                     "rindex" => {
                         check_args!(args, 1, "rindex", src.0, src.1, *start, *end);
@@ -1991,6 +2002,7 @@ fn parser_to_instr_set(
                             instr_src
                         );
                         output.push(Instr::CallFunc(11, id, f_id));
+                        instr_src.push((Instr::CallFunc(11, id, f_id), *start, *end))
                     }
                     "repeat" => {
                         check_args!(args, 1, "repeat", src.0, src.1, *start, *end);
@@ -2003,6 +2015,7 @@ fn parser_to_instr_set(
                         consts.push(Data::Null);
 
                         output.push(Instr::CallFunc(12, id, f_id));
+                        instr_src.push((Instr::CallFunc(12, id, f_id), *start, *end))
                     }
                     "push" => {
                         check_args!(args, 1, "push", src.0, src.1, *start, *end);
@@ -2039,6 +2052,7 @@ fn parser_to_instr_set(
                         consts.push(Data::Null);
 
                         output.push(Instr::CallFunc(13, id, f_id));
+                        instr_src.push((Instr::CallFunc(13, id, f_id), *start, *end))
                     }
                     "abs" => {
                         check_args!(args, 0, "abs", src.0, src.1, *start, *end);
@@ -2047,6 +2061,7 @@ fn parser_to_instr_set(
                         consts.push(Data::Null);
 
                         output.push(Instr::CallFunc(14, id, f_id));
+                        instr_src.push((Instr::CallFunc(14, id, f_id), *start, *end))
                     }
                     // io::read
                     "read" => {
@@ -2056,6 +2071,7 @@ fn parser_to_instr_set(
                         consts.push(Data::Null);
 
                         output.push(Instr::CallFunc(15, id, f_id));
+                        instr_src.push((Instr::CallFunc(15, id, f_id), *start, *end))
                     }
                     // io::write
                     "write" => {
@@ -2075,6 +2091,7 @@ fn parser_to_instr_set(
                         consts.push(Data::Null);
 
                         output.push(Instr::CallFunc(16, id, f_id));
+                        instr_src.push((Instr::CallFunc(16, id, f_id), *start, *end))
                     }
                     "reverse" => {
                         check_args!(args, 0, "reverse", src.0, src.1, *start, *end);
@@ -2083,6 +2100,7 @@ fn parser_to_instr_set(
                         consts.push(Data::Null);
 
                         output.push(Instr::CallFunc(17, id, f_id));
+                        instr_src.push((Instr::CallFunc(17, id, f_id), *start, *end))
                     }
                     "split" => {
                         check_args!(args, 1, "split", src.0, src.1, *start, *end);
