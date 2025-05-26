@@ -1,5 +1,5 @@
 use crate::Data;
-use crate::parser::Expr;
+use crate::parser::{DataType, Expr};
 
 #[macro_export]
 macro_rules! error {
@@ -58,7 +58,7 @@ macro_rules! format_lines {
     };
 }
 
-pub fn get_type(x: Data) -> String {
+pub fn format_type(x: Data) -> String {
     match x {
         Data::Number(_) => String::from("Number"),
         Data::Bool(_) => String::from("Bool"),
@@ -69,7 +69,18 @@ pub fn get_type(x: Data) -> String {
     }
 }
 
-pub fn get_type_expr(x: &Expr) -> String {
+pub fn format_datatype(x: DataType) -> String {
+    match x {
+        DataType::Number => String::from("Number"),
+        DataType::Bool => String::from("Bool"),
+        DataType::String => String::from("String"),
+        DataType::Array(_) => String::from("Array"),
+        DataType::Null => String::from("NULL"),
+        DataType::File => String::from("File"),
+    }
+}
+
+pub fn format_type_expr(x: &Expr) -> String {
     match x {
         Expr::Num(_) => String::from("Number"),
         Expr::Bool(_) => String::from("Bool"),

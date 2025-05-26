@@ -1,5 +1,5 @@
 use crate::display::format_data;
-use crate::util::get_type;
+use crate::util::format_type;
 use crate::{Data, Instr, Num, error_b, is_float, parser_error};
 use ariadne::*;
 use fnv::FnvHashMap;
@@ -27,7 +27,7 @@ macro_rules! type_error {
             format_args!(
                 "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                 $expected,
-                get_type($received),
+                format_type($received),
             )
         );
     };
@@ -88,7 +88,7 @@ fn contains(
             } else {
                 builtin_error!(instr_src, self_i, filename, src, "Invalid argument type", format_args!(
                 "Expected string as argument, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                get_type(consts[arg as usize]),
+                format_type(consts[arg as usize]),
             ));
             }}
         }
@@ -140,7 +140,7 @@ fn trim_sequence(
         } else {
             builtin_error!(instr_src, self_i, filename, src, "Invalid argument type", format_args!(
                 "Expected string as argument, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                get_type(consts[arg as usize]),
+                format_type(consts[arg as usize]),
             ));
         }}
     } else {
@@ -259,7 +259,7 @@ fn trim_sequence_left(
         } else {
             builtin_error!(instr_src, self_i, filename, src, "Invalid argument type", format_args!(
                 "Expected string as argument, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                get_type(consts[arg as usize]),
+                format_type(consts[arg as usize]),
             ));
         }}
     } else {
@@ -287,7 +287,7 @@ fn trim_sequence_right(
         } else {
             builtin_error!(instr_src, self_i, filename, src, "Invalid argument type", format_args!(
                 "Expected string as argument, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                get_type(arg),
+                format_type(arg),
             ));
         }}
     } else {
@@ -316,7 +316,7 @@ fn rindex(
             } else {
                 builtin_error!(instr_src, self_i, filename, src, "Invalid type", format_args!(
                     "Expected string, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                    get_type(arg),
+                    format_type(arg),
                 ));
             }}
         }

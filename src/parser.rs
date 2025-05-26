@@ -1,7 +1,7 @@
 use crate::display::{lalrpop_error, print_instructions};
 use crate::grammar::Token;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
-use crate::util::get_type_expr;
+use crate::util::{format_datatype, format_type_expr};
 use crate::{Data, Instr, Num, error, error_b};
 use crate::{check_args, check_args_range, parser_error, print};
 use ariadne::*;
@@ -195,19 +195,6 @@ fn get_tgt_id_vec(x: &[Instr]) -> u16 {
     unreachable!();
 }
 
-#[macro_export]
-macro_rules! are_consts {
-    ($l:expr,$r:expr) => {
-        matches!(
-            $l,
-            Expr::String(_) | Expr::Num(_) | Expr::Bool(_) | Expr::Array(_)
-        ) && matches!(
-            $r,
-            Expr::String(_) | Expr::Num(_) | Expr::Bool(_) | Expr::Array(_)
-        )
-    };
-}
-
 fn get_id(
     x: &Expr,
     v: &mut Vec<(Intern<String>, u16)>,
@@ -231,8 +218,8 @@ fn get_id(
             "Invalid operation",
             format_args!(
                 "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{op}{color_bright_blue} {}{color_reset}{style_reset}",
-                get_type_expr(l),
-                get_type_expr(r)
+                format_datatype(infer_type(l, var_types)),
+                format_datatype(infer_type(r, var_types))
             )
         );
     };
@@ -296,8 +283,8 @@ fn get_id(
             (consts.len() - 1) as u16
         }
         Expr::Mul(l, r, start, end) => {
-            if are_consts!(**l, **r)
-                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            if (!matches!(infer_type(l, var_types), DataType::Number)
+                || !matches!(infer_type(r, var_types), DataType::Number))
             {
                 op_error(l, r, "*", start, end);
             }
@@ -314,8 +301,8 @@ fn get_id(
             id
         }
         Expr::Div(l, r, start, end) => {
-            if are_consts!(**l, **r)
-                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            if (!matches!(infer_type(l, var_types), DataType::Number)
+                || !matches!(infer_type(r, var_types), DataType::Number))
             {
                 op_error(l, r, "/", start, end);
             }
@@ -333,10 +320,10 @@ fn get_id(
             id
         }
         Expr::Add(l, r, start, end) => {
-            if are_consts!(**l, **r)
-                && (!(matches!(**l, Expr::Num(_)) && matches!(**r, Expr::Num(_)))
-                    || !(matches!(**l, Expr::String(_)) && matches!(**r, Expr::String(_)))
-                    || !(matches!(**l, Expr::Array(_)) && matches!(**r, Expr::Array(_))))
+            if (!(matches!(infer_type(l, var_types), DataType::Number)
+                && matches!(infer_type(r, var_types), DataType::Number))
+                || !(matches!(**l, Expr::String(_)) && matches!(**r, Expr::String(_)))
+                || !(matches!(**l, Expr::Array(_)) && matches!(**r, Expr::Array(_))))
             {
                 op_error(l, r, "+", start, end);
             }
@@ -365,8 +352,8 @@ fn get_id(
             id
         }
         Expr::Sub(l, r, start, end) => {
-            if are_consts!(**l, **r)
-                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            if (!matches!(infer_type(l, var_types), DataType::Number)
+                || !matches!(infer_type(r, var_types), DataType::Number))
             {
                 op_error(l, r, "-", start, end);
             }
@@ -383,8 +370,8 @@ fn get_id(
             id
         }
         Expr::Mod(l, r, start, end) => {
-            if are_consts!(**l, **r)
-                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            if (!matches!(infer_type(l, var_types), DataType::Number)
+                || !matches!(infer_type(r, var_types), DataType::Number))
             {
                 op_error(l, r, "%", start, end);
             }
@@ -401,8 +388,8 @@ fn get_id(
             id
         }
         Expr::Pow(l, r, start, end) => {
-            if are_consts!(**l, **r)
-                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            if (!matches!(infer_type(l, var_types), DataType::Number)
+                || !matches!(infer_type(r, var_types), DataType::Number))
             {
                 op_error(l, r, "^", start, end);
             }
@@ -451,8 +438,8 @@ fn get_id(
             id
         }
         Expr::Sup(l, r, start, end) => {
-            if are_consts!(**l, **r)
-                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            if (!matches!(infer_type(l, var_types), DataType::Number)
+                || !matches!(infer_type(r, var_types), DataType::Number))
             {
                 op_error(l, r, ">", start, end);
             }
@@ -469,8 +456,8 @@ fn get_id(
             id
         }
         Expr::SupEq(l, r, start, end) => {
-            if are_consts!(**l, **r)
-                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            if (!matches!(infer_type(l, var_types), DataType::Number)
+                || !matches!(infer_type(r, var_types), DataType::Number))
             {
                 op_error(l, r, ">=", start, end);
             }
@@ -487,8 +474,8 @@ fn get_id(
             id
         }
         Expr::Inf(l, r, start, end) => {
-            if are_consts!(**l, **r)
-                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            if (!matches!(infer_type(l, var_types), DataType::Number)
+                || !matches!(infer_type(r, var_types), DataType::Number))
             {
                 op_error(l, r, "<", start, end);
             }
@@ -505,8 +492,8 @@ fn get_id(
             id
         }
         Expr::InfEq(l, r, start, end) => {
-            if are_consts!(**l, **r)
-                && (!matches!(**l, Expr::Num(_)) || !matches!(**r, Expr::Num(_)))
+            if (!matches!(infer_type(l, var_types), DataType::Number)
+                || !matches!(infer_type(r, var_types), DataType::Number))
             {
                 op_error(l, r, "<=", start, end);
             }
@@ -523,9 +510,7 @@ fn get_id(
             id
         }
         Expr::BoolAnd(l, r, start, end) => {
-            if are_consts!(**l, **r)
-                && (!matches!(**l, Expr::Bool(_)) || !matches!(**r, Expr::Bool(_)))
-            {
+            if (!matches!(**l, Expr::Bool(_)) || !matches!(**r, Expr::Bool(_))) {
                 op_error(l, r, "||", start, end);
             }
             let id_l = get_id(
@@ -541,9 +526,7 @@ fn get_id(
             id
         }
         Expr::BoolOr(l, r, start, end) => {
-            if are_consts!(**l, **r)
-                && (!matches!(**l, Expr::Bool(_)) || !matches!(**r, Expr::Bool(_)))
-            {
+            if (!matches!(**l, Expr::Bool(_)) || !matches!(**r, Expr::Bool(_))) {
                 op_error(l, r, "||", start, end);
             }
             let id_l = get_id(
@@ -559,7 +542,7 @@ fn get_id(
             id
         }
         Expr::Neg(l, start, end) => {
-            if are_consts!(**l, **l) && !matches!(**l, Expr::Num(_)) {
+            if !matches!(infer_type(l, var_types), DataType::Number) {
                 parser_error!(
                     src.0,
                     src.1,
@@ -568,7 +551,7 @@ fn get_id(
                     "Invalid operation",
                     format_args!(
                         "Cannot negate {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        get_type_expr(l),
+                        format_type_expr(l),
                     )
                 );
             }

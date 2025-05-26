@@ -1,6 +1,6 @@
 use crate::display::format_data;
 use crate::parser::parse;
-use crate::util::get_type;
+use crate::util::format_type;
 use ariadne::*;
 use builtin_funcs::FUNCS;
 use concat_string::concat_string;
@@ -170,8 +170,8 @@ pub fn execute(
             "Invalid operation",
             format_args!(
                 "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{op}{color_bright_blue} {}{color_reset}{style_reset}",
-                get_type(l),
-                get_type(r)
+                format_type(l),
+                format_type(r)
             )
         );
     };
@@ -187,7 +187,7 @@ pub fn execute(
             format_args!(
                 "Expected {} but found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                 expected,
-                get_type(r),
+                format_type(r),
             )
         );
     };
@@ -443,7 +443,7 @@ pub fn execute(
                         "Invalid operation",
                         format_args!(
                             "Cannot negate {style_bold}{color_bright_blue}{}{color_reset}{style_reset}",
-                            get_type(consts[tgt as usize])
+                            format_type(consts[tgt as usize])
                         )
                     );
                 }}
@@ -452,7 +452,8 @@ pub fn execute(
                 println!("{}", format_data(consts[target as usize], arrays));
             }
             Instr::Type(tgt, dest) => {
-                consts[dest as usize] = Data::String(Intern::from(get_type(consts[tgt as usize])));
+                consts[dest as usize] =
+                    Data::String(Intern::from(format_type(consts[tgt as usize])));
             }
             Instr::Num(tgt, dest) => match consts[tgt as usize] {
                 Data::String(str) => {
@@ -581,7 +582,7 @@ pub fn execute(
                                 "Invalid type",
                                 format_args!(
                                     "Cannot insert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} in string",
-                                    get_type(requested_mod)
+                                    format_type(requested_mod)
                                 ),
                             );
                         }}
@@ -591,7 +592,7 @@ pub fn execute(
                             "Invalid type",
                             format_args!(
                                 "Cannot index type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                get_type(consts[tgt as usize])
+                                format_type(consts[tgt as usize])
                             ),
                         );
                     }
@@ -641,7 +642,7 @@ pub fn execute(
                                 "Invalid type",
                                 format_args!(
                                     "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                    get_type(other)
+                                    format_type(other)
                                 ),
                             );
                         }
@@ -706,7 +707,7 @@ pub fn execute(
                 } else {
                     error(Instr::Floor(tgt, dest), "Invalid type", format_args!(
                         "Cannot floor type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        get_type(consts[tgt as usize])
+                        format_type(consts[tgt as usize])
                     ));
                 }}
             }
@@ -740,7 +741,7 @@ pub fn execute(
                             "Invalid type",
                             format_args!(
                                 "Cannot get length of type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                get_type(x)
+                                format_type(x)
                             ),
                         );
                     }
@@ -787,7 +788,7 @@ pub fn execute(
                         "Invalid type",
                         format_args!(
                             "Cannot split type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            get_type(invalid)
+                            format_type(invalid)
                         ),
                     );
                 }
