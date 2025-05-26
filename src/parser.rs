@@ -99,13 +99,17 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     {
         Instr::Mov(_, y)
         | Instr::Add(_, _, y)
+        | Instr::ArrayAdd(_, _, y)
+        | Instr::StrAdd(_, _, y)
         | Instr::Mul(_, _, y)
         | Instr::Sub(_, _, y)
         | Instr::Div(_, _, y)
         | Instr::Mod(_, _, y)
         | Instr::Pow(_, _, y)
         | Instr::Eq(_, _, y)
+        | Instr::ArrayEq(_, _, y)
         | Instr::NotEq(_, _, y)
+        | Instr::ArrayNotEq(_, _, y)
         | Instr::Sup(_, _, y)
         | Instr::SupEq(_, _, y)
         | Instr::Inf(_, _, y)
@@ -137,13 +141,17 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
     match x {
         Instr::Mov(_, y)
         | Instr::Add(_, _, y)
+        | Instr::ArrayAdd(_, _, y)
+        | Instr::StrAdd(_, _, y)
         | Instr::Mul(_, _, y)
         | Instr::Sub(_, _, y)
         | Instr::Div(_, _, y)
         | Instr::Mod(_, _, y)
         | Instr::Pow(_, _, y)
         | Instr::Eq(_, _, y)
+        | Instr::ArrayEq(_, _, y)
         | Instr::NotEq(_, _, y)
+        | Instr::ArrayNotEq(_, _, y)
         | Instr::Sup(_, _, y)
         | Instr::SupEq(_, _, y)
         | Instr::Inf(_, _, y)
@@ -340,8 +348,20 @@ fn get_id(
             );
             let id = consts.len() as u16;
             consts.push(Data::Null);
-            output.push(Instr::Add(id_l, id_r, id));
-            instr_src.push((Instr::Add(id_l, id_r, id), *start, *end));
+            if matches!(infer_type(l, var_types), DataType::Array(_))
+                && matches!(infer_type(r, var_types), DataType::Array(_))
+            {
+                output.push(Instr::ArrayAdd(id_l, id_r, id));
+                instr_src.push((Instr::ArrayAdd(id_l, id_r, id), *start, *end));
+            } else if matches!(infer_type(l, var_types), DataType::String)
+                && matches!(infer_type(r, var_types), DataType::String)
+            {
+                output.push(Instr::StrAdd(id_l, id_r, id));
+                instr_src.push((Instr::StrAdd(id_l, id_r, id), *start, *end));
+            } else {
+                output.push(Instr::Add(id_l, id_r, id));
+                instr_src.push((Instr::Add(id_l, id_r, id), *start, *end));
+            }
             id
         }
         Expr::Sub(l, r, start, end) => {

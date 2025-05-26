@@ -80,6 +80,8 @@ pub enum Instr {
 
     // OPS
     Add(u16, u16, u16),
+    ArrayAdd(u16, u16, u16),
+    StrAdd(u16, u16, u16),
     Mul(u16, u16, u16),
     Sub(u16, u16, u16),
     Div(u16, u16, u16),
@@ -232,15 +234,22 @@ pub fn execute(
                     consts[y as usize] = val;
                 }
             }
-            Instr::Add(o1, o2, dest) => match (consts[o1 as usize], consts[o2 as usize]) {
-                (Data::Number(parent), Data::Number(child)) => {
+            Instr::Add(o1, o2, dest) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent + child);
-                }
-                (Data::String(parent), Data::String(child)) => {
-                    let result = concat_string!(*parent, *child);
-                    consts[dest as usize] = Data::String(Intern::from(result));
-                }
-                (Data::Array(a), Data::Array(b)) => {
+                } else {
+                    instr_op_error(Instr::Add(o1, o2, dest), "+",consts[o1 as usize], consts[o2 as usize]);
+                }}
+            }
+            Instr::StrAdd(o1, o2, dest) => {
+                if_likely! {let (Data::String(parent), Data::String(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
+                    consts[dest as usize] = Data::String(Intern::from(concat_string!(*parent, *child)));
+                } else {
+                    instr_op_error(Instr::StrAdd(o1, o2, dest), "+",consts[o1 as usize], consts[o2 as usize]);
+                }}
+            }
+            Instr::ArrayAdd(o1, o2, dest) => {
+                if_likely! {let (Data::Array(a), Data::Array(b)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     let id = arrays.len() as u16;
                     let arr_a = &arrays[&a];
                     let arr_b = &arrays[&b];
@@ -250,11 +259,10 @@ pub fn execute(
                     combined.extend_from_slice(arr_b);
                     arrays.insert(id, combined);
                     consts[dest as usize] = Data::Array(id);
-                }
-                (a, b) => {
-                    instr_op_error(Instr::Add(o1, o2, dest), "+", a, b);
-                }
-            },
+                } else {
+                    instr_op_error(Instr::ArrayAdd(o1, o2, dest), "+",consts[o1 as usize], consts[o2 as usize]);
+                }}
+            }
             Instr::Mul(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent * child);
