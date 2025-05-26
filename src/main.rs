@@ -779,7 +779,7 @@ pub fn execute(
                             .map(|(i, x)| (base_id + i as u16, x.to_vec())),
                     );
                     let id = arrays.len() as u16;
-                    arrays.insert(id, (base_id..id).map(|x| Data::Array(x)).collect());
+                    arrays.insert(id, (base_id..id).map(Data::Array).collect());
                     consts[dest as usize] = Data::Array(id);
                 }
                 invalid => {
@@ -881,7 +881,7 @@ fn main() {
         &mut Vec::with_capacity(call_stack_count),
         &instr_src,
         &contents,
-        &filename,
+        filename,
     );
     let end = now.elapsed();
     println!("EXEC TIME {:.2?}", end);

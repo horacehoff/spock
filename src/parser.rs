@@ -209,7 +209,7 @@ fn get_id(
     src: (&str, &str),
     instr_src: &mut Vec<(Instr, usize, usize)>,
 ) -> u16 {
-    let op_error = |l: &Box<Expr>, r: &Box<Expr>, op: &str, start: &usize, end: &usize| {
+    let op_error = |l: &Expr, r: &Expr, op: &str, start: &usize, end: &usize| {
         parser_error!(
             src.0,
             src.1,

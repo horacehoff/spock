@@ -72,48 +72,52 @@ pub fn for_loop_summation(
     array: u16,
     code: &[Expr],
 ) -> bool {
-    // if code.len() == 1 {
-    //     if let Expr::VarAssign(name, value) = code.first().unwrap() {
-    //         if let Expr::Add(l, reps) = &**value {
-    //             if **l == Expr::Var(*name, _, _) {
-    //                 let var_id = v.iter().find(|(w, _)| w == name).unwrap().1;
-    //                 consts.push(Data::Null);
-    //                 output.push(Instr::Len(array, (consts.len() - 1) as u16));
-    //                 consts.push(Data::Number(if let Expr::Num(x) = **reps {
-    //                     x
-    //                 } else {
-    //                     unreachable!()
-    //                 }));
-    //                 consts.push(Data::Null);
-    //                 output.push(Instr::Mul(
-    //                     (consts.len() - 3) as u16,
-    //                     (consts.len() - 2) as u16,
-    //                     (consts.len() - 1) as u16,
-    //                 ));
-    //                 output.push(Instr::Add((consts.len() - 1) as u16, var_id, var_id));
-    //                 return true;
-    //             }
-    //         } else if let Expr::Mul(l, reps) = &**value {
-    //             if **l == Expr::Var(*name, _, _) {
-    //                 let var_id = v.iter().find(|(w, _)| w == name).unwrap().1;
-    //                 consts.push(Data::Null);
-    //                 output.push(Instr::Len(array, (consts.len() - 1) as u16));
-    //                 consts.push(Data::Number(if let Expr::Num(x) = **reps {
-    //                     x
-    //                 } else {
-    //                     unreachable!()
-    //                 }));
-    //                 consts.push(Data::Null);
-    //                 output.push(Instr::Pow(
-    //                     (consts.len() - 2) as u16,
-    //                     (consts.len() - 3) as u16,
-    //                     (consts.len() - 1) as u16,
-    //                 ));
-    //                 output.push(Instr::Mul((consts.len() - 1) as u16, var_id, var_id));
-    //                 return true;
-    //             }
-    //         }
-    //     }
-    // }
+    if code.len() == 1 {
+        if let Expr::VarAssign(name, value, _, _) = code.first().unwrap() {
+            if let Expr::Add(l, reps, _, _) = &**value {
+                if let Expr::Var(v_name, _, _) = **l {
+                    if &v_name == name {
+                        let var_id = v.iter().find(|(w, _)| w == name).unwrap().1;
+                        consts.push(Data::Null);
+                        output.push(Instr::Len(array, (consts.len() - 1) as u16));
+                        consts.push(Data::Number(if let Expr::Num(x) = **reps {
+                            x
+                        } else {
+                            unreachable!()
+                        }));
+                        consts.push(Data::Null);
+                        output.push(Instr::Mul(
+                            (consts.len() - 3) as u16,
+                            (consts.len() - 2) as u16,
+                            (consts.len() - 1) as u16,
+                        ));
+                        output.push(Instr::Add((consts.len() - 1) as u16, var_id, var_id));
+                        return true;
+                    }
+                }
+            } else if let Expr::Mul(l, reps, _, _) = &**value {
+                if let Expr::Var(v_name, _, _) = **l {
+                    if &v_name == name {
+                        let var_id = v.iter().find(|(w, _)| w == name).unwrap().1;
+                        consts.push(Data::Null);
+                        output.push(Instr::Len(array, (consts.len() - 1) as u16));
+                        consts.push(Data::Number(if let Expr::Num(x) = **reps {
+                            x
+                        } else {
+                            unreachable!()
+                        }));
+                        consts.push(Data::Null);
+                        output.push(Instr::Pow(
+                            (consts.len() - 2) as u16,
+                            (consts.len() - 3) as u16,
+                            (consts.len() - 1) as u16,
+                        ));
+                        output.push(Instr::Mul((consts.len() - 1) as u16, var_id, var_id));
+                        return true;
+                    }
+                }
+            }
+        }
+    }
     false
 }
