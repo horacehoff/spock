@@ -23,6 +23,7 @@ mod optimizations;
 mod parser;
 mod tests;
 mod util;
+mod type_inference;
 
 #[cfg(feature = "int")]
 pub type Num = i64;
