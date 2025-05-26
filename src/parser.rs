@@ -1,16 +1,16 @@
 use crate::display::{lalrpop_error, print_instructions};
 use crate::grammar::Token;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
-use crate::type_inference::{infer_type, DataType};
+use crate::type_inference::{DataType, infer_type};
 use crate::util::{format_datatype, format_type_expr};
+use crate::{Data, Instr, Num, error, error_b};
 use crate::{check_args, check_args_range, parser_error, print, type_inference};
-use crate::{error, error_b, Data, Instr, Num};
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
-use std::slice;
 use slab::Slab;
+use std::slice;
 
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
@@ -19,7 +19,7 @@ pub enum Expr {
     Bool(bool),
     String(String),
     Var(Intern<String>, usize, usize),
-    Array(Box<[Expr]>),
+    Array(Box<[Expr]>, usize, usize),
     VarDeclare(Intern<String>, Box<Expr>),
     VarAssign(Intern<String>, Box<Expr>, usize, usize),
     // condition - code (contains else_if_blocks and potentially else_block)
@@ -242,7 +242,18 @@ fn get_id(
                 );
             }
         }
-        Expr::Array(elems) => {
+        Expr::Array(elems, start, end) => {
+            let first_type = infer_type(&elems[0], var_types);
+            if !elems.iter().all(|x| infer_type(x, var_types) == first_type) {
+                parser_error!(
+                    src.0,
+                    src.1,
+                    *start,
+                    *end,
+                    "Array",
+                    format_args!("Arrays can only hold one type of value")
+                );
+            }
             let array_id = arrs.insert(Vec::new());
             for elem in elems {
                 let x = parser_to_instr_set(
@@ -311,7 +322,7 @@ fn get_id(
             if !(matches!(infer_type(l, var_types), DataType::Number)
                 && matches!(infer_type(r, var_types), DataType::Number))
                 || !(matches!(**l, Expr::String(_)) && matches!(**r, Expr::String(_)))
-                || !(matches!(**l, Expr::Array(_)) && matches!(**r, Expr::Array(_)))
+                || !(matches!(**l, Expr::Array(_, _, _)) && matches!(**r, Expr::Array(_, _, _)))
             {
                 op_error(l, r, "+", start, end);
             }
@@ -940,7 +951,18 @@ fn parser_to_instr_set(
                     );
                 }
             }
-            Expr::Array(elems) => {
+            Expr::Array(elems, start, end) => {
+                let first_type = infer_type(&elems[0], var_types);
+                if !elems.iter().all(|x| infer_type(x, var_types) == first_type) {
+                    parser_error!(
+                        src.0,
+                        src.1,
+                        *start,
+                        *end,
+                        "Array",
+                        format_args!("Arrays can only hold one type of value")
+                    );
+                }
                 // create new blank array with latest id
                 let array_id = arrs.insert(Vec::new());
                 for elem in elems {
@@ -2249,7 +2271,7 @@ pub fn parse(
 
     let mut variables: Vec<(Intern<String>, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
-    let mut arrays:Slab<Vec<Data>> = Slab::with_capacity(20);
+    let mut arrays: Slab<Vec<Data>> = Slab::with_capacity(20);
     let mut instr_src = Vec::new();
     let mut var_types: Vec<(Intern<String>, DataType)> = Vec::new();
     let instructions = parser_to_instr_set(

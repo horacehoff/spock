@@ -1,5 +1,5 @@
-use internment::Intern;
 use crate::parser::Expr;
+use internment::Intern;
 
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
@@ -18,107 +18,59 @@ pub fn infer_type(x: &Expr, var_types: &[(Intern<String>, DataType)]) -> DataTyp
         Expr::Num(_) => DataType::Number,
         Expr::String(_) => DataType::String,
         Expr::Bool(_) => DataType::Bool,
-        Expr::Array(x) => DataType::Array(Box::from(infer_type(&x[0], var_types))),
-        Expr::Add(x, y, _, _) => {
-            
-            
-            match (infer_type(x, var_types), infer_type(y, var_types)) {
-                (DataType::Number, DataType::Number) => DataType::Number,
-                (DataType::String, DataType::String) => DataType::Number,
-                (DataType::Array(_), DataType::Array(_)) => DataType::Number,
-                _ => todo!("TODO ADD ERR"),
-            }
-        }
-        Expr::Mul(x, y, _, _) => {
-
-            
-            match (infer_type(x, var_types), infer_type(y, var_types)) {
-                (DataType::Number, DataType::Number) => DataType::Number,
-                _ => todo!("TODO MUL ERR"),
-            }
-        }
-        Expr::Div(x, y, _, _) => {
-
-            
-            match (infer_type(x, var_types), infer_type(y, var_types)) {
-                (DataType::Number, DataType::Number) => DataType::Number,
-                _ => todo!("TODO DIV ERR"),
-            }
-        }
-        Expr::Sub(x, y, _, _) => {
-
-            
-            match (infer_type(x, var_types), infer_type(y, var_types)) {
-                (DataType::Number, DataType::Number) => DataType::Number,
-                _ => todo!("TODO SUB ERR"),
-            }
-        }
-        Expr::Mod(x, y, _, _) => {
-
-            
-            match (infer_type(x, var_types), infer_type(y, var_types)) {
-                (DataType::Number, DataType::Number) => DataType::Number,
-                _ => todo!("TODO MOD ERR"),
-            }
-        }
-        Expr::Pow(x, y, _, _) => {
-
-            
-            match (infer_type(x, var_types), infer_type(y, var_types)) {
-                (DataType::Number, DataType::Number) => DataType::Number,
-                _ => todo!("TODO POW ERR"),
-            }
-        }
+        Expr::Array(x, _, _) => DataType::Array(Box::from(infer_type(&x[0], var_types))),
+        Expr::Add(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
+            (DataType::Number, DataType::Number) => DataType::Number,
+            (DataType::String, DataType::String) => DataType::Number,
+            (DataType::Array(_), DataType::Array(_)) => DataType::Number,
+            _ => todo!("TODO ADD ERR"),
+        },
+        Expr::Mul(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
+            (DataType::Number, DataType::Number) => DataType::Number,
+            _ => todo!("TODO MUL ERR"),
+        },
+        Expr::Div(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
+            (DataType::Number, DataType::Number) => DataType::Number,
+            _ => todo!("TODO DIV ERR"),
+        },
+        Expr::Sub(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
+            (DataType::Number, DataType::Number) => DataType::Number,
+            _ => todo!("TODO SUB ERR"),
+        },
+        Expr::Mod(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
+            (DataType::Number, DataType::Number) => DataType::Number,
+            _ => todo!("TODO MOD ERR"),
+        },
+        Expr::Pow(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
+            (DataType::Number, DataType::Number) => DataType::Number,
+            _ => todo!("TODO POW ERR"),
+        },
         Expr::Eq(_, _) => DataType::Bool,
         Expr::NotEq(_, _) => DataType::Bool,
-        Expr::Sup(x, y, _, _) => {
-
-            
-            match (infer_type(x, var_types), infer_type(y, var_types)) {
-                (DataType::Number, DataType::Number) => DataType::Bool,
-                _ => todo!("TODO SUP ERR"),
-            }
-        }
-        Expr::SupEq(x, y, _, _) => {
-
-            
-            match (infer_type(x, var_types), infer_type(y, var_types)) {
-                (DataType::Number, DataType::Number) => DataType::Bool,
-                _ => todo!("TODO SUPEQ ERR"),
-            }
-        }
-        Expr::Inf(x, y, _, _) => {
-
-            
-            match (infer_type(x, var_types), infer_type(y, var_types)) {
-                (DataType::Number, DataType::Number) => DataType::Bool,
-                _ => todo!("TODO INF ERR"),
-            }
-        }
-        Expr::InfEq(x, y, _, _) => {
-
-            
-            match (infer_type(x, var_types), infer_type(y, var_types)) {
-                (DataType::Number, DataType::Number) => DataType::Bool,
-                _ => todo!("TODO INFEQ ERR"),
-            }
-        }
-        Expr::BoolAnd(x, y, _, _) => {
-
-            
-            match (infer_type(x, var_types), infer_type(y, var_types)) {
-                (DataType::Bool, DataType::Bool) => DataType::Bool,
-                _ => todo!("TODO BOOLAND ERR"),
-            }
-        }
-        Expr::BoolOr(x, y, _, _) => {
-
-            
-            match (infer_type(x, var_types), infer_type(y, var_types)) {
-                (DataType::Bool, DataType::Bool) => DataType::Bool,
-                _ => todo!("TODO BOOLOR ERR"),
-            }
-        }
+        Expr::Sup(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
+            (DataType::Number, DataType::Number) => DataType::Bool,
+            _ => todo!("TODO SUP ERR"),
+        },
+        Expr::SupEq(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
+            (DataType::Number, DataType::Number) => DataType::Bool,
+            _ => todo!("TODO SUPEQ ERR"),
+        },
+        Expr::Inf(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
+            (DataType::Number, DataType::Number) => DataType::Bool,
+            _ => todo!("TODO INF ERR"),
+        },
+        Expr::InfEq(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
+            (DataType::Number, DataType::Number) => DataType::Bool,
+            _ => todo!("TODO INFEQ ERR"),
+        },
+        Expr::BoolAnd(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
+            (DataType::Bool, DataType::Bool) => DataType::Bool,
+            _ => todo!("TODO BOOLAND ERR"),
+        },
+        Expr::BoolOr(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
+            (DataType::Bool, DataType::Bool) => DataType::Bool,
+            _ => todo!("TODO BOOLOR ERR"),
+        },
         Expr::Neg(x, _, _) => match infer_type(x, var_types) {
             DataType::Number => DataType::Number,
             _ => todo!("TODO NEG ERR"),

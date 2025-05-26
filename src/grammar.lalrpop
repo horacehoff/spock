@@ -385,7 +385,7 @@ Expression: Expr = {
     <start: @L> <l: Expression> "+" <r: Expression> <end: @R> => match (l, r) {
             (Expr::Num(x), Expr::Num(y)) => Expr::Num(x + y),
             (Expr::String(x), Expr::String(y)) => Expr::String(concat_string!(x, y)),
-            (Expr::Array(x), Expr::Array(y)) => Expr::Array(Box::from([x, y].concat())),
+            (Expr::Array(x,start,_), Expr::Array(y,_,end)) => Expr::Array(Box::from([x, y].concat()),start,end),
             (l, r) => Expr::Add(Box::from(l), Box::from(r), start, end),
     },
     #[precedence(level="7")] #[assoc(side="left")]
@@ -431,7 +431,7 @@ FunctionCall: Expr = {
 }
 
 Array:Expr = {
-    "[" <arr: Comma<Expression>> "]" => Expr::Array(arr.into_boxed_slice())
+    <start: @L> "[" <arr: Comma<Expression>> "]" <end: @R> => Expr::Array(arr.into_boxed_slice(), start, end)
 }
 
 Num: Num = {

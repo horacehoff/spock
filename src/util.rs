@@ -1,5 +1,5 @@
-use crate::parser::Expr;
 use crate::Data;
+use crate::parser::Expr;
 use crate::type_inference::DataType;
 
 #[macro_export]
@@ -86,7 +86,7 @@ pub fn format_type_expr(x: &Expr) -> String {
         Expr::Num(_) => String::from("Number"),
         Expr::Bool(_) => String::from("Bool"),
         Expr::String(_) => String::from("String"),
-        Expr::Array(_) => String::from("Array"),
+        Expr::Array(_, _, _) => String::from("Array"),
         _ => unreachable!(),
     }
 }
