@@ -67,16 +67,15 @@ pub enum Expr {
     Neg(Box<Expr>, usize, usize),
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum DataType {
-    Any,
+    Array(Box<DataType>),
     Number,
     Bool,
     String,
-    Array,
-    Null,
     File,
+    Null,
 }
 
 lalrpop_mod!(pub grammar);
@@ -400,7 +399,8 @@ fn get_id(
             id
         }
         Expr::Eq(l, r) => {
-            println!("INFERED TYPE IS {:?}", infer_type(l, var_types));
+            println!("EQ LEFT IS {:?}", infer_type(l, var_types));
+            println!("EQ RIGHT IS {:?}", infer_type(r, var_types));
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
             );
@@ -409,7 +409,13 @@ fn get_id(
             );
             let id = consts.len() as u16;
             consts.push(Data::Null);
-            output.push(Instr::Eq(id_l, id_r, id));
+            if matches!(infer_type(l, var_types), DataType::Array(_))
+                && matches!(infer_type(r, var_types), DataType::Array(_))
+            {
+                output.push(Instr::ArrayEq(id_l, id_r, id));
+            } else {
+                output.push(Instr::Eq(id_l, id_r, id));
+            }
             id
         }
         Expr::NotEq(l, r) => {
@@ -728,18 +734,18 @@ fn get_id(
 
 fn infer_type(x: &Expr, var_types: &[(Intern<String>, DataType)]) -> DataType {
     match x {
-        Expr::Var(name, _, _) => var_types.iter().find(|(n, _)| n == name).unwrap().1,
+        Expr::Var(name, _, _) => var_types.iter().find(|(n, _)| n == name).unwrap().1.clone(),
         Expr::Num(_) => DataType::Number,
         Expr::String(_) => DataType::String,
         Expr::Bool(_) => DataType::Bool,
-        Expr::Array(_) => DataType::Array,
+        Expr::Array(x) => DataType::Array(Box::from(infer_type(&x[0], var_types))),
         Expr::Add(x, y, _, _) => {
             let x_type = infer_type(x, var_types);
             let y_type = infer_type(y, var_types);
             match (x_type, y_type) {
                 (DataType::Number, DataType::Number) => DataType::Number,
                 (DataType::String, DataType::String) => DataType::Number,
-                (DataType::Array, DataType::Array) => DataType::Number,
+                (DataType::Array(_), DataType::Array(_)) => DataType::Number,
                 _ => todo!("TODO ADD ERR"),
             }
         }
@@ -837,7 +843,80 @@ fn infer_type(x: &Expr, var_types: &[(Intern<String>, DataType)]) -> DataType {
             DataType::Number => DataType::Number,
             _ => todo!("TODO NEG ERR"),
         },
-        Expr::GetIndex(_, _, _, _) => DataType::Any,
+        Expr::GetIndex(array, _, _, _) => match infer_type(array, var_types) {
+            DataType::Array(array_type) => *array_type,
+            DataType::String => DataType::String,
+            _ => todo!(),
+        },
+        Expr::FunctionCall(args, namespace, _, _) => match namespace.last().unwrap().as_str() {
+            "print" => DataType::Null,
+            "type" => infer_type(&args[0], var_types),
+            "num" => DataType::Number,
+            "str" => DataType::String,
+            "bool" => DataType::Bool,
+            "input" => DataType::String,
+            "range" => DataType::Array(Box::from(DataType::Number)),
+            "floor" => DataType::Number,
+            "the_answer" => DataType::Number,
+            _ => todo!(),
+        },
+        Expr::ObjFunctionCall(obj, args, namespace, start, end) => {
+            match namespace.last().unwrap().as_str() {
+                "uppercase" => DataType::String,
+                "lowercase" => DataType::String,
+                "len" => DataType::Number,
+                "contains" => DataType::Bool,
+                "trim" => DataType::String,
+                "trim_sequence" => DataType::String,
+                "index" => DataType::Number,
+                "is_num" => DataType::Bool,
+                "trim_left" => DataType::String,
+                "trim_right" => DataType::String,
+                "trim_sequence_left" => DataType::String,
+                "trim_sequence_right" => DataType::String,
+                "rindex" => DataType::Number,
+                "repeat" => {
+                    let obj_type = infer_type(obj, var_types);
+                    if obj_type == DataType::String {
+                        DataType::String
+                    } else if let DataType::Array(array_type) = obj_type {
+                        DataType::Array(array_type)
+                    } else {
+                        todo!()
+                    }
+                }
+                "push" => DataType::Null,
+                "sqrt" => DataType::Number,
+                "round" => DataType::Number,
+                "abs" => DataType::Number,
+                // io::read
+                "read" => DataType::String,
+                // io::write
+                "write" => DataType::Null,
+                "reverse" => {
+                    let obj_type = infer_type(obj, var_types);
+                    if obj_type == DataType::String {
+                        DataType::String
+                    } else if let DataType::Array(array_type) = obj_type {
+                        DataType::Array(array_type)
+                    } else {
+                        todo!()
+                    }
+                }
+                "split" => {
+                    let obj_type = infer_type(obj, var_types);
+                    if obj_type == DataType::String {
+                        DataType::Array(Box::from(DataType::String))
+                    } else if let DataType::Array(array_type) = obj_type {
+                        DataType::Array(Box::from(DataType::Array(array_type)))
+                    } else {
+                        todo!()
+                    }
+                }
+                "remove" => DataType::Null,
+                _ => todo!(),
+            }
+        }
         _ => todo!("GET TYPE INCOMPLETE"),
     }
 }
@@ -869,7 +948,7 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
                     *len -= 1;
                 }
             } else {
-                unreachable!("Should not be reached")
+                unreachable!()
             }
         }
         Instr::InfEq(o1, o2, o3) => {
@@ -879,7 +958,7 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
                     *len -= 1;
                 }
             } else {
-                unreachable!("Should not be reached")
+                unreachable!()
             }
         }
         Instr::Sup(o1, o2, o3) => {
@@ -889,7 +968,7 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
                     *len -= 1;
                 }
             } else {
-                unreachable!("Should not be reached")
+                unreachable!()
             }
         }
         Instr::SupEq(o1, o2, o3) => {
@@ -899,7 +978,7 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
                     *len -= 1;
                 }
             } else {
-                unreachable!("Should not be reached")
+                unreachable!()
             }
         }
         Instr::Eq(o1, o2, o3) => {
@@ -909,7 +988,17 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
                     *len -= 1;
                 }
             } else {
-                unreachable!("Should not be reached")
+                unreachable!()
+            }
+        }
+        Instr::ArrayEq(o1, o2, o3) => {
+            if o3 == condition_id {
+                *output.last_mut().unwrap() = Instr::ArrayEqCmp(o1, o2, *len);
+                if jmp_backwards {
+                    *len -= 1;
+                }
+            } else {
+                unreachable!()
             }
         }
         Instr::NotEq(o1, o2, o3) => {
@@ -919,7 +1008,17 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
                     *len -= 1;
                 }
             } else {
-                unreachable!("Should not be reached")
+                unreachable!()
+            }
+        }
+        Instr::ArrayNotEq(o1, o2, o3) => {
+            if o3 == condition_id {
+                *output.last_mut().unwrap() = Instr::ArrayNotEqCmp(o1, o2, *len);
+                if jmp_backwards {
+                    *len -= 1;
+                }
+            } else {
+                unreachable!()
             }
         }
 
@@ -1960,31 +2059,6 @@ fn parser_to_instr_set(
                     );
                 }
             }
-            Expr::ReturnVal(val) => {
-                if let Some(x) = fn_state {
-                    if let Some(return_value) = &**val {
-                        if let Some(ret_id) = x.3 {
-                            let val = get_id(
-                                return_value,
-                                v,
-                                var_types,
-                                consts,
-                                &mut output,
-                                fns,
-                                arrs,
-                                fn_state,
-                                id,
-                                src,
-                                instr_src,
-                            );
-                            output.push(Instr::Ret(val, ret_id));
-                        }
-                    }
-                } else {
-                    // exit the program
-                    output.push(Instr::Jmp(65535, false));
-                }
-            }
             Expr::ObjFunctionCall(obj, args, namespace, start, end) => {
                 let id = get_id(
                     obj,
@@ -2281,6 +2355,31 @@ fn parser_to_instr_set(
                     x.into_iter().skip(1).map(ToString::to_string).collect(),
                     y.clone(),
                 ));
+            }
+            Expr::ReturnVal(val) => {
+                if let Some(x) = fn_state {
+                    if let Some(return_value) = &**val {
+                        if let Some(ret_id) = x.3 {
+                            let val = get_id(
+                                return_value,
+                                v,
+                                var_types,
+                                consts,
+                                &mut output,
+                                fns,
+                                arrs,
+                                fn_state,
+                                id,
+                                src,
+                                instr_src,
+                            );
+                            output.push(Instr::Ret(val, ret_id));
+                        }
+                    }
+                } else {
+                    // exit the program
+                    output.push(Instr::Jmp(65535, false));
+                }
             }
             Expr::Break => output.push(Instr::Break(id)),
             Expr::Continue => output.push(Instr::Continue(id)),

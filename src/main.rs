@@ -72,6 +72,8 @@ pub enum Instr {
     SupEqCmp(u16, u16, u16),
     EqCmp(u16, u16, u16),
     NotEqCmp(u16, u16, u16),
+    ArrayEqCmp(u16, u16, u16),
+    ArrayNotEqCmp(u16, u16, u16),
 
     // CopyArg(u16, u16),
     Mov(u16, u16),
@@ -85,6 +87,8 @@ pub enum Instr {
     Pow(u16, u16, u16),
     Eq(u16, u16, u16),
     NotEq(u16, u16, u16),
+    ArrayEq(u16, u16, u16),
+    ArrayNotEq(u16, u16, u16),
     Sup(u16, u16, u16),
     SupEq(u16, u16, u16),
     Inf(u16, u16, u16),
@@ -286,25 +290,49 @@ pub fn execute(
                     instr_op_error(Instr::Pow(o1, o2, dest), "^", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
-            // FIX FOR ARRAYS
             Instr::Eq(o1, o2, dest) => {
                 consts[dest as usize] = Data::Bool(consts[o1 as usize] == consts[o2 as usize]);
             }
-            // FIX FOR ARRAYS
+            Instr::ArrayEq(o1, o2, dest) => {
+                if_likely! {let (Data::Array(a1),Data::Array(a2)) = (consts[o1 as usize],consts[o2 as usize]) => {
+                    consts[dest as usize] = Data::Bool(arrays[&a1] == arrays[&a2])
+                }}
+            }
             Instr::EqCmp(o1, o2, jump_size) => {
                 if consts[o1 as usize] != consts[o2 as usize] {
                     i += jump_size as usize;
                     continue;
                 }
             }
+            Instr::ArrayEqCmp(o1, o2, jump_size) => {
+                if_likely! {let (Data::Array(a1),Data::Array(a2)) = (consts[o1 as usize],consts[o2 as usize]) => {
+                    if arrays[&a1] != arrays[&a2] {
+                        i += jump_size as usize;
+                        continue;
+                    }
+                }}
+            }
             Instr::NotEq(o1, o2, dest) => {
                 consts[dest as usize] = Data::Bool(consts[o1 as usize] != consts[o2 as usize]);
+            }
+            Instr::ArrayNotEq(o1, o2, dest) => {
+                if_likely! {let (Data::Array(a1),Data::Array(a2)) = (consts[o1 as usize],consts[o2 as usize]) => {
+                    consts[dest as usize] = Data::Bool(arrays[&a1] != arrays[&a2])
+                }}
             }
             Instr::NotEqCmp(o1, o2, jump_size) => {
                 if consts[o1 as usize] == consts[o2 as usize] {
                     i += jump_size as usize;
                     continue;
                 }
+            }
+            Instr::ArrayNotEqCmp(o1, o2, jump_size) => {
+                if_likely! {let (Data::Array(a1),Data::Array(a2)) = (consts[o1 as usize],consts[o2 as usize]) => {
+                    if arrays[&a1] == arrays[&a2] {
+                        i += jump_size as usize;
+                        continue;
+                    }
+                }}
             }
             Instr::Sup(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
