@@ -207,8 +207,8 @@ fn get_id(
             "Invalid operation",
             format_args!(
                 "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{op}{color_bright_blue} {}{color_reset}{style_reset}",
-                format_datatype(infer_type(l, var_types)),
-                format_datatype(infer_type(r, var_types))
+                format_datatype(infer_type(l, var_types, fns)),
+                format_datatype(infer_type(r, var_types, fns))
             )
         );
     };
@@ -243,8 +243,11 @@ fn get_id(
             }
         }
         Expr::Array(elems, start, end) => {
-            let first_type = infer_type(&elems[0], var_types);
-            if !elems.iter().all(|x| infer_type(x, var_types) == first_type) {
+            let first_type = infer_type(&elems[0], var_types, fns);
+            if !elems
+                .iter()
+                .all(|x| infer_type(x, var_types, fns) == first_type)
+            {
                 parser_error!(
                     src.0,
                     src.1,
@@ -282,8 +285,8 @@ fn get_id(
             (consts.len() - 1) as u16
         }
         Expr::Mul(l, r, start, end) => {
-            if infer_type(l, var_types) != DataType::Number
-                || infer_type(r, var_types) != DataType::Number
+            if infer_type(l, var_types, fns) != DataType::Number
+                || infer_type(r, var_types, fns) != DataType::Number
             {
                 op_error(l, r, "*", start, end);
             }
@@ -300,8 +303,8 @@ fn get_id(
             id
         }
         Expr::Div(l, r, start, end) => {
-            if infer_type(l, var_types) != DataType::Number
-                || infer_type(r, var_types) != DataType::Number
+            if infer_type(l, var_types, fns) != DataType::Number
+                || infer_type(r, var_types, fns) != DataType::Number
             {
                 op_error(l, r, "/", start, end);
             }
@@ -318,8 +321,8 @@ fn get_id(
             id
         }
         Expr::Add(l, r, start, end) => {
-            let type_l = infer_type(l, var_types);
-            let type_r = infer_type(r, var_types);
+            let type_l = infer_type(l, var_types, fns);
+            let type_r = infer_type(r, var_types, fns);
             if type_l != type_r
                 || !matches!(
                     type_l,
@@ -349,8 +352,8 @@ fn get_id(
             id
         }
         Expr::Sub(l, r, start, end) => {
-            if infer_type(l, var_types) != DataType::Number
-                || infer_type(r, var_types) != DataType::Number
+            if infer_type(l, var_types, fns) != DataType::Number
+                || infer_type(r, var_types, fns) != DataType::Number
             {
                 op_error(l, r, "-", start, end);
             }
@@ -367,8 +370,8 @@ fn get_id(
             id
         }
         Expr::Mod(l, r, start, end) => {
-            if infer_type(l, var_types) != DataType::Number
-                || infer_type(r, var_types) != DataType::Number
+            if infer_type(l, var_types, fns) != DataType::Number
+                || infer_type(r, var_types, fns) != DataType::Number
             {
                 op_error(l, r, "%", start, end);
             }
@@ -385,8 +388,8 @@ fn get_id(
             id
         }
         Expr::Pow(l, r, start, end) => {
-            if infer_type(l, var_types) != DataType::Number
-                || infer_type(r, var_types) != DataType::Number
+            if infer_type(l, var_types, fns) != DataType::Number
+                || infer_type(r, var_types, fns) != DataType::Number
             {
                 op_error(l, r, "^", start, end);
             }
@@ -403,8 +406,8 @@ fn get_id(
             id
         }
         Expr::Eq(l, r) => {
-            // println!("EQ LEFT IS {:?}", type_inference::infer_type(l, var_types));
-            // println!("EQ RIGHT IS {:?}", type_inference::infer_type(r, var_types));
+            // println!("EQ LEFT IS {:?}", type_inference::infer_type(l, var_types,fns));
+            // println!("EQ RIGHT IS {:?}", type_inference::infer_type(r, var_types,fns));
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
             );
@@ -413,8 +416,8 @@ fn get_id(
             );
             let id = consts.len() as u16;
             consts.push(Data::Null);
-            if matches!(infer_type(l, var_types), DataType::Array(_))
-                && matches!(infer_type(r, var_types), DataType::Array(_))
+            if matches!(infer_type(l, var_types, fns), DataType::Array(_))
+                && matches!(infer_type(r, var_types, fns), DataType::Array(_))
             {
                 output.push(Instr::ArrayEq(id_l, id_r, id));
             } else {
@@ -435,8 +438,8 @@ fn get_id(
             id
         }
         Expr::Sup(l, r, start, end) => {
-            if infer_type(l, var_types) != DataType::Number
-                || infer_type(r, var_types) != DataType::Number
+            if infer_type(l, var_types, fns) != DataType::Number
+                || infer_type(r, var_types, fns) != DataType::Number
             {
                 op_error(l, r, ">", start, end);
             }
@@ -453,8 +456,8 @@ fn get_id(
             id
         }
         Expr::SupEq(l, r, start, end) => {
-            if infer_type(l, var_types) != DataType::Number
-                || infer_type(r, var_types) != DataType::Number
+            if infer_type(l, var_types, fns) != DataType::Number
+                || infer_type(r, var_types, fns) != DataType::Number
             {
                 op_error(l, r, ">=", start, end);
             }
@@ -471,8 +474,8 @@ fn get_id(
             id
         }
         Expr::Inf(l, r, start, end) => {
-            if infer_type(l, var_types) != DataType::Number
-                || infer_type(r, var_types) != DataType::Number
+            if infer_type(l, var_types, fns) != DataType::Number
+                || infer_type(r, var_types, fns) != DataType::Number
             {
                 op_error(l, r, "<", start, end);
             }
@@ -489,8 +492,8 @@ fn get_id(
             id
         }
         Expr::InfEq(l, r, start, end) => {
-            if infer_type(l, var_types) != DataType::Number
-                || infer_type(r, var_types) != DataType::Number
+            if infer_type(l, var_types, fns) != DataType::Number
+                || infer_type(r, var_types, fns) != DataType::Number
             {
                 op_error(l, r, "<=", start, end);
             }
@@ -507,8 +510,8 @@ fn get_id(
             id
         }
         Expr::BoolAnd(l, r, start, end) => {
-            if infer_type(l, var_types) != DataType::Bool
-                || infer_type(r, var_types) != DataType::Bool
+            if infer_type(l, var_types, fns) != DataType::Bool
+                || infer_type(r, var_types, fns) != DataType::Bool
             {
                 op_error(l, r, "&&", start, end);
             }
@@ -525,8 +528,8 @@ fn get_id(
             id
         }
         Expr::BoolOr(l, r, start, end) => {
-            if infer_type(l, var_types) != DataType::Bool
-                || infer_type(r, var_types) != DataType::Bool
+            if infer_type(l, var_types, fns) != DataType::Bool
+                || infer_type(r, var_types, fns) != DataType::Bool
             {
                 op_error(l, r, "||", start, end);
             }
@@ -543,7 +546,7 @@ fn get_id(
             id
         }
         Expr::Neg(l, start, end) => {
-            if infer_type(l, var_types) != DataType::Number {
+            if infer_type(l, var_types, fns) != DataType::Number {
                 parser_error!(
                     src.0,
                     src.1,
@@ -907,7 +910,7 @@ fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_len
     });
 }
 
-type Function = (String, Box<[String]>, Box<[Expr]>);
+pub type Function = (String, Box<[String]>, Box<[Expr]>);
 type FunctionState = (String, u16, Vec<(Intern<String>, u16)>, Option<u16>);
 
 #[inline(always)]
@@ -956,8 +959,11 @@ fn parser_to_instr_set(
                 }
             }
             Expr::Array(elems, start, end) => {
-                let first_type = infer_type(&elems[0], var_types);
-                if !elems.iter().all(|x| infer_type(x, var_types) == first_type) {
+                let first_type = infer_type(&elems[0], var_types, fns);
+                if !elems
+                    .iter()
+                    .all(|x| infer_type(x, var_types, fns) == first_type)
+                {
                     parser_error!(
                         src.0,
                         src.1,
@@ -1310,7 +1316,7 @@ fn parser_to_instr_set(
                 output.push(Instr::Jmp(code_length, true));
             }
             Expr::VarDeclare(x, y) => {
-                let var_type = type_inference::infer_type(y, var_types);
+                let var_type = type_inference::infer_type(y, var_types, fns);
                 let output_len = output.len();
                 let obj_id = get_id(
                     y,
@@ -1337,7 +1343,7 @@ fn parser_to_instr_set(
                 var_types.push((*x, var_type));
             }
             Expr::VarAssign(name, y, start, end) => {
-                let var_type = type_inference::infer_type(y, var_types);
+                let var_type = type_inference::infer_type(y, var_types, fns);
                 let id = v
                     .iter()
                     .find(|(w, _)| w == name)
