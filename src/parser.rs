@@ -1797,9 +1797,12 @@ fn parser_to_instr_set(
                             }
 
                             let mut fn_variables: Vec<(Intern<String>, u16)> = Vec::new();
+                            let mut fn_variables_types: Vec<(Intern<String>, DataType)> =
+                                Vec::new();
 
                             for (i, x) in user_function.1.iter().enumerate() {
                                 let len = consts.len() as u16;
+                                let infered = infer_type(&args[i], var_types, fns);
                                 let mut value = parser_to_instr_set(
                                     slice::from_ref(&args[i]),
                                     v,
@@ -1815,6 +1818,7 @@ fn parser_to_instr_set(
                                 move_to_id(&mut value, len);
                                 output.extend(value);
                                 fn_variables.push((Intern::from_ref(x), len));
+                                fn_variables_types.push((Intern::from_ref(x), infered))
                             }
                             let vars = fn_variables.clone();
                             consts.push(Data::Null);
@@ -1824,7 +1828,7 @@ fn parser_to_instr_set(
                             let to_extend = parser_to_instr_set(
                                 &user_function_code,
                                 &mut fn_variables,
-                                var_types,
+                                &mut fn_variables_types,
                                 consts,
                                 fns,
                                 Some(&(
