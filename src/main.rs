@@ -161,38 +161,6 @@ pub fn execute(
     let mut call_frames: Vec<Data> = Vec::with_capacity(consts.len() * call_stack.capacity());
     let mut i: usize = 0;
 
-    let instr_op_error = |instr: Instr, op: &str, l: Data, r: Data| {
-        let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &instr).unwrap();
-        parser_error!(
-            filename,
-            src,
-            *start,
-            *end,
-            "Invalid operation",
-            format_args!(
-                "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{op}{color_bright_blue} {}{color_reset}{style_reset}",
-                format_type(l),
-                format_type(r)
-            )
-        );
-    };
-
-    let instr_type_error = |instr: Instr, expected: &str, r: Data| {
-        let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &instr).unwrap();
-        parser_error!(
-            filename,
-            src,
-            *start,
-            *end,
-            "Invalid type",
-            format_args!(
-                "Expected {} but found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                expected,
-                format_type(r),
-            )
-        );
-    };
-
     let error = |instr: Instr, general_error: &str, msg: Arguments| {
         let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &instr).unwrap();
         parser_error!(filename, src, *start, *end, general_error, msg);
