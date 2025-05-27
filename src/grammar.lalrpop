@@ -26,8 +26,22 @@ Comma<T>: Vec<T> = {
     }
 };
 
+IndexedComma<T>: Vec<(usize, T, usize)> = {
+    <mut v:(<@L> <T> <@R> ",")*> <start: @L> <e:T?> <end: @R> => match e {
+        None => v,
+        Some(e) => {
+            v.push((start, e, end));
+            v
+        }
+    }
+};
+
 Args<T>: Vec<T> = {
     "(" <args: Comma<T>> ")" => args
+}
+
+IndexedArgs<T>: Vec<(usize, T, usize)> = {
+    "(" <args: IndexedComma<T>> ")" => args
 }
 
 Block<T>: T = {
@@ -63,7 +77,7 @@ InlineElseBlock:Expr = {
 }
 
 ConditionalBlock: Expr = {
-    "if" <o1: Expression> <o2: Block<Code>> <o3: ElseIfBlock*> <o4: ElseBlock?> => {
+    <start: @L> "if" <o1: Expression> <o2: Block<Code>> <o3: ElseIfBlock*> <o4: ElseBlock?> <end: @R> => {
         if o1 == Expr::Bool(true) {
             return Expr::EvalBlock(o2);
         } else if o1 == Expr::Bool(false) {
@@ -85,7 +99,7 @@ ConditionalBlock: Expr = {
                                 None => &[],
                             }]
                         .concat()
-                    ))
+                    ),start,end)
                 } else {unreachable!();}
             }
         } else {
@@ -99,13 +113,13 @@ ConditionalBlock: Expr = {
                         None => &[],
                     }]
                 .concat()
-            ));
+            ),start,end);
         }
 
     }
 }
 InlineConditionalBlock: Expr = {
-    "if" <o1: Expression> <o2: Block<Expression>> <o3: InlineElseIfBlock*> <o4: InlineElseBlock?> => {
+    <start: @L> "if" <o1: Expression> <o2: Block<Expression>> <o3: InlineElseIfBlock*> <o4: InlineElseBlock?> <end: @R> => {
         if o1 == Expr::Bool(true) {
             return o2;
         } else if o1 == Expr::Bool(false) {
@@ -127,7 +141,7 @@ InlineConditionalBlock: Expr = {
                                 None => &[],
                             }]
                         .concat()
-                    ))
+                    ),start,end)
                 } else {unreachable!();}
             }
         } else {
@@ -142,7 +156,7 @@ InlineConditionalBlock: Expr = {
                         None => &[],
                     }]
                 .concat()
-                )
+                ),start,end
             )
         }
     }
@@ -150,7 +164,7 @@ InlineConditionalBlock: Expr = {
 
 
 MatchBlock:Expr = {
-    "match" <match_obj: Expression> "{" <o2: (Expression "=>" Block<Code>)+> <o3: (r"[a-zA-Z_]+\s*=>" Block<Code>)?> "}" => {
+    <start: @L> "match" <match_obj: Expression> "{" <o2: (Expression "=>" Block<Code>)+> <o3: (r"[a-zA-Z_]+\s*=>" Block<Code>)?> "}" <end: @R> => {
         let mut output_code:Vec<Expr> = o2.into_iter().enumerate().map(|(i,(condition,_,code))|
             if i == 0 {condition}
             else {
@@ -170,7 +184,7 @@ MatchBlock:Expr = {
             output_code.push(Expr::ElseBlock(wildcard_code))
         }
 
-        Expr::Condition(Box::from(Expr::Eq(Box::from(match_obj), Box::from(output_code[0].clone()))),Box::from(output_code))
+        Expr::Condition(Box::from(Expr::Eq(Box::from(match_obj), Box::from(output_code[0].clone()))),Box::from(output_code),start,end)
     }
 }
 
@@ -303,7 +317,7 @@ Expression: Expr = {
     ArrayIndex,
     // method call
     <l:Expression> <start: @L> "." <f:FunctionCall> <end: @R> => {
-        if let Expr::FunctionCall(x,y,_,_) = f {
+        if let Expr::FunctionCall(x,y,_,_,_) = f {
             return Expr::ObjFunctionCall(Box::from(l),x,y,start,end);
         } else {
             unreachable!()
@@ -419,14 +433,14 @@ ItemAfter<S,T>: T = {
 }
 
 FunctionCall: Expr = {
-    <start: @L> <namespace: ItemBefore<Var, "::">+?> <o1: Var> <args: Args<Expression>> <end: @R> => {
-        Expr::FunctionCall(args.into_boxed_slice(), {
+    <start: @L> <namespace: ItemBefore<Var, "::">+?> <o1: Var> <args: IndexedArgs<Expression>> <end: @R> => {
+        Expr::FunctionCall(args.clone().into_iter().map(|(_,x,_)| x).collect::<Vec<Expr>>().into_boxed_slice(), {
             if let Some(ns) = namespace {
                 Box::from([ns.as_slice(), &[o1]].concat())
             } else {
                 Box::from(vec![String::from(o1)])
             }
-        }, start, end)
+        }, start, end, args.into_iter().map(|(x,_,y)| (x,y)).collect::<Vec<(usize,usize)>>().into_boxed_slice())
     }
 }
 

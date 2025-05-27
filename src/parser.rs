@@ -23,13 +23,19 @@ pub enum Expr {
     VarDeclare(Intern<String>, Box<Expr>),
     VarAssign(Intern<String>, Box<Expr>, usize, usize),
     // condition - code (contains else_if_blocks and potentially else_block)
-    Condition(Box<Expr>, Box<[Expr]>),
+    Condition(Box<Expr>, Box<[Expr]>, usize, usize),
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
     ElseBlock(Box<[Expr]>),
 
     WhileBlock(Box<Expr>, Box<[Expr]>),
-    // args - (optional namespace + name)
-    FunctionCall(Box<[Expr]>, Box<[String]>, usize, usize),
+    // args - (optional namespace + name) -- fn_start -- fn_end -- (arg_start,arg_end)
+    FunctionCall(
+        Box<[Expr]>,
+        Box<[String]>,
+        usize,
+        usize,
+        Box<[(usize, usize)]>,
+    ),
     ObjFunctionCall(Box<Expr>, Box<[Expr]>, Box<[String]>, usize, usize),
 
     // name+args -- code
@@ -569,7 +575,7 @@ fn get_id(
             id
         }
 
-        Expr::Condition(main_condition, code) => {
+        Expr::Condition(main_condition, code, start, end) => {
             let return_id = consts.len() as u16;
             consts.push(Data::Null);
 
@@ -629,6 +635,7 @@ fn get_id(
                 jmp_markers.push(output.len() - 1);
             }
 
+            let mut else_exists = false;
             for elem in &code[main_code_limit..] {
                 if let Expr::ElseIfBlock(condition, code) = elem {
                     condition_markers.push(output.len());
@@ -664,6 +671,7 @@ fn get_id(
                     output.push(Instr::Jmp(0, false));
                     jmp_markers.push(output.len() - 1);
                 } else if let Expr::ElseBlock(code) = elem {
+                    else_exists = true;
                     condition_markers.push(output.len());
                     let mut priv_vars = v.clone();
                     let cond_code = parser_to_instr_set(
@@ -689,6 +697,16 @@ fn get_id(
                         return_id,
                     ));
                 }
+            }
+            if !else_exists {
+                parser_error!(
+                    src.0,
+                    src.1,
+                    *start,
+                    *end,
+                    "Invalid condition",
+                    format_args!("Inline conditions need an else statement")
+                );
             }
 
             for y in jmp_markers {
@@ -1044,7 +1062,7 @@ fn parser_to_instr_set(
                     id = (consts.len() - 1) as u16;
                 }
             }
-            Expr::Condition(main_condition, code) => {
+            Expr::Condition(main_condition, code, _, _) => {
                 // get first code limit (after which there are only else(if) blocks)
                 let main_code_limit = code
                     .iter()
@@ -1457,7 +1475,35 @@ fn parser_to_instr_set(
                 instr_src.push((Instr::ArrayMod(id, elem_id, final_id), *start, *end));
                 output.push(Instr::ArrayMod(id, elem_id, final_id));
             }
-            Expr::FunctionCall(args, namespace, start, end) => {
+            Expr::FunctionCall(args, namespace, start, end, args_indexes) => {
+                let check_type = |arg: usize, expected: &[DataType]| {
+                    let infered = infer_type(&args[arg], var_types, fns);
+
+                    if !{
+                        if let DataType::Poly(polytype) = &infered {
+                            polytype.iter().all(|x| expected.contains(x))
+                        } else {
+                            expected.contains(&infered)
+                        }
+                    } {
+                        parser_error!(
+                            src.0,
+                            src.1,
+                            args_indexes[arg].0,
+                            args_indexes[arg].1,
+                            "Invalid type",
+                            format_args!(
+                                "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                                expected
+                                    .into_iter()
+                                    .map(|x| format_datatype(x.clone()).to_lowercase())
+                                    .collect::<Vec<String>>()
+                                    .join(" or "),
+                                format_datatype(infered)
+                            )
+                        );
+                    }
+                };
                 let len = namespace.len() - 1;
                 let full_name = namespace.join("::");
                 let name = namespace[len].as_str();
@@ -1502,6 +1548,7 @@ fn parser_to_instr_set(
                         }
                         "num" => {
                             check_args!(args, 1, "num", src.0, src.1, *start, *end);
+                            check_type(0, &[DataType::String, DataType::Number]);
                             let id = get_id(
                                 &args[0],
                                 v,
@@ -1543,6 +1590,7 @@ fn parser_to_instr_set(
                         }
                         "bool" => {
                             check_args!(args, 1, "bool", src.0, src.1, *start, *end);
+                            check_type(0, &[DataType::String, DataType::Bool]);
                             let id = get_id(
                                 &args[0],
                                 v,
@@ -1566,6 +1614,7 @@ fn parser_to_instr_set(
                         }
                         "input" => {
                             check_args_range!(args, 0, 1, "input", src.0, src.1, *start, *end);
+                            check_type(0, &[DataType::String]);
                             let id = if args.is_empty() {
                                 consts.push(Data::String(Intern::from(String::new())));
                                 (consts.len() - 1) as u16
@@ -1595,6 +1644,7 @@ fn parser_to_instr_set(
                         "range" => {
                             check_args_range!(args, 1, 2, "range", src.0, src.1, *start, *end);
                             if args.len() == 1 {
+                                check_type(0, &[DataType::Number]);
                                 let id_x = get_id(
                                     &args[0],
                                     v,
@@ -1616,6 +1666,8 @@ fn parser_to_instr_set(
                                     (consts.len() - 1) as u16,
                                 ));
                             } else {
+                                check_type(0, &[DataType::Number]);
+                                check_type(1, &[DataType::Number]);
                                 let id_x = get_id(
                                     &args[0],
                                     v,
@@ -1648,6 +1700,7 @@ fn parser_to_instr_set(
                         }
                         "floor" => {
                             check_args!(args, 1, "floor", src.0, src.1, *start, *end);
+                            check_type(0, &[DataType::Number]);
                             let id = get_id(
                                 &args[0],
                                 v,

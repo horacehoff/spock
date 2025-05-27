@@ -20,22 +20,27 @@ fn track_returns(
     fns: &[Function],
 ) -> Vec<DataType> {
     let mut return_types: Vec<DataType> = Vec::new();
-
     for content in content {
         match content {
-            Expr::Condition(_, code) => return_types.extend(track_returns(code, var_types, fns)),
+            Expr::Condition(_, code, _, _) => {
+                return_types.extend(track_returns(code, var_types, fns))
+            }
             Expr::ElseIfBlock(_, code) => return_types.extend(track_returns(code, var_types, fns)),
             Expr::ElseBlock(code) => return_types.extend(track_returns(code, var_types, fns)),
             Expr::WhileBlock(_, code) => return_types.extend(track_returns(code, var_types, fns)),
             Expr::ReturnVal(return_val) => {
-                return_types.push(if let Some(val) = *return_val.to_owned() {
-                    infer_type(&val, var_types, fns)
+                if let Some(val) = *return_val.to_owned() {
+                    let infered = infer_type(&val, var_types, fns);
+                    if !return_types.contains(&infered) {
+                        return_types.push(infered);
+                    }
                 } else {
-                    DataType::Null
-                })
+                    if !return_types.contains(&DataType::Null) {
+                        return_types.push(DataType::Null);
+                    }
+                }
             }
             Expr::ForLoop(_, code) => return_types.extend(track_returns(code, var_types, fns)),
-
             Expr::EvalBlock(code) => return_types.extend(track_returns(code, var_types, fns)),
             Expr::LoopBlock(code) => return_types.extend(track_returns(code, var_types, fns)),
             _ => continue,
@@ -140,7 +145,7 @@ pub fn infer_type(
             DataType::String => DataType::String,
             _ => todo!(),
         },
-        Expr::FunctionCall(args, namespace, _, _) => match namespace.last().unwrap().as_str() {
+        Expr::FunctionCall(args, namespace, _, _, _) => match namespace.last().unwrap().as_str() {
             "print" => DataType::Null,
             "type" => infer_type(&args[0], var_types, fns),
             "num" => DataType::Number,
@@ -214,14 +219,20 @@ pub fn infer_type(
                 _ => todo!(),
             }
         }
-        Expr::Condition(_, code) => {
+        Expr::Condition(_, code, _, _) => {
             let mut types: Vec<DataType> = Vec::with_capacity(code.len());
             types.push(infer_type(&code[0], var_types, fns));
             for t in &code[0..] {
                 if let Expr::ElseIfBlock(_, code) = t {
-                    types.push(infer_type(&code[0], var_types, fns));
+                    let infered = infer_type(&code[0], var_types, fns);
+                    if !types.contains(&infered) {
+                        types.push(infered);
+                    }
                 } else if let Expr::ElseBlock(code) = t {
-                    types.push(infer_type(&code[0], var_types, fns));
+                    let infered = infer_type(&code[0], var_types, fns);
+                    if !types.contains(&infered) {
+                        types.push(infered);
+                    }
                 }
             }
 

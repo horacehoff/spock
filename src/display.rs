@@ -1,12 +1,12 @@
 use crate::parser::Expr;
-use crate::{format_lines, Data, Instr};
+use crate::{Data, Instr, format_lines};
 use ariadne::*;
 use concat_string::concat_string;
 use inline_colorization::*;
-use lalrpop_util::lexer::Token;
 use lalrpop_util::ParseError;
-use std::fmt::Formatter;
+use lalrpop_util::lexer::Token;
 use slab::Slab;
+use std::fmt::Formatter;
 
 pub fn format_data(x: Data, arrays: &Slab<Vec<Data>>) -> String {
     match x {
@@ -53,7 +53,7 @@ impl std::fmt::Display for Expr {
             Expr::Bool(x) => write!(f, "{x}"),
             Expr::String(x) => write!(f, "\"{x}\""),
             Expr::Var(x, _, _) => write!(f, "{}", x),
-            Expr::Condition(x, y) => {
+            Expr::Condition(x, y, _, _) => {
                 write!(
                     f,
                     "if {x} {{\n{}}}",
@@ -91,7 +91,7 @@ impl std::fmt::Display for Expr {
             Expr::VarDeclare(x, y) => {
                 write!(f, "let {x} = {y}")
             }
-            Expr::FunctionCall(y, z, _, _) => {
+            Expr::FunctionCall(y, z, _, _, _) => {
                 write!(
                     f,
                     "{}{}({})",

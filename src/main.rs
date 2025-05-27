@@ -417,16 +417,7 @@ pub fn execute(
                     }));
                 }
                 Data::Number(num) => consts[dest as usize] = Data::Number(num),
-                other => {
-                    error(
-                        Instr::Num(tgt, dest),
-                        "Invalid type",
-                        format_args!(
-                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a number",
-                            format_data(other, arrays)
-                        ),
-                    );
-                }
+                _ => unreachable!(),
             },
             Instr::Str(tgt, dest) => {
                 consts[dest as usize] =
@@ -446,15 +437,6 @@ pub fn execute(
                         );
                         false
                     }));
-                } else {
-                    error(
-                        Instr::Bool(tgt, dest),
-                        "Invalid type",
-                        format_args!(
-                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a boolean",
-                            format_data(base, arrays)
-                        ),
-                    );
                 }}
             }
             Instr::Input(msg, dest) => {
@@ -464,8 +446,6 @@ pub fn execute(
                     let mut line = String::new();
                     std::io::stdin().read_line(&mut line).unwrap();
                     consts[dest as usize] = Data::String(Intern::from(line.trim().to_string()));
-                } else {
-                    instr_type_error(Instr::Input(msg, dest), "string", consts[msg as usize]);
                 }}
             }
             Instr::StoreFuncArg(id) => func_args.push(id),
@@ -484,7 +464,7 @@ pub fn execute(
             }
             // takes tgt from consts, moves it to dest-th array at idx-th index
             Instr::ArrayMov(tgt, dest, idx) => {
-                // arrays.get_mut(dest).unwrap()[idx as usize] = consts[tgt as usize];
+                arrays.get_mut(dest as usize).unwrap()[idx as usize] = consts[tgt as usize];
             }
             // takes tgt from consts, idx from consts,
             Instr::ArrayMod(tgt, dest, idx) => {
@@ -651,11 +631,6 @@ pub fn execute(
             Instr::Floor(tgt, dest) => {
                 if_likely! {let Data::Number(x) = consts[tgt as usize] => {
                     consts[dest as usize] = Data::Number(is_float!(x.floor(),x));
-                } else {
-                    error(Instr::Floor(tgt, dest), "Invalid type", format_args!(
-                        "Cannot floor type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        format_type(consts[tgt as usize])
-                    ));
                 }}
             }
             Instr::TheAnswer(dest) => {
