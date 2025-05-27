@@ -78,6 +78,11 @@ pub fn format_datatype(x: DataType) -> String {
         DataType::Array(_) => String::from("Array"),
         DataType::Null => String::from("NULL"),
         DataType::File => String::from("File"),
+        DataType::Poly(types) => types
+            .into_iter()
+            .map(|x| format_datatype(x))
+            .collect::<Vec<String>>()
+            .join("|"),
     }
 }
 

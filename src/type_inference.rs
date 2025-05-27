@@ -10,6 +10,7 @@ pub enum DataType {
     String,
     File,
     Null,
+    Poly(Box<[DataType]>),
 }
 
 pub fn infer_type(x: &Expr, var_types: &[(Intern<String>, DataType)]) -> DataType {
@@ -21,8 +22,8 @@ pub fn infer_type(x: &Expr, var_types: &[(Intern<String>, DataType)]) -> DataTyp
         Expr::Array(x, _, _) => DataType::Array(Box::from(infer_type(&x[0], var_types))),
         Expr::Add(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
             (DataType::Number, DataType::Number) => DataType::Number,
-            (DataType::String, DataType::String) => DataType::Number,
-            (DataType::Array(_), DataType::Array(_)) => DataType::Number,
+            (DataType::String, DataType::String) => DataType::String,
+            (DataType::Array(type1), DataType::Array(_)) => DataType::Array(type1),
             _ => todo!("TODO ADD ERR"),
         },
         Expr::Mul(x, y, _, _) => match (infer_type(x, var_types), infer_type(y, var_types)) {
@@ -149,6 +150,32 @@ pub fn infer_type(x: &Expr, var_types: &[(Intern<String>, DataType)]) -> DataTyp
                 _ => todo!(),
             }
         }
+        Expr::Condition(_, code) => {
+            let mut types: Vec<DataType> = Vec::with_capacity(code.len());
+            types.push(infer_type(&code[0], var_types));
+            for t in &code[0..] {
+                if let Expr::ElseIfBlock(_, code) = t {
+                    types.push(infer_type(&code[0], var_types));
+                } else if let Expr::ElseBlock(code) = t {
+                    types.push(infer_type(&code[0], var_types));
+                }
+            }
+
+            check_poly(DataType::Poly(Box::from(types)))
+        }
         unknown_type => todo!("TYPE: {unknown_type}"),
+    }
+}
+
+fn check_poly(data: DataType) -> DataType {
+    if let DataType::Poly(ref elems) = data {
+        let first_type = &elems[0];
+        if elems.iter().all(|x| x == first_type) {
+            first_type.clone()
+        } else {
+            data
+        }
+    } else {
+        unreachable!()
     }
 }

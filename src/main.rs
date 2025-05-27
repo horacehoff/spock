@@ -8,6 +8,7 @@ use inline_colorization::*;
 use internment::Intern;
 use likely_stable::{if_likely, likely, unlikely};
 use parser::*;
+use slab::Slab;
 use std::cmp::PartialEq;
 use std::fmt::Arguments;
 use std::fs;
@@ -15,15 +16,14 @@ use std::fs::File;
 use std::hint::unreachable_unchecked;
 use std::io::Write;
 use std::time::Instant;
-use slab::Slab;
 
 mod builtin_funcs;
 mod display;
 mod optimizations;
 mod parser;
 mod tests;
-mod util;
 mod type_inference;
+mod util;
 
 #[cfg(feature = "int")]
 pub type Num = i64;
@@ -215,6 +215,9 @@ pub fn execute(
                     continue;
                 }
             }
+            Instr::Mov(tgt, dest) | Instr::MovAnon(tgt, dest) => {
+                consts[dest as usize] = consts[tgt as usize];
+            }
 
             // funcs
             Instr::Call(x, y) => {
@@ -238,15 +241,11 @@ pub fn execute(
             Instr::Add(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent + child);
-                } else {
-                    instr_op_error(Instr::Add(o1, o2, dest), "+",consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::StrAdd(o1, o2, dest) => {
                 if_likely! {let (Data::String(parent), Data::String(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::String(Intern::from(concat_string!(*parent, *child)));
-                } else {
-                    instr_op_error(Instr::StrAdd(o1, o2, dest), "+",consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::ArrayAdd(o1, o2, dest) => {
@@ -259,43 +258,31 @@ pub fn execute(
                     combined.extend_from_slice(arr_b);
                     let id = arrays.insert(combined);
                     consts[dest as usize] = Data::Array(id);
-                } else {
-                    instr_op_error(Instr::ArrayAdd(o1, o2, dest), "+",consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::Mul(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent * child);
-                } else {
-                    instr_op_error(Instr::Mul(o1, o2, dest), "*",consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::Div(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent / child);
-                } else {
-                    instr_op_error(Instr::Div(o1, o2, dest), "/", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::Sub(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent - child);
-                } else {
-                   instr_op_error(Instr::Sub(o1, o2, dest), "-", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::Mod(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent % child);
-                } else {
-                    instr_op_error(Instr::Mod(o1, o2, dest), "%", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::Pow(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(is_float!(parent.powf(child), parent.pow(child as u32)));
-                } else {
-                    instr_op_error(Instr::Pow(o1, o2, dest), "^", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::Eq(o1, o2, dest) => {
@@ -345,8 +332,6 @@ pub fn execute(
             Instr::Sup(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent > child);
-                } else {
-                    instr_op_error(Instr::Sup(o1, o2, dest), ">", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::SupCmp(o1, o2, jump_size) => {
@@ -355,15 +340,11 @@ pub fn execute(
                         i += jump_size as usize;
                         continue;
                     }
-                } else {
-                    instr_op_error(Instr::SupCmp(o1, o2, jump_size), ">",consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::SupEq(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent >= child);
-                } else {
-                    instr_op_error(Instr::SupEq(o1, o2, dest), ">=", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::SupEqCmp(o1, o2, jump_size) => {
@@ -372,15 +353,11 @@ pub fn execute(
                         i += jump_size as usize;
                         continue;
                     }
-                } else {
-                    instr_op_error(Instr::SupEqCmp(o1, o2, jump_size), ">=", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::Inf(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent < child);
-                } else {
-                    instr_op_error(Instr::Inf(o1, o2, dest), "<", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::InfCmp(o1, o2, jump_size) => {
@@ -388,18 +365,12 @@ pub fn execute(
                     if parent >= child {
                     i += jump_size as usize;
                     continue;
-                }
-                } else {
-                    instr_op_error(Instr::InfCmp(o1, o2, jump_size), "<", consts[o1 as usize], consts[o2 as usize]);
-
+                    }
                 }}
             }
             Instr::InfEq(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent <= child);
-                } else {
-                    instr_op_error(Instr::InfEq(o1, o2, dest), "<=", consts[o1 as usize], consts[o2 as usize]);
-
                 }}
             }
             Instr::InfEqCmp(o1, o2, jump_size) => {
@@ -408,44 +379,21 @@ pub fn execute(
                         i += jump_size as usize;
                         continue;
                     }
-                } else {
-                    instr_op_error(Instr::InfEqCmp(o1, o2, jump_size), "<=", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::BoolAnd(o1, o2, dest) => {
                 if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent && child);
-                } else {
-                    instr_op_error(Instr::BoolAnd(o1, o2, dest), "&&", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
             Instr::BoolOr(o1, o2, dest) => {
                 if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Bool(parent || child);
-                } else {
-                    instr_op_error(Instr::BoolOr(o1, o2, dest), "||", consts[o1 as usize], consts[o2 as usize]);
                 }}
             }
-            Instr::Mov(tgt, dest) | Instr::MovAnon(tgt, dest) => {
-                consts[dest as usize] = consts[tgt as usize];
-            }
             Instr::Neg(tgt, dest) => {
-                // let tgt = consts[tgt as usize];
                 if_likely! {let Data::Number(x) = consts[tgt as usize] => {
                     consts[dest as usize] = Data::Number(-x);
-                } else {
-                    let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &Instr::Neg(tgt, dest)).unwrap();
-                    parser_error!(
-                        filename,
-                        src,
-                        *start,
-                        *end,
-                        "Invalid operation",
-                        format_args!(
-                            "Cannot negate {style_bold}{color_bright_blue}{}{color_reset}{style_reset}",
-                            format_type(consts[tgt as usize])
-                        )
-                    );
                 }}
             }
             Instr::Print(target) => {
