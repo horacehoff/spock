@@ -177,7 +177,7 @@ print(result)</code></pre></td>
 </tr>
 <tr>
 <td>
-0.017s (7x faster)
+0.016s (7x faster)
 </td>
 <td>
 0.120s

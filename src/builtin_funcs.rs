@@ -1,6 +1,6 @@
 use crate::display::format_data;
 use crate::util::format_type;
-use crate::{Data, Instr, Num, error_b, is_float, parser_error};
+use crate::{error_b, is_float, parser_error, Data, Instr, Num};
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;

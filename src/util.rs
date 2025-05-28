@@ -1,6 +1,6 @@
-use crate::Data;
 use crate::parser::Expr;
 use crate::type_inference::DataType;
+use crate::Data;
 
 #[macro_export]
 macro_rules! error {
@@ -75,7 +75,7 @@ pub fn format_datatype(x: DataType) -> String {
         DataType::Number => String::from("Number"),
         DataType::Bool => String::from("Bool"),
         DataType::String => String::from("String"),
-        DataType::Array(_) => String::from("Array"),
+        DataType::Array(array_type) => format!("Array<{}>", format_datatype(*array_type)),
         DataType::Null => String::from("NULL"),
         DataType::File => String::from("File"),
         DataType::Poly(types) => types

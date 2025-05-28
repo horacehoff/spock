@@ -6,7 +6,7 @@ use builtin_funcs::FUNCS;
 use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
-use likely_stable::{if_likely, likely, unlikely};
+use likely_stable::{if_likely, likely, unlikely, LikelyResult};
 use parser::*;
 use slab::Slab;
 use std::cmp::PartialEq;
@@ -370,12 +370,12 @@ pub fn execute(
             }
             Instr::Num(tgt, dest) => match consts[tgt as usize] {
                 Data::String(str) => {
-                    consts[dest as usize] = Data::Number(str.parse::<Num>().unwrap_or_else(|_| {
+                    consts[dest as usize] = Data::Number(str.parse::<Num>().unwrap_or_else_likely(|_| {
                         error(
                             Instr::Num(tgt, dest),
                             "Invalid type",
                             format_args!(
-                                "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a number",
+                                "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Number",
                                 str
                             ),
                         )
@@ -391,12 +391,12 @@ pub fn execute(
             Instr::Bool(tgt, dest) => {
                 let base = consts[tgt as usize];
                 if_likely! {let Data::String(str) = base => {
-                    consts[dest as usize] = Data::Bool(str.parse::<bool>().unwrap_or_else(|_| {
+                    consts[dest as usize] = Data::Bool(str.parse::<bool>().unwrap_or_else_likely(|_| {
                         error(
                             Instr::Bool(tgt, dest),
                             "Invalid type",
                             format_args!(
-                                "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a boolean",
+                                "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Boolean",
                                 str
                             ),
                         );
@@ -437,7 +437,6 @@ pub fn execute(
                     let requested_mod = consts[dest as usize];
                     if let Data::Array(array_id) = consts[tgt as usize] {
                         let array = arrays.get_mut(array_id).unwrap();
-                        print!("ARRAY is {array:?}");
                         if likely(array.len() > index as usize) {
                             array[index as usize] = requested_mod;
                         } else {
@@ -469,25 +468,7 @@ pub fn execute(
                                     ),
                                 );
                             }
-                        } else {
-                            error(
-                                Instr::ArrayMod(tgt, dest, idx),
-                                "Invalid type",
-                                format_args!(
-                                    "Cannot insert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} in string",
-                                    format_type(requested_mod)
-                                ),
-                            );
                         }}
-                    } else {
-                        error(
-                            Instr::ArrayMod(tgt, dest, idx),
-                            "Invalid type",
-                            format_args!(
-                                "Cannot index type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                format_type(consts[tgt as usize])
-                            ),
-                        );
                     }
                 }}
             }
@@ -505,7 +486,7 @@ pub fn execute(
                                     Instr::GetIndex(tgt, index, dest),
                                     "Invalid index",
                                     format_args!(
-                                        "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but array has {} elements",
+                                        "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but Array has {} elements",
                                         idx,
                                         array.len()
                                     ),
@@ -522,7 +503,7 @@ pub fn execute(
                                     Instr::GetIndex(tgt, index, dest),
                                     "Invalid index",
                                     format_args!(
-                                        "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but string has {} characters",
+                                        "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but String has {} characters",
                                         idx,
                                         str.len()
                                     ),
@@ -531,15 +512,6 @@ pub fn execute(
                         }
                         _ => unsafe {unreachable_unchecked()}
                     }
-                } else {
-                    error(
-                        Instr::GetIndex(tgt, index, dest),
-                        "Invalid index",
-                        format_args!(
-                            "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a valid index",
-                             format_data(consts[index as usize], arrays)
-                        ),
-                    );
                 }}
             }
             Instr::Range(min, max, dest) => {
@@ -601,8 +573,6 @@ pub fn execute(
                         .get_mut(id)
                         .unwrap()
                         .push(consts[element as usize]);
-                } else {
-                    error(Instr::Push(array, element), "Invalid type", format_args!("Cannot push element to {color_bright_blue}{style_bold}{}{color_reset}{style_reset}", format_data(consts[array as usize], arrays)));
                 }}
             }
             Instr::Len(tgt, dest) => {
@@ -613,16 +583,7 @@ pub fn execute(
                     Data::String(str) => {
                         consts[dest as usize] = Data::Number(str.chars().count() as Num)
                     }
-                    x => {
-                        error(
-                            Instr::Len(tgt, dest),
-                            "Invalid type",
-                            format_args!(
-                                "Cannot get length of type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                format_type(x)
-                            ),
-                        );
-                    }
+                    _ => unsafe { unreachable_unchecked() }
                 };
             }
             Instr::Sqrt(tgt, dest) => {
@@ -639,8 +600,6 @@ pub fn execute(
                                 .collect(),
                         );
                         consts[dest as usize] = Data::Array(id);
-                    } else {
-                        error(Instr::Split(tgt, sep, dest), "Invalid separator", format_args!("Invalid string separator: {color_bright_blue}{style_bold}{}{color_reset}{style_reset}", format_data(consts[sep as usize], arrays)));
                     }}
                 }
                 Data::Array(array_id) => {
@@ -655,31 +614,12 @@ pub fn execute(
                     // let id = arrays.insert((base_id..arrays.len() as u16).map(Data::Array).collect());
                     // consts[dest as usize] = Data::Array(id);
                 }
-                invalid => {
-                    error(
-                        Instr::Split(tgt, sep, dest),
-                        "Invalid type",
-                        format_args!(
-                            "Cannot split type {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            format_type(invalid)
-                        ),
-                    );
-                }
+                _ => unsafe { unreachable_unchecked() }
             },
             Instr::Remove(array, idx) => {
                 if_likely! {let Data::Number(idx) = consts[idx as usize] => {
-                        // arrays.get_mut(array).unwrap().remove(idx as usize);
-                } else {
-                    error(
-                        Instr::Remove(array, idx),
-                        "Invalid index",
-                        format_args!(
-                            "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a valid index",
-                             format_data(consts[idx as usize], arrays)
-                        ),
-                    );
-                }
-                }
+                        arrays.get_mut(array as usize).unwrap().remove(idx as usize);
+                }}
             }
             Instr::Break(_) | Instr::Continue(_) => unsafe { unreachable_unchecked() },
         }

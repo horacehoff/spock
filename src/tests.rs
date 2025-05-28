@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use crate::Data;
     use crate::execute;
     use crate::get_vec_capacity;
     use crate::parse;
+    use crate::Data;
 
     #[test]
     fn fib_41() {
