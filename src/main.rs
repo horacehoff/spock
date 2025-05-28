@@ -200,31 +200,9 @@ pub fn execute(
                     continue;
                 }
             }
-            Instr::Mov(tgt, dest)
-            // | Instr::MovAnon(tgt, dest)
-            => {
+            Instr::Mov(tgt, dest) => {
                 consts[dest as usize] = consts[tgt as usize];
             }
-
-            // funcs
-            // Instr::Call(x, y) => {
-            //     call_stack.push((i + 1, y));
-            //     i = x as usize;
-            //     call_frames.extend_from_slice(consts.as_ref());
-            //     continue;
-            // }
-            // Instr::Ret(x, y) => {
-            //     let val = consts[x as usize];
-            //     if let Some((ret_i, dest)) = call_stack.pop() {
-            //         let consts_part = call_frames.split_off(call_frames.len() - consts.len());
-            //         consts.copy_from_slice(&consts_part);
-            //         consts[dest as usize] = val;
-            //         i = ret_i;
-            //         continue;
-            //     } else {
-            //         consts[y as usize] = val;
-            //     }
-            // }
             Instr::Add(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent + child);
@@ -404,7 +382,7 @@ pub fn execute(
                     }));
                 }
                 Data::Number(num) => consts[dest as usize] = Data::Number(num),
-                _ => unreachable!(),
+                _ => unsafe { unreachable_unchecked() },
             },
             Instr::Str(tgt, dest) => {
                 consts[dest as usize] =
@@ -551,16 +529,7 @@ pub fn execute(
                                 );
                             }
                         }
-                        other => {
-                            error(
-                                Instr::GetIndex(tgt, index, dest),
-                                "Invalid type",
-                                format_args!(
-                                    "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                    format_type(other)
-                                ),
-                            );
-                        }
+                        _ => unsafe {unreachable_unchecked()}
                     }
                 } else {
                     error(

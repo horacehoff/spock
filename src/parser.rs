@@ -1032,6 +1032,20 @@ fn parser_to_instr_set(
             }
             // array[index]
             Expr::GetIndex(target, index, start, end) => {
+                let infered = infer_type(target, var_types, fns);
+                if !matches!(infered, DataType::String | DataType::Array(_)) {
+                    parser_error!(
+                        src.0,
+                        src.1,
+                        *start,
+                        *end,
+                        "Invalid type",
+                        format_args!(
+                            "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                            format_datatype(infered)
+                        )
+                    );
+                }
                 // process the array/string that is being indexed
                 let mut id = get_id(
                     target,
@@ -1048,6 +1062,20 @@ fn parser_to_instr_set(
                 );
                 // for each index operation, process the index, adjust the id variable for the next index operation, push null to constants to use GetIndex to index at runtime
                 for elem in index {
+                    let infered = infer_type(elem, var_types, fns);
+                    if !matches!(infered, DataType::String | DataType::Array(_)) {
+                        parser_error!(
+                            src.0,
+                            src.1,
+                            *start,
+                            *end,
+                            "Invalid type",
+                            format_args!(
+                                "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a valid index",
+                                format_datatype(infered)
+                            )
+                        );
+                    }
                     let f_id = get_id(
                         elem,
                         v,
@@ -1428,6 +1456,20 @@ fn parser_to_instr_set(
             }
             // x[y]... = z;
             Expr::ArrayModify(x, z, w, start, end) => {
+                let infered = infer_type(x, var_types, fns);
+                if !matches!(infered, DataType::String | DataType::Array(_)) {
+                    parser_error!(
+                        src.0,
+                        src.1,
+                        *start,
+                        *end,
+                        "Invalid type",
+                        format_args!(
+                            "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                            format_datatype(infered)
+                        )
+                    );
+                }
                 // get the id of the target array
                 let mut id = get_id(
                     x,
