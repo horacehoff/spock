@@ -1,13 +1,13 @@
 use crate::display::format_data;
 use crate::util::format_type;
-use crate::{error_b, is_float, parser_error, Data, Instr, Num};
+use crate::{Data, Instr, Num, error_b, is_float, parser_error};
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
 use likely_stable::if_likely;
+use slab::Slab;
 use std::fs::OpenOptions;
 use std::io::Write;
-use slab::Slab;
 
 macro_rules! builtin_error {
     ($instr_src: expr, $self_i:expr, $filename: expr, $src:expr, $general_error: expr, $msg:expr) => {
@@ -46,8 +46,6 @@ fn uppercase(
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
-    } else {
-        type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -64,8 +62,6 @@ fn lowercase(
 ) {
     if_likely! {let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
-    } else {
-       type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 

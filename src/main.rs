@@ -122,10 +122,6 @@ pub enum Instr {
     ArrayMod(u16, u16, u16),
     GetIndex(u16, u16, u16),
 
-    Call(u16, u16),    // function_start_index, return_target_id
-    Ret(u16, u16),     // return obj id -- return target id
-    MovAnon(u16, u16), // same than mov, used because mov can be changed by the parser
-
     TheAnswer(u16),
     // array - element
     Push(u16, u16),
@@ -139,6 +135,9 @@ pub enum Instr {
     // TEMP - NEVER APPEARS IN FINAL CODE
     Break(u16),
     Continue(u16),
+
+    JmpSave(u16, bool),
+    JmpLoad(bool),
 }
 
 // struct CallFrame {
@@ -153,12 +152,10 @@ pub fn execute(
     consts: &mut [Data],
     func_args: &mut Vec<u16>,
     arrays: &mut Slab<Vec<Data>>,
-    call_stack: &mut Vec<CallFrame>,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
 ) {
-    let mut call_frames: Vec<Data> = Vec::with_capacity(consts.len() * call_stack.capacity());
     let mut i: usize = 0;
 
     let error = |instr: Instr, general_error: &str, msg: Arguments| {
@@ -166,6 +163,7 @@ pub fn execute(
         parser_error!(filename, src, *start, *end, general_error, msg);
     };
 
+    let mut jmps: Vec<u16> = Vec::with_capacity(10);
     while i < instructions.len() {
         match instructions[i] {
             Instr::Jmp(size, is_neg) => {
@@ -177,35 +175,56 @@ pub fn execute(
                     continue;
                 }
             }
+            Instr::JmpSave(size, is_neg) => {
+                jmps.push(size);
+                if is_neg {
+                    i -= size as usize;
+                    continue;
+                } else {
+                    i += size as usize;
+                    continue;
+                }
+            }
+            Instr::JmpLoad(is_neg) => {
+                if is_neg {
+                    i -= jmps.pop().unwrap() as usize;
+                    continue;
+                } else {
+                    i += jmps.pop().unwrap() as usize;
+                    continue;
+                }
+            }
             Instr::Cmp(cond_id, size) => {
                 if let Data::Bool(false) = consts[cond_id as usize] {
                     i += size as usize;
                     continue;
                 }
             }
-            Instr::Mov(tgt, dest) | Instr::MovAnon(tgt, dest) => {
+            Instr::Mov(tgt, dest)
+            // | Instr::MovAnon(tgt, dest)
+            => {
                 consts[dest as usize] = consts[tgt as usize];
             }
 
             // funcs
-            Instr::Call(x, y) => {
-                call_stack.push((i + 1, y));
-                i = x as usize;
-                call_frames.extend_from_slice(consts.as_ref());
-                continue;
-            }
-            Instr::Ret(x, y) => {
-                let val = consts[x as usize];
-                if let Some((ret_i, dest)) = call_stack.pop() {
-                    let consts_part = call_frames.split_off(call_frames.len() - consts.len());
-                    consts.copy_from_slice(&consts_part);
-                    consts[dest as usize] = val;
-                    i = ret_i;
-                    continue;
-                } else {
-                    consts[y as usize] = val;
-                }
-            }
+            // Instr::Call(x, y) => {
+            //     call_stack.push((i + 1, y));
+            //     i = x as usize;
+            //     call_frames.extend_from_slice(consts.as_ref());
+            //     continue;
+            // }
+            // Instr::Ret(x, y) => {
+            //     let val = consts[x as usize];
+            //     if let Some((ret_i, dest)) = call_stack.pop() {
+            //         let consts_part = call_frames.split_off(call_frames.len() - consts.len());
+            //         consts.copy_from_slice(&consts_part);
+            //         consts[dest as usize] = val;
+            //         i = ret_i;
+            //         continue;
+            //     } else {
+            //         consts[y as usize] = val;
+            //     }
+            // }
             Instr::Add(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent + child);
@@ -640,8 +659,6 @@ pub fn execute(
             Instr::Sqrt(tgt, dest) => {
                 if_likely! {let Data::Number(num) = consts[tgt as usize] => {
                     consts[dest as usize] = Data::Number(is_float!(num.sqrt(), num.isqrt()))
-                } else {
-                    error(Instr::Sqrt(tgt, dest), "Invalid type", format_args!("Cannot compute square root of {color_bright_blue}{style_bold}{}{color_reset}{style_reset}", format_data(consts[tgt as usize], arrays)));
                 }}
             }
             Instr::Split(tgt, sep, dest) => match consts[tgt as usize] {
@@ -701,9 +718,8 @@ pub fn execute(
     }
 }
 
-fn get_vec_capacity(instructions: &[Instr]) -> (usize, usize) {
+fn get_vec_capacity(instructions: &[Instr]) -> usize {
     let (mut func_args, mut max_func_args) = (0, 0);
-    let (mut call_depth, mut max_call_depth) = (0usize, 0usize);
 
     for instr in instructions {
         match instr {
@@ -712,17 +728,10 @@ fn get_vec_capacity(instructions: &[Instr]) -> (usize, usize) {
                 max_func_args = max_func_args.max(func_args);
                 func_args = 0;
             }
-            Instr::Call(_, _) => {
-                call_depth += 1;
-                max_call_depth = max_call_depth.max(call_depth);
-            }
-            Instr::Ret(_, _) => {
-                call_depth = call_depth.saturating_sub(1);
-            }
             _ => {}
         }
     }
-    (max_func_args, max_call_depth)
+    max_func_args
 }
 
 // Live long and prosper
@@ -749,7 +758,7 @@ fn main() {
 
     let (instructions, mut consts, mut arrays, instr_src) = parse(&contents, filename);
 
-    let (func_args_count, call_stack_count) = get_vec_capacity(&instructions);
+    let func_args_count = get_vec_capacity(&instructions);
 
     // #[cfg(debug_assertions)]
     println!("PARSING TIME {:.2?}", now.elapsed());
@@ -765,7 +774,6 @@ fn main() {
         &mut consts,
         &mut Vec::with_capacity(func_args_count),
         &mut arrays,
-        &mut Vec::with_capacity(call_stack_count),
         &instr_src,
         &contents,
         filename,

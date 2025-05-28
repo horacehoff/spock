@@ -156,15 +156,15 @@ pub fn infer_type(
             "floor" => DataType::Number,
             "the_answer" => DataType::Number,
             function => {
-                let (_, expected_args, fn_code) =
-                    fns.iter().find(|(a, _, _)| *a == function).unwrap();
+                let (_, expected_args, fn_code, _, _) =
+                    fns.iter().find(|(a, _, _, _, _)| *a == function).unwrap();
 
                 check_poly(DataType::Poly(Box::from(track_returns(
                     fn_code, var_types, fns,
                 ))))
             }
         },
-        Expr::ObjFunctionCall(obj, args, namespace, start, end) => {
+        Expr::ObjFunctionCall(obj, args, namespace, start, end, _) => {
             match namespace.last().unwrap().as_str() {
                 "uppercase" => DataType::String,
                 "lowercase" => DataType::String,

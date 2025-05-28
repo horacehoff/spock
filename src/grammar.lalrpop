@@ -317,8 +317,8 @@ Expression: Expr = {
     ArrayIndex,
     // method call
     <l:Expression> <start: @L> "." <f:FunctionCall> <end: @R> => {
-        if let Expr::FunctionCall(x,y,_,_,_) = f {
-            return Expr::ObjFunctionCall(Box::from(l),x,y,start,end);
+        if let Expr::FunctionCall(x,y,_,_,indexes) = f {
+            return Expr::ObjFunctionCall(Box::from(l),x,y,start,end,indexes);
         } else {
             unreachable!()
         }

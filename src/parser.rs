@@ -36,7 +36,14 @@ pub enum Expr {
         usize,
         Box<[(usize, usize)]>,
     ),
-    ObjFunctionCall(Box<Expr>, Box<[Expr]>, Box<[String]>, usize, usize),
+    ObjFunctionCall(
+        Box<Expr>,
+        Box<[Expr]>,
+        Box<[String]>,
+        usize,
+        usize,
+        Box<[(usize, usize)]>,
+    ),
 
     // name+args -- code
     FunctionDecl(Box<[String]>, Box<[Expr]>, usize, usize),
@@ -121,8 +128,6 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Type(_, y)
         | Instr::IoOpen(_, y, _)
         | Instr::Floor(_, y)
-        | Instr::Ret(_, y)
-        | Instr::Call(_, y)
         | Instr::TheAnswer(y)
         | Instr::Len(_, y)
         | Instr::Sqrt(_, y)
@@ -163,8 +168,6 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::Type(_, y)
         | Instr::IoOpen(_, y, _)
         | Instr::Floor(_, y)
-        | Instr::Ret(_, y)
-        | Instr::Call(_, y)
         | Instr::TheAnswer(y)
         | Instr::Len(_, y)
         | Instr::Sqrt(_, y)
@@ -928,7 +931,13 @@ fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_len
     });
 }
 
-pub type Function = (String, Box<[String]>, Box<[Expr]>);
+pub type Function = (
+    String,
+    Box<[String]>,
+    Box<[Expr]>,
+    Option<u16>,
+    Option<Vec<u16>>,
+);
 type FunctionState = (String, u16, Vec<(Intern<String>, u16)>, Option<u16>);
 
 #[inline(always)]
@@ -1238,6 +1247,7 @@ fn parser_to_instr_set(
                 // parse the array, get its id (the target array is the first Expr in array_code)
                 let array = array_code.first().unwrap();
                 let code = &array_code[1..];
+                let array_type = infer_type(array, var_types, fns);
                 let array = get_id(
                     array,
                     v,
@@ -1280,6 +1290,16 @@ fn parser_to_instr_set(
                 // parse everything, add the current element variable to temp_vars so that the loop code can interact with it
                 let mut temp_vars = v.clone();
                 temp_vars.push((*var_name, current_element_id));
+                var_types.push((
+                    *var_name,
+                    if array_type == DataType::String {
+                        DataType::String
+                    } else if let DataType::Array(a_type) = array_type {
+                        *a_type
+                    } else {
+                        todo!("For loop invalid type")
+                    },
+                ));
 
                 let current_element_variable_id = temp_vars.len() - 1;
 
@@ -1727,10 +1747,11 @@ fn parser_to_instr_set(
                             consts.push(Data::Null);
                             output.push(Instr::TheAnswer((consts.len() - 1) as u16));
                         }
-                        function => {
-                            let user_function = fns
-                                .iter()
-                                .find(|(a, _, _)| *a == function)
+                        fn_name => {
+                            let mut fns_clone = fns.clone();
+                            let function_id = fns
+                                .iter_mut()
+                                .position(|(a, _, _,_,_)| *a == fn_name)
                                 .unwrap_or_else(|| {
                                     parser_error!(
                                         src.0,
@@ -1743,107 +1764,77 @@ fn parser_to_instr_set(
                                         )
                                     );
                                 });
+                            let (_, fn_args, fn_code, fn_loc, fn_args_loc) =
+                                &fns[function_id].clone();
+                            let args_len = fn_args.len();
+                            check_args!(args, args_len, fn_name, src.0, src.1, *start, *end);
 
-                            let args_len = user_function.1.len();
-                            check_args!(args, args_len, function, src.0, src.1, *start, *end);
-
-                            if let Some((name, loc, func_args, _)) = fn_state {
-                                if name == function {
-                                    let mut saves: Vec<(u16, u16)> = Vec::new();
-                                    // recursive function, go back to function def and move on
-                                    for i in 0..args_len {
-                                        let arg = &args[i];
-                                        let val = expr_to_data(arg);
-                                        // backup args to avoid them getting modified by the function
-                                        consts.push(Data::Null);
-                                        output.push(Instr::Mov(
-                                            func_args[i].1,
-                                            (consts.len() - 1) as u16,
-                                        ));
-                                        saves.push((func_args[i].1, (consts.len() - 1) as u16));
-                                        if val != Data::Null {
-                                            consts[func_args[i].1 as usize] = val;
-                                        } else {
-                                            print!("{arg}");
-                                            let mut value = parser_to_instr_set(
-                                                slice::from_ref(arg),
-                                                v,
-                                                var_types,
-                                                consts,
-                                                fns,
-                                                fn_state,
-                                                arrs,
-                                                id,
-                                                src,
-                                                instr_src,
-                                            );
-                                            move_to_id(&mut value, func_args[i].1);
-                                            print!("VAL{value:?}");
-                                            output.extend(value);
-                                        }
-                                    }
-
+                            if fn_loc.is_none() {
+                                let mut vars: Vec<(Intern<String>, u16)> = Vec::new();
+                                for (i, x) in fn_args.iter().enumerate() {
                                     consts.push(Data::Null);
-                                    let final_tgt_id = (consts.len() - 1) as u16;
-                                    output.push(Instr::Call(*loc, final_tgt_id));
-
-                                    // restore the args, use MovAnon so as not to be modified by mov_to_id()
-                                    for (x, y) in saves {
-                                        output.push(Instr::MovAnon(y, x));
+                                    vars.push((Intern::from(x.clone()), (consts.len() - 1) as u16));
+                                    let infered = infer_type(&args[i], var_types, fns);
+                                    var_types.push((Intern::from(x.clone()), infered));
+                                }
+                                fns.get_mut(function_id).unwrap().4 =
+                                    Some(vars.iter().map(|(_, x)| *x).collect::<Vec<u16>>());
+                                output.push(Instr::Jmp(0, false));
+                                let jump_idx = output.len() - 1;
+                                let fn_start = output.len();
+                                fns.get_mut(function_id).unwrap().3 = Some(fn_start as u16);
+                                let mut parsed = parser_to_instr_set(
+                                    fn_code, &mut vars, var_types, consts, &mut *fns, fn_state,
+                                    arrs, id, src, instr_src,
+                                );
+                                let len = parsed.len();
+                                println!("PARSED IS {parsed:?}");
+                                parsed.iter_mut().for_each(|x| {
+                                    println!("ENCOUNTERED {x:?}");
+                                    if let Instr::JmpSave(size, neg) = x {
+                                        *size += (output.len() + len - 3) as u16;
                                     }
+                                });
+                                output.extend(parsed);
+                                output.push(Instr::JmpLoad(false));
+                                *output.get_mut(jump_idx).unwrap() =
+                                    Instr::Jmp((output.len() - fn_start + 1) as u16, false)
+                            }
 
-                                    continue;
+                            if let Some(fn_args) = fns[function_id].4.clone() {
+                                for (x, tgt_id) in fn_args.iter().enumerate() {
+                                    let start_len = output.len();
+                                    let arg_id = get_id(
+                                        &args[x],
+                                        v,
+                                        var_types,
+                                        consts,
+                                        &mut output,
+                                        fns,
+                                        arrs,
+                                        fn_state,
+                                        id,
+                                        src,
+                                        instr_src,
+                                    );
+
+                                    if output.len() != start_len {
+                                        move_to_id(&mut output, *tgt_id);
+                                    } else {
+                                        output.push(Instr::Mov(arg_id, *tgt_id))
+                                    }
                                 }
                             }
+                            let loc = if let Some(fn_loc) = &fns[function_id].3 {
+                                *fn_loc
+                            } else {
+                                unreachable!()
+                            };
 
-                            let mut fn_variables: Vec<(Intern<String>, u16)> = Vec::new();
-                            let mut fn_variables_types: Vec<(Intern<String>, DataType)> =
-                                Vec::new();
-
-                            for (i, x) in user_function.1.iter().enumerate() {
-                                let len = consts.len() as u16;
-                                let infered = infer_type(&args[i], var_types, fns);
-                                let mut value = parser_to_instr_set(
-                                    slice::from_ref(&args[i]),
-                                    v,
-                                    var_types,
-                                    consts,
-                                    &mut fns.clone(),
-                                    fn_state,
-                                    arrs,
-                                    id,
-                                    src,
-                                    instr_src,
-                                );
-                                move_to_id(&mut value, len);
-                                output.extend(value);
-                                fn_variables.push((Intern::from_ref(x), len));
-                                fn_variables_types.push((Intern::from_ref(x), infered))
-                            }
-                            let vars = fn_variables.clone();
-                            consts.push(Data::Null);
-
-                            // process and inline the function
-                            let user_function_code = user_function.2.to_vec();
-                            let to_extend = parser_to_instr_set(
-                                &user_function_code,
-                                &mut fn_variables,
-                                &mut fn_variables_types,
-                                consts,
-                                fns,
-                                Some(&(
-                                    function.to_string(),
-                                    output.len() as u16,
-                                    vars,
-                                    Some((consts.len() - 1) as u16),
-                                )),
-                                arrs,
-                                id,
-                                src,
-                                instr_src,
-                            );
-
-                            output.extend(to_extend);
+                            println!("LOC IS {loc:?}");
+                            println!("OUTP LEN IS {}", output.len());
+                            println!("OUTPUT IS {output:?}");
+                            output.push(Instr::JmpSave((output.len() as u16) - loc, true));
                         }
                     }
                 } else if *namespace == ["io"] {
@@ -1949,7 +1940,98 @@ fn parser_to_instr_set(
                     );
                 }
             }
-            Expr::ObjFunctionCall(obj, args, namespace, start, end) => {
+            Expr::ObjFunctionCall(obj, args, namespace, start, end, args_indexes) => {
+                let check_arg_type = |arg: usize, expected: &[DataType]| {
+                    let infered = infer_type(&args[arg], var_types, fns);
+
+                    if !{
+                        if let DataType::Poly(polytype) = &infered {
+                            polytype.iter().all(|x| expected.contains(x))
+                        } else {
+                            expected.contains(&infered)
+                        }
+                    } {
+                        parser_error!(
+                            src.0,
+                            src.1,
+                            args_indexes[arg].0,
+                            args_indexes[arg].1,
+                            "Invalid type",
+                            format_args!(
+                                "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                                expected
+                                    .into_iter()
+                                    .map(|x| format_datatype(x.clone()).to_lowercase())
+                                    .collect::<Vec<String>>()
+                                    .join(" or "),
+                                format_datatype(infered)
+                            )
+                        );
+                    }
+                };
+
+                macro_rules! check_obj_type {
+                    ($expected: expr) => {
+                        let infered = infer_type(obj, var_types, fns);
+
+                        if !{
+                            if let DataType::Poly(polytype) = &infered {
+                                polytype.iter().all(|x| $expected.contains(x))
+                            } else {
+                                $expected.contains(&infered)
+                            }
+                        } {
+                            parser_error!(
+                                src.0,
+                                src.1,
+                                *start,
+                                *end,
+                                "Invalid type",
+                                format_args!(
+                                    "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                                    $expected
+                                        .into_iter()
+                                        .map(|x| format_datatype(x.clone()).to_lowercase())
+                                        .collect::<Vec<String>>()
+                                        .join(" or "),
+                                    format_datatype(infered)
+                                )
+                            );
+                        }
+                    };
+                }
+
+                macro_rules! check_obj_type_array {
+                    ($expected: expr) => {
+                        let infered = infer_type(obj, var_types, fns);
+
+                        if !{
+                            if let DataType::Poly(polytype) = &infered {
+                                polytype.iter().all(|x| $expected.contains(x))
+                            } else {
+                                $expected.contains(&infered)
+                            }
+                        } {
+                            parser_error!(
+                                src.0,
+                                src.1,
+                                *start,
+                                *end,
+                                "Invalid type",
+                                format_args!(
+                                    "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                                    $expected
+                                        .into_iter()
+                                        .map(|x| format_datatype(x.clone()).to_lowercase())
+                                        .collect::<Vec<String>>()
+                                        .join(" or "),
+                                    format_datatype(infered)
+                                )
+                            );
+                        }
+                    };
+                }
+
                 let id = get_id(
                     obj,
                     v,
@@ -1969,13 +2051,15 @@ fn parser_to_instr_set(
                 let namespace = &namespace[0..len];
                 match name {
                     "uppercase" => {
+                        check_obj_type!(&[DataType::String]);
                         check_args!(args, 0, "uppercase", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
                         output.push(Instr::CallFunc(0, id, f_id));
-                        instr_src.push((Instr::CallFunc(0, id, f_id), *start, *end));
+                        // instr_src.push((Instr::CallFunc(0, id, f_id), *start, *end));
                     }
                     "lowercase" => {
+                        check_obj_type!(&[DataType::String]);
                         check_args!(args, 0, "lowercase", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
@@ -2124,6 +2208,7 @@ fn parser_to_instr_set(
                         output.push(Instr::Push(id, arg_id));
                     }
                     "sqrt" => {
+                        check_obj_type!(&[DataType::Number]);
                         check_args!(args, 0, "sqrt", src.0, src.1, *start, *end);
 
                         let f_id = consts.len() as u16;
@@ -2245,7 +2330,10 @@ fn parser_to_instr_set(
                 }
             }
             Expr::FunctionDecl(x, y, start, end) => {
-                if fns.iter().any(|(name, _, _)| **name == *x.first().unwrap()) {
+                if fns
+                    .iter()
+                    .any(|(name, _, _, _, _)| **name == *x.first().unwrap())
+                {
                     parser_error!(
                         src.0,
                         src.1,
@@ -2262,33 +2350,11 @@ fn parser_to_instr_set(
                     x.first().unwrap().to_string(),
                     x.into_iter().skip(1).map(ToString::to_string).collect(),
                     y.clone(),
+                    None,
+                    None,
                 ));
             }
-            Expr::ReturnVal(val) => {
-                if let Some(x) = fn_state {
-                    if let Some(return_value) = &**val {
-                        if let Some(ret_id) = x.3 {
-                            let val = get_id(
-                                return_value,
-                                v,
-                                var_types,
-                                consts,
-                                &mut output,
-                                fns,
-                                arrs,
-                                fn_state,
-                                id,
-                                src,
-                                instr_src,
-                            );
-                            output.push(Instr::Ret(val, ret_id));
-                        }
-                    }
-                } else {
-                    // exit the program
-                    output.push(Instr::Jmp(65535, false));
-                }
-            }
+            Expr::ReturnVal(val) => {}
             Expr::Break => output.push(Instr::Break(id)),
             Expr::Continue => output.push(Instr::Continue(id)),
             Expr::EvalBlock(code) => {
@@ -2327,7 +2393,7 @@ pub fn parse(
         .into_iter()
         .map(|w| {
             if let Expr::FunctionDecl(x, y, _, _) = w {
-                (x[0].to_string(), x[1..].into(), y)
+                (x[0].to_string(), x[1..].into(), y, None, None)
             } else {
                 error!(contents, "Function expected");
             }
