@@ -120,7 +120,7 @@ pub enum Instr {
     ArrayMov(u16, u16, u16),
     // different than ArrayMov => looks into the consts
     ArrayMod(u16, u16, u16),
-    GetIndex(u16, u16, u16),
+    ArrayGet(u16, u16, u16),
 
     TheAnswer(u16),
     // array - element
@@ -466,7 +466,7 @@ pub fn execute(
                 }}
             }
             // takes tgt from  consts, index is index, dest is consts index destination
-            Instr::GetIndex(tgt, index, dest) => {
+            Instr::ArrayGet(tgt, index, dest) => {
                 if_likely! {let Data::Number(idx) = consts[index as usize] => {
                     let idx = idx as usize;
                     match consts[tgt as usize] {
@@ -476,7 +476,7 @@ pub fn execute(
                                 consts[dest as usize] = array[idx];
                             } else {
                                error(
-                                    Instr::GetIndex(tgt, index, dest),
+                                    Instr::ArrayGet(tgt, index, dest),
                                     "Invalid index",
                                     format_args!(
                                         "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but Array has {} elements",
@@ -493,7 +493,7 @@ pub fn execute(
                                 ));
                             } else {
                                 error(
-                                    Instr::GetIndex(tgt, index, dest),
+                                    Instr::ArrayGet(tgt, index, dest),
                                     "Invalid index",
                                     format_args!(
                                         "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but String has {} characters",

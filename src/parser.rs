@@ -131,7 +131,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Bool(_, y)
         | Instr::CallFunc(_, _, y)
         | Instr::Input(_, y)
-        | Instr::GetIndex(_, _, y)
+        | Instr::ArrayGet(_, _, y)
         | Instr::Range(_, _, y)
         | Instr::Type(_, y)
         | Instr::IoOpen(_, y, _)
@@ -171,7 +171,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::Bool(_, y)
         | Instr::CallFunc(_, _, y)
         | Instr::Input(_, y)
-        | Instr::GetIndex(_, _, y)
+        | Instr::ArrayGet(_, _, y)
         | Instr::Range(_, _, y)
         | Instr::Type(_, y)
         | Instr::IoOpen(_, y, _)
@@ -1098,11 +1098,11 @@ fn parser_to_instr_set(
                     );
                     consts.push(Data::Null);
                     instr_src.push((
-                        Instr::GetIndex(id, f_id, (consts.len() - 1) as u16),
+                        Instr::ArrayGet(id, f_id, (consts.len() - 1) as u16),
                         *start,
                         *end,
                     ));
-                    output.push(Instr::GetIndex(id, f_id, (consts.len() - 1) as u16));
+                    output.push(Instr::ArrayGet(id, f_id, (consts.len() - 1) as u16));
                     id = (consts.len() - 1) as u16;
                 }
             }
@@ -1167,7 +1167,7 @@ fn parser_to_instr_set(
                     );
 
                     consts.push(Data::Null);
-                    output.push(Instr::GetIndex(id, f_id, (consts.len() - 1) as u16));
+                    output.push(Instr::ArrayGet(id, f_id, (consts.len() - 1) as u16));
                     id = (consts.len() - 1) as u16;
                 }
 
@@ -1491,7 +1491,7 @@ fn parser_to_instr_set(
 
                 // instruction to make current_element actually hold the array index's value
                 if real_var {
-                    output.push(Instr::GetIndex(array, index_id, current_element_id));
+                    output.push(Instr::ArrayGet(array, index_id, current_element_id));
                 }
                 parse_loop_flow_control(&mut cond_code, loop_id, len, true);
                 // then add the condition code
