@@ -6,7 +6,7 @@ use builtin_funcs::FUNCS;
 use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
-use likely_stable::{if_likely, likely, unlikely, LikelyResult};
+use likely_stable::{LikelyResult, if_likely, likely, unlikely};
 use parser::*;
 use slab::Slab;
 use std::cmp::PartialEq;
@@ -139,13 +139,6 @@ pub enum Instr {
     JmpSave(u16, bool),
     JmpLoad(bool),
 }
-
-// struct CallFrame {
-//     ret_addr: u16,
-//     to_return:u16
-// }
-//  ===
-type CallFrame = (usize, u16);
 
 pub fn execute(
     instructions: &[Instr],
@@ -583,7 +576,7 @@ pub fn execute(
                     Data::String(str) => {
                         consts[dest as usize] = Data::Number(str.chars().count() as Num)
                     }
-                    _ => unsafe { unreachable_unchecked() }
+                    _ => unsafe { unreachable_unchecked() },
                 };
             }
             Instr::Sqrt(tgt, dest) => {
@@ -614,7 +607,7 @@ pub fn execute(
                     // let id = arrays.insert((base_id..arrays.len() as u16).map(Data::Array).collect());
                     // consts[dest as usize] = Data::Array(id);
                 }
-                _ => unsafe { unreachable_unchecked() }
+                _ => unsafe { unreachable_unchecked() },
             },
             Instr::Remove(array, idx) => {
                 if_likely! {let Data::Number(idx) = consts[idx as usize] => {

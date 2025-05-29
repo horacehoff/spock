@@ -1,12 +1,13 @@
 use crate::display::format_data;
 use crate::util::format_type;
-use crate::{error_b, is_float, parser_error, Data, Instr, Num};
+use crate::{Data, Instr, Num, error_b, is_float, parser_error};
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
 use likely_stable::if_likely;
 use slab::Slab;
 use std::fs::OpenOptions;
+use std::hint::unreachable_unchecked;
 use std::io::Write;
 
 macro_rules! builtin_error {
@@ -38,11 +39,11 @@ fn uppercase(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrs: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &mut Slab<Vec<Data>>,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
@@ -54,11 +55,11 @@ fn lowercase(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrs: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &mut Slab<Vec<Data>>,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     if_likely! {let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
@@ -71,30 +72,23 @@ fn contains(
     consts: &mut [Data],
     args: &mut Vec<u16>,
     arrays: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
             let arg = args.swap_remove(0);
             if_likely! { let Data::String(arg) = consts[arg as usize] => {
                 consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
-            } else {
-                builtin_error!(instr_src, self_i, filename, src, "Invalid argument type", format_args!(
-                "Expected string as argument, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                format_type(consts[arg as usize]),
-            ));
             }}
         }
         Data::Array(x) => {
             let arg = consts[args.swap_remove(0) as usize];
             consts[dest as usize] = Data::Bool(arrays[x].contains(&arg))
         }
-        invalid => {
-            type_error!(instr_src, self_i, filename, src, "string or array", invalid);
-        }
+        _ => unsafe { unreachable_unchecked() },
     }
 }
 
@@ -103,16 +97,14 @@ fn trim(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrs: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &mut Slab<Vec<Data>>,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
-    } else {
-        type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -121,11 +113,11 @@ fn trim_sequence(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrs: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &mut Slab<Vec<Data>>,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
@@ -133,14 +125,7 @@ fn trim_sequence(
             let chars: Vec<char> = arg.chars().collect();
             consts[dest as usize] =
                 Data::String(Intern::from(str.trim_matches(&chars[..]).to_string()));
-        } else {
-            builtin_error!(instr_src, self_i, filename, src, "Invalid argument type", format_args!(
-                "Expected string as argument, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                format_type(consts[arg as usize]),
-            ));
         }}
-    } else {
-        type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -150,10 +135,10 @@ fn index(
     consts: &mut [Data],
     args: &mut Vec<u16>,
     arrays: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
@@ -162,11 +147,6 @@ fn index(
                 consts[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
                     error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
                 }) as Num);
-            } else {
-                error_b!(format_args!(
-                    "{color_red}{}{color_reset} is not a String",
-                    format_data(arg, arrays)
-                ));
             }}
         }
         Data::Array(x) => {
@@ -175,9 +155,7 @@ fn index(
                 error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{:?}{color_reset}", arg, format_data(Data::Array(x), arrays)));
             }) as Num);
         }
-        invalid => {
-            type_error!(instr_src, self_i, filename, src, "string or array", invalid);
-        }
+        _ => unsafe { unreachable_unchecked() },
     }
 }
 
@@ -187,15 +165,13 @@ fn is_num(
     consts: &mut [Data],
     _: &mut Vec<u16>,
     _: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::Bool(str.parse::<f64>().is_ok())
-    } else {
-       type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -205,15 +181,13 @@ fn trim_left(
     consts: &mut [Data],
     _: &mut Vec<u16>,
     _: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim_start().to_string()));
-    } else {
-       type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -223,15 +197,13 @@ fn trim_right(
     consts: &mut [Data],
     _: &mut Vec<u16>,
     _: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(str.trim_end().to_string()))
-    } else {
-       type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -240,11 +212,11 @@ fn trim_sequence_left(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrs: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &mut Slab<Vec<Data>>,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = args.swap_remove(0);
@@ -252,14 +224,7 @@ fn trim_sequence_left(
             let chars: Vec<char> = arg.chars().collect();
             consts[dest as usize] =
                 Data::String(Intern::from(str.trim_start_matches(&chars[..]).to_string()));
-        } else {
-            builtin_error!(instr_src, self_i, filename, src, "Invalid argument type", format_args!(
-                "Expected string as argument, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                format_type(consts[arg as usize]),
-            ));
         }}
-    } else {
-        type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -268,11 +233,11 @@ fn trim_sequence_right(
     dest: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrs: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &mut Slab<Vec<Data>>,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     if_likely! { let Data::String(str) = consts[tgt as usize] => {
         let arg = consts[args.swap_remove(0) as usize];
@@ -280,14 +245,7 @@ fn trim_sequence_right(
             let chars: Vec<char> = arg.chars().collect();
             consts[dest as usize] =
                 Data::String(Intern::from(str.trim_end_matches(&chars[..]).to_string()));
-        } else {
-            builtin_error!(instr_src, self_i, filename, src, "Invalid argument type", format_args!(
-                "Expected string as argument, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                format_type(arg),
-            ));
         }}
-    } else {
-        type_error!(instr_src, self_i, filename, src, "string", consts[tgt as usize]);
     }}
 }
 
@@ -297,10 +255,10 @@ fn rindex(
     consts: &mut [Data],
     args: &mut Vec<u16>,
     arrays: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
@@ -309,11 +267,6 @@ fn rindex(
                 consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
                     error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
                 }) as Num);
-            } else {
-                builtin_error!(instr_src, self_i, filename, src, "Invalid type", format_args!(
-                    "Expected string, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                    format_type(arg),
-                ));
             }}
         }
         Data::Array(x) => {
@@ -322,9 +275,7 @@ fn rindex(
                 error_b!(format_args!("Cannot get index of {color_red}{}{color_reset} in {color_blue}{}{color_reset}", format_data(arg, arrays), format_data(Data::Array(x), arrays)));
             }) as Num);
         }
-        invalid => {
-            type_error!(instr_src, self_i, filename, src, "string or array", invalid);
-        }
+        _ => unsafe { unreachable_unchecked() },
     }
 }
 
@@ -334,38 +285,25 @@ fn repeat(
     consts: &mut [Data],
     args: &mut Vec<u16>,
     arrays: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
             let arg = args.swap_remove(0);
             if_likely! { let Data::Number(arg) = consts[arg as usize] => {
                 consts[dest as usize] = Data::String(Intern::from(str.repeat(arg as usize)))
-            } else {
-                error_b!(format_args!(
-                    "{color_red}{}{color_reset} is not a Number",
-                    format_data(consts[arg as usize], arrays)
-                ));
             }}
         }
         Data::Array(x) => {
             let arg = args.swap_remove(0);
             if_likely! { let Data::Number(arg) = consts[arg as usize] => {
-                let id = arrays.insert(arrays[x].repeat(arg as usize));
-                consts[dest as usize] = Data::Array(id);
-            } else {
-                error_b!(format_args!(
-                "{color_red}{}{color_reset} is not a Number",
-                    format_data(consts[arg as usize], arrays)
-                ));
+                consts[dest as usize] = Data::Array(arrays.insert(arrays[x].repeat(arg as usize)));
             }}
         }
-        invalid => {
-            type_error!(instr_src, self_i, filename, src, "string or array", invalid);
-        }
+        _ => unsafe { unreachable_unchecked() },
     }
 }
 
@@ -374,16 +312,14 @@ fn round(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &mut Slab<Vec<Data>>,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     if_likely! {let Data::Number(num) = consts[tgt as usize] => {
         consts[dest as usize] = Data::Number(is_float!(num.round(),num));
-    } else {
-        type_error!(instr_src, self_i, filename, src, "number", consts[tgt as usize]);
     }}
 }
 
@@ -392,16 +328,14 @@ fn abs(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &mut Slab<Vec<Data>>,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     if_likely! {let Data::Number(num) = consts[tgt as usize] => {
         consts[dest as usize] = Data::Number(is_float!(num.abs(),num))
-    } else {
-        type_error!(instr_src, self_i, filename, src, "number", consts[tgt as usize]);
     }}
 }
 
@@ -410,18 +344,16 @@ fn read(
     dest: u16,
     consts: &mut [Data],
     _: &mut Vec<u16>,
-    arrays: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &mut Slab<Vec<Data>>,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     if_likely! {let Data::File(path) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(std::fs::read_to_string(path.as_str()).unwrap_or_else(|_| {
             error_b!(format_args!("Cannot read file {color_red}{path}{color_reset}"));
         })))
-    } else {
-        type_error!(instr_src, self_i, filename, src, "file", consts[tgt as usize]);
     }}
 }
 
@@ -430,11 +362,11 @@ fn write(
     _: u16,
     consts: &mut [Data],
     args: &mut Vec<u16>,
-    arrays: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &mut Slab<Vec<Data>>,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     if_likely! {let Data::File(path) = consts[tgt as usize] => {
         if_likely!{let Data::String(contents) = consts[args.swap_remove(0) as usize] => {
@@ -449,8 +381,6 @@ fn write(
                 });
             }}
         }}
-    } else {
-        type_error!(instr_src, self_i, filename, src, "file", consts[tgt as usize]);
     }}
 }
 
@@ -460,20 +390,13 @@ fn reverse(
     consts: &mut [Data],
     _: &mut Vec<u16>,
     arrays: &mut Slab<Vec<Data>>,
-    instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
-    self_i: Instr,
+    _: &[(Instr, usize, usize)],
+    _: &str,
+    _: &str,
+    _: Instr,
 ) {
     match consts[tgt as usize] {
         Data::Array(id) => {
-            // let array_id = arrays.len();
-            // let mut array = arrays[&id].to_vec();
-            // array.reverse();
-            // arrays.insert(array_id as u16, array);
-            //
-            // reverses the array and returns it, maybe a bad idea?
-            //
             arrays.get_mut(id).unwrap().reverse();
             consts[dest as usize] = Data::Array(id)
         }
@@ -481,9 +404,7 @@ fn reverse(
             consts[dest as usize] =
                 Data::String(Intern::from(str.chars().rev().collect::<String>()))
         }
-        invalid => {
-            type_error!(instr_src, self_i, filename, src, "string or array", invalid);
-        }
+        _ => unsafe { unreachable_unchecked() },
     }
 }
 
