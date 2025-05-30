@@ -156,7 +156,7 @@ pub fn infer_type(
             "floor" => DataType::Number,
             "the_answer" => DataType::Number,
             function => {
-                let (_, expected_args, fn_code, _, _) =
+                let (_, _, fn_code, _, _) =
                     fns.iter().find(|(a, _, _, _, _)| *a == function).unwrap();
 
                 check_poly(DataType::Poly(Box::from(track_returns(
