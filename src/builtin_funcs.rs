@@ -1,4 +1,4 @@
-use crate::display::format_data;
+use crate::display::{format_data, format_err};
 use crate::util::format_type;
 use crate::{Data, Instr, Num, error_b, is_float, parser_error};
 use ariadne::*;
@@ -11,8 +11,8 @@ use std::hint::unreachable_unchecked;
 use std::io::Write;
 
 macro_rules! builtin_error {
-    ($instr_src: expr, $self_i:expr, $filename: expr, $src:expr, $general_error: expr, $msg:expr) => {
-        let (_, start, end) = $instr_src.iter().find(|(x, _, _)| x == &$self_i).unwrap();
+    ($general_error: expr, $msg:expr, $instr_src:expr,$call:expr,$filename:expr,$src:expr) => {
+        let (_, start, end) = $instr_src.iter().find(|(x, _, _)| x == &$call).unwrap();
         parser_error!($filename, $src, *start, *end, $general_error, $msg);
     };
 }
@@ -135,24 +135,24 @@ fn index(
     consts: &mut [Data],
     args: &mut Vec<u16>,
     arrays: &mut Slab<Vec<Data>>,
-    _: &[(Instr, usize, usize)],
-    _: &str,
-    _: &str,
-    _: Instr,
+    instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    call: Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
             let arg = consts[args.swap_remove(0) as usize];
             if_likely! { let Data::String(arg) = arg => {
                 consts[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
-                    error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
+                    builtin_error!("Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str),instr_src,call,filename,src);
                 }) as Num);
             }}
         }
         Data::Array(x) => {
             let arg = consts[args.swap_remove(0) as usize];
             consts[dest as usize] = Data::Number(arrays[x].iter().position(|x| x == &arg).unwrap_or_else(|| {
-                error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{:?}{color_reset}", arg, format_data(Data::Array(x), arrays)));
+                builtin_error!("Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays)),instr_src,call,filename,src);
             }) as Num);
         }
         _ => unsafe { unreachable_unchecked() },
@@ -255,24 +255,24 @@ fn rindex(
     consts: &mut [Data],
     args: &mut Vec<u16>,
     arrays: &mut Slab<Vec<Data>>,
-    _: &[(Instr, usize, usize)],
-    _: &str,
-    _: &str,
-    _: Instr,
+    instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    call: Instr,
 ) {
     match consts[tgt as usize] {
         Data::String(str) => {
             let arg = consts[args.swap_remove(0) as usize];
             if_likely! { let Data::String(arg) = arg => {
                 consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
-                    error_b!(format_args!("Cannot get index of {color_red}{:?}{color_reset} in \"{color_blue}{}{color_reset}\"", arg, str));
+                    builtin_error!("Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str),instr_src,call,filename,src);
                 }) as Num);
             }}
         }
         Data::Array(x) => {
             let arg = consts[args.swap_remove(0) as usize];
             consts[dest as usize] = Data::Number(arrays[x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
-                error_b!(format_args!("Cannot get index of {color_red}{}{color_reset} in {color_blue}{}{color_reset}", format_data(arg, arrays), format_data(Data::Array(x), arrays)));
+                builtin_error!("Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays)),instr_src,call,filename,src);
             }) as Num);
         }
         _ => unsafe { unreachable_unchecked() },

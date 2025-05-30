@@ -1,10 +1,10 @@
 use crate::parser::Expr;
-use crate::{format_lines, Data, Instr};
+use crate::{Data, Instr, format_lines};
 use ariadne::*;
 use concat_string::concat_string;
 use inline_colorization::*;
-use lalrpop_util::lexer::Token;
 use lalrpop_util::ParseError;
+use lalrpop_util::lexer::Token;
 use slab::Slab;
 use std::fmt::Formatter;
 
@@ -36,7 +36,7 @@ pub fn format_err(x: Data, arrays: &Slab<Vec<Data>>) -> String {
             "[",
             arrays[a]
                 .iter()
-                .map(|x| format_data(*x, arrays))
+                .map(|x| format_err(*x, arrays))
                 .collect::<Vec<_>>()
                 .join(","),
             "]"
