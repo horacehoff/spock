@@ -120,7 +120,9 @@ pub enum Instr {
     ArrayMov(u16, u16, u16),
     // different than ArrayMov => looks into the consts
     ArrayMod(u16, u16, u16),
+    StrMod(u16, u16, u16),
     ArrayGet(u16, u16, u16),
+    StrGet(u16, u16, u16),
 
     TheAnswer(u16),
     // array - element
@@ -428,7 +430,7 @@ pub fn execute(
             Instr::ArrayMod(tgt, dest, idx) => {
                 if_likely! {let Data::Number(index) = consts[idx as usize] => {
                     let requested_mod = consts[dest as usize];
-                    if let Data::Array(array_id) = consts[tgt as usize] {
+                    if_likely!{let Data::Array(array_id) = consts[tgt as usize] => {
                         let array = arrays.get_mut(array_id).unwrap();
                         if likely(array.len() > index as usize) {
                             array[index as usize] = requested_mod;
@@ -442,8 +444,14 @@ pub fn execute(
                                     array.len()
                                 ),
                             );
-                        }
-                    } else if let Data::String(str) = consts.get_mut(tgt as usize).unwrap() {
+                        }}
+                    }
+                }}
+            }
+            Instr::StrMod(tgt, dest, idx) => {
+                if_likely! {let Data::Number(index) = consts[idx as usize] => {
+                    let requested_mod = consts[dest as usize];
+                    if_likely!{let Data::String(str) = consts.get_mut(tgt as usize).unwrap() => {
                         if_likely!{let Data::String(letter) = requested_mod => {
                             if likely(str.len() > index as usize) {
                                 let mut temp = str.to_string();
@@ -452,7 +460,7 @@ pub fn execute(
                                 *str = Intern::from(temp);
                             } else {
                                 error(
-                                    Instr::ArrayMod(tgt, dest, idx),
+                                    Instr::StrMod(tgt, dest, idx),
                                     "Invalid index",
                                     format_args!(
                                         "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but string has {} characters",
@@ -462,7 +470,7 @@ pub fn execute(
                                 );
                             }
                         }}
-                    }
+                    }}
                 }}
             }
             // takes tgt from  consts, index is index, dest is consts index destination
@@ -486,6 +494,31 @@ pub fn execute(
                                 );
                             }
                         }
+                        Data::String(str) => {
+                            if likely(str.len() > idx) {
+                                consts[dest as usize] = Data::String(Intern::from(
+                                    str.get(idx..=idx).unwrap().to_string(),
+                                ));
+                            } else {
+                                error(
+                                    Instr::ArrayGet(tgt, index, dest),
+                                    "Invalid index",
+                                    format_args!(
+                                        "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but String has {} characters",
+                                        idx,
+                                        str.len()
+                                    ),
+                                );
+                            }
+                        }
+                        _ => unsafe {unreachable_unchecked()}
+                    }
+                }}
+            }
+            Instr::StrGet(tgt, index, dest) => {
+                if_likely! {let Data::Number(idx) = consts[index as usize] => {
+                    let idx = idx as usize;
+                    match consts[tgt as usize] {
                         Data::String(str) => {
                             if likely(str.len() > idx) {
                                 consts[dest as usize] = Data::String(Intern::from(

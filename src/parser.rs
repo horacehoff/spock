@@ -132,6 +132,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::CallFunc(_, _, y)
         | Instr::Input(_, y)
         | Instr::ArrayGet(_, _, y)
+        | Instr::StrGet(_, _, y)
         | Instr::Range(_, _, y)
         | Instr::Type(_, y)
         | Instr::IoOpen(_, y, _)
@@ -172,6 +173,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::CallFunc(_, _, y)
         | Instr::Input(_, y)
         | Instr::ArrayGet(_, _, y)
+        | Instr::StrGet(_, _, y)
         | Instr::Range(_, _, y)
         | Instr::Type(_, y)
         | Instr::IoOpen(_, y, _)
@@ -1037,7 +1039,7 @@ fn parser_to_instr_set(
             }
             // array[index]
             Expr::GetIndex(target, index, start, end) => {
-                let infered = infer_type(target, var_types, fns);
+                let mut infered = infer_type(target, var_types, fns);
                 if !matches!(infered, DataType::String | DataType::Array(_)) {
                     parser_error!(
                         src.0,
@@ -1228,12 +1230,21 @@ fn parser_to_instr_set(
                     );
                 }
 
-                instr_src.push((
-                    Instr::ArrayMod(id, elem_id, final_id),
-                    *index_start,
-                    *index_end,
-                ));
-                output.push(Instr::ArrayMod(id, elem_id, final_id));
+                if infered == DataType::String {
+                    instr_src.push((
+                        Instr::StrMod(id, elem_id, final_id),
+                        *index_start,
+                        *index_end,
+                    ));
+                    output.push(Instr::StrMod(id, elem_id, final_id));
+                } else {
+                    instr_src.push((
+                        Instr::ArrayMod(id, elem_id, final_id),
+                        *index_start,
+                        *index_end,
+                    ));
+                    output.push(Instr::ArrayMod(id, elem_id, final_id));
+                }
             }
             Expr::Condition(main_condition, code, _, _) => {
                 // get first code limit (after which there are only else(if) blocks)
