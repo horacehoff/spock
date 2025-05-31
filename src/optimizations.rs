@@ -6,59 +6,23 @@ pub fn while_loop_summation(
     output: &mut Vec<Instr>,
     consts: &mut Vec<Data>,
     v: &mut [(Intern<String>, u16)],
-    x: &Expr,
-    y: &[Expr],
+    condition: &Expr,
+    code: &[Expr],
 ) -> bool {
-    // if let Expr::Op(items) = x {
-    //     if items.len() == 3 {
-    //         let op = items.get(1).unwrap();
-    //         let dest = items.get(2).unwrap();
+    if code.len() == 1 {
+        if let Expr::VarAssign(x, increment, _, _) = &code[0] {
+            if let Expr::Inf(a, b, _, _) = condition {
+                if let Expr::Var(tgt_var, _, _) = **a {
+                    if tgt_var == *x {
+                        if let Expr::Num(num_limit) = **b {
+                        } else if let Expr::Var(var_limit, _, _) = **b {
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-    //         if let Expr::Num(fac) = *dest {
-    //             if op == &Expr::Opcode(Opcode::Inf) {
-    //                 if let Expr::Var(var_name) = items.first().unwrap() {
-    //                     if let Expr::VarAssign(name, x) = y.first().unwrap() {
-    //                         if *name == *var_name {
-    //                             if let Expr::Op(second_items) = &**x {
-    //                                 if items.len() == 3 {
-    //                                     let op = second_items.get(1).unwrap();
-    //                                     let dest_reps = second_items.get(2).unwrap();
-    //                                     if op == &Expr::Opcode(Opcode::Add) {
-    //                                         if second_items.first().unwrap() == &Expr::Var(*name) {
-    //                                             let var_id =
-    //                                                 v.iter().find(|(w, _)| *w == *name).unwrap().1;
-    //                                             if let Expr::Num(reps) = *dest_reps {
-    //                                                 consts.push(Data::Number(fac));
-    //                                                 consts.push(Data::Null);
-    //                                                 output.push(Instr::Sub(
-    //                                                     (consts.len() - 2) as u16,
-    //                                                     var_id,
-    //                                                     (consts.len() - 1) as u16,
-    //                                                 ));
-    //                                                 consts.push(Data::Number(reps));
-    //                                                 consts.push(Data::Null);
-    //                                                 output.push(Instr::Div(
-    //                                                     (consts.len() - 3) as u16,
-    //                                                     (consts.len() - 2) as u16,
-    //                                                     (consts.len() - 1) as u16,
-    //                                                 ));
-    //                                                 output.push(Instr::Floor(
-    //                                                     (consts.len() - 1) as u16,
-    //                                                     var_id,
-    //                                                 ));
-    //                                                 return true;
-    //                                             }
-    //                                         }
-    //                                     }
-    //                                 }
-    //                             }
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
     false
 }
 

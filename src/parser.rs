@@ -1384,15 +1384,15 @@ fn parser_to_instr_set(
                     }
                 }
             }
-            Expr::WhileBlock(x, y) => {
+            Expr::WhileBlock(condition, code) => {
                 // try to optimize it (if it's a summation loop)
-                if while_loop_summation(&mut output, consts, v, x, y) {
+                if while_loop_summation(&mut output, consts, v, condition, code) {
                     continue;
                 }
 
                 // parse the condition, get its id
                 let condition_id = get_id(
-                    x,
+                    condition,
                     v,
                     var_types,
                     consts,
@@ -1410,7 +1410,7 @@ fn parser_to_instr_set(
 
                 let loop_id = id + 1;
                 let mut cond_code = parser_to_instr_set(
-                    y,
+                    code,
                     &mut temp_vars,
                     var_types,
                     consts,
