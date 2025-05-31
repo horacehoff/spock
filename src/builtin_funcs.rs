@@ -1,6 +1,5 @@
-use crate::display::{format_data, format_err};
-use crate::util::format_type;
-use crate::{Data, Instr, Num, error_b, is_float, parser_error};
+use crate::display::format_data;
+use crate::{Data, Instr, Num, is_float, parser_error};
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
@@ -14,23 +13,6 @@ macro_rules! builtin_error {
     ($general_error: expr, $msg:expr, $instr_src:expr,$call:expr,$filename:expr,$src:expr) => {
         let (_, start, end) = $instr_src.iter().find(|(x, _, _)| x == &$call).unwrap();
         parser_error!($filename, $src, *start, *end, $general_error, $msg);
-    };
-}
-
-macro_rules! type_error {
-    ($instr_src: expr, $self_i:expr, $filename: expr, $src:expr, $expected: expr, $received: expr) => {
-        builtin_error!(
-            $instr_src,
-            $self_i,
-            $filename,
-            $src,
-            "Invalid type",
-            format_args!(
-                "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                $expected,
-                format_type($received),
-            )
-        );
     };
 }
 
@@ -345,14 +327,14 @@ fn read(
     consts: &mut [Data],
     _: &mut Vec<u16>,
     _: &mut Slab<Vec<Data>>,
-    _: &[(Instr, usize, usize)],
-    _: &str,
-    _: &str,
-    _: Instr,
+    instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    call: Instr,
 ) {
     if_likely! {let Data::File(path) = consts[tgt as usize] => {
         consts[dest as usize] = Data::String(Intern::from(std::fs::read_to_string(path.as_str()).unwrap_or_else(|_| {
-            error_b!(format_args!("Cannot read file {color_red}{path}{color_reset}"));
+            builtin_error!("File does not exist or cannot be read",format_args!("Cannot read file {color_red}{path}{color_reset}"),instr_src,call,filename,src);
         })))
     }}
 }
@@ -363,10 +345,10 @@ fn write(
     consts: &mut [Data],
     args: &mut Vec<u16>,
     _: &mut Slab<Vec<Data>>,
-    _: &[(Instr, usize, usize)],
-    _: &str,
-    _: &str,
-    _: Instr,
+    instr_src: &[(Instr, usize, usize)],
+    src: &str,
+    filename: &str,
+    call: Instr,
 ) {
     if_likely! {let Data::File(path) = consts[tgt as usize] => {
         if_likely!{let Data::String(contents) = consts[args.swap_remove(0) as usize] => {
@@ -375,9 +357,9 @@ fn write(
                     .write(true)
                     .truncate(truncate)
                     .open(path.as_str()).unwrap_or_else(|_| {
-                        error_b!(format_args!("Cannot open file {color_red}{path}{color_reset}"));
+                        builtin_error!("File does not exist or cannot be opened",format_args!("Cannot open file {color_red}{path}{color_reset}"),instr_src,call,filename,src);
                     }).write_all(contents.as_bytes()).unwrap_or_else(|_| {
-                        error_b!(format_args!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
+                        builtin_error!("File does not exist or cannot be written to",format_args!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"),instr_src,call,filename,src);
                 });
             }}
         }}

@@ -240,7 +240,7 @@ pub fn infer_type(
 
             check_poly(DataType::Poly(Box::from(types)))
         }
-        unknown_type => todo!("TYPE: {unknown_type}"),
+        unknown_type => todo!("TYPE: {unknown_type:?}"),
     }
 }
 

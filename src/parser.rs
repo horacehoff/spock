@@ -3,7 +3,7 @@ use crate::grammar::Token;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::type_inference::{DataType, infer_type};
 use crate::util::{format_datatype, format_type_expr};
-use crate::{Data, Instr, Num, error, error_b};
+use crate::{Data, Instr, Num, error};
 use crate::{check_args, check_args_range, parser_error, print, type_inference};
 use ariadne::*;
 use inline_colorization::*;
@@ -968,8 +968,6 @@ fn parser_to_instr_set(
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::with_capacity(input.len());
     for x in input {
-        // print!("PARSING {x}");
-        // ctx => for errors
         match x {
             // if number / bool / str, just push it to the constants, and the caller will grab the last index
             Expr::Num(num) => consts.push(Data::Number(*num as Num)),
@@ -1429,7 +1427,7 @@ fn parser_to_instr_set(
                 );
 
                 // try to optimize it
-                if for_loop_summation(&mut output, consts, v, arrs, array, code) {
+                if for_loop_summation(&mut output, consts, v, array, code) {
                     continue;
                 }
 
@@ -2832,7 +2830,7 @@ pub fn parse(
             if let Expr::FunctionDecl(x, y, _, _) = w {
                 (x[0].to_string(), x[1..].into(), y, None, None)
             } else {
-                error!(contents, "Function expected");
+                unreachable!()
             }
         })
         .collect();
@@ -2849,7 +2847,7 @@ pub fn parse(
             .iter()
             .find(|x| x.0 == "main")
             .unwrap_or_else(|| {
-                error_b!("Could not find main function");
+                error!("Could not find main function");
             })
             .2
             .to_vec()

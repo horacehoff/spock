@@ -1,12 +1,11 @@
 use crate::parser::Expr;
-use crate::{Data, Instr, format_lines};
+use crate::{Data, Instr};
 use ariadne::*;
 use concat_string::concat_string;
 use inline_colorization::*;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
 use slab::Slab;
-use std::fmt::Formatter;
 
 pub fn format_data(x: Data, arrays: &Slab<Vec<Data>>) -> String {
     match x {
@@ -46,100 +45,6 @@ pub fn format_err(x: Data, arrays: &Slab<Vec<Data>>) -> String {
     }
 }
 
-impl std::fmt::Display for Expr {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Expr::Num(x) => write!(f, "{x}"),
-            Expr::Bool(x) => write!(f, "{x}"),
-            Expr::String(x) => write!(f, "\"{x}\""),
-            Expr::Var(x, _, _) => write!(f, "{}", x),
-            Expr::Condition(x, y, _, _) => {
-                write!(
-                    f,
-                    "if {x} {{\n{}}}",
-                    y.iter()
-                        .map(|x| format_lines!(x))
-                        .collect::<Vec<String>>()
-                        .join(""),
-                )
-            }
-            Expr::FunctionDecl(x, y, _, _) => {
-                write!(
-                    f,
-                    "fn {}({}) {{\n{}}}",
-                    x.first().unwrap(),
-                    x.iter().skip(1).cloned().collect::<Vec<String>>().join(","),
-                    y.iter()
-                        .map(|x| format_lines!(x))
-                        .collect::<Vec<String>>()
-                        .join("")
-                )
-            }
-            Expr::WhileBlock(x, y) => {
-                write!(
-                    f,
-                    "while {x} {{\n{}}}",
-                    y.iter()
-                        .map(|x| format_lines!(x))
-                        .collect::<Vec<String>>()
-                        .join("")
-                )
-            }
-            Expr::VarAssign(x, y, start, end) => {
-                write!(f, "{x} = {y}")
-            }
-            Expr::VarDeclare(x, y) => {
-                write!(f, "let {x} = {y}")
-            }
-            Expr::FunctionCall(y, z, _, _, _) => {
-                write!(
-                    f,
-                    "{}{}({})",
-                    if z.is_empty() || z.len() - 1 == 0 {
-                        String::new()
-                    } else {
-                        format!("{}::", z[1..].join("::"))
-                    },
-                    z.last().unwrap(),
-                    y.iter()
-                        .map(|w| format!("{w}"))
-                        .collect::<Vec<String>>()
-                        .join(",")
-                )
-            }
-            // Expr::ObjFunctionCall(x, y) => {
-            //     write!(
-            //         f,
-            //         "{x}{}",
-            //         y.iter()
-            //             .map(|x| format!(
-            //                 ".{}({})",
-            //                 x.0,
-            //                 x.1.iter()
-            //                     .map(|w| format!("{w}"))
-            //                     .collect::<Vec<String>>()
-            //                     .join(",")
-            //             ))
-            //             .collect::<Vec<String>>()
-            //             .join("")
-            //     )
-            // }
-            Expr::ReturnVal(x) => {
-                write!(
-                    f,
-                    "return{}",
-                    if x.is_none() {
-                        String::new()
-                    } else {
-                        format!(" {}", x.clone().unwrap())
-                    }
-                )
-            }
-            _ => write!(f, "{self:?}"),
-        }
-    }
-}
-
 fn token_recognition(token: String) -> String {
     match token.as_str() {
         "r#\"[a-zA-Z_]+\"#" => String::from("identifier"),
@@ -160,7 +65,7 @@ macro_rules! parser_error {
     ($filename: expr,
     $source: expr,
     $start: expr,
-   $end: expr,
+    $end: expr,
     $error_general: expr,
     $msg:expr) => {
         eprintln!("{color_red}SPOCK ERROR{color_reset}");

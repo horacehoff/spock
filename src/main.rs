@@ -650,7 +650,7 @@ fn main() {
     });
 
     let contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-        error_b!(format_args!(
+        error!(format_args!(
             "Unable to read contents of file {color_red}{filename}{color_reset}"
         ));
     });

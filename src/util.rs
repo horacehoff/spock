@@ -1,25 +1,9 @@
+use crate::Data;
 use crate::parser::Expr;
 use crate::type_inference::DataType;
-use crate::Data;
 
 #[macro_export]
 macro_rules! error {
-    ($x: expr, $y: expr) => {
-        eprintln!(
-            "--------------\n{color_red}SPOCK ERROR:{color_reset}\n{color_bright_red}CONTEXT:{color_reset}\n{style_bold}{}{style_reset}\n{color_bright_red}ERROR:{color_reset}\n{}\n--------------", $x, $y
-        );
-        std::process::exit(1);
-    };
-    ($x: expr, $y: expr, $z: expr) => {
-        eprintln!(
-            "--------------\n{color_red}SPOCK ERROR:{color_reset}\n{color_bright_red}CONTEXT:{color_reset}\n{style_bold}{}{style_reset}\n{color_bright_red}ERROR:{color_reset}\n{}\n{color_bright_red}POSSIBLE FIX:{color_reset}\n{}\n--------------", $x, $y, $z
-        );
-        std::process::exit(1);
-    }
-}
-
-#[macro_export]
-macro_rules! error_b {
     ($x: expr) => {
         eprintln!(
             "--------------\n{color_red}SPOCK ERROR:{color_reset}\n{}\n--------------",
@@ -118,7 +102,7 @@ macro_rules! check_args {
                     $fn_name,
                     $args[0..$expected_args_len]
                         .iter()
-                        .map(ToString::to_string)
+                        .map(|x| format!("{x:?}"))
                         .collect::<Vec<String>>()
                         .join(",")
                 )
