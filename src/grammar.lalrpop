@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use crate::parser::Expr;
 use inline_colorization::*;
-use crate::error_b;
+use crate::error;
 use crate::Num;
 use crate::is_float;
 use internment::Intern;
@@ -306,7 +306,7 @@ OpVarAssign: Expr = {
 }
 
 ArrayIndex: Expr = {
-    <start: @L> <t: Term> <f: ("[" Expression "]")+> <end: @R> => {
+    <start: @L> <t: Term> <f: ( "[" Expression "]")+> <end: @R> => {
         Expr::GetIndex(Box::from(t), f.into_iter().map(|(_,x,_)| x).collect::<Vec<_>>().into_boxed_slice(), start, end)
     }
 }
@@ -449,7 +449,7 @@ Array:Expr = {
 }
 
 Num: Num = {
-    <n: r"([0-9]*[.])?[0-9]+"> => Num::from_str(n).unwrap_or_else(|_| {error_b!(format_args!("Invalid number: '{color_red}{n}{color_reset}'"));})
+    <n: r"([0-9]*[.])?[0-9]+"> => Num::from_str(n).unwrap_or_else(|_| {error!(format_args!("Invalid number: '{color_red}{n}{color_reset}'"));})
 }
 
 Bool: bool = {

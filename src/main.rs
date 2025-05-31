@@ -46,6 +46,12 @@ macro_rules! is_float {
     }};
 }
 
+macro_rules! noreach {
+    () => {
+        unsafe { unreachable_unchecked() }
+    };
+}
+
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Data {
@@ -122,7 +128,7 @@ pub enum Instr {
     ArrayMod(u16, u16, u16),
     StrMod(u16, u16, u16),
     ArrayGet(u16, u16, u16),
-    StrGet(u16, u16, u16),
+    ArrayStrGet(u16, u16, u16),
 
     TheAnswer(u16),
     // array - element
@@ -153,10 +159,12 @@ pub fn execute(
 ) {
     let mut i: usize = 0;
 
-    let error = |instr: Instr, general_error: &str, msg: Arguments| {
-        let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &instr).unwrap();
-        parser_error!(filename, src, *start, *end, general_error, msg);
-    };
+    macro_rules! fatal_error {
+        ($instr: expr,$err:expr,$msg:expr) => {
+            let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &$instr).unwrap();
+            parser_error!(filename, src, *start, *end, $err, $msg);
+        };
+    }
 
     let mut jmps: Vec<u16> = Vec::with_capacity(10);
     while i < instructions.len() {
@@ -366,14 +374,14 @@ pub fn execute(
             Instr::Num(tgt, dest) => match consts[tgt as usize] {
                 Data::String(str) => {
                     consts[dest as usize] = Data::Number(str.parse::<Num>().unwrap_or_else_likely(|_| {
-                        error(
+                        fatal_error!(
                             Instr::Num(tgt, dest),
                             "Invalid type",
                             format_args!(
                                 "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Number",
                                 str
-                            ),
-                        )
+                            )
+                        );
                     }));
                 }
                 Data::Number(num) => consts[dest as usize] = Data::Number(num),
@@ -387,15 +395,14 @@ pub fn execute(
                 let base = consts[tgt as usize];
                 if_likely! {let Data::String(str) = base => {
                     consts[dest as usize] = Data::Bool(str.parse::<bool>().unwrap_or_else_likely(|_| {
-                        error(
+                       fatal_error!(
                             Instr::Bool(tgt, dest),
                             "Invalid type",
                             format_args!(
                                 "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Boolean",
                                 str
-                            ),
+                            )
                         );
-                        false
                     }));
                 }}
             }
@@ -435,14 +442,14 @@ pub fn execute(
                         if likely(array.len() > index as usize) {
                             array[index as usize] = requested_mod;
                         } else {
-                            error(
+                            fatal_error!(
                                 Instr::ArrayMod(tgt, dest, idx),
                                 "Invalid index",
                                 format_args!(
                                     "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but array has {} elements",
                                     index,
                                     array.len()
-                                ),
+                                )
                             );
                         }}
                     }
@@ -459,14 +466,14 @@ pub fn execute(
                                 temp.insert_str(index as usize, &letter);
                                 *str = Intern::from(temp);
                             } else {
-                                error(
+                                fatal_error!(
                                     Instr::StrMod(tgt, dest, idx),
                                     "Invalid index",
                                     format_args!(
                                         "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but string has {} characters",
                                         index,
                                         str.len()
-                                    ),
+                                    )
                                 );
                             }
                         }}
@@ -477,67 +484,44 @@ pub fn execute(
             Instr::ArrayGet(tgt, index, dest) => {
                 if_likely! {let Data::Number(idx) = consts[index as usize] => {
                     let idx = idx as usize;
-                    match consts[tgt as usize] {
-                        Data::Array(x) => {
+                    if_likely! {let Data::Array(x) = consts[tgt as usize] => {
                             let array = &arrays[x];
                             if likely(array.len() > idx) {
                                 consts[dest as usize] = array[idx];
                             } else {
-                               error(
+                               fatal_error!(
                                     Instr::ArrayGet(tgt, index, dest),
                                     "Invalid index",
                                     format_args!(
                                         "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but Array has {} elements",
                                         idx,
                                         array.len()
-                                    ),
+                                    )
                                 );
                             }
-                        }
-                        Data::String(str) => {
-                            if likely(str.len() > idx) {
-                                consts[dest as usize] = Data::String(Intern::from(
-                                    str.get(idx..=idx).unwrap().to_string(),
-                                ));
-                            } else {
-                                error(
-                                    Instr::ArrayGet(tgt, index, dest),
-                                    "Invalid index",
-                                    format_args!(
-                                        "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but String has {} characters",
-                                        idx,
-                                        str.len()
-                                    ),
-                                );
-                            }
-                        }
-                        _ => unsafe {unreachable_unchecked()}
-                    }
+                    }}
                 }}
             }
-            Instr::StrGet(tgt, index, dest) => {
+            Instr::ArrayStrGet(tgt, index, dest) => {
                 if_likely! {let Data::Number(idx) = consts[index as usize] => {
                     let idx = idx as usize;
-                    match consts[tgt as usize] {
-                        Data::String(str) => {
-                            if likely(str.len() > idx) {
-                                consts[dest as usize] = Data::String(Intern::from(
-                                    str.get(idx..=idx).unwrap().to_string(),
-                                ));
-                            } else {
-                                error(
-                                    Instr::ArrayGet(tgt, index, dest),
-                                    "Invalid index",
-                                    format_args!(
-                                        "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but String has {} characters",
-                                        idx,
-                                        str.len()
-                                    ),
-                                );
-                            }
+                    if_likely! {let Data::String(str) = consts[tgt as usize] => {
+                        if likely(str.len() > idx) {
+                            consts[dest as usize] = Data::String(Intern::from(
+                                str.get(idx..=idx).unwrap().to_string(),
+                            ));
+                        } else {
+                            fatal_error!(
+                                Instr::ArrayGet(tgt, index, dest),
+                                "Invalid index",
+                                format_args!(
+                                    "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but String has {} characters",
+                                    idx,
+                                    str.len()
+                                )
+                            );
                         }
-                        _ => unsafe {unreachable_unchecked()}
-                    }
+                    }}
                 }}
             }
             Instr::Range(min, max, dest) => {

@@ -132,7 +132,7 @@ fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::CallFunc(_, _, y)
         | Instr::Input(_, y)
         | Instr::ArrayGet(_, _, y)
-        | Instr::StrGet(_, _, y)
+        | Instr::ArrayStrGet(_, _, y)
         | Instr::Range(_, _, y)
         | Instr::Type(_, y)
         | Instr::IoOpen(_, y, _)
@@ -173,7 +173,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::CallFunc(_, _, y)
         | Instr::Input(_, y)
         | Instr::ArrayGet(_, _, y)
-        | Instr::StrGet(_, _, y)
+        | Instr::ArrayStrGet(_, _, y)
         | Instr::Range(_, _, y)
         | Instr::Type(_, y)
         | Instr::IoOpen(_, y, _)
@@ -1040,19 +1040,6 @@ fn parser_to_instr_set(
             // array[index]
             Expr::GetIndex(target, index, start, end) => {
                 let mut infered = infer_type(target, var_types, fns);
-                if !matches!(infered, DataType::String | DataType::Array(_)) {
-                    parser_error!(
-                        src.0,
-                        src.1,
-                        *start,
-                        *end,
-                        "Invalid type",
-                        format_args!(
-                            "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            format_datatype(infered)
-                        )
-                    );
-                }
                 // process the array/string that is being indexed
                 let mut id = get_id(
                     target,
@@ -1069,8 +1056,22 @@ fn parser_to_instr_set(
                 );
                 // for each index operation, process the index, adjust the id variable for the next index operation, push null to constants to use GetIndex to index at runtime
                 for elem in index {
-                    let infered = infer_type(elem, var_types, fns);
-                    if infered != DataType::Number {
+                    if !matches!(infered, DataType::String | DataType::Array(_)) {
+                        parser_error!(
+                            src.0,
+                            src.1,
+                            *start,
+                            *end,
+                            "Invalid type",
+                            format_args!(
+                                "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                                format_datatype(infered)
+                            )
+                        );
+                    }
+
+                    let index_infered = infer_type(elem, var_types, fns);
+                    if index_infered != DataType::Number {
                         parser_error!(
                             src.0,
                             src.1,
@@ -1079,7 +1080,7 @@ fn parser_to_instr_set(
                             "Invalid type",
                             format_args!(
                                 "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a valid index",
-                                format_datatype(infered)
+                                format_datatype(index_infered)
                             )
                         );
                     }
@@ -1097,13 +1098,25 @@ fn parser_to_instr_set(
                         instr_src,
                     );
                     consts.push(Data::Null);
-                    instr_src.push((
-                        Instr::ArrayGet(id, f_id, (consts.len() - 1) as u16),
-                        *start,
-                        *end,
-                    ));
-                    output.push(Instr::ArrayGet(id, f_id, (consts.len() - 1) as u16));
+                    if infered == DataType::String {
+                        instr_src.push((
+                            Instr::ArrayStrGet(id, f_id, (consts.len() - 1) as u16),
+                            *start,
+                            *end,
+                        ));
+                        output.push(Instr::ArrayStrGet(id, f_id, (consts.len() - 1) as u16));
+                    } else {
+                        instr_src.push((
+                            Instr::ArrayStrGet(id, f_id, (consts.len() - 1) as u16),
+                            *start,
+                            *end,
+                        ));
+                        output.push(Instr::ArrayGet(id, f_id, (consts.len() - 1) as u16));
+                    }
                     id = (consts.len() - 1) as u16;
+                    if let DataType::Array(array_type) = infered {
+                        infered = *array_type;
+                    }
                 }
             }
             // x[y]... = z;
@@ -1469,8 +1482,8 @@ fn parser_to_instr_set(
                     *var_name,
                     if array_type == DataType::String {
                         DataType::String
-                    } else if let DataType::Array(a_type) = array_type {
-                        *a_type
+                    } else if let DataType::Array(a_type) = &array_type {
+                        *a_type.clone()
                     } else {
                         todo!("For loop invalid type")
                     },
@@ -1500,7 +1513,11 @@ fn parser_to_instr_set(
 
                 // instruction to make current_element actually hold the array index's value
                 if real_var {
-                    output.push(Instr::ArrayGet(array, index_id, current_element_id));
+                    if array_type == DataType::String {
+                        output.push(Instr::ArrayStrGet(array, index_id, current_element_id));
+                    } else {
+                        output.push(Instr::ArrayGet(array, index_id, current_element_id));
+                    }
                 }
                 parse_loop_flow_control(&mut cond_code, loop_id, len, true);
                 // then add the condition code
