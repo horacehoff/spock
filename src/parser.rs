@@ -203,7 +203,7 @@ fn get_tgt_id_vec(x: &[Instr]) -> u16 {
     unreachable!();
 }
 
-fn get_id(
+pub fn get_id(
     x: &Expr,
     v: &mut Vec<(Intern<String>, u16)>,
     var_types: &mut Vec<(Intern<String>, DataType)>,
@@ -948,7 +948,7 @@ pub type Function = (
     Option<u16>,
     Option<Vec<u16>>,
 );
-type FunctionState = (String, u16, Vec<(Intern<String>, u16)>, Option<u16>);
+pub type FunctionState = (String, u16, Vec<(Intern<String>, u16)>, Option<u16>);
 
 #[inline(always)]
 fn parser_to_instr_set(
@@ -1386,7 +1386,20 @@ fn parser_to_instr_set(
             }
             Expr::WhileBlock(condition, code) => {
                 // try to optimize it (if it's a summation loop)
-                if while_loop_summation(&mut output, consts, v, condition, code) {
+                if while_loop_summation(
+                    &mut output,
+                    consts,
+                    v,
+                    var_types,
+                    fns,
+                    arrs,
+                    fn_state,
+                    id,
+                    src,
+                    instr_src,
+                    condition,
+                    code,
+                ) {
                     continue;
                 }
 
