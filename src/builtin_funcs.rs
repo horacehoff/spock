@@ -70,7 +70,7 @@ fn contains(
             let arg = consts[args.swap_remove(0) as usize];
             consts[dest as usize] = Data::Bool(arrays[x].contains(&arg))
         }
-        _ => unsafe { unreachable_unchecked() },
+        _ => unreachable!(),
     }
 }
 
@@ -137,7 +137,7 @@ fn index(
                 builtin_error!("Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays)),instr_src,call,filename,src);
             }) as Num);
         }
-        _ => unsafe { unreachable_unchecked() },
+        _ => unreachable!(),
     }
 }
 
@@ -257,7 +257,7 @@ fn rindex(
                 builtin_error!("Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays)),instr_src,call,filename,src);
             }) as Num);
         }
-        _ => unsafe { unreachable_unchecked() },
+        _ => unreachable!(),
     }
 }
 
@@ -285,7 +285,7 @@ fn repeat(
                 consts[dest as usize] = Data::Array(arrays.insert(arrays[x].repeat(arg as usize)));
             }}
         }
-        _ => unsafe { unreachable_unchecked() },
+        _ => unreachable!(),
     }
 }
 
@@ -386,7 +386,7 @@ fn reverse(
             consts[dest as usize] =
                 Data::String(Intern::from(str.chars().rev().collect::<String>()))
         }
-        _ => unsafe { unreachable_unchecked() },
+        _ => unreachable!(),
     }
 }
 

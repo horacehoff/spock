@@ -45,12 +45,6 @@ macro_rules! is_float {
     }};
 }
 
-macro_rules! noreach {
-    () => {
-        unsafe { unreachable_unchecked() }
-    };
-}
-
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Data {
@@ -408,7 +402,7 @@ pub fn execute(
                     }));
                 }
                 Data::Number(num) => consts[dest as usize] = Data::Number(num),
-                _ => unsafe { unreachable_unchecked() },
+                _ => unreachable!(),
             },
             Instr::Str(tgt, dest) => {
                 consts[dest as usize] =
@@ -616,7 +610,7 @@ pub fn execute(
                     Data::String(str) => {
                         consts[dest as usize] = Data::Number(str.chars().count() as Num)
                     }
-                    _ => unsafe { unreachable_unchecked() },
+                    _ => unreachable!(),
                 };
             }
             Instr::Sqrt(tgt, dest) => {
@@ -647,14 +641,14 @@ pub fn execute(
                     // let id = arrays.insert((base_id..arrays.len() as u16).map(Data::Array).collect());
                     // consts[dest as usize] = Data::Array(id);
                 }
-                _ => unsafe { unreachable_unchecked() },
+                _ => unreachable!(),
             },
             Instr::Remove(array, idx) => {
                 if_likely! {let Data::Number(idx) = consts[idx as usize] => {
                         arrays.get_mut(array as usize).unwrap().remove(idx as usize);
                 }}
             }
-            Instr::Break(_) | Instr::Continue(_) => unsafe { unreachable_unchecked() },
+            Instr::Break(_) | Instr::Continue(_) => unreachable!(),
         }
         i += 1;
     }
