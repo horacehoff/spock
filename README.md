@@ -189,7 +189,7 @@ for x in [0,1,2,3] {
   }
 }
 ```
-### Imports
+### Imports (WIP)
 You can import functions from other `.spock` files by using the `import` keyword like shown below.
 Please note that import statements are directly replaced by the file's contents, and as such error messages will not be
 able to specify which file the error comes from.
@@ -209,10 +209,11 @@ demo();
 }
 ```
 ### Arrays
+Arrays can only hold one type
 ```rs
 let x = [0,1,2,3,4];
 print(x[0]);
-x[1] = "test!";
+x[1] = "42";
 for w in x {
   print(w);
 }
