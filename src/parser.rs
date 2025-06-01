@@ -4,7 +4,7 @@ use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::type_inference::{DataType, infer_type};
 use crate::util::{format_datatype, format_type_expr};
 use crate::{Data, Instr, Num, error};
-use crate::{check_args, check_args_range, parser_error, print, type_inference};
+use crate::{check_args, check_args_range, parser_error, type_inference};
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
@@ -28,7 +28,7 @@ pub enum Expr {
     ElseBlock(Box<[Expr]>),
 
     WhileBlock(Box<Expr>, Box<[Expr]>),
-    // args - (optional namespace + name) -- fn_start -- fn_end -- (arg_start,arg_end)
+    // args -- (optional namespace + name) -- fn_start -- fn_end -- (arg_start,arg_end)
     FunctionCall(
         Box<[Expr]>,
         Box<[String]>,

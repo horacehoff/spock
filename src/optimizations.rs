@@ -14,6 +14,9 @@ pub fn while_loop_summation(
             if let Expr::Inf(a, b, _, _) = condition {
                 if let Expr::Var(tgt_var, _, _) = **a {
                     if tgt_var == *x {
+                        if let Expr::Add(v, increment, _, _) = *increment.clone() {
+                            if let Expr::Var(add_var, _, _) = *v {}
+                        }
                         if let Expr::Num(num_limit) = **b {
                         } else if let Expr::Var(var_limit, _, _) = **b {
                         }

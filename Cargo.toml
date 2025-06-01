@@ -26,7 +26,7 @@ opt-level = 1
 [profile.opt]
 inherits = "dev"
 opt-level = 1
-lto = "fat"
+lto = "thin"
 debug = false
 strip = true
 debug-assertions = false
