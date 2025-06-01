@@ -220,7 +220,7 @@ print(i)</code></pre></td>
  </tr>
 <tr>
 <td>
-0.0001156s
+0.00007s (600000x faster)
 </td>
 <td>
 42s

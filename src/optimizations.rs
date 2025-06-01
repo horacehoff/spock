@@ -16,7 +16,6 @@ pub fn while_loop_summation(
     // (filename, contents)
     src: (&str, &str),
     instr_src: &mut Vec<(Instr, usize, usize)>,
-
     condition: &Expr,
     code: &[Expr],
 ) -> bool {
