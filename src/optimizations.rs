@@ -41,6 +41,24 @@ pub fn while_loop_summation(
                                         return true;
                                     } else if let Expr::Num(increment_num) = *increment {
                                         // TODO
+                                        let limit_id = get_id(
+                                            b, v, var_types, consts, output, fns, arrs, fn_state,
+                                            id, src, instr_src,
+                                        );
+                                        consts.push(Data::Number(increment_num));
+                                        consts.push(Data::Null);
+                                        output.push(Instr::Mod(
+                                            limit_id,
+                                            (consts.len() - 2) as u16,
+                                            (consts.len() - 1) as u16,
+                                        ));
+                                        consts.push(Data::Null);
+                                        output.push(Instr::Add(
+                                            limit_id,
+                                            (consts.len() - 2) as u16,
+                                            (consts.len() - 1) as u16,
+                                        ));
+                                        output.push(Instr::Print((consts.len() - 1) as u16));
                                     }
                                 }
                             }
