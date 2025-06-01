@@ -163,20 +163,20 @@ pub fn execute(
     while i < instructions.len() {
         match instructions[i] {
             Instr::Jmp(size, is_neg) => unsafe {
-                // if is_neg {
-                //     i -= size as usize;
-                //     continue;
-                // } else {
-                //     i += size as usize;
-                //     continue;
-                // }
                 if is_neg {
-                    i = i.unchecked_sub(size as usize);
+                    i -= size as usize;
                     continue;
                 } else {
-                    i = i.unchecked_add(size as usize);
+                    i += size as usize;
                     continue;
                 }
+                // if is_neg {
+                //     i = i.unchecked_sub(size as usize);
+                //     continue;
+                // } else {
+                //     i = i.unchecked_add(size as usize);
+                //     continue;
+                // }
             },
             Instr::JmpSave(size, is_neg) => {
                 jmps.push(size);
@@ -199,27 +199,27 @@ pub fn execute(
             }
             Instr::Cmp(cond_id, size) => unsafe {
                 if let Data::Bool(false) = consts[cond_id as usize] {
-                    i = i.unchecked_add(size as usize);
-                    // i += size as usize;
+                    // i = i.unchecked_add(size as usize);
+                    i += size as usize;
                     continue;
                 }
             },
             Instr::Mov(tgt, dest) => {
                 consts[dest as usize] = consts[tgt as usize];
             }
-            // Instr::Add(o1, o2, dest) => {
-            //     if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-            //         consts[dest as usize] = Data::Number(parent + child);
-            //     }}
-            // }
-            Instr::Add(o1, o2, dest) => unsafe {
-                if let (Data::Number(parent), Data::Number(child)) = (
-                    *consts.get_unchecked(o1 as usize),
-                    *consts.get_unchecked(o2 as usize),
-                ) {
-                    *consts.get_unchecked_mut(dest as usize) = Data::Number(parent + child);
-                }
-            },
+            Instr::Add(o1, o2, dest) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
+                    consts[dest as usize] = Data::Number(parent + child);
+                }}
+            }
+            // Instr::Add(o1, o2, dest) => unsafe {
+            //     if let (Data::Number(parent), Data::Number(child)) = (
+            //         *consts.get_unchecked(o1 as usize),
+            //         *consts.get_unchecked(o2 as usize),
+            //     ) {
+            //         *consts.get_unchecked_mut(dest as usize) = Data::Number(parent + child);
+            //     }
+            // },
             Instr::StrAdd(o1, o2, dest) => {
                 if_likely! {let (Data::String(parent), Data::String(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::String(Intern::from(concat_string!(*parent, *child)));
@@ -237,19 +237,19 @@ pub fn execute(
                     consts[dest as usize] = Data::Array(id);
                 }}
             }
-            // Instr::Mul(o1, o2, dest) => {
-            //     if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-            //         consts[dest as usize] = Data::Number(parent * child);
-            //     }}
-            // }
-            Instr::Mul(o1, o2, dest) => unsafe {
-                if let (Data::Number(parent), Data::Number(child)) = (
-                    *consts.get_unchecked(o1 as usize),
-                    *consts.get_unchecked(o2 as usize),
-                ) {
-                    *consts.get_unchecked_mut(dest as usize) = Data::Number(parent * child);
-                }
-            },
+            Instr::Mul(o1, o2, dest) => {
+                if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
+                    consts[dest as usize] = Data::Number(parent * child);
+                }}
+            }
+            // Instr::Mul(o1, o2, dest) => unsafe {
+            //     if let (Data::Number(parent), Data::Number(child)) = (
+            //         *consts.get_unchecked(o1 as usize),
+            //         *consts.get_unchecked(o2 as usize),
+            //     ) {
+            //         *consts.get_unchecked_mut(dest as usize) = Data::Number(parent * child);
+            //     }
+            // },
             Instr::Div(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent / child);
