@@ -672,13 +672,11 @@ fn get_vec_capacity(instructions: &[Instr]) -> usize {
 
 // Live long and prosper
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
-
     #[cfg(debug_assertions)]
     let filename = "test.spock";
 
     #[cfg(not(debug_assertions))]
-    let filename = args.get(1).unwrap_or_else(|| {
+    let filename = &std::env::args().skip(1).next().unwrap_or_else(|| {
         println!("{}", util::SPOCK_LOGO);
         std::process::exit(0);
     });
@@ -689,16 +687,13 @@ fn main() {
         ));
     });
 
-    // #[cfg(debug_assertions)]
     let now = Instant::now();
 
     let (instructions, mut consts, mut arrays, instr_src) = parse(&contents, filename);
 
     let func_args_count = get_vec_capacity(&instructions);
 
-    // #[cfg(debug_assertions)]
     println!("PARSING TIME {:.2?}", now.elapsed());
-
     println!("INSTR {instructions:?}");
     println!("CONSTS {consts:?}");
     print!("ARRAYS {arrays:?}");

@@ -217,20 +217,23 @@ pub fn get_id(
     src: (&str, &str),
     instr_src: &mut Vec<(Instr, usize, usize)>,
 ) -> u16 {
-    let op_error = |l: &Expr, r: &Expr, op: &str, start: &usize, end: &usize| {
-        parser_error!(
-            src.0,
-            src.1,
-            *start,
-            *end,
-            "Invalid operation",
-            format_args!(
-                "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{op}{color_bright_blue} {}{color_reset}{style_reset}",
-                format_datatype(infer_type(l, var_types, fns)),
-                format_datatype(infer_type(r, var_types, fns))
-            )
-        );
-    };
+    macro_rules! op_error {
+        ($l: expr,$r:expr,$op:expr,$start:expr,$end:expr) => {
+            parser_error!(
+                src.0,
+                src.1,
+                *$start,
+                *$end,
+                "Invalid operation",
+                format_args!(
+                    "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{}{color_bright_blue} {}{color_reset}{style_reset}",
+                    format_datatype(infer_type($l, var_types, fns)),
+                    $op,
+                    format_datatype(infer_type($r, var_types, fns))
+                )
+            );
+        };
+    }
     match x {
         Expr::Num(num) => {
             consts.push(Data::Number(*num as Num));
@@ -307,7 +310,7 @@ pub fn get_id(
             if infer_type(l, var_types, fns) != DataType::Number
                 || infer_type(r, var_types, fns) != DataType::Number
             {
-                op_error(l, r, "*", start, end);
+                op_error!(l, r, "*", start, end);
             }
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
@@ -325,7 +328,7 @@ pub fn get_id(
             if infer_type(l, var_types, fns) != DataType::Number
                 || infer_type(r, var_types, fns) != DataType::Number
             {
-                op_error(l, r, "/", start, end);
+                op_error!(l, r, "/", start, end);
             }
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
@@ -348,7 +351,7 @@ pub fn get_id(
                     DataType::String | DataType::Array(_) | DataType::Number
                 )
             {
-                op_error(l, r, "+", start, end);
+                op_error!(l, r, "+", start, end);
             }
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
@@ -374,7 +377,7 @@ pub fn get_id(
             if infer_type(l, var_types, fns) != DataType::Number
                 || infer_type(r, var_types, fns) != DataType::Number
             {
-                op_error(l, r, "-", start, end);
+                op_error!(l, r, "-", start, end);
             }
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
@@ -392,7 +395,7 @@ pub fn get_id(
             if infer_type(l, var_types, fns) != DataType::Number
                 || infer_type(r, var_types, fns) != DataType::Number
             {
-                op_error(l, r, "%", start, end);
+                op_error!(l, r, "%", start, end);
             }
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
@@ -410,7 +413,7 @@ pub fn get_id(
             if infer_type(l, var_types, fns) != DataType::Number
                 || infer_type(r, var_types, fns) != DataType::Number
             {
-                op_error(l, r, "^", start, end);
+                op_error!(l, r, "^", start, end);
             }
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
@@ -460,7 +463,7 @@ pub fn get_id(
             if infer_type(l, var_types, fns) != DataType::Number
                 || infer_type(r, var_types, fns) != DataType::Number
             {
-                op_error(l, r, ">", start, end);
+                op_error!(l, r, ">", start, end);
             }
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
@@ -478,7 +481,7 @@ pub fn get_id(
             if infer_type(l, var_types, fns) != DataType::Number
                 || infer_type(r, var_types, fns) != DataType::Number
             {
-                op_error(l, r, ">=", start, end);
+                op_error!(l, r, ">=", start, end);
             }
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
@@ -496,7 +499,7 @@ pub fn get_id(
             if infer_type(l, var_types, fns) != DataType::Number
                 || infer_type(r, var_types, fns) != DataType::Number
             {
-                op_error(l, r, "<", start, end);
+                op_error!(l, r, "<", start, end);
             }
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
@@ -514,7 +517,7 @@ pub fn get_id(
             if infer_type(l, var_types, fns) != DataType::Number
                 || infer_type(r, var_types, fns) != DataType::Number
             {
-                op_error(l, r, "<=", start, end);
+                op_error!(l, r, "<=", start, end);
             }
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
@@ -532,7 +535,7 @@ pub fn get_id(
             if infer_type(l, var_types, fns) != DataType::Bool
                 || infer_type(r, var_types, fns) != DataType::Bool
             {
-                op_error(l, r, "&&", start, end);
+                op_error!(l, r, "&&", start, end);
             }
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
@@ -550,7 +553,7 @@ pub fn get_id(
             if infer_type(l, var_types, fns) != DataType::Bool
                 || infer_type(r, var_types, fns) != DataType::Bool
             {
-                op_error(l, r, "||", start, end);
+                op_error!(l, r, "||", start, end);
             }
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
@@ -1635,7 +1638,6 @@ fn parser_to_instr_set(
             Expr::FunctionCall(args, namespace, start, end, args_indexes) => {
                 let check_type = |arg: usize, expected: &[DataType]| {
                     let infered = infer_type(&args[arg], var_types, fns);
-
                     if !{
                         if let DataType::Poly(polytype) = &infered {
                             polytype.iter().all(|x| expected.contains(x))
