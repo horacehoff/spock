@@ -112,8 +112,17 @@ where
 {
     eprintln!("{color_red}SPOCK ERROR{color_reset}");
     match x {
-        ParseError::InvalidToken { .. } => {
-            unreachable!("InvalidTokenError")
+        ParseError::InvalidToken { location } => {
+            Report::build(ReportKind::Error, (filename, location..location + 1))
+                .with_message("Invalid token")
+                .with_label(
+                    Label::new((filename, location..location + 1))
+                        .with_message(format_args!("This token is invalid"))
+                        .with_color(Color::Red),
+                )
+                .finish()
+                .print((filename, Source::from(file)))
+                .unwrap();
         }
         ParseError::UnrecognizedEof { location, expected } => {
             Report::build(ReportKind::Error, (filename, location..location + 1))

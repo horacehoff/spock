@@ -147,7 +147,7 @@ pub fn infer_type(
         },
         Expr::FunctionCall(args, namespace, _, _, _) => match namespace.last().unwrap().as_str() {
             "print" => DataType::Null,
-            "type" => infer_type(&args[0], var_types, fns),
+            "type" => DataType::String,
             "num" => DataType::Number,
             "str" => DataType::String,
             "bool" => DataType::Bool,

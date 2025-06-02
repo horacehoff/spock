@@ -17,11 +17,16 @@ use std::io::Write;
 use std::time::Instant;
 
 mod builtin_funcs;
+#[path = "./util/display.rs"]
 mod display;
+#[path = "./parser/functions.rs"]
+mod functions;
 mod optimizations;
+#[path = "./parser/parser.rs"]
 mod parser;
 mod tests;
 mod type_inference;
+#[path = "./util/util.rs"]
 mod util;
 
 #[cfg(feature = "int")]
@@ -100,7 +105,7 @@ pub enum Instr {
     Neg(u16, u16),
 
     // General functions
-    Type(u16, u16),
+    // Type(u16, u16),
     Num(u16, u16),
     Str(u16, u16),
     Bool(u16, u16),
@@ -383,10 +388,6 @@ pub fn execute(
             }
             Instr::Print(target) => {
                 println!("{}", format_data(consts[target as usize], arrays));
-            }
-            Instr::Type(tgt, dest) => {
-                consts[dest as usize] =
-                    Data::String(Intern::from(format_type(consts[tgt as usize])));
             }
             Instr::Num(tgt, dest) => match consts[tgt as usize] {
                 Data::String(str) => {
