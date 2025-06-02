@@ -21,6 +21,8 @@ mod builtin_funcs;
 mod display;
 #[path = "./parser/functions.rs"]
 mod functions;
+#[path = "./parser/method_calls.rs"]
+mod method_calls;
 mod optimizations;
 #[path = "./parser/parser.rs"]
 mod parser;
