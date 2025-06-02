@@ -2109,68 +2109,6 @@ fn parser_to_instr_set(
                     }
                 };
 
-                macro_rules! check_obj_type {
-                    ($expected: expr) => {
-                        let infered = infer_type(obj, var_types, fns);
-
-                        if !{
-                            if let DataType::Poly(polytype) = &infered {
-                                polytype.iter().all(|x| $expected.contains(x))
-                            } else {
-                                $expected.contains(&infered)
-                            }
-                        } {
-                            parser_error!(
-                                src.0,
-                                src.1,
-                                *start,
-                                *end,
-                                "Invalid type",
-                                format_args!(
-                                    "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                    $expected
-                                        .into_iter()
-                                        .map(|x| format_datatype(x.clone()).to_lowercase())
-                                        .collect::<Vec<String>>()
-                                        .join(" or "),
-                                    format_datatype(infered)
-                                )
-                            );
-                        }
-                    };
-                }
-
-                macro_rules! check_obj_type_array {
-                    ($expected: expr) => {
-                        let infered = infer_type(obj, var_types, fns);
-
-                        if !{
-                            if let DataType::Poly(polytype) = &infered {
-                                polytype.iter().all(|x| $expected.contains(x))
-                            } else {
-                                $expected.contains(&infered)
-                            }
-                        } {
-                            parser_error!(
-                                src.0,
-                                src.1,
-                                *start,
-                                *end,
-                                "Invalid type",
-                                format_args!(
-                                    "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                    $expected
-                                        .into_iter()
-                                        .map(|x| format_datatype(x.clone()).to_lowercase())
-                                        .collect::<Vec<String>>()
-                                        .join(" or "),
-                                    format_datatype(infered)
-                                )
-                            );
-                        }
-                    };
-                }
-
                 let id = get_id(
                     obj,
                     v,
@@ -2188,9 +2126,37 @@ fn parser_to_instr_set(
                 let name = namespace[len].as_str();
                 // not in use for now
                 let namespace = &namespace[0..len];
+
+                macro_rules! check_obj_type {
+                    ($expected:pat,$expected_str:expr) => {
+                        let infered = infer_type(obj, var_types, fns);
+
+                        if !{
+                            if let DataType::Poly(polytype) = &infered {
+                                polytype.iter().all(|x| matches!(x, $expected))
+                            } else {
+                                matches!(infered, $expected)
+                            }
+                        } {
+                            parser_error!(
+                                src.0,
+                                src.1,
+                                *start,
+                                *end,
+                                "Invalid type",
+                                format_args!(
+                                    "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                                    $expected_str,
+                                    format_datatype(infered)
+                                )
+                            );
+                        }
+                    };
+                }
+
                 match name {
                     "uppercase" => {
-                        check_obj_type!(&[DataType::String]);
+                        check_obj_type!(DataType::String, "String");
                         check_args!(args, 0, "uppercase", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
@@ -2198,7 +2164,7 @@ fn parser_to_instr_set(
                         // instr_src.push((Instr::CallFunc(0, id, f_id), *start, *end));
                     }
                     "lowercase" => {
-                        check_obj_type!(&[DataType::String]);
+                        check_obj_type!(DataType::String, "String");
                         check_args!(args, 0, "lowercase", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
@@ -2206,20 +2172,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(1, id, f_id), *start, *end))
                     }
                     "len" => {
-                        let infered = infer_type(obj, var_types, fns);
-                        if !matches!(infered, DataType::String | DataType::Array(_)) {
-                            parser_error!(
-                                src.0,
-                                src.1,
-                                *start,
-                                *end,
-                                "Invalid type",
-                                format_args!(
-                                    "Expected String or Array, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                    format_datatype(infered)
-                                )
-                            );
-                        }
+                        check_obj_type!(DataType::Array(_) | DataType::String, "Array or String");
                         check_args!(args, 0, "len", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
@@ -2227,21 +2180,7 @@ fn parser_to_instr_set(
                         output.push(Instr::Len(id, f_id));
                     }
                     "contains" => {
-                        let infered = infer_type(obj, var_types, fns);
-                        if !matches!(infered, DataType::String | DataType::Array(_)) {
-                            parser_error!(
-                                src.0,
-                                src.1,
-                                *start,
-                                *end,
-                                "Invalid type",
-                                format_args!(
-                                    "Expected String or Array, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                    format_datatype(infered)
-                                )
-                            );
-                        }
-
+                        check_obj_type!(DataType::Array(_) | DataType::String, "Array or String");
                         check_args!(args, 1, "contains", src.0, src.1, *start, *end);
 
                         let arg_infered = infer_type(&args[0], var_types, fns);
@@ -2271,7 +2210,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(2, id, f_id), *start, *end))
                     }
                     "trim" => {
-                        check_obj_type!(&[DataType::String]);
+                        check_obj_type!(DataType::String, "String");
                         check_args!(args, 0, "trim", src.0, src.1, *start, *end);
 
                         let f_id = consts.len() as u16;
@@ -2280,7 +2219,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(3, id, f_id), *start, *end))
                     }
                     "trim_sequence" => {
-                        check_obj_type!(&[DataType::String]);
+                        check_obj_type!(DataType::String, "String");
                         check_args!(args, 1, "trim_sequence", src.0, src.1, *start, *end);
 
                         let infered = infer_type(&args[0], var_types, fns);
@@ -2308,21 +2247,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(4, id, f_id), *start, *end))
                     }
                     "index" => {
-                        let infered = infer_type(obj, var_types, fns);
-                        if !matches!(infered, DataType::String | DataType::Array(_)) {
-                            parser_error!(
-                                src.0,
-                                src.1,
-                                *start,
-                                *end,
-                                "Invalid type",
-                                format_args!(
-                                    "Expected String or Array, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                    format_datatype(infered)
-                                )
-                            );
-                        }
-
+                        check_obj_type!(DataType::String | DataType::Array(_), "Array or String");
                         check_args!(args, 1, "index", src.0, src.1, *start, *end);
 
                         let arg_infered = infer_type(&args[0], var_types, fns);
@@ -2367,7 +2292,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(5, id, f_id), *start, *end))
                     }
                     "is_num" => {
-                        check_obj_type!(&[DataType::String]);
+                        check_obj_type!(DataType::String, "String");
                         check_args!(args, 0, "is_num", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
@@ -2375,7 +2300,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(6, id, f_id), *start, *end))
                     }
                     "trim_left" => {
-                        check_obj_type!(&[DataType::String]);
+                        check_obj_type!(DataType::String, "String");
                         check_args!(args, 0, "trim_left", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
@@ -2383,7 +2308,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(7, id, f_id), *start, *end))
                     }
                     "trim_right" => {
-                        check_obj_type!(&[DataType::String]);
+                        check_obj_type!(DataType::String, "String");
                         check_args!(args, 0, "trim_right", src.0, src.1, *start, *end);
                         let f_id = consts.len() as u16;
                         consts.push(Data::Null);
@@ -2391,7 +2316,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(8, id, f_id), *start, *end))
                     }
                     "trim_sequence_left" => {
-                        check_obj_type!(&[DataType::String]);
+                        check_obj_type!(DataType::String, "String");
                         check_args!(args, 1, "trim_sequence_left", src.0, src.1, *start, *end);
 
                         let infered = infer_type(&args[0], var_types, fns);
@@ -2420,6 +2345,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(9, id, f_id), *start, *end))
                     }
                     "trim_sequence_right" => {
+                        check_obj_type!(DataType::String, "String");
                         check_args!(args, 1, "trim_sequence_right", src.0, src.1, *start, *end);
 
                         let infered = infer_type(&args[0], var_types, fns);
@@ -2448,21 +2374,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(10, id, f_id), *start, *end))
                     }
                     "rindex" => {
-                        let infered = infer_type(obj, var_types, fns);
-                        if !matches!(infered, DataType::String | DataType::Array(_)) {
-                            parser_error!(
-                                src.0,
-                                src.1,
-                                *start,
-                                *end,
-                                "Invalid type",
-                                format_args!(
-                                    "Expected String or Array, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                    format_datatype(infered)
-                                )
-                            );
-                        }
-
+                        check_obj_type!(DataType::String | DataType::Array(_), "Array or String");
                         check_args!(args, 1, "rindex", src.0, src.1, *start, *end);
 
                         let arg_infered = infer_type(&args[0], var_types, fns);
@@ -2507,20 +2419,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(11, id, f_id), *start, *end))
                     }
                     "repeat" => {
-                        let infered = infer_type(obj, var_types, fns);
-                        if !matches!(infered, DataType::String | DataType::Array(_)) {
-                            parser_error!(
-                                src.0,
-                                src.1,
-                                *start,
-                                *end,
-                                "Invalid type",
-                                format_args!(
-                                    "Expected String or Array, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                    format_datatype(infered)
-                                )
-                            );
-                        }
+                        check_obj_type!(DataType::String | DataType::Array(_), "Array or String");
 
                         check_args!(args, 1, "repeat", src.0, src.1, *start, *end);
 
@@ -2551,20 +2450,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(12, id, f_id), *start, *end))
                     }
                     "push" => {
-                        let infered = infer_type(obj, var_types, fns);
-                        if !matches!(infered, DataType::Array(_)) {
-                            parser_error!(
-                                src.0,
-                                src.1,
-                                *start,
-                                *end,
-                                "Invalid type",
-                                format_args!(
-                                    "Expected Array, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                    format_datatype(infered)
-                                )
-                            );
-                        }
+                        check_obj_type!(DataType::Array(_), "Array");
 
                         check_args!(args, 1, "push", src.0, src.1, *start, *end);
 
@@ -2605,7 +2491,7 @@ fn parser_to_instr_set(
                         output.push(Instr::Push(id, arg_id));
                     }
                     "sqrt" => {
-                        check_obj_type!(&[DataType::Number]);
+                        check_obj_type!(DataType::Number, "Number");
                         check_args!(args, 0, "sqrt", src.0, src.1, *start, *end);
 
                         let f_id = consts.len() as u16;
@@ -2615,7 +2501,7 @@ fn parser_to_instr_set(
                         output.push(Instr::Sqrt(id, f_id));
                     }
                     "round" => {
-                        check_obj_type!(&[DataType::Number]);
+                        check_obj_type!(DataType::Number, "Number");
                         check_args!(args, 0, "round", src.0, src.1, *start, *end);
 
                         let f_id = consts.len() as u16;
@@ -2625,7 +2511,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(13, id, f_id), *start, *end))
                     }
                     "abs" => {
-                        check_obj_type!(&[DataType::Number]);
+                        check_obj_type!(DataType::Number, "Number");
                         check_args!(args, 0, "abs", src.0, src.1, *start, *end);
 
                         let f_id = consts.len() as u16;
@@ -2636,7 +2522,7 @@ fn parser_to_instr_set(
                     }
                     // io::read
                     "read" => {
-                        check_obj_type!(&[DataType::File]);
+                        check_obj_type!(DataType::File, "File");
                         check_args!(args, 0, "read", src.0, src.1, *start, *end);
 
                         let f_id = consts.len() as u16;
@@ -2647,7 +2533,7 @@ fn parser_to_instr_set(
                     }
                     // io::write
                     "write" => {
-                        check_obj_type!(&[DataType::File]);
+                        check_obj_type!(DataType::File, "File");
                         check_args_range!(args, 1, 2, "write", src.0, src.1, *start, *end);
 
                         let len = args.len();
@@ -2667,20 +2553,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(16, id, f_id), *start, *end))
                     }
                     "reverse" => {
-                        let infered = infer_type(obj, var_types, fns);
-                        if !matches!(infered, DataType::Array(_) | DataType::String) {
-                            parser_error!(
-                                src.0,
-                                src.1,
-                                *start,
-                                *end,
-                                "Invalid type",
-                                format_args!(
-                                    "Expected Array or String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                    format_datatype(infered)
-                                )
-                            );
-                        }
+                        check_obj_type!(DataType::Array(_) | DataType::String, "Array or String");
 
                         check_args!(args, 0, "reverse", src.0, src.1, *start, *end);
 
@@ -2691,20 +2564,7 @@ fn parser_to_instr_set(
                         instr_src.push((Instr::CallFunc(17, id, f_id), *start, *end))
                     }
                     "split" => {
-                        let infered = infer_type(obj, var_types, fns);
-                        if !matches!(infered, DataType::Array(_) | DataType::String) {
-                            parser_error!(
-                                src.0,
-                                src.1,
-                                *start,
-                                *end,
-                                "Invalid type",
-                                format_args!(
-                                    "Expected Array or String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                    format_datatype(infered)
-                                )
-                            );
-                        }
+                        check_obj_type!(DataType::Array(_) | DataType::String, "Array or String");
 
                         check_args!(args, 1, "split", src.0, src.1, *start, *end);
 
@@ -2760,6 +2620,7 @@ fn parser_to_instr_set(
                         output.push(Instr::Split(id, arg_id, (consts.len() - 1) as u16));
                     }
                     "remove" => {
+                        check_obj_type!(DataType::Array(_), "Array");
                         check_args!(args, 1, "remove", src.0, src.1, *start, *end);
 
                         let infered = infer_type(&args[0], var_types, fns);
