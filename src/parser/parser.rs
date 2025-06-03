@@ -6,7 +6,7 @@ use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::type_inference::{DataType, infer_type};
 use crate::util::{format_datatype, format_type_expr};
 use crate::{Data, Instr, Num, error};
-use crate::{check_args, check_args_range, parser_error, type_inference};
+use crate::{parser_error, type_inference};
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;

@@ -55,7 +55,7 @@ pub fn handle_method_calls(
         };
     }
 
-    macro_rules! check_obj_type {
+    macro_rules! check_type {
         ($expected:pat,$expected_str:expr) => {
             if !{
                 if let DataType::Poly(polytype) = &infered {
@@ -80,34 +80,38 @@ pub fn handle_method_calls(
         };
     }
 
+    macro_rules! check {
+        ($expected:pat,$expected_str:expr, $args:expr) => {
+            check_type!($expected, $expected_str);
+            check_args!(args, $args, name, src.0, src.1, start, end);
+        };
+        ($expected:pat,$expected_str:expr, $args_min:expr,$args_max:expr) => {
+            check_type!($expected, $expected_str);
+            check_args_range!(args, $args_min, $args_max, name, src.0, src.1, start, end);
+        };
+    }
+
     match name {
         "uppercase" => {
-            check_obj_type!(DataType::String, "String");
-            check_args!(args, 0, "uppercase", src.0, src.1, start, end);
+            check!(DataType::String, "String", 0);
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::CallFunc(0, id, f_id));
-            // instr_src.push((Instr::CallFunc(0, id, f_id), start,end));
         }
         "lowercase" => {
-            check_obj_type!(DataType::String, "String");
-            check_args!(args, 0, "lowercase", src.0, src.1, start, end);
+            check!(DataType::String, "String", 0);
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::CallFunc(1, id, f_id));
-            instr_src.push((Instr::CallFunc(1, id, f_id), start, end))
         }
         "len" => {
-            check_obj_type!(DataType::Array(_) | DataType::String, "Array or String");
-            check_args!(args, 0, "len", src.0, src.1, start, end);
+            check!(DataType::Array(_) | DataType::String, "Array or String", 0);
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
-            instr_src.push((Instr::Len(id, f_id), start, end));
             output.push(Instr::Len(id, f_id));
         }
         "contains" => {
-            check_obj_type!(DataType::Array(_) | DataType::String, "Array or String");
-            check_args!(args, 1, "contains", src.0, src.1, start, end);
+            check!(DataType::Array(_) | DataType::String, "Array or String", 1);
 
             let arg_infered = infer_type(&args[0], var_types, fns);
             if infered == DataType::String && arg_infered != DataType::String {
@@ -130,20 +134,15 @@ pub fn handle_method_calls(
             consts.push(Data::Null);
 
             output.push(Instr::CallFunc(2, id, f_id));
-            instr_src.push((Instr::CallFunc(2, id, f_id), start, end))
         }
         "trim" => {
-            check_obj_type!(DataType::String, "String");
-            check_args!(args, 0, "trim", src.0, src.1, start, end);
-
+            check!(DataType::String, "String", 0);
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::CallFunc(3, id, f_id));
-            instr_src.push((Instr::CallFunc(3, id, f_id), start, end))
         }
         "trim_sequence" => {
-            check_obj_type!(DataType::String, "String");
-            check_args!(args, 1, "trim_sequence", src.0, src.1, start, end);
+            check!(DataType::String, "String", 1);
 
             let infered = infer_type(&args[0], var_types, fns);
             if infered != DataType::String {
@@ -164,11 +163,9 @@ pub fn handle_method_calls(
             consts.push(Data::Null);
             add_args!();
             output.push(Instr::CallFunc(4, id, f_id));
-            instr_src.push((Instr::CallFunc(4, id, f_id), start, end))
         }
         "index" => {
-            check_obj_type!(DataType::String | DataType::Array(_), "Array or String");
-            check_args!(args, 1, "index", src.0, src.1, start, end);
+            check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
             let arg_infered = infer_type(&args[0], var_types, fns);
             if let DataType::Array(array_type) = &infered {
@@ -209,32 +206,25 @@ pub fn handle_method_calls(
             instr_src.push((Instr::CallFunc(5, id, f_id), start, end))
         }
         "is_num" => {
-            check_obj_type!(DataType::String, "String");
-            check_args!(args, 0, "is_num", src.0, src.1, start, end);
+            check!(DataType::String, "String", 0);
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::CallFunc(6, id, f_id));
-            instr_src.push((Instr::CallFunc(6, id, f_id), start, end))
         }
         "trim_left" => {
-            check_obj_type!(DataType::String, "String");
-            check_args!(args, 0, "trim_left", src.0, src.1, start, end);
+            check!(DataType::String, "String", 0);
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::CallFunc(7, id, f_id));
-            instr_src.push((Instr::CallFunc(7, id, f_id), start, end))
         }
         "trim_right" => {
-            check_obj_type!(DataType::String, "String");
-            check_args!(args, 0, "trim_right", src.0, src.1, start, end);
+            check!(DataType::String, "String", 0);
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::CallFunc(8, id, f_id));
-            instr_src.push((Instr::CallFunc(8, id, f_id), start, end))
         }
         "trim_sequence_left" => {
-            check_obj_type!(DataType::String, "String");
-            check_args!(args, 1, "trim_sequence_left", src.0, src.1, start, end);
+            check!(DataType::String, "String", 1);
 
             let infered = infer_type(&args[0], var_types, fns);
             if infered != DataType::String {
@@ -256,11 +246,9 @@ pub fn handle_method_calls(
 
             add_args!();
             output.push(Instr::CallFunc(9, id, f_id));
-            instr_src.push((Instr::CallFunc(9, id, f_id), start, end))
         }
         "trim_sequence_right" => {
-            check_obj_type!(DataType::String, "String");
-            check_args!(args, 1, "trim_sequence_right", src.0, src.1, start, end);
+            check!(DataType::String, "String", 1);
 
             let infered = infer_type(&args[0], var_types, fns);
             if infered != DataType::String {
@@ -282,11 +270,9 @@ pub fn handle_method_calls(
 
             add_args!();
             output.push(Instr::CallFunc(10, id, f_id));
-            instr_src.push((Instr::CallFunc(10, id, f_id), start, end))
         }
         "rindex" => {
-            check_obj_type!(DataType::String | DataType::Array(_), "Array or String");
-            check_args!(args, 1, "rindex", src.0, src.1, start, end);
+            check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
             let arg_infered = infer_type(&args[0], var_types, fns);
             if let DataType::Array(array_type) = &infered {
@@ -327,9 +313,7 @@ pub fn handle_method_calls(
             instr_src.push((Instr::CallFunc(11, id, f_id), start, end))
         }
         "repeat" => {
-            check_obj_type!(DataType::String | DataType::Array(_), "Array or String");
-
-            check_args!(args, 1, "repeat", src.0, src.1, start, end);
+            check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
             let arg_infered = infer_type(&args[0], var_types, fns);
             if arg_infered != DataType::Number {
@@ -352,12 +336,9 @@ pub fn handle_method_calls(
             consts.push(Data::Null);
 
             output.push(Instr::CallFunc(12, id, f_id));
-            instr_src.push((Instr::CallFunc(12, id, f_id), start, end))
         }
         "push" => {
-            check_obj_type!(DataType::Array(_), "Array");
-
-            check_args!(args, 1, "push", src.0, src.1, start, end);
+            check!(DataType::Array(_), "Array", 1);
 
             let arg_infered = infer_type(&args[0], var_types, fns);
             if let DataType::Array(array_type) = &infered {
@@ -381,55 +362,37 @@ pub fn handle_method_calls(
             let arg_id = get_id(
                 &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
             );
-
-            instr_src.push((Instr::Push(id, arg_id), start, end));
             output.push(Instr::Push(id, arg_id));
         }
         "sqrt" => {
-            check_obj_type!(DataType::Number, "Number");
-            check_args!(args, 0, "sqrt", src.0, src.1, start, end);
-
+            check!(DataType::Number, "Number", 0);
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
-
-            instr_src.push((Instr::Sqrt(id, f_id), start, end));
             output.push(Instr::Sqrt(id, f_id));
         }
         "round" => {
-            check_obj_type!(DataType::Number, "Number");
-            check_args!(args, 0, "round", src.0, src.1, start, end);
-
+            check!(DataType::Number, "Number", 0);
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
-
             output.push(Instr::CallFunc(13, id, f_id));
-            instr_src.push((Instr::CallFunc(13, id, f_id), start, end))
         }
         "abs" => {
-            check_obj_type!(DataType::Number, "Number");
-            check_args!(args, 0, "abs", src.0, src.1, start, end);
-
+            check!(DataType::Number, "Number", 0);
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
-
             output.push(Instr::CallFunc(14, id, f_id));
-            instr_src.push((Instr::CallFunc(14, id, f_id), start, end))
         }
         // io::read
         "read" => {
-            check_obj_type!(DataType::File, "File");
-            check_args!(args, 0, "read", src.0, src.1, start, end);
-
+            check!(DataType::File, "File", 0);
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
-
             output.push(Instr::CallFunc(15, id, f_id));
             instr_src.push((Instr::CallFunc(15, id, f_id), start, end))
         }
         // io::write
         "write" => {
-            check_obj_type!(DataType::File, "File");
-            check_args_range!(args, 1, 2, "write", src.0, src.1, start, end);
+            check!(DataType::File, "File", 1, 2);
 
             let len = args.len();
             add_args!();
@@ -445,20 +408,13 @@ pub fn handle_method_calls(
             instr_src.push((Instr::CallFunc(16, id, f_id), start, end))
         }
         "reverse" => {
-            check_obj_type!(DataType::Array(_) | DataType::String, "Array or String");
-
-            check_args!(args, 0, "reverse", src.0, src.1, start, end);
-
+            check!(DataType::Array(_) | DataType::String, "Array or String", 0);
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
-
             output.push(Instr::CallFunc(17, id, f_id));
-            instr_src.push((Instr::CallFunc(17, id, f_id), start, end))
         }
         "split" => {
-            check_obj_type!(DataType::Array(_) | DataType::String, "Array or String");
-
-            check_args!(args, 1, "split", src.0, src.1, start, end);
+            check!(DataType::Array(_) | DataType::String, "Array or String", 1);
 
             let arg_infered = infer_type(&args[0], var_types, fns);
             if let DataType::Array(array_type) = infered {
@@ -494,16 +450,10 @@ pub fn handle_method_calls(
                 &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
             );
             consts.push(Data::Null);
-            instr_src.push((
-                Instr::Split(id, arg_id, (consts.len() - 1) as u16),
-                start,
-                end,
-            ));
             output.push(Instr::Split(id, arg_id, (consts.len() - 1) as u16));
         }
         "remove" => {
-            check_obj_type!(DataType::Array(_), "Array");
-            check_args!(args, 1, "remove", src.0, src.1, start, end);
+            check!(DataType::Array(_), "Array", 1);
 
             let infered = infer_type(&args[0], var_types, fns);
             if infered != DataType::Number {
