@@ -1,3 +1,4 @@
+use crate::ArrayStorage;
 use crate::display::{lalrpop_error, print_instructions};
 use crate::functions::handle_functions;
 use crate::grammar::Token;
@@ -212,7 +213,7 @@ pub fn get_id(
     consts: &mut Vec<Data>,
     output: &mut Vec<Instr>,
     fns: &mut Vec<Function>,
-    arrs: &mut Slab<Vec<Data>>,
+    arrs: &mut ArrayStorage,
     fn_state: Option<&FunctionState>,
     id: u16,
     // (filename, contents)
@@ -936,7 +937,7 @@ pub fn parser_to_instr_set(
     fns: &mut Vec<Function>,
     fn_state: Option<&FunctionState>,
     // arrays
-    arrs: &mut Slab<Vec<Data>>,
+    arrs: &mut ArrayStorage,
     id: u16,
     // (filename, contents)
     src: (&str, &str),
@@ -1693,7 +1694,7 @@ pub fn parse(
 ) -> (
     Vec<Instr>,
     Vec<Data>,
-    Slab<Vec<Data>>,
+    ArrayStorage,
     Vec<(Instr, usize, usize)>,
 ) {
     let now = std::time::Instant::now();
@@ -1720,7 +1721,7 @@ pub fn parse(
 
     let mut variables: Vec<(Intern<String>, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
-    let mut arrays: Slab<Vec<Data>> = Slab::with_capacity(20);
+    let mut arrays: ArrayStorage = Slab::with_capacity(20);
     let mut instr_src = Vec::new();
     let mut var_types: Vec<(Intern<String>, DataType)> = Vec::new();
     let instructions = parser_to_instr_set(

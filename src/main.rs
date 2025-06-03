@@ -138,19 +138,21 @@ pub enum Instr {
     // tgt - separator - dest
     Split(u16, u16, u16),
 
-    // TEMP - NEVER APPEARS IN FINAL CODE
+    // --- TEMP - NEVER APPEARS IN FINAL CODE
     Break(u16),
     Continue(u16),
-
+    // ---
     JmpSave(u16, bool),
     JmpLoad(bool),
 }
+
+pub type ArrayStorage = Slab<Vec<Data>>;
 
 pub fn execute(
     instructions: &[Instr],
     consts: &mut [Data],
     func_args: &mut Vec<u16>,
-    arrays: &mut Slab<Vec<Data>>,
+    arrays: &mut ArrayStorage,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,

@@ -1,3 +1,4 @@
+use crate::ArrayStorage;
 use crate::Data;
 use crate::Function;
 use crate::FunctionState;
@@ -14,7 +15,6 @@ use crate::util::format_datatype;
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
-use slab::Slab;
 
 pub fn handle_method_calls(
     output: &mut Vec<Instr>,
@@ -24,7 +24,7 @@ pub fn handle_method_calls(
     fns: &mut Vec<Function>,
     fn_state: Option<&FunctionState>,
     // arrays
-    arrs: &mut Slab<Vec<Data>>,
+    arrs: &mut ArrayStorage,
     id: u16,
     src: (&str, &str),
     instr_src: &mut Vec<(Instr, usize, usize)>,

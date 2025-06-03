@@ -1,3 +1,4 @@
+use crate::ArrayStorage;
 use crate::Data;
 use crate::Function;
 use crate::FunctionState;
@@ -27,7 +28,7 @@ pub fn handle_functions(
     fns: &mut Vec<Function>,
     fn_state: Option<&FunctionState>,
     // arrays
-    arrs: &mut Slab<Vec<Data>>,
+    arrs: &mut ArrayStorage,
     id: u16,
     src: (&str, &str),
     instr_src: &mut Vec<(Instr, usize, usize)>,

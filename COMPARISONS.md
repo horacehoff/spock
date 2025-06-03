@@ -84,7 +84,7 @@ print(len(i))</code></pre></td>
  </tr>
 <tr>
 <td>
-1.7s (10.2x faster)
+1.57s (10.2x faster)
 </td>
 <td>
 17.4s

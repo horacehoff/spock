@@ -1,8 +1,7 @@
 use crate::parser::{Expr, Function, FunctionState, get_id};
 use crate::type_inference::DataType;
-use crate::{Data, Instr};
+use crate::{ArrayStorage, Data, Instr};
 use internment::Intern;
-use slab::Slab;
 
 pub fn while_loop_summation(
     output: &mut Vec<Instr>,
@@ -10,7 +9,7 @@ pub fn while_loop_summation(
     v: &mut Vec<(Intern<String>, u16)>,
     var_types: &mut Vec<(Intern<String>, DataType)>,
     fns: &mut Vec<Function>,
-    arrs: &mut Slab<Vec<Data>>,
+    arrs: &mut ArrayStorage,
     fn_state: Option<&FunctionState>,
     id: u16,
     // (filename, contents)

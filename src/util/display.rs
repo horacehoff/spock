@@ -1,3 +1,4 @@
+use crate::ArrayStorage;
 use crate::parser::Expr;
 use crate::{Data, Instr};
 use ariadne::*;
@@ -5,9 +6,8 @@ use concat_string::concat_string;
 use inline_colorization::*;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
-use slab::Slab;
 
-pub fn format_data(x: Data, arrays: &Slab<Vec<Data>>, show_str: bool) -> String {
+pub fn format_data(x: Data, arrays: &ArrayStorage, show_str: bool) -> String {
     match x {
         Data::Number(num) => num.to_string(),
         Data::Bool(bool) => bool.to_string(),
@@ -52,7 +52,7 @@ pub fn format_expr(x: &Expr) -> String {
     }
 }
 
-pub fn format_err(x: Data, arrays: &Slab<Vec<Data>>) -> String {
+pub fn format_err(x: Data, arrays: &ArrayStorage) -> String {
     match x {
         Data::Number(num) => num.to_string(),
         Data::Bool(bool) => bool.to_string(),
