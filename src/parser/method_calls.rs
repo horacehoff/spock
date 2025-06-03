@@ -4,6 +4,7 @@ use crate::FunctionState;
 use crate::Instr;
 use crate::check_args;
 use crate::check_args_range;
+use crate::display::format_expr;
 use crate::get_id;
 use crate::parser::Expr;
 use crate::parser_error;
@@ -83,11 +84,28 @@ pub fn handle_method_calls(
     macro_rules! check {
         ($expected:pat,$expected_str:expr, $args:expr) => {
             check_type!($expected, $expected_str);
-            check_args!(args, $args, name, src.0, src.1, start, end);
+            check_args!(
+                args,
+                $args,
+                name,
+                src.0,
+                src.1,
+                args_indexes[0].0,
+                args_indexes.last().unwrap().1
+            );
         };
         ($expected:pat,$expected_str:expr, $args_min:expr,$args_max:expr) => {
             check_type!($expected, $expected_str);
-            check_args_range!(args, $args_min, $args_max, name, src.0, src.1, start, end);
+            check_args_range!(
+                args,
+                $args_min,
+                $args_max,
+                name,
+                src.0,
+                src.1,
+                args_indexes[0].0,
+                args_indexes.last().unwrap().1
+            );
         };
     }
 

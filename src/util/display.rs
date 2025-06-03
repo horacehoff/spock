@@ -7,22 +7,48 @@ use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
 use slab::Slab;
 
-pub fn format_data(x: Data, arrays: &Slab<Vec<Data>>) -> String {
+pub fn format_data(x: Data, arrays: &Slab<Vec<Data>>, show_str: bool) -> String {
     match x {
         Data::Number(num) => num.to_string(),
         Data::Bool(bool) => bool.to_string(),
-        Data::String(str) => str.to_string(),
+        Data::String(str) => {
+            if show_str {
+                str.to_string()
+            } else {
+                format!("\"{str}\"")
+            }
+        }
         Data::Array(a) => concat_string!(
             "[",
             arrays[a]
                 .iter()
-                .map(|x| format_data(*x, arrays))
+                .map(|x| format_data(*x, arrays, true))
                 .collect::<Vec<_>>()
                 .join(","),
             "]"
         ),
         Data::Null => String::from("NULL"),
         Data::File(path) => format!("FILE({path:?})"),
+    }
+}
+
+pub fn format_expr(x: &Expr) -> String {
+    match x {
+        Expr::Num(num) => num.to_string(),
+        Expr::Bool(bool) => bool.to_string(),
+        Expr::String(str) => {
+            format!("\"{str}\"")
+        }
+        Expr::Array(a, _, _) => concat_string!(
+            "[",
+            a.iter()
+                .map(|x| format_expr(x))
+                .collect::<Vec<_>>()
+                .join(","),
+            "]"
+        ),
+        Expr::Var(x, _, _) => x.to_string(),
+        _ => unreachable!(),
     }
 }
 
@@ -181,14 +207,5 @@ where
 pub fn print_instructions(instructions: &[Instr]) {
     for (i, instr) in instructions.iter().enumerate() {
         println!("{} {:?}", i, instr);
-    }
-}
-
-pub fn format_expr_type(x: Expr) -> String {
-    match x {
-        Expr::Num(x) => format_args!("Num({x})").to_string(),
-        Expr::String(x) => format_args!("String(\"{x}\")").to_string(),
-        Expr::Bool(x) => format_args!("Bool({x})").to_string(),
-        _ => unreachable!(),
     }
 }

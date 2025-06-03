@@ -1,3 +1,6 @@
 fn main() {
-    lalrpop::process_src().unwrap();
+    lalrpop::Configuration::new()
+        .set_in_dir("./src/parser/")
+        .process()
+        .unwrap();
 }

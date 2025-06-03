@@ -14,43 +14,10 @@ macro_rules! error {
 }
 
 #[macro_export]
-macro_rules! parsing_error {
-    ($x: expr) => {
-        eprintln!(
-            "--------------\n{color_red}SPOCK PARSING ERROR:{color_reset}\n{}\n--------------",
-            $x
-        );
-        std::process::exit(1);
-    };
-}
-
-#[macro_export]
 macro_rules! print {
     ($($x:tt)*) => {
         #[cfg(debug_assertions)]
         println!("\x1b[33m[LOG] {}\x1b[0m", format!($($x)*))
-    }
-}
-
-#[macro_export]
-macro_rules! format_lines {
-    ($line: expr) => {
-        if format!("{}", $line).chars().last().unwrap() != '}' {
-            format!("{};\n", $line)
-        } else {
-            format!("{}\n", $line)
-        }
-    };
-}
-
-pub fn format_type(x: Data) -> String {
-    match x {
-        Data::Number(_) => String::from("Number"),
-        Data::Bool(_) => String::from("Bool"),
-        Data::String(_) => String::from("String"),
-        Data::Array(_) => String::from("Array"),
-        Data::Null => String::from("NULL"),
-        Data::File(_) => String::from("File"),
     }
 }
 
@@ -102,7 +69,7 @@ macro_rules! check_args {
                     $fn_name,
                     $args[0..$expected_args_len]
                         .iter()
-                        .map(|x| format!("{x:?}"))
+                        .map(|x| format_expr(x))
                         .collect::<Vec<String>>()
                         .join(",")
                 )

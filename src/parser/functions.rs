@@ -5,6 +5,7 @@ use crate::Instr;
 use crate::Num;
 use crate::check_args;
 use crate::check_args_range;
+use crate::display::format_expr;
 use crate::get_id;
 use crate::parser::Expr;
 use crate::parser::move_to_id;

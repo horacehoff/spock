@@ -1,6 +1,5 @@
 use crate::display::format_data;
 use crate::parser::parse;
-use crate::util::format_type;
 use ariadne::*;
 use builtin_funcs::FUNCS;
 use concat_string::concat_string;
@@ -12,7 +11,6 @@ use slab::Slab;
 use std::cmp::PartialEq;
 use std::fs;
 use std::fs::File;
-use std::hint::unreachable_unchecked;
 use std::io::Write;
 use std::time::Instant;
 
@@ -389,7 +387,7 @@ pub fn execute(
                 }}
             }
             Instr::Print(target) => {
-                println!("{}", format_data(consts[target as usize], arrays));
+                println!("{}", format_data(consts[target as usize], arrays, false));
             }
             Instr::Num(tgt, dest) => match consts[tgt as usize] {
                 Data::String(str) => {
@@ -408,8 +406,11 @@ pub fn execute(
                 _ => unreachable!(),
             },
             Instr::Str(tgt, dest) => {
-                consts[dest as usize] =
-                    Data::String(Intern::from(format_data(consts[tgt as usize], arrays)));
+                consts[dest as usize] = Data::String(Intern::from(format_data(
+                    consts[tgt as usize],
+                    arrays,
+                    false,
+                )));
             }
             Instr::Bool(tgt, dest) => {
                 let base = consts[tgt as usize];

@@ -134,7 +134,7 @@ fn index(
         Data::Array(x) => {
             let arg = consts[args.swap_remove(0) as usize];
             consts[dest as usize] = Data::Number(arrays[x].iter().position(|x| x == &arg).unwrap_or_else(|| {
-                builtin_error!("Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays)),instr_src,call,filename,src);
+                builtin_error!("Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)),instr_src,call,filename,src);
             }) as Num);
         }
         _ => unreachable!(),
@@ -254,7 +254,7 @@ fn rindex(
         Data::Array(x) => {
             let arg = consts[args.swap_remove(0) as usize];
             consts[dest as usize] = Data::Number(arrays[x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
-                builtin_error!("Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays)),instr_src,call,filename,src);
+                builtin_error!("Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)),instr_src,call,filename,src);
             }) as Num);
         }
         _ => unreachable!(),
