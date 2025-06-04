@@ -142,8 +142,9 @@ pub enum Instr {
     Break(u16),
     Continue(u16),
     // ---
-    JmpSave(u16, bool),
+    JmpSave(u16, bool, u16),
     JmpLoad(bool),
+    Return(u16, u16),
 }
 
 pub type ArrayStorage = Slab<Vec<Data>>;
@@ -167,6 +168,7 @@ pub fn execute(
     }
 
     let mut jmps: Vec<u16> = Vec::with_capacity(10);
+    let mut return_ids: Vec<u16> = Vec::with_capacity(10);
     while i < instructions.len() {
         match instructions[i] {
             Instr::Jmp(size, is_neg) => unsafe {
@@ -185,8 +187,9 @@ pub fn execute(
                 //     continue;
                 // }
             },
-            Instr::JmpSave(size, is_neg) => {
+            Instr::JmpSave(size, is_neg, return_id) => {
                 jmps.push(size);
+                return_ids.push(return_id);
                 if is_neg {
                     i -= size as usize;
                     continue;
@@ -204,6 +207,11 @@ pub fn execute(
                     continue;
                 }
             }
+            Instr::Return(tgt, offset) => {
+                let to_return = return_ids.pop().unwrap();
+                consts[to_return as usize] = consts[tgt as usize];
+                i += (jmps.pop().unwrap() - offset) as usize;
+            }
             Instr::Cmp(cond_id, size) => unsafe {
                 if let Data::Bool(false) = consts[cond_id as usize] {
                     // i = i.unchecked_add(size as usize);
@@ -219,14 +227,6 @@ pub fn execute(
                     consts[dest as usize] = Data::Number(parent + child);
                 }}
             }
-            // Instr::Add(o1, o2, dest) => unsafe {
-            //     if let (Data::Number(parent), Data::Number(child)) = (
-            //         *consts.get_unchecked(o1 as usize),
-            //         *consts.get_unchecked(o2 as usize),
-            //     ) {
-            //         *consts.get_unchecked_mut(dest as usize) = Data::Number(parent + child);
-            //     }
-            // },
             Instr::StrAdd(o1, o2, dest) => {
                 if_likely! {let (Data::String(parent), Data::String(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::String(Intern::from(concat_string!(*parent, *child)));

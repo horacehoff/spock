@@ -190,7 +190,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
     }
 }
 
-fn get_tgt_id_vec(x: &[Instr]) -> u16 {
+fn get_tgt_id_vec(x: &[Instr]) -> Option<u16> {
     debug_assert!(
         !(x.is_empty()
             || matches!(
@@ -200,10 +200,10 @@ fn get_tgt_id_vec(x: &[Instr]) -> u16 {
     );
     for y in x.iter().rev() {
         if let Some(id) = get_tgt_id(*y) {
-            return id;
+            return Some(id);
         }
     }
-    unreachable!();
+    None
 }
 
 pub fn get_id(
@@ -324,7 +324,6 @@ pub fn get_id(
             let id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::Mul(id_l, id_r, id));
-            // instr_src.push((Instr::Mul(id_l, id_r, id), *start, *end));
             id
         }
         Expr::Div(l, r, start, end) => {
@@ -342,7 +341,6 @@ pub fn get_id(
             let id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::Div(id_l, id_r, id));
-            // instr_src.push((Instr::Div(id_l, id_r, id), *start, *end));
             id
         }
         Expr::Add(l, r, start, end) => {
@@ -366,13 +364,10 @@ pub fn get_id(
             consts.push(Data::Null);
             if matches!(type_l, DataType::Array(_)) {
                 output.push(Instr::ArrayAdd(id_l, id_r, id));
-                // instr_src.push((Instr::ArrayAdd(id_l, id_r, id), *start, *end));
             } else if type_l == DataType::String {
                 output.push(Instr::StrAdd(id_l, id_r, id));
-                // instr_src.push((Instr::StrAdd(id_l, id_r, id), *start, *end));
             } else if type_l == DataType::Number {
                 output.push(Instr::Add(id_l, id_r, id));
-                // instr_src.push((Instr::Add(id_l, id_r, id), *start, *end));
             }
             id
         }
@@ -391,7 +386,6 @@ pub fn get_id(
             let id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::Sub(id_l, id_r, id));
-            // instr_src.push((Instr::Sub(id_l, id_r, id), *start, *end));
             id
         }
         Expr::Mod(l, r, start, end) => {
@@ -409,7 +403,6 @@ pub fn get_id(
             let id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::Mod(id_l, id_r, id));
-            // instr_src.push((Instr::Mod(id_l, id_r, id), *start, *end));
             id
         }
         Expr::Pow(l, r, start, end) => {
@@ -427,12 +420,9 @@ pub fn get_id(
             let id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::Pow(id_l, id_r, id));
-            // instr_src.push((Instr::Pow(id_l, id_r, id), *start, *end));
             id
         }
         Expr::Eq(l, r) => {
-            // println!("EQ LEFT IS {:?}", type_inference::infer_type(l, var_types,fns));
-            // println!("EQ RIGHT IS {:?}", type_inference::infer_type(r, var_types,fns));
             let id_l = get_id(
                 l, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
             );
@@ -459,7 +449,13 @@ pub fn get_id(
             );
             let id = consts.len() as u16;
             consts.push(Data::Null);
-            output.push(Instr::NotEq(id_l, id_r, id));
+            if matches!(infer_type(l, var_types, fns), DataType::Array(_))
+                && matches!(infer_type(r, var_types, fns), DataType::Array(_))
+            {
+                output.push(Instr::ArrayNotEq(id_l, id_r, id));
+            } else {
+                output.push(Instr::NotEq(id_l, id_r, id));
+            }
             id
         }
         Expr::Sup(l, r, start, end) => {
@@ -477,7 +473,6 @@ pub fn get_id(
             let id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::Sup(id_l, id_r, id));
-            // instr_src.push((Instr::Sup(id_l, id_r, id), *start, *end));
             id
         }
         Expr::SupEq(l, r, start, end) => {
@@ -495,7 +490,6 @@ pub fn get_id(
             let id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::SupEq(id_l, id_r, id));
-            // instr_src.push((Instr::SupEq(id_l, id_r, id), *start, *end));
             id
         }
         Expr::Inf(l, r, start, end) => {
@@ -513,7 +507,6 @@ pub fn get_id(
             let id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::Inf(id_l, id_r, id));
-            // instr_src.push((Instr::Inf(id_l, id_r, id), *start, *end));
             id
         }
         Expr::InfEq(l, r, start, end) => {
@@ -531,7 +524,6 @@ pub fn get_id(
             let id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::InfEq(id_l, id_r, id));
-            // instr_src.push((Instr::InfEq(id_l, id_r, id), *start, *end));
             id
         }
         Expr::BoolAnd(l, r, start, end) => {
@@ -549,7 +541,6 @@ pub fn get_id(
             let id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::BoolAnd(id_l, id_r, id));
-            // instr_src.push((Instr::BoolAnd(id_l, id_r, id), *start, *end));
             id
         }
         Expr::BoolOr(l, r, start, end) => {
@@ -567,7 +558,6 @@ pub fn get_id(
             let id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::BoolOr(id_l, id_r, id));
-            // instr_src.push((Instr::BoolOr(id_l, id_r, id), *start, *end));
             id
         }
         Expr::Neg(l, start, end) => {
@@ -590,7 +580,6 @@ pub fn get_id(
             let id = consts.len() as u16;
             consts.push(Data::Null);
             output.push(Instr::Neg(id_l, id));
-            // instr_src.push((Instr::Neg(id_l, id), *start, *end));
             id
         }
 
@@ -645,7 +634,7 @@ pub fn get_id(
                 if is_empty {
                     (consts.len() - 1) as u16
                 } else {
-                    get_tgt_id_vec(output)
+                    get_tgt_id_vec(output).unwrap()
                 },
                 return_id,
             ));
@@ -683,7 +672,7 @@ pub fn get_id(
                         if is_empty {
                             (consts.len() - 1) as u16
                         } else {
-                            get_tgt_id_vec(output)
+                            get_tgt_id_vec(output).unwrap()
                         },
                         return_id,
                     ));
@@ -711,7 +700,7 @@ pub fn get_id(
                         if is_empty {
                             (consts.len() - 1) as u16
                         } else {
-                            get_tgt_id_vec(output)
+                            get_tgt_id_vec(output).unwrap()
                         },
                         return_id,
                     ));
@@ -770,7 +759,7 @@ pub fn get_id(
             );
             if !output_code.is_empty() {
                 output.extend(output_code);
-                get_tgt_id_vec(output)
+                get_tgt_id_vec(output).unwrap_or((consts.len() - 1) as u16)
             } else {
                 (consts.len() - 1) as u16
             }
@@ -1671,7 +1660,24 @@ pub fn parser_to_instr_set(
                     None,
                 ));
             }
-            Expr::ReturnVal(val) => {}
+            Expr::ReturnVal(val) => {
+                if let Some(x) = *val.clone() {
+                    let id = get_id(
+                        &x,
+                        v,
+                        var_types,
+                        consts,
+                        &mut output,
+                        fns,
+                        arrs,
+                        fn_state,
+                        id,
+                        src,
+                        instr_src,
+                    );
+                    output.push(Instr::Return(id, 0));
+                }
+            }
             Expr::Break => output.push(Instr::Break(id)),
             Expr::Continue => output.push(Instr::Continue(id)),
             Expr::EvalBlock(code) => {

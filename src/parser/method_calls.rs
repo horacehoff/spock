@@ -176,10 +176,10 @@ pub fn handle_method_calls(
                     )
                 );
             }
+            add_args!();
 
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
-            add_args!();
             output.push(Instr::CallFunc(4, id, f_id));
         }
         "index" => {
@@ -216,10 +216,10 @@ pub fn handle_method_calls(
                 );
             }
 
+            add_args!();
+
             let f_id = consts.len() as u16;
             consts.push(Data::Null);
-
-            add_args!();
             output.push(Instr::CallFunc(5, id, f_id));
             instr_src.push((Instr::CallFunc(5, id, f_id), start, end))
         }

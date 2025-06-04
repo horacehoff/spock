@@ -27,11 +27,12 @@ pub fn handle_functions(
     consts: &mut Vec<Data>,
     fns: &mut Vec<Function>,
     fn_state: Option<&FunctionState>,
-    // arrays
     arrs: &mut ArrayStorage,
     id: u16,
     src: (&str, &str),
     instr_src: &mut Vec<(Instr, usize, usize)>,
+
+    // method call data
     args: &[Expr],
     namespace: &[String],
     start: usize,
@@ -213,10 +214,12 @@ pub fn handle_functions(
                     );
                     let len = parsed.len();
                     println!("PARSED IS {parsed:?}");
-                    parsed.iter_mut().for_each(|x| {
+                    parsed.iter_mut().enumerate().for_each(|(i, x)| {
                         println!("ENCOUNTERED {x:?}");
-                        if let Instr::JmpSave(size, neg) = x {
+                        if let Instr::JmpSave(size, neg, _) = x {
                             *size += (output.len() + len - 3) as u16;
+                        } else if let Instr::Return(_, offset) = x {
+                            *offset = (len - i + 1) as u16;
                         }
                     });
                     output.extend(parsed);
@@ -249,7 +252,12 @@ pub fn handle_functions(
                 println!("LOC IS {loc:?}");
                 println!("OUTP LEN IS {}", output.len());
                 println!("OUTPUT IS {output:?}");
-                output.push(Instr::JmpSave((output.len() as u16) - loc, true));
+                consts.push(Data::Null);
+                output.push(Instr::JmpSave(
+                    (output.len() as u16) - loc,
+                    true,
+                    (consts.len() - 1) as u16,
+                ));
             }
         }
     } else if *namespace == ["io"] {
