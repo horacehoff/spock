@@ -40,7 +40,7 @@ pub fn handle_functions(
     args_indexes: &[(usize, usize)],
 ) {
     let check_type = |arg: usize, expected: &[DataType]| {
-        let infered = infer_type(&args[arg], var_types, fns);
+        let infered = infer_type(&args[arg], var_types, fns, src);
         if !{
             if let DataType::Poly(polytype) = &infered {
                 polytype.iter().all(|x| expected.contains(x))
@@ -82,7 +82,7 @@ pub fn handle_functions(
             }
             "type" => {
                 check_args!(args, 1, "type", src.0, src.1, start, end);
-                let infered = infer_type(&args[0], var_types, fns);
+                let infered = infer_type(&args[0], var_types, fns, src);
                 consts.push(Data::String(Intern::from(format_datatype(infered))));
             }
             "num" => {
@@ -199,8 +199,9 @@ pub fn handle_functions(
                     for (i, x) in fn_args.iter().enumerate() {
                         consts.push(Data::Null);
                         vars.push((Intern::from(x.clone()), (consts.len() - 1) as u16));
-                        let infered = infer_type(&args[i], var_types, fns);
+                        let infered = infer_type(&args[i], var_types, fns, src);
                         var_types.push((Intern::from(x.clone()), infered));
+                        dbg!(&var_types);
                     }
                     fns.get_mut(function_id).unwrap().4 =
                         Some(vars.iter().map(|(_, x)| *x).collect::<Vec<u16>>());
@@ -219,7 +220,7 @@ pub fn handle_functions(
                         if let Instr::JmpSave(size, neg, _) = x {
                             *size += (output.len() + len - 3) as u16;
                         } else if let Instr::Return(_, offset) = x {
-                            *offset = (len - i + 1) as u16;
+                            *offset = (i) as u16;
                         }
                     });
                     output.extend(parsed);
