@@ -211,7 +211,13 @@ pub fn handle_functions(
                 let args_len = fn_args.len();
                 check_args!(args, args_len, fn_name, src.0, src.1, start, end);
 
-                if fn_data.is_empty() || fn_loc_data.is_none() {
+                if (fn_data.is_empty() || fn_loc_data.is_none())
+                    && (if let Some(wtf) = fn_state {
+                        !(wtf.1 == fn_name)
+                    } else {
+                        true
+                    })
+                {
                     let mut loc = 0u16;
                     let mut args_loc: Vec<u16> = Vec::new();
 
@@ -238,7 +244,15 @@ pub fn handle_functions(
                         .push((loc, args_loc, infered_arg_types));
 
                     let mut parsed = parser_to_instr_set(
-                        fn_code, &mut vars, var_types, consts, &mut *fns, fn_state, arrs, id, src,
+                        fn_code,
+                        &mut vars,
+                        var_types,
+                        consts,
+                        &mut *fns,
+                        Some(&(true, fn_name.to_string())),
+                        arrs,
+                        id,
+                        src,
                         instr_src,
                     );
                     let len = parsed.len();

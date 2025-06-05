@@ -915,7 +915,7 @@ pub type Function = (
     // fn loc, fn args loc, argument types
     Vec<(u16, Vec<u16>, Vec<DataType>)>,
 );
-pub type FunctionState = (String, u16, Vec<(Intern<String>, u16)>, Option<u16>);
+pub type FunctionState = (bool, String);
 
 #[inline(always)]
 pub fn parser_to_instr_set(
