@@ -19,7 +19,7 @@ pub enum DataType {
 
 fn track_returns(
     content: &[Expr],
-    var_types: &[(Intern<String>, DataType)],
+    var_types: &mut Vec<(Intern<String>, DataType)>,
     fns: &[Function],
     src: (&str, &str),
 ) -> Vec<DataType> {
@@ -59,7 +59,7 @@ fn track_returns(
 
 pub fn infer_type(
     x: &Expr,
-    var_types: &[(Intern<String>, DataType)],
+    var_types: &mut Vec<(Intern<String>, DataType)>,
     fns: &[Function],
     src: (&str, &str),
 ) -> DataType {
@@ -216,12 +216,25 @@ pub fn infer_type(
             "floor" => DataType::Number,
             "the_answer" => DataType::Number,
             function => {
-                let (_, _, fn_code, _, _) =
+                let (_, fn_args, fn_code, _, _) =
                     fns.iter().find(|(a, _, _, _, _)| *a == function).unwrap();
 
-                check_poly(DataType::Poly(Box::from(track_returns(
+                let mut arg_types: Vec<usize> = Vec::with_capacity(args.len());
+                args.iter().enumerate().for_each(|(i, x)| {
+                    let infered = infer_type(x, var_types, fns, src);
+                    arg_types.push(var_types.len());
+                    var_types.push((Intern::from_ref(&fn_args[i]), infered))
+                });
+
+                let to_return = check_poly(DataType::Poly(Box::from(track_returns(
                     fn_code, var_types, fns, src,
-                ))))
+                ))));
+
+                arg_types.iter().for_each(|i| {
+                    var_types.remove(*i);
+                });
+
+                to_return
             }
         },
         Expr::ObjFunctionCall(obj, args, namespace, start, end, _) => {

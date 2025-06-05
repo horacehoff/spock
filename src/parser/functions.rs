@@ -39,7 +39,7 @@ pub fn handle_functions(
     end: usize,
     args_indexes: &[(usize, usize)],
 ) {
-    let check_type = |arg: usize, expected: &[DataType]| {
+    let mut check_type = |arg: usize, expected: &[DataType]| {
         let infered = infer_type(&args[arg], var_types, fns, src);
         if !{
             if let DataType::Poly(polytype) = &infered {
