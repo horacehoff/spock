@@ -177,7 +177,7 @@ pub fn handle_functions(
                 let mut fns_clone = fns.clone();
                 let function_id = fns
                     .iter_mut()
-                    .position(|(a, _, _, _, _)| *a == fn_name)
+                    .position(|(a, _, _, _)| *a == fn_name)
                     .unwrap_or_else(|| {
                         parser_error!(
                             src.0,
@@ -190,25 +190,53 @@ pub fn handle_functions(
                             )
                         );
                     });
-                let (_, fn_args, fn_code, fn_loc, fn_args_loc) = &fns[function_id].clone();
+                let (_, fn_args, fn_code, fn_data) = &fns[function_id].clone();
+
+                let infered_arg_types = args
+                    .iter()
+                    .map(|x| infer_type(x, var_types, fns, src))
+                    .collect::<Vec<DataType>>();
+                dbg!(&infered_arg_types);
+
+                let mut fn_loc_data = if !fn_data.is_empty() {
+                    if let Some(x) = fn_data.iter().find(|(_, _, t)| t == &infered_arg_types) {
+                        Some(x.clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
                 let args_len = fn_args.len();
                 check_args!(args, args_len, fn_name, src.0, src.1, start, end);
 
-                if fn_loc.is_none() {
+                if fn_data.is_empty() || fn_loc_data.is_none() {
+                    let mut loc = 0u16;
+                    let mut args_loc: Vec<u16> = Vec::new();
+
                     let mut vars: Vec<(Intern<String>, u16)> = Vec::new();
+                    let mut recorded_types: Vec<usize> = Vec::new();
                     for (i, x) in fn_args.iter().enumerate() {
                         consts.push(Data::Null);
                         vars.push((Intern::from(x.clone()), (consts.len() - 1) as u16));
                         let infered = infer_type(&args[i], var_types, fns, src);
+                        recorded_types.push(var_types.len());
                         var_types.push((Intern::from(x.clone()), infered));
                         dbg!(&var_types);
                     }
-                    fns.get_mut(function_id).unwrap().4 =
-                        Some(vars.iter().map(|(_, x)| *x).collect::<Vec<u16>>());
+                    args_loc = vars.iter().map(|(_, x)| *x).collect::<Vec<u16>>();
                     output.push(Instr::Jmp(0, false));
                     let jump_idx = output.len() - 1;
                     let fn_start = output.len();
-                    fns.get_mut(function_id).unwrap().3 = Some(fn_start as u16);
+                    loc = fn_start as u16;
+
+                    fn_loc_data = Some((loc, args_loc.clone(), infered_arg_types.clone()));
+                    fns.get_mut(function_id)
+                        .unwrap()
+                        .3
+                        .push((loc, args_loc, infered_arg_types));
+
                     let mut parsed = parser_to_instr_set(
                         fn_code, &mut vars, var_types, consts, &mut *fns, fn_state, arrs, id, src,
                         instr_src,
@@ -226,10 +254,15 @@ pub fn handle_functions(
                     output.extend(parsed);
                     output.push(Instr::JmpLoad(false));
                     *output.get_mut(jump_idx).unwrap() =
-                        Instr::Jmp((output.len() - fn_start + 1) as u16, false)
+                        Instr::Jmp((output.len() - fn_start + 1) as u16, false);
+
+                    recorded_types.iter().for_each(|x| {
+                        var_types.remove(*x);
+                    });
                 }
 
-                if let Some(fn_args) = fns[function_id].4.clone() {
+                if let Some(fn_args) = &fn_loc_data {
+                    let fn_args = fn_args.1.to_vec();
                     for (x, tgt_id) in fn_args.iter().enumerate() {
                         let start_len = output.len();
                         let arg_id = get_id(
@@ -244,8 +277,8 @@ pub fn handle_functions(
                         }
                     }
                 }
-                let loc = if let Some(fn_loc) = &fns[function_id].3 {
-                    *fn_loc
+                let loc = if let Some(fn_loc) = fn_loc_data {
+                    fn_loc.0
                 } else {
                     unreachable!()
                 };

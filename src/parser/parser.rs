@@ -906,11 +906,14 @@ fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_len
 }
 
 pub type Function = (
+    // name
     String,
+    // args
     Box<[String]>,
+    // code
     Box<[Expr]>,
-    Option<u16>,
-    Option<Vec<u16>>,
+    // fn loc, fn args loc, argument types
+    Vec<(u16, Vec<u16>, Vec<DataType>)>,
 );
 pub type FunctionState = (String, u16, Vec<(Intern<String>, u16)>, Option<u16>);
 
@@ -1638,7 +1641,7 @@ pub fn parser_to_instr_set(
             Expr::FunctionDecl(x, y, start, end) => {
                 if fns
                     .iter()
-                    .any(|(name, _, _, _, _)| **name == *x.first().unwrap())
+                    .any(|(name, _, _, _)| **name == *x.first().unwrap())
                 {
                     parser_error!(
                         src.0,
@@ -1656,8 +1659,7 @@ pub fn parser_to_instr_set(
                     x.first().unwrap().to_string(),
                     x.into_iter().skip(1).map(ToString::to_string).collect(),
                     y.clone(),
-                    None,
-                    None,
+                    Vec::new(),
                 ));
             }
             Expr::ReturnVal(val) => {
@@ -1716,7 +1718,7 @@ pub fn parse(
         .into_iter()
         .map(|w| {
             if let Expr::FunctionDecl(x, y, _, _) = w {
-                (x[0].to_string(), x[1..].into(), y, None, None)
+                (x[0].to_string(), x[1..].into(), y, Vec::new())
             } else {
                 unreachable!()
             }

@@ -205,38 +205,57 @@ pub fn infer_type(
             DataType::String => DataType::String,
             _ => todo!(),
         },
-        Expr::FunctionCall(args, namespace, _, _, _) => match namespace.last().unwrap().as_str() {
-            "print" => DataType::Null,
-            "type" => DataType::String,
-            "num" => DataType::Number,
-            "str" => DataType::String,
-            "bool" => DataType::Bool,
-            "input" => DataType::String,
-            "range" => DataType::Array(Box::from(DataType::Number)),
-            "floor" => DataType::Number,
-            "the_answer" => DataType::Number,
-            function => {
-                let (_, fn_args, fn_code, _, _) =
-                    fns.iter().find(|(a, _, _, _, _)| *a == function).unwrap();
+        Expr::FunctionCall(args, namespace, start, end, _) => {
+            match namespace.last().unwrap().as_str() {
+                "print" => DataType::Null,
+                "type" => DataType::String,
+                "num" => DataType::Number,
+                "str" => DataType::String,
+                "bool" => DataType::Bool,
+                "input" => DataType::String,
+                "range" => DataType::Array(Box::from(DataType::Number)),
+                "floor" => DataType::Number,
+                "the_answer" => DataType::Number,
+                function => {
+                    let (_, fn_args, fn_code, _) =
+                        fns.iter().find(|(a, _, _, _)| *a == function).unwrap_or_else(|| {
+                            parser_error!(
+                                src.0,
+                                src.1,
+                                *start,
+                                *end,
+                                "Unknown function",
+                                format_args!(
+                                    "Function {color_bright_blue}{style_bold}{function}{color_reset}{style_reset} does not exist or has not been declared yet"
+                                )
+                            );
+                        });
 
-                let mut arg_types: Vec<usize> = Vec::with_capacity(args.len());
-                args.iter().enumerate().for_each(|(i, x)| {
-                    let infered = infer_type(x, var_types, fns, src);
-                    arg_types.push(var_types.len());
-                    var_types.push((Intern::from_ref(&fn_args[i]), infered))
-                });
+                    let mut arg_types: Vec<usize> = Vec::with_capacity(args.len());
+                    args.iter().enumerate().for_each(|(i, x)| {
+                        let infered = infer_type(x, var_types, fns, src);
+                        arg_types.push(var_types.len());
+                        var_types.push((Intern::from_ref(&fn_args[i]), infered))
+                    });
 
-                let to_return = check_poly(DataType::Poly(Box::from(track_returns(
-                    fn_code, var_types, fns, src,
-                ))));
+                    println!("VAR TYPES ARE {var_types:?}");
 
-                arg_types.iter().for_each(|i| {
-                    var_types.remove(*i);
-                });
+                    let to_return = check_poly(DataType::Poly(Box::from(track_returns(
+                        fn_code, var_types, fns, src,
+                    ))));
 
-                to_return
+                    println!("1.VAR TYPES ARE {var_types:?}");
+                    arg_types.iter().for_each(|i| {
+                        var_types.remove(*i);
+                    });
+                    println!("2.VAR TYPES ARE {var_types:?}");
+
+                    println!("RETURNED TYPE IS {to_return:?}");
+
+                    to_return
+                }
             }
-        },
+        }
         Expr::ObjFunctionCall(obj, args, namespace, start, end, _) => {
             match namespace.last().unwrap().as_str() {
                 "uppercase" => DataType::String,
