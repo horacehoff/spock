@@ -211,13 +211,7 @@ pub fn handle_functions(
                 let args_len = fn_args.len();
                 check_args!(args, args_len, fn_name, src.0, src.1, start, end);
 
-                if (fn_data.is_empty() || fn_loc_data.is_none())
-                    && (if let Some(wtf) = fn_state {
-                        !(wtf.1 == fn_name)
-                    } else {
-                        true
-                    })
-                {
+                if fn_data.is_empty() || fn_loc_data.is_none() {
                     let mut loc = 0u16;
                     let mut args_loc: Vec<u16> = Vec::new();
 

@@ -17,30 +17,196 @@ pub enum DataType {
     Poly(Box<[DataType]>),
 }
 
+fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
+    let mut contains_call = false;
+    for content in content {
+        match content {
+            Expr::FunctionCall(_, namespace, _, _, _) => {
+                if namespace.last().unwrap().as_str() == fn_name {
+                    contains_call = true;
+                }
+            }
+            Expr::Condition(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(y, fn_name)
+                {
+                    contains_call = true
+                }
+            }
+
+            Expr::ElseIfBlock(x, y) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(y, fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::ElseBlock(x) => {
+                if contains_recursive_call(x, fn_name) {
+                    contains_call = true
+                }
+            }
+            Expr::ObjFunctionCall(x, y, _, _, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(y, fn_name)
+                {
+                    contains_call = true
+                }
+            }
+
+            // name+args -- code
+            Expr::FunctionDecl(_, x, _, _) => {
+                if contains_recursive_call(x, fn_name) {
+                    contains_call = true
+                }
+            }
+            Expr::GetIndex(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(y, fn_name)
+                {
+                    contains_call = true
+                }
+            }
+
+            Expr::Mul(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::Div(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::Add(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::Sub(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::Mod(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::Pow(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::Eq(x, y) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::NotEq(x, y) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::Sup(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::SupEq(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::Inf(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::InfEq(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::BoolAnd(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::BoolOr(x, y, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name)
+                    || contains_recursive_call(&[*y.clone()], fn_name)
+                {
+                    contains_call = true
+                }
+            }
+            Expr::Neg(x, _, _) => {
+                if contains_recursive_call(&[*x.clone()], fn_name) {
+                    contains_call = true
+                }
+            }
+            _ => continue,
+        }
+    }
+    contains_call
+}
+
 fn track_returns(
     content: &[Expr],
     var_types: &mut Vec<(Intern<String>, DataType)>,
     fns: &[Function],
     src: (&str, &str),
+    fn_name: &str,
 ) -> Vec<DataType> {
     let mut return_types: Vec<DataType> = Vec::new();
     for content in content {
         match content {
             Expr::Condition(_, code, _, _) => {
-                return_types.extend(track_returns(code, var_types, fns, src))
+                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
             }
             Expr::ElseIfBlock(_, code) => {
-                return_types.extend(track_returns(code, var_types, fns, src))
+                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
             }
-            Expr::ElseBlock(code) => return_types.extend(track_returns(code, var_types, fns, src)),
+            Expr::ElseBlock(code) => {
+                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
+            }
             Expr::WhileBlock(_, code) => {
-                return_types.extend(track_returns(code, var_types, fns, src))
+                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
             }
             Expr::ReturnVal(return_val) => {
                 if let Some(val) = *return_val.to_owned() {
-                    let infered = infer_type(&val, var_types, fns, src);
-                    if !return_types.contains(&infered) {
-                        return_types.push(infered);
+                    let contains_call = contains_recursive_call(&[val.clone()], fn_name);
+                    if !contains_call {
+                        let infered = infer_type(&val, var_types, fns, src);
+                        if !return_types.contains(&infered) {
+                            return_types.push(infered);
+                        }
                     }
                 } else {
                     if !return_types.contains(&DataType::Null) {
@@ -48,9 +214,15 @@ fn track_returns(
                     }
                 }
             }
-            Expr::ForLoop(_, code) => return_types.extend(track_returns(code, var_types, fns, src)),
-            Expr::EvalBlock(code) => return_types.extend(track_returns(code, var_types, fns, src)),
-            Expr::LoopBlock(code) => return_types.extend(track_returns(code, var_types, fns, src)),
+            Expr::ForLoop(_, code) => {
+                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
+            }
+            Expr::EvalBlock(code) => {
+                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
+            }
+            Expr::LoopBlock(code) => {
+                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
+            }
             _ => continue,
         }
     }
@@ -238,19 +410,19 @@ pub fn infer_type(
                         var_types.push((Intern::from_ref(&fn_args[i]), infered))
                     });
 
-                    println!("VAR TYPES ARE {var_types:?}");
+                    // println!("VAR TYPES ARE {var_types:?}");
 
                     let to_return = check_poly(DataType::Poly(Box::from(track_returns(
-                        fn_code, var_types, fns, src,
+                        fn_code, var_types, fns, src, function,
                     ))));
 
-                    println!("1.VAR TYPES ARE {var_types:?}");
+                    // println!("1.VAR TYPES ARE {var_types:?}");
                     arg_types.iter().for_each(|i| {
                         var_types.remove(*i);
                     });
-                    println!("2.VAR TYPES ARE {var_types:?}");
+                    // println!("2.VAR TYPES ARE {var_types:?}");
 
-                    println!("RETURNED TYPE IS {to_return:?}");
+                    // println!("RETURNED TYPE IS {to_return:?}");
 
                     to_return
                 }
