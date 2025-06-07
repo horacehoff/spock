@@ -744,6 +744,30 @@ pub fn get_id(
             }
             return_id
         }
+        Expr::FunctionCall(args, namespace, start, end, args_indexes) => {
+            let some_id = handle_functions(
+                output,
+                v,
+                var_types,
+                consts,
+                fns,
+                fn_state,
+                arrs,
+                id,
+                src,
+                instr_src,
+                args,
+                namespace,
+                *start,
+                *end,
+                args_indexes,
+            );
+            if let Some(id) = some_id {
+                return id;
+            } else {
+                return (consts.len() - 1) as u16;
+            }
+        }
         other => {
             let output_code = parser_to_instr_set(
                 slice::from_ref(other),
@@ -1677,7 +1701,7 @@ pub fn parser_to_instr_set(
                         src,
                         instr_src,
                     );
-                    output.push(Instr::Return(id, 0));
+                    output.push(Instr::Return(id));
                 }
             }
             Expr::Break => output.push(Instr::Break(id)),

@@ -38,7 +38,7 @@ pub fn handle_functions(
     start: usize,
     end: usize,
     args_indexes: &[(usize, usize)],
-) {
+) -> Option<u16> {
     let mut check_type = |arg: usize, expected: &[DataType]| {
         let infered = infer_type(&args[arg], var_types, fns, src);
         if !{
@@ -255,13 +255,11 @@ pub fn handle_functions(
                         println!("ENCOUNTERED {x:?}");
                         if let Instr::JmpSave(size, neg, _) = x {
                             *size += (output.len() + len - 3) as u16;
-                        } else if let Instr::Return(_, offset) = x {
-                            *offset = (i) as u16;
                         }
                         println!("IT'S NOW {x:?}");
                     });
                     output.extend(parsed);
-                    output.push(Instr::JmpLoad(false));
+                    output.push(Instr::JmpLoad);
                     *output.get_mut(jump_idx).unwrap() =
                         Instr::Jmp((output.len() - fn_start + 1) as u16, false);
 
@@ -303,6 +301,7 @@ pub fn handle_functions(
                     true,
                     (consts.len() - 1) as u16,
                 ));
+                return Some((consts.len() - 1) as u16);
             }
         }
     } else if *namespace == ["io"] {
@@ -374,4 +373,5 @@ pub fn handle_functions(
             )
         );
     }
+    None
 }
