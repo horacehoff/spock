@@ -188,6 +188,7 @@ pub fn execute(
                 // }
             },
             Instr::JmpSave(size, is_neg, return_id) => {
+                println!("JMP_SAVE {size} {is_neg} {return_id}");
                 jmps.push(size);
                 return_ids.push(return_id);
                 if is_neg {

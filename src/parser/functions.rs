@@ -258,6 +258,7 @@ pub fn handle_functions(
                         } else if let Instr::Return(_, offset) = x {
                             *offset = (i) as u16;
                         }
+                        println!("IT'S NOW {x:?}");
                     });
                     output.extend(parsed);
                     output.push(Instr::JmpLoad(false));
@@ -265,7 +266,9 @@ pub fn handle_functions(
                         Instr::Jmp((output.len() - fn_start + 1) as u16, false);
 
                     recorded_types.iter().for_each(|x| {
-                        var_types.remove(*x);
+                        if *x < var_types.len() {
+                            var_types.remove(*x);
+                        }
                     });
                 }
 
