@@ -212,6 +212,7 @@ pub fn handle_functions(
                 check_args!(args, args_len, fn_name, src.0, src.1, start, end);
 
                 if fn_data.is_empty() || fn_loc_data.is_none() {
+                    println!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
                     let mut loc = 0u16;
                     let mut args_loc: Vec<u16> = Vec::new();
 

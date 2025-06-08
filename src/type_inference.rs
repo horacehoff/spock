@@ -238,7 +238,7 @@ pub fn infer_type(
     match x {
         Expr::Var(name, start, end) => var_types
             .iter()
-            .find(|(n, _)| n == name)
+            .rfind(|(n, _)| n == name)
             .unwrap()
             // .unwrap_or_else(|| {
             //     parser_error!(
