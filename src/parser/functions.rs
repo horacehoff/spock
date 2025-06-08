@@ -18,7 +18,6 @@ use crate::util::format_datatype;
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
-use slab::Slab;
 
 pub fn handle_functions(
     output: &mut Vec<Instr>,
@@ -213,8 +212,8 @@ pub fn handle_functions(
 
                 if fn_data.is_empty() || fn_loc_data.is_none() {
                     println!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
-                    let mut loc = 0u16;
-                    let mut args_loc: Vec<u16> = Vec::new();
+                    let loc;
+                    let args_loc: Vec<u16>;
 
                     let mut vars: Vec<(Intern<String>, u16)> = Vec::new();
                     let mut recorded_types: Vec<usize> = Vec::new();
