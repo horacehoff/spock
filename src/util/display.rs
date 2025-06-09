@@ -222,7 +222,6 @@ pub fn print_instructions(instructions: &[Instr]) {
             _ => continue,
         }
     }
-    dbg!(flows);
     let instr_str = instructions
         .iter()
         .enumerate()
@@ -234,6 +233,26 @@ pub fn print_instructions(instructions: &[Instr]) {
         .map(|str| " ".repeat(max_len - str.len()))
         .collect::<Vec<String>>();
     for (i, instr) in instr_str.iter().enumerate() {
-        println!("{instr}{}", margins[i]);
+        let mut indicators: String = String::new();
+        for x in &flows {
+            if i == x.0 {
+                if x.1 > x.0 {
+                    indicators.push_str("  -┐");
+                } else {
+                    indicators.push_str("  -┘");
+                }
+            } else if i == x.1 {
+                if x.1 > x.0 {
+                    indicators.push_str(" ←-┘");
+                } else {
+                    indicators.push_str(" ←-┐");
+                }
+            } else if (x.0..x.1).contains(&i) || (x.1..x.0).contains(&i) {
+                indicators.push_str("   |");
+            } else {
+                indicators.push_str("    ");
+            }
+        }
+        println!("{instr}{}{}", margins[i], indicators);
     }
 }
