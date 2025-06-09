@@ -4,8 +4,9 @@ use crate::parser_error;
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
+use std::collections::HashSet;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[repr(u8)]
 pub enum DataType {
     Array(Box<DataType>),
@@ -183,22 +184,48 @@ fn track_returns(
     fns: &[Function],
     src: (&str, &str),
     fn_name: &str,
+    track_condition: bool,
 ) -> Vec<DataType> {
     let mut return_types: Vec<DataType> = Vec::new();
+    let mut complete_return_condition = false;
     for content in content {
         match content {
             Expr::Condition(_, code, _, _) => {
-                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
+                if track_condition {
+                    return_types.extend(track_returns(
+                        code,
+                        var_types,
+                        fns,
+                        src,
+                        fn_name,
+                        track_condition,
+                    ))
+                }
             }
-            Expr::ElseIfBlock(_, code) => {
-                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
-            }
-            Expr::ElseBlock(code) => {
-                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
-            }
-            Expr::WhileBlock(_, code) => {
-                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
-            }
+            Expr::ElseIfBlock(_, code) => return_types.extend(track_returns(
+                code,
+                var_types,
+                fns,
+                src,
+                fn_name,
+                track_condition,
+            )),
+            Expr::ElseBlock(code) => return_types.extend(track_returns(
+                code,
+                var_types,
+                fns,
+                src,
+                fn_name,
+                track_condition,
+            )),
+            Expr::WhileBlock(_, code) => return_types.extend(track_returns(
+                code,
+                var_types,
+                fns,
+                src,
+                fn_name,
+                track_condition,
+            )),
             Expr::ReturnVal(return_val) => {
                 if let Some(val) = *return_val.to_owned() {
                     let contains_call = contains_recursive_call(&[val.clone()], fn_name);
@@ -214,15 +241,30 @@ fn track_returns(
                     }
                 }
             }
-            Expr::ForLoop(_, code) => {
-                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
-            }
-            Expr::EvalBlock(code) => {
-                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
-            }
-            Expr::LoopBlock(code) => {
-                return_types.extend(track_returns(code, var_types, fns, src, fn_name))
-            }
+            Expr::ForLoop(_, code) => return_types.extend(track_returns(
+                code,
+                var_types,
+                fns,
+                src,
+                fn_name,
+                track_condition,
+            )),
+            Expr::EvalBlock(code) => return_types.extend(track_returns(
+                code,
+                var_types,
+                fns,
+                src,
+                fn_name,
+                track_condition,
+            )),
+            Expr::LoopBlock(code) => return_types.extend(track_returns(
+                code,
+                var_types,
+                fns,
+                src,
+                fn_name,
+                track_condition,
+            )),
             _ => continue,
         }
     }
@@ -412,9 +454,22 @@ pub fn infer_type(
 
                     // println!("VAR TYPES ARE {var_types:?}");
 
-                    let to_return = check_poly(DataType::Poly(Box::from(track_returns(
-                        fn_code, var_types, fns, src, function,
-                    ))));
+                    let mut fn_type = [
+                        track_returns(fn_code, var_types, fns, src, function, false),
+                        track_returns(fn_code, var_types, fns, src, function, true),
+                    ]
+                    .concat();
+
+                    fn dedup(v: &mut Vec<DataType>) {
+                        let mut set = HashSet::new();
+                        v.retain(|x| set.insert(x.clone()));
+                    }
+                    dedup(&mut fn_type);
+
+                    // dbg!(fn_type_no_cond);
+                    // dbg!(fn_type_cond);
+
+                    let to_return = check_poly(DataType::Poly(Box::from(fn_type)));
 
                     // println!("1.VAR TYPES ARE {var_types:?}");
                     arg_types.iter().for_each(|i| {
