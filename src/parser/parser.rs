@@ -5,6 +5,7 @@ use crate::grammar::Token;
 use crate::method_calls::handle_method_calls;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::type_inference::{DataType, infer_type};
+use crate::types::is_indexable;
 use crate::util::{format_datatype, format_type_expr};
 use crate::{Data, Instr, Num, error};
 use crate::{parser_error, type_inference};
@@ -1023,7 +1024,7 @@ pub fn parser_to_instr_set(
                 );
                 // for each index operation, process the index, adjust the id variable for the next index operation, push null to constants to use GetIndex to index at runtime
                 for elem in index {
-                    if !matches!(infered, DataType::String | DataType::Array(_)) {
+                    if !is_indexable(&infered) {
                         parser_error!(
                             src.0,
                             src.1,
@@ -1089,7 +1090,7 @@ pub fn parser_to_instr_set(
             // x[y]... = z;
             Expr::ArrayModify(x, z, w, index_start, index_end, elem_start, elem_end) => {
                 let infered = infer_type(x, var_types, fns, src);
-                if !matches!(infered, DataType::String | DataType::Array(_)) {
+                if !is_indexable(&infered) {
                     parser_error!(
                         src.0,
                         src.1,

@@ -25,7 +25,10 @@ mod optimizations;
 #[path = "./parser/parser.rs"]
 mod parser;
 mod tests;
+#[path = "./types/type_inference.rs"]
 mod type_inference;
+#[path = "./types/types.rs"]
+mod types;
 #[path = "./util/util.rs"]
 mod util;
 
@@ -507,11 +510,10 @@ pub fn execute(
             // takes tgt from  consts, index is index, dest is consts index destination
             Instr::ArrayGet(tgt, index, dest) => {
                 if_likely! {let Data::Number(idx) = consts[index as usize] => {
-                    let idx = idx as usize;
                     if_likely! {let Data::Array(x) = consts[tgt as usize] => {
                             let array = &arrays[x];
-                            if likely(array.len() > idx) {
-                                consts[dest as usize] = array[idx];
+                            if likely(array.len() > idx as usize) {
+                                consts[dest as usize] = array[idx as usize];
                             } else {
                                fatal_error!(
                                     Instr::ArrayGet(tgt, index, dest),
@@ -528,11 +530,10 @@ pub fn execute(
             }
             Instr::ArrayStrGet(tgt, index, dest) => {
                 if_likely! {let Data::Number(idx) = consts[index as usize] => {
-                    let idx = idx as usize;
                     if_likely! {let Data::String(str) = consts[tgt as usize] => {
-                        if likely(str.len() > idx) {
+                        if likely(str.len() > idx as usize) {
                             consts[dest as usize] = Data::String(Intern::from(
-                                str.get(idx..=idx).unwrap().to_string(),
+                                str.get(idx as usize..=idx as usize).unwrap().to_string(),
                             ));
                         } else {
                             fatal_error!(
