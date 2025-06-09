@@ -71,7 +71,8 @@ pub enum Instr {
 
     // LOGIC
     // size -- is_neg
-    Jmp(u16, bool),
+    Jmp(u16),
+    JmpNeg(u16),
     // condition id -- size
     Cmp(u16, u16),
     InfCmp(u16, u16, u16),
@@ -174,14 +175,13 @@ pub fn execute(
     let mut return_ids: Vec<u16> = Vec::with_capacity(10);
     while i < instructions.len() {
         match instructions[i] {
-            Instr::Jmp(size, is_neg) => {
-                if is_neg {
-                    i -= size as usize;
-                    continue;
-                } else {
-                    i += size as usize;
-                    continue;
-                }
+            Instr::Jmp(size) => {
+                i += size as usize;
+                continue;
+            }
+            Instr::JmpNeg(size) => {
+                i -= size as usize;
+                continue;
             }
             Instr::JmpSave(size, is_neg, return_id) => {
                 println!("JMP_SAVE {size} {is_neg} {return_id}");

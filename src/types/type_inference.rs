@@ -4,7 +4,7 @@ use crate::parser_error;
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
-use std::collections::HashSet;
+// use std::collections::HashSet;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[repr(u8)]

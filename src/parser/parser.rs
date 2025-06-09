@@ -640,7 +640,7 @@ pub fn get_id(
                 return_id,
             ));
             if main_code_limit != code.len() {
-                output.push(Instr::Jmp(0, false));
+                output.push(Instr::Jmp(0));
                 jmp_markers.push(output.len() - 1);
             }
 
@@ -677,7 +677,7 @@ pub fn get_id(
                         },
                         return_id,
                     ));
-                    output.push(Instr::Jmp(0, false));
+                    output.push(Instr::Jmp(0));
                     jmp_markers.push(output.len() - 1);
                 } else if let Expr::ElseBlock(code) = elem {
                     else_exists = true;
@@ -720,7 +720,7 @@ pub fn get_id(
 
             for y in jmp_markers {
                 let diff = output.len() - y;
-                output[y] = Instr::Jmp(diff as u16, false);
+                output[y] = Instr::Jmp(diff as u16);
             }
             for (i, y) in cmp_markers.iter().enumerate() {
                 let diff = if i >= condition_markers.len() {
@@ -899,17 +899,17 @@ fn parse_loop_flow_control(
         if let Instr::Break(break_id) = x.1 {
             if *break_id == loop_id {
                 if for_loop {
-                    *x.1 = Instr::Jmp(code_length - x.0 as u16 - 1, false);
+                    *x.1 = Instr::Jmp(code_length - x.0 as u16 - 1);
                 } else {
-                    *x.1 = Instr::Jmp(code_length - x.0 as u16, false);
+                    *x.1 = Instr::Jmp(code_length - x.0 as u16);
                 }
             }
         } else if let Instr::Continue(continue_id) = x.1 {
             if *continue_id == loop_id {
                 if for_loop {
-                    *x.1 = Instr::Jmp(code_length - x.0 as u16 - 3, false);
+                    *x.1 = Instr::Jmp(code_length - x.0 as u16 - 3);
                 } else {
-                    *x.1 = Instr::Jmp(code_length - x.0 as u16 - 1, false);
+                    *x.1 = Instr::Jmp(code_length - x.0 as u16 - 1);
                 }
             }
         }
@@ -920,11 +920,11 @@ fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_len
     loop_code.iter_mut().enumerate().for_each(|x| {
         if let Instr::Break(break_id) = x.1 {
             if *break_id == loop_id {
-                *x.1 = Instr::Jmp(code_length - x.0 as u16, false);
+                *x.1 = Instr::Jmp(code_length - x.0 as u16);
             }
         } else if let Instr::Continue(continue_id) = x.1 {
             if *continue_id == loop_id {
-                *x.1 = Instr::Jmp(code_length - x.0 as u16 - 3, false);
+                *x.1 = Instr::Jmp(code_length - x.0 as u16 - 3);
             }
         }
     });
@@ -1295,7 +1295,7 @@ pub fn parser_to_instr_set(
                 );
                 output.extend(cond_code);
                 if main_code_limit != code.len() {
-                    output.push(Instr::Jmp(0, false));
+                    output.push(Instr::Jmp(0));
                     jmp_markers.push(output.len() - 1);
                 }
 
@@ -1331,7 +1331,7 @@ pub fn parser_to_instr_set(
                             instr_src,
                         );
                         output.extend(cond_code);
-                        output.push(Instr::Jmp(0, false));
+                        output.push(Instr::Jmp(0));
                         jmp_markers.push(output.len() - 1);
                     } else if let Expr::ElseBlock(code) = elem {
                         condition_markers.push(output.len());
@@ -1354,7 +1354,7 @@ pub fn parser_to_instr_set(
 
                 for y in jmp_markers {
                     let diff = output.len() - y;
-                    output[y] = Instr::Jmp(diff as u16, false);
+                    output[y] = Instr::Jmp(diff as u16);
                 }
                 for (i, y) in cmp_markers.iter().enumerate() {
                     let diff = if i >= condition_markers.len() {
@@ -1432,7 +1432,7 @@ pub fn parser_to_instr_set(
                 add_cmp(condition_id, &mut len, &mut output, true);
                 parse_loop_flow_control(&mut cond_code, loop_id, len, false);
                 output.extend(cond_code);
-                output.push(Instr::Jmp(len, true));
+                output.push(Instr::JmpNeg(len));
             }
             Expr::ForLoop(var_name, array_code) => {
                 let real_var = var_name.as_str() != "_";
@@ -1532,7 +1532,7 @@ pub fn parser_to_instr_set(
                 output.push(Instr::Add(index_id, (consts.len() - 1) as u16, index_id));
 
                 // jump back to the loop if still inside of it
-                output.push(Instr::Jmp(len, true));
+                output.push(Instr::JmpNeg(len));
 
                 // clean up, reset the index variable
                 consts.push(Data::Number(0.0 as Num));
@@ -1548,7 +1548,7 @@ pub fn parser_to_instr_set(
                 let code_length = compiled.len() as u16;
                 parse_indef_loop_flow_control(&mut compiled, loop_id, code_length + 1);
                 output.extend(compiled);
-                output.push(Instr::Jmp(code_length, true));
+                output.push(Instr::JmpNeg(code_length));
             }
             Expr::VarDeclare(x, y) => {
                 let var_type = type_inference::infer_type(y, var_types, fns, src);

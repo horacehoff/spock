@@ -226,7 +226,7 @@ pub fn handle_functions(
                         dbg!(&var_types);
                     }
                     args_loc = vars.iter().map(|(_, x)| *x).collect::<Vec<u16>>();
-                    output.push(Instr::Jmp(0, false));
+                    output.push(Instr::Jmp(0));
                     let jump_idx = output.len() - 1;
                     let fn_start = output.len();
                     loc = fn_start as u16;
@@ -261,7 +261,7 @@ pub fn handle_functions(
                     output.extend(parsed);
                     output.push(Instr::JmpLoad);
                     *output.get_mut(jump_idx).unwrap() =
-                        Instr::Jmp((output.len() - fn_start + 1) as u16, false);
+                        Instr::Jmp((output.len() - fn_start + 1) as u16);
 
                     recorded_types.iter().for_each(|x| {
                         if *x < var_types.len() {
