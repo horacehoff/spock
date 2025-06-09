@@ -706,5 +706,5 @@ fn main() {
     );
     let end = now.elapsed();
     println!("EXEC TIME {:.2?}", end);
-    println!("{consts:?}")
+    // println!("{consts:?}")
 }

@@ -205,7 +205,35 @@ where
 }
 
 pub fn print_instructions(instructions: &[Instr]) {
+    let mut flows: Vec<(usize, usize)> = Vec::new();
     for (i, instr) in instructions.iter().enumerate() {
-        println!("{} {:?}", i, instr);
+        match instr {
+            Instr::Jmp(jump_size)
+            | Instr::Cmp(_, jump_size)
+            | Instr::InfCmp(_, _, jump_size)
+            | Instr::InfEqCmp(_, _, jump_size)
+            | Instr::SupCmp(_, _, jump_size)
+            | Instr::SupEqCmp(_, _, jump_size)
+            | Instr::EqCmp(_, _, jump_size)
+            | Instr::ArrayEqCmp(_, _, jump_size)
+            | Instr::NotEqCmp(_, _, jump_size)
+            | Instr::ArrayNotEqCmp(_, _, jump_size) => flows.push((i, i + *jump_size as usize)),
+            Instr::JmpNeg(jump_size) => flows.push((i, i - *jump_size as usize)),
+            _ => continue,
+        }
+    }
+    dbg!(flows);
+    let instr_str = instructions
+        .iter()
+        .enumerate()
+        .map(|(i, instr)| format!(" {i} {instr:?} "))
+        .collect::<Vec<String>>();
+    let max_len = instr_str.iter().max_by_key(|x| x.len()).unwrap().len();
+    let margins = instr_str
+        .iter()
+        .map(|str| " ".repeat(max_len - str.len()))
+        .collect::<Vec<String>>();
+    for (i, instr) in instr_str.iter().enumerate() {
+        println!("{instr}{}", margins[i]);
     }
 }
