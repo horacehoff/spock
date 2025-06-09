@@ -689,10 +689,6 @@ fn main() {
     let func_args_count = get_vec_capacity(&instructions);
 
     println!("PARSING TIME {:.2?}", now.elapsed());
-    println!("INSTR {instructions:?}");
-    println!("CONSTS {consts:?}");
-    print!("ARRAYS {arrays:?}");
-    print!("FUNC_ARGS_COUNT {func_args_count:?}");
 
     let now = Instant::now();
     execute(
@@ -706,5 +702,4 @@ fn main() {
     );
     let end = now.elapsed();
     println!("EXEC TIME {:.2?}", end);
-    // println!("{consts:?}")
 }

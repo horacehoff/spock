@@ -1,5 +1,5 @@
 use crate::ArrayStorage;
-use crate::display::{lalrpop_error, print_instructions};
+use crate::display::{lalrpop_error, print_debug};
 use crate::functions::handle_functions;
 use crate::grammar::Token;
 use crate::method_calls::handle_method_calls;
@@ -1750,8 +1750,6 @@ pub fn parse(
         })
         .collect();
 
-    // print!("{functions:?}");
-
     let mut variables: Vec<(Intern<String>, u16)> = Vec::new();
     let mut consts: Vec<Data> = Vec::new();
     let mut arrays: ArrayStorage = Slab::with_capacity(20);
@@ -1777,12 +1775,9 @@ pub fn parse(
         (filename, contents),
         &mut instr_src,
     );
-    // print!("CONSTS are {consts:?}");
-    // print!("{consts:?}");
-    // print!("{arrays:?}");
     #[cfg(debug_assertions)]
     {
-        print_instructions(&instructions);
+        print_debug(&instructions, &consts, &arrays);
     }
     (instructions, consts, arrays, instr_src)
 }

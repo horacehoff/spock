@@ -204,7 +204,19 @@ where
     std::process::exit(1);
 }
 
-pub fn print_instructions(instructions: &[Instr]) {
+pub fn print_debug(instructions: &[Instr], consts: &[Data], arrays: &ArrayStorage) {
+    println!("{color_yellow}---- DEBUG ----{color_reset}");
+    if !arrays.is_empty() {
+        println!("{color_green}---  ARRAYS  ---{color_reset}");
+        for (i, data) in arrays {
+            println!(" {i} {data:?}")
+        }
+    }
+    println!("{color_green}-- CONSTANTS --{color_reset}");
+    for (i, data) in consts.iter().enumerate() {
+        println!(" {i} {data:?}")
+    }
+    println!("{color_red}-- INSTRUCTIONS --{color_reset}");
     let mut flows: Vec<(usize, usize)> = Vec::new();
     for (i, instr) in instructions.iter().enumerate() {
         match instr {
@@ -255,4 +267,5 @@ pub fn print_instructions(instructions: &[Instr]) {
         }
         println!("{instr}{}{}", margins[i], indicators);
     }
+    println!("{color_yellow}------------------{color_reset}");
 }
