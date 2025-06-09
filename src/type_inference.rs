@@ -187,7 +187,7 @@ fn track_returns(
     track_condition: bool,
 ) -> Vec<DataType> {
     let mut return_types: Vec<DataType> = Vec::new();
-    let mut complete_return_condition = false;
+    let mut complete_return_condition = true;
     for content in content {
         match content {
             Expr::Condition(_, code, _, _) => {
@@ -452,32 +452,27 @@ pub fn infer_type(
                         var_types.push((Intern::from_ref(&fn_args[i]), infered))
                     });
 
-                    // println!("VAR TYPES ARE {var_types:?}");
+                    // -----
+                    // MORE COMPLEX SOLUTION (DOES NOT ALLOW NULL OPS)
+                    // let mut fn_type = [
+                    //     track_returns(fn_code, var_types, fns, src, function, false),
+                    //     track_returns(fn_code, var_types, fns, src, function, true),
+                    // ]
+                    // .concat();
 
-                    let mut fn_type = [
-                        track_returns(fn_code, var_types, fns, src, function, false),
-                        track_returns(fn_code, var_types, fns, src, function, true),
-                    ]
-                    .concat();
+                    // fn dedup(v: &mut Vec<DataType>) {
+                    //     let mut set = HashSet::new();
+                    //     v.retain(|x| set.insert(x.clone()));
+                    // }
+                    // dedup(&mut fn_type);
+                    // -----
 
-                    fn dedup(v: &mut Vec<DataType>) {
-                        let mut set = HashSet::new();
-                        v.retain(|x| set.insert(x.clone()));
-                    }
-                    dedup(&mut fn_type);
-
-                    // dbg!(fn_type_no_cond);
-                    // dbg!(fn_type_cond);
-
+                    let fn_type = track_returns(fn_code, var_types, fns, src, function, true);
                     let to_return = check_poly(DataType::Poly(Box::from(fn_type)));
 
-                    // println!("1.VAR TYPES ARE {var_types:?}");
                     arg_types.iter().for_each(|i| {
                         var_types.remove(*i);
                     });
-                    // println!("2.VAR TYPES ARE {var_types:?}");
-
-                    // println!("RETURNED TYPE IS {to_return:?}");
 
                     to_return
                 }
