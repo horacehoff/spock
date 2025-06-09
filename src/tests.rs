@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod tests {
+    use crate::Data;
     use crate::execute;
     use crate::get_vec_capacity;
     use crate::parse;
-    use crate::Data;
+    use internment::Intern;
 
     #[test]
     fn fib_41() {
@@ -21,5 +22,24 @@ mod tests {
             &filename,
         );
         assert!(consts.contains(&Data::Number(165580141.0)))
+    }
+
+    #[test]
+    fn non_recursive_polymorphic_function() {
+        let filename = "TEST_non_recursive_polymorphic_function";
+        let contents = "fn add(x,y) {return x+y;}fn main() {print(add(10,20));print(add(\"a\",\"b\"));print(add([0,1],[2,3]));}";
+        let (instructions, mut consts, mut arrays, instr_src) = parse(contents, filename);
+        let func_args_count = get_vec_capacity(&instructions);
+        execute(
+            &instructions,
+            &mut consts,
+            &mut Vec::with_capacity(func_args_count),
+            &mut arrays,
+            &instr_src,
+            &contents,
+            &filename,
+        );
+        assert!(consts[5] == Data::Number(30.0));
+        assert!(consts[11] == Data::String(Intern::from_ref("ab")));
     }
 }

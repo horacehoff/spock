@@ -146,8 +146,8 @@ pub enum Instr {
     Continue(u16),
     // ---
     JmpSave(u16, bool, u16),
-    JmpLoad(bool),
-    Return(u16, u16),
+    JmpLoad,
+    Return(u16),
 }
 
 pub type ArrayStorage = Slab<Vec<Data>>;
@@ -170,11 +170,11 @@ pub fn execute(
         };
     }
 
-    let mut jmps: Vec<u16> = Vec::with_capacity(10);
+    let mut jmps: Vec<usize> = Vec::with_capacity(10);
     let mut return_ids: Vec<u16> = Vec::with_capacity(10);
     while i < instructions.len() {
         match instructions[i] {
-            Instr::Jmp(size, is_neg) => unsafe {
+            Instr::Jmp(size, is_neg) => {
                 if is_neg {
                     i -= size as usize;
                     continue;
@@ -182,17 +182,10 @@ pub fn execute(
                     i += size as usize;
                     continue;
                 }
-                // if is_neg {
-                //     i = i.unchecked_sub(size as usize);
-                //     continue;
-                // } else {
-                //     i = i.unchecked_add(size as usize);
-                //     continue;
-                // }
-            },
+            }
             Instr::JmpSave(size, is_neg, return_id) => {
                 println!("JMP_SAVE {size} {is_neg} {return_id}");
-                jmps.push(size);
+                jmps.push(i);
                 return_ids.push(return_id);
                 if is_neg {
                     i -= size as usize;
@@ -202,27 +195,21 @@ pub fn execute(
                     continue;
                 }
             }
-            Instr::JmpLoad(is_neg) => {
-                if is_neg {
-                    i -= jmps.pop().unwrap() as usize;
-                    continue;
-                } else {
-                    i += jmps.pop().unwrap() as usize;
-                    continue;
-                }
+            Instr::JmpLoad => {
+                i = jmps.pop().unwrap();
             }
-            Instr::Return(tgt, offset) => {
+            Instr::Return(tgt) => {
                 let to_return = return_ids.pop().unwrap();
                 consts[to_return as usize] = consts[tgt as usize];
-                i += (jmps.pop().unwrap() - offset) as usize;
+                println!("IM RETURNING {:?}", consts[to_return as usize]);
+                i = jmps.pop().unwrap() as usize;
             }
-            Instr::Cmp(cond_id, size) => unsafe {
+            Instr::Cmp(cond_id, size) => {
                 if let Data::Bool(false) = consts[cond_id as usize] {
-                    // i = i.unchecked_add(size as usize);
                     i += size as usize;
                     continue;
                 }
-            },
+            }
             Instr::Mov(tgt, dest) => {
                 consts[dest as usize] = consts[tgt as usize];
             }
@@ -719,4 +706,5 @@ fn main() {
     );
     let end = now.elapsed();
     println!("EXEC TIME {:.2?}", end);
+    println!("{consts:?}")
 }

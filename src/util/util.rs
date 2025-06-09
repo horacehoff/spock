@@ -1,4 +1,3 @@
-use crate::Data;
 use crate::parser::Expr;
 use crate::type_inference::DataType;
 
