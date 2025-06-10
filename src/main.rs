@@ -174,6 +174,7 @@ pub fn execute(
     let mut jmps: Vec<usize> = Vec::with_capacity(10);
     let mut return_ids: Vec<u16> = Vec::with_capacity(10);
     while i < instructions.len() {
+        println!("{:?}", instructions[i]);
         match instructions[i] {
             Instr::Jmp(size) => {
                 i += size as usize;
@@ -184,16 +185,11 @@ pub fn execute(
                 continue;
             }
             Instr::JmpSave(size, is_neg, return_id) => {
-                println!("JMP_SAVE {size} {is_neg} {return_id}");
+                // println!("JMP_SAVE {size} {is_neg} {return_id}");
                 jmps.push(i);
                 return_ids.push(return_id);
-                if is_neg {
-                    i -= size as usize;
-                    continue;
-                } else {
-                    i += size as usize;
-                    continue;
-                }
+                i = size as usize;
+                continue;
             }
             Instr::JmpLoad => {
                 i = jmps.pop().unwrap();
