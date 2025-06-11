@@ -173,7 +173,6 @@ pub fn handle_functions(
                 output.push(Instr::TheAnswer((consts.len() - 1) as u16));
             }
             fn_name => {
-                let mut fns_clone = fns.clone();
                 let function_id = fns
                     .iter_mut()
                     .position(|(a, _, _, _)| *a == fn_name)

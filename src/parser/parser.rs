@@ -1330,6 +1330,7 @@ pub fn parser_to_instr_set(
                             src,
                             instr_src,
                         );
+                        println!("COND CODE IS {cond_code:?}");
                         output.extend(cond_code);
                         output.push(Instr::Jmp(0));
                         jmp_markers.push(output.len() - 1);
@@ -1348,6 +1349,7 @@ pub fn parser_to_instr_set(
                             src,
                             instr_src,
                         );
+                        println!("COND CODE IS {cond_code:?}");
                         output.extend(cond_code);
                     }
                 }
@@ -1372,7 +1374,8 @@ pub fn parser_to_instr_set(
                         | Instr::NotEqCmp(_, _, jump_size),
                     ) = output.get_mut(*y)
                     {
-                        *jump_size = diff as u16 + 1;
+                        *jump_size = diff as u16;
+                        // *jump_size = diff as u16 + 1;
                     }
                 }
             }
