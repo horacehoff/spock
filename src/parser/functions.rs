@@ -251,13 +251,6 @@ pub fn handle_functions(
                     );
                     let len = parsed.len();
                     println!("PARSED IS {parsed:?}");
-                    parsed.iter_mut().enumerate().for_each(|(i, x)| {
-                        println!("ENCOUNTERED {x:?}");
-                        if let Instr::JmpSave(size, neg, _) = x {
-                            // *size += output.len() as u16 + len as u16 - 6;
-                            println!("IT'S NOW {x:?}");
-                        }
-                    });
                     output.extend(parsed);
                     output.push(Instr::JmpLoad);
                     *output.get_mut(jump_idx).unwrap() =
@@ -278,7 +271,7 @@ pub fn handle_functions(
                             &args[x], v, var_types, consts, output, fns, arrs, fn_state, id, src,
                             instr_src,
                         );
-
+                        println!("MOVING ARG TO {tgt_id}");
                         if output.len() != start_len {
                             move_to_id(output, *tgt_id);
                         } else {
@@ -296,7 +289,7 @@ pub fn handle_functions(
                 println!("OUTP LEN IS {}", output.len());
                 println!("OUTPUT IS {output:?}");
                 consts.push(Data::Null);
-                output.push(Instr::JmpSave(loc, true, (consts.len() - 1) as u16));
+                output.push(Instr::JmpSave(loc, (consts.len() - 1) as u16));
                 return Some((consts.len() - 1) as u16);
             }
         }

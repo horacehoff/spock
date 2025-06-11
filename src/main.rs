@@ -146,7 +146,7 @@ pub enum Instr {
     Break(u16),
     Continue(u16),
     // ---
-    JmpSave(u16, bool, u16),
+    JmpSave(u16, u16),
     JmpLoad,
     Return(u16),
 }
@@ -174,7 +174,7 @@ pub fn execute(
     let mut jmps: Vec<usize> = Vec::with_capacity(10);
     let mut return_ids: Vec<u16> = Vec::with_capacity(10);
     while i < instructions.len() {
-        println!("{:?}", instructions[i]);
+        // println!("{:?}", instructions[i]);
         match instructions[i] {
             Instr::Jmp(size) => {
                 i += size as usize;
@@ -184,7 +184,7 @@ pub fn execute(
                 i -= size as usize;
                 continue;
             }
-            Instr::JmpSave(size, is_neg, return_id) => {
+            Instr::JmpSave(size, return_id) => {
                 // println!("JMP_SAVE {size} {is_neg} {return_id}");
                 jmps.push(i);
                 return_ids.push(return_id);
