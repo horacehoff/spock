@@ -236,7 +236,7 @@ pub fn handle_functions(
                         .3
                         .push((loc, args_loc, infered_arg_types));
 
-                    let mut parsed = parser_to_instr_set(
+                    let parsed = parser_to_instr_set(
                         fn_code,
                         &mut vars,
                         var_types,
@@ -248,7 +248,6 @@ pub fn handle_functions(
                         src,
                         instr_src,
                     );
-                    let len = parsed.len();
                     println!("PARSED IS {parsed:?}");
                     output.extend(parsed);
                     output.push(Instr::JmpLoad);
