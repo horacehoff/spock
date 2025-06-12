@@ -11,7 +11,6 @@ use crate::parser::Expr;
 use crate::parser_error;
 use crate::type_inference::DataType;
 use crate::type_inference::infer_type;
-use crate::util::format_datatype;
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
@@ -74,7 +73,7 @@ pub fn handle_method_calls(
                     format_args!(
                         "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         $expected_str,
-                        format_datatype(infered)
+                        infered
                     )
                 );
             }
@@ -141,7 +140,7 @@ pub fn handle_method_calls(
                     "Invalid type",
                     format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        format_datatype(arg_infered)
+                        arg_infered
                     )
                 );
             }
@@ -172,7 +171,7 @@ pub fn handle_method_calls(
                     "Invalid type",
                     format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        format_datatype(infered)
+                        infered
                     )
                 );
             }
@@ -196,9 +195,7 @@ pub fn handle_method_calls(
                         "Invalid type",
                         format_args!(
                             "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            format_datatype(*array_type.clone()),
-                            format_datatype(infered),
-                            format_datatype(arg_infered)
+                            array_type, infered, arg_infered
                         )
                     );
                 }
@@ -211,7 +208,7 @@ pub fn handle_method_calls(
                     "Invalid type",
                     format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        format_datatype(arg_infered)
+                        arg_infered
                     )
                 );
             }
@@ -254,7 +251,7 @@ pub fn handle_method_calls(
                     "Invalid type",
                     format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        format_datatype(infered)
+                        infered
                     )
                 );
             }
@@ -278,7 +275,7 @@ pub fn handle_method_calls(
                     "Invalid type",
                     format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        format_datatype(infered)
+                        infered
                     )
                 );
             }
@@ -303,9 +300,7 @@ pub fn handle_method_calls(
                         "Invalid type",
                         format_args!(
                             "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            format_datatype(*array_type.clone()),
-                            format_datatype(infered),
-                            format_datatype(arg_infered)
+                            array_type, infered, arg_infered,
                         )
                     );
                 }
@@ -318,7 +313,7 @@ pub fn handle_method_calls(
                     "Invalid type",
                     format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        format_datatype(arg_infered)
+                        arg_infered,
                     )
                 );
             }
@@ -343,7 +338,7 @@ pub fn handle_method_calls(
                     "Invalid type",
                     format_args!(
                         "Expected Number, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        format_datatype(arg_infered)
+                        arg_infered,
                     )
                 );
             }
@@ -369,9 +364,7 @@ pub fn handle_method_calls(
                         "Invalid type",
                         format_args!(
                             "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            format_datatype(*array_type.clone()),
-                            format_datatype(infered),
-                            format_datatype(arg_infered)
+                            array_type, infered, arg_infered
                         )
                     );
                 }
@@ -445,8 +438,7 @@ pub fn handle_method_calls(
                         "Invalid type",
                         format_args!(
                             "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            format_datatype(*array_type),
-                            format_datatype(arg_infered)
+                            array_type, arg_infered
                         )
                     );
                 }
@@ -459,7 +451,7 @@ pub fn handle_method_calls(
                     "Invalid type",
                     format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        format_datatype(arg_infered)
+                        arg_infered
                     )
                 );
             }
@@ -483,7 +475,7 @@ pub fn handle_method_calls(
                     "Invalid type",
                     format_args!(
                         "Expected Number, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        format_datatype(infered)
+                        infered
                     )
                 );
             }

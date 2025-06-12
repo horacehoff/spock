@@ -6,7 +6,6 @@ use crate::method_calls::handle_method_calls;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::type_inference::{DataType, infer_type};
 use crate::types::is_indexable;
-use crate::util::{format_datatype, format_type_expr};
 use crate::{Data, Instr, Num, error};
 use crate::{parser_error, type_inference};
 use ariadne::*;
@@ -231,9 +230,9 @@ pub fn get_id(
                 "Invalid operation",
                 format_args!(
                     "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{}{color_bright_blue} {}{color_reset}{style_reset}",
-                    format_datatype(infer_type($l, var_types, fns,src)),
+                    infer_type($l, var_types, fns,src),
                     $op,
-                    format_datatype(infer_type($r, var_types, fns,src))
+                    infer_type($r, var_types, fns,src)
                 )
             );
         };
@@ -562,7 +561,8 @@ pub fn get_id(
             id
         }
         Expr::Neg(l, start, end) => {
-            if infer_type(l, var_types, fns, src) != DataType::Number {
+            let infered = infer_type(l, var_types, fns, src);
+            if infered != DataType::Number {
                 parser_error!(
                     src.0,
                     src.1,
@@ -571,7 +571,7 @@ pub fn get_id(
                     "Invalid operation",
                     format_args!(
                         "Cannot negate {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        format_type_expr(l),
+                        infered,
                     )
                 );
             }
@@ -1057,7 +1057,7 @@ pub fn parser_to_instr_set(
                             "Invalid type",
                             format_args!(
                                 "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                format_datatype(infered)
+                                infered,
                             )
                         );
                     }
@@ -1072,7 +1072,7 @@ pub fn parser_to_instr_set(
                             "Invalid type",
                             format_args!(
                                 "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a valid index",
-                                format_datatype(index_infered)
+                                index_infered
                             )
                         );
                     }
@@ -1123,7 +1123,7 @@ pub fn parser_to_instr_set(
                         "Invalid type",
                         format_args!(
                             "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            format_datatype(infered)
+                            infered
                         )
                     );
                 }
@@ -1153,7 +1153,7 @@ pub fn parser_to_instr_set(
                             "Invalid type",
                             format_args!(
                                 "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a valid index",
-                                format_datatype(infered)
+                                infered,
                             )
                         );
                     }
@@ -1216,8 +1216,7 @@ pub fn parser_to_instr_set(
                             "Invalid type",
                             format_args!(
                                 "Cannot insert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} in {}",
-                                format_datatype(elem_type),
-                                format_datatype(infered)
+                                elem_type, infered,
                             )
                         );
                     }
@@ -1230,7 +1229,7 @@ pub fn parser_to_instr_set(
                         "Invalid type",
                         format_args!(
                             "Cannot insert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} in String",
-                            format_datatype(elem_type)
+                            elem_type,
                         )
                     );
                 }

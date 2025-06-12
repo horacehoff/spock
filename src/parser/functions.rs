@@ -14,7 +14,6 @@ use crate::parser::parser_to_instr_set;
 use crate::parser_error;
 use crate::type_inference::DataType;
 use crate::type_inference::infer_type;
-use crate::util::format_datatype;
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
@@ -57,10 +56,10 @@ pub fn handle_functions(
                     "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                     expected
                         .into_iter()
-                        .map(|x| format_datatype(x.clone()).to_lowercase())
+                        .map(|x| x.to_string().to_lowercase())
                         .collect::<Vec<String>>()
                         .join(" or "),
-                    format_datatype(infered)
+                    infered.to_string()
                 )
             );
         }
@@ -82,7 +81,7 @@ pub fn handle_functions(
             "type" => {
                 check_args!(args, 1, "type", src.0, src.1, start, end);
                 let infered = infer_type(&args[0], var_types, fns, src);
-                consts.push(Data::String(Intern::from(format_datatype(infered))));
+                consts.push(Data::String(Intern::from(infered.to_string())));
             }
             "num" => {
                 check_args!(args, 1, "num", src.0, src.1, start, end);

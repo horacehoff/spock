@@ -1,6 +1,4 @@
-use crate::parser::Expr;
 use crate::type_inference::DataType;
-
 #[macro_export]
 macro_rules! error {
     ($x: expr) => {
@@ -20,29 +18,25 @@ macro_rules! print {
     }
 }
 
-pub fn format_datatype(x: DataType) -> String {
-    match x {
-        DataType::Number => String::from("Number"),
-        DataType::Bool => String::from("Bool"),
-        DataType::String => String::from("String"),
-        DataType::Array(array_type) => format!("Array<{}>", format_datatype(*array_type)),
-        DataType::Null => String::from("NULL"),
-        DataType::File => String::from("File"),
-        DataType::Poly(types) => types
-            .into_iter()
-            .map(|x| format_datatype(x))
-            .collect::<Vec<String>>()
-            .join("|"),
-    }
-}
-
-pub fn format_type_expr(x: &Expr) -> String {
-    match x {
-        Expr::Num(_) => String::from("Number"),
-        Expr::Bool(_) => String::from("Bool"),
-        Expr::String(_) => String::from("String"),
-        Expr::Array(_, _, _) => String::from("Array"),
-        _ => unreachable!(),
+impl std::fmt::Display for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DataType::Number => write!(f, "Number"),
+            DataType::Bool => write!(f, "Boolean"),
+            DataType::String => write!(f, "String"),
+            DataType::Array(array_type) => write!(f, "Array<{}>", array_type),
+            DataType::Null => write!(f, "Null"),
+            DataType::File => write!(f, "File"),
+            DataType::Poly(types) => write!(
+                f,
+                "{}",
+                types
+                    .into_iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>()
+                    .join("|")
+            ),
+        }
     }
 }
 
