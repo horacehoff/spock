@@ -1,7 +1,7 @@
 use crate::display::format_data;
 use crate::parser::parse;
 use ariadne::*;
-use builtin_funcs::FUNCS;
+use builtin_funcs::*;
 use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
@@ -236,14 +236,6 @@ pub fn execute(
                     consts[dest as usize] = Data::Number(parent * child);
                 }}
             }
-            // Instr::Mul(o1, o2, dest) => unsafe {
-            //     if let (Data::Number(parent), Data::Number(child)) = (
-            //         *consts.get_unchecked(o1 as usize),
-            //         *consts.get_unchecked(o2 as usize),
-            //     ) {
-            //         *consts.get_unchecked_mut(dest as usize) = Data::Number(parent * child);
-            //     }
-            // },
             Instr::Div(o1, o2, dest) => {
                 if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
                     consts[dest as usize] = Data::Number(parent / child);
@@ -427,7 +419,19 @@ pub fn execute(
             }
             Instr::StoreFuncArg(id) => func_args.push(id),
             Instr::CallFunc(fctn_id, tgt, dest) => {
-                FUNCS[fctn_id as usize](
+                // FUNCS[fctn_id as usize](
+                //     tgt,
+                //     dest,
+                //     consts,
+                //     func_args,
+                //     arrays,
+                //     instr_src,
+                //     src,
+                //     filename,
+                //     Instr::CallFunc(fctn_id, tgt, dest),
+                // );
+                builtin_funcs_add!(
+                    fctn_id,
                     tgt,
                     dest,
                     consts,
@@ -436,7 +440,7 @@ pub fn execute(
                     instr_src,
                     src,
                     filename,
-                    Instr::CallFunc(fctn_id, tgt, dest),
+                    Instr::CallFunc(fctn_id, tgt, dest)
                 );
             }
             // takes tgt from consts, moves it to dest-th array at idx-th index
@@ -621,16 +625,20 @@ pub fn execute(
                     }}
                 }
                 Data::Array(array_id) => {
-                    // let array = arrays[array_id].to_vec();
-                    // let split = array.split(|x| x == &consts[sep as usize]);
-                    // let base_id = arrays.len() as u16;
-                    // arrays.extend(
-                    //     split
-                    //         .enumerate()
-                    //         .map(|(i, x)| (base_id + i as u16, x.to_vec())),
-                    // );
-                    // let id = arrays.insert((base_id..arrays.len() as u16).map(Data::Array).collect());
-                    // consts[dest as usize] = Data::Array(id);
+                    let base_id = arrays.len() as u16;
+                    // get the array and split it
+                    arrays[array_id]
+                        .to_vec()
+                        .split(|x| x == &consts[sep as usize])
+                        .for_each(|x| {
+                            arrays.insert(x.to_vec());
+                        });
+                    let id = arrays.insert(
+                        (base_id..arrays.len() as u16)
+                            .map(|x| Data::Array(x as usize))
+                            .collect::<Vec<Data>>(),
+                    );
+                    consts[dest as usize] = Data::Array(id);
                 }
                 _ => unreachable!(),
             },

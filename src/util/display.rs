@@ -52,25 +52,6 @@ pub fn format_expr(x: &Expr) -> String {
     }
 }
 
-pub fn format_err(x: Data, arrays: &ArrayStorage) -> String {
-    match x {
-        Data::Number(num) => num.to_string(),
-        Data::Bool(bool) => bool.to_string(),
-        Data::String(str) => format!("\"{str}\""),
-        Data::Array(a) => concat_string!(
-            "[",
-            arrays[a]
-                .iter()
-                .map(|x| format_err(*x, arrays))
-                .collect::<Vec<_>>()
-                .join(","),
-            "]"
-        ),
-        Data::Null => String::from("NULL"),
-        Data::File(path) => format!("FILE({path:?})"),
-    }
-}
-
 fn token_recognition(token: String) -> String {
     match token.as_str() {
         "r#\"[a-zA-Z_]+\"#" => String::from("identifier"),
