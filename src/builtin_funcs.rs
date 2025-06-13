@@ -15,44 +15,56 @@ macro_rules! builtin_error {
     };
 }
 
-pub fn uppercase(tgt: u16, dest: u16, consts: &mut [Data]) {
-    if_likely! { let Data::String(str) = consts[tgt as usize] => {
-        consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
-    }}
+#[macro_export]
+macro_rules! uppercase {
+    ($tgt: expr, $dest: expr, $consts: expr) => {
+        if_likely! { let Data::String(str) = $consts[$tgt as usize] => {
+            $consts[$dest as usize] = Data::String(Intern::from(str.to_uppercase()))
+        }}
+    };
 }
 
-pub fn lowercase(tgt: u16, dest: u16, consts: &mut [Data]) {
-    if_likely! {let Data::String(str) = consts[tgt as usize] => {
-        consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
-    }}
+#[macro_export]
+macro_rules! lowercase {
+    ($tgt: expr, $dest: expr, $consts: expr) => {
+        if_likely! {let Data::String(str) = $consts[$tgt as usize] => {
+            $consts[$dest as usize] = Data::String(Intern::from(str.to_lowercase()))
+        }}
+    };
 }
 
-pub fn contains(
-    tgt: u16,
-    dest: u16,
-    consts: &mut [Data],
-    args: &mut Vec<u16>,
-    arrays: &mut ArrayStorage,
-) {
-    match consts[tgt as usize] {
-        Data::String(str) => {
-            let arg = args.swap_remove(0);
-            if_likely! { let Data::String(arg) = consts[arg as usize] => {
-                consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
-            }}
+#[macro_export]
+macro_rules! contains {
+    (
+    $tgt: expr,
+    $dest: expr,
+    $consts: expr,
+    $args: expr,
+    $arrays: expr
+) => {
+        match $consts[$tgt as usize] {
+            Data::String(str) => {
+                let arg = $args.swap_remove(0);
+                if_likely! { let Data::String(arg) = $consts[arg as usize] => {
+                    $consts[$dest as usize] = Data::Bool(str.contains(arg.as_str()))
+                }}
+            }
+            Data::Array(x) => {
+                let arg = $consts[$args.swap_remove(0) as usize];
+                $consts[$dest as usize] = Data::Bool($arrays[x].contains(&arg))
+            }
+            _ => unreachable!(),
         }
-        Data::Array(x) => {
-            let arg = consts[args.swap_remove(0) as usize];
-            consts[dest as usize] = Data::Bool(arrays[x].contains(&arg))
-        }
-        _ => unreachable!(),
-    }
+    };
 }
 
-pub fn trim(tgt: u16, dest: u16, consts: &mut [Data]) {
-    if_likely! { let Data::String(str) = consts[tgt as usize] => {
-        consts[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
-    }}
+#[macro_export]
+macro_rules! trim {
+    ($tgt: expr, $dest: expr, $consts: expr) => {
+        if_likely! { let Data::String(str) = $consts[$tgt as usize] => {
+            $consts[$dest as usize] = Data::String(Intern::from(str.trim().to_string()))
+        }}
+    };
 }
 
 pub fn trim_sequence(tgt: u16, dest: u16, consts: &mut [Data], args: &mut Vec<u16>) {
@@ -561,10 +573,10 @@ macro_rules! builtin_funcs_add {
     $filename: expr,
     $call: expr) => {
         match $id {
-            0 => uppercase($tgt, $dest, $consts),
-            1 => lowercase($tgt, $dest, $consts),
-            2 => contains($tgt, $dest, $consts, $args, $arrays),
-            3 => trim($tgt, $dest, $consts),
+            0 => uppercase!($tgt, $dest, $consts),
+            1 => lowercase!($tgt, $dest, $consts),
+            2 => contains!($tgt, $dest, $consts, $args, $arrays),
+            3 => trim!($tgt, $dest, $consts),
             4 => trim_sequence($tgt, $dest, $consts, $args),
             5 => index(
                 $tgt, $dest, $consts, $args, $arrays, $instr_src, $src, $filename, $call,
