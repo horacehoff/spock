@@ -19,6 +19,7 @@ mod display;
 mod functions;
 #[path = "./parser/method_calls.rs"]
 mod method_calls;
+#[path = "./parser/optimizations.rs"]
 mod optimizations;
 #[path = "./parser/parser.rs"]
 mod parser;
