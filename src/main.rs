@@ -1,7 +1,6 @@
 use crate::display::format_data;
 use crate::parser::parse;
 use ariadne::*;
-use builtin_funcs::*;
 use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
@@ -14,7 +13,6 @@ use std::fs::File;
 use std::io::Write;
 use std::time::Instant;
 
-mod builtin_funcs;
 #[path = "./util/display.rs"]
 mod display;
 #[path = "./parser/functions.rs"]
@@ -156,7 +154,7 @@ pub type ArrayStorage = Slab<Vec<Data>>;
 pub fn execute(
     instructions: &[Instr],
     consts: &mut [Data],
-    func_args: &mut Vec<u16>,
+    args: &mut Vec<u16>,
     arrays: &mut ArrayStorage,
     instr_src: &[(Instr, usize, usize)],
     src: &str,
@@ -176,6 +174,8 @@ pub fn execute(
     while i < instructions.len() {
         // println!("{:?}", instructions[i]);
         match instructions[i] {
+            Instr::Break(_) | Instr::Continue(_) => unreachable!(),
+
             Instr::Jmp(size) => {
                 i += size as usize;
                 continue;
@@ -417,32 +417,7 @@ pub fn execute(
                     consts[dest as usize] = Data::String(Intern::from(line.trim().to_string()));
                 }}
             }
-            Instr::StoreFuncArg(id) => func_args.push(id),
-            Instr::CallFunc(fctn_id, tgt, dest) => {
-                // FUNCS[fctn_id as usize](
-                //     tgt,
-                //     dest,
-                //     consts,
-                //     func_args,
-                //     arrays,
-                //     instr_src,
-                //     src,
-                //     filename,
-                //     Instr::CallFunc(fctn_id, tgt, dest),
-                // );
-                builtin_funcs_add!(
-                    fctn_id,
-                    tgt,
-                    dest,
-                    consts,
-                    func_args,
-                    arrays,
-                    instr_src,
-                    src,
-                    filename,
-                    Instr::CallFunc(fctn_id, tgt, dest)
-                );
-            }
+            Instr::StoreFuncArg(id) => args.push(id),
             // takes tgt from consts, moves it to dest-th array at idx-th index
             Instr::ArrayMov(tgt, dest, idx) => {
                 arrays.get_mut(dest as usize).unwrap()[idx as usize] = consts[tgt as usize];
@@ -647,7 +622,191 @@ pub fn execute(
                         arrays.get_mut(array as usize).unwrap().remove(idx as usize);
                 }}
             }
-            Instr::Break(_) | Instr::Continue(_) => unreachable!(),
+            // uppercase
+            Instr::CallFunc(0, tgt, dest) => {
+                if_likely! { let Data::String(str) = consts[tgt as usize] => {
+                    consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
+                }}
+            }
+            // lowercase
+            Instr::CallFunc(1, tgt, dest) => {
+                if_likely! {let Data::String(str) = consts[tgt as usize] => {
+                    consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
+                }}
+            }
+            // contains
+            Instr::CallFunc(2, tgt, dest) => match consts[tgt as usize] {
+                Data::String(str) => {
+                    let arg = args.swap_remove(0);
+                    if_likely! { let Data::String(arg) = consts[arg as usize] => {
+                        consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
+                    }}
+                }
+                Data::Array(x) => {
+                    let arg = consts[args.swap_remove(0) as usize];
+                    consts[dest as usize] = Data::Bool(arrays[x].contains(&arg))
+                }
+                _ => unreachable!(),
+            },
+            // trim
+            Instr::CallFunc(3, tgt, dest) => {
+                if_likely! { let Data::String(str) = consts[tgt as usize] => {
+                    consts[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
+                }}
+            }
+            // trim_sequence
+            Instr::CallFunc(4, tgt, dest) => {
+                if_likely! { let Data::String(str) = consts[tgt as usize] => {
+                    let arg = args.swap_remove(0);
+                    if_likely!{ let Data::String(arg) = consts[arg as usize] => {
+                        let chars: Vec<char> = arg.chars().collect();
+                        consts[dest as usize] =
+                            Data::String(Intern::from(str.trim_matches(&chars[..]).to_string()));
+                    }}
+                }}
+            }
+            // index
+            Instr::CallFunc(5, tgt, dest) => match consts[tgt as usize] {
+                Data::String(str) => {
+                    let arg = consts[args.swap_remove(0) as usize];
+                    if_likely! { let Data::String(arg) = arg => {
+                        consts[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
+                            fatal_error!(Instr::CallFunc(5, tgt, dest),"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
+                        }) as Num);
+                    }}
+                }
+                Data::Array(x) => {
+                    let arg = consts[args.swap_remove(0) as usize];
+                    consts[dest as usize] = Data::Number(arrays[x].iter().position(|x| x == &arg).unwrap_or_else(|| {
+                            fatal_error!(Instr::CallFunc(5, tgt, dest), "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
+                        }) as Num);
+                }
+                _ => unreachable!(),
+            },
+            // is_num
+            Instr::CallFunc(6, tgt, dest) => {
+                if_likely! { let Data::String(str) = consts[tgt as usize] => {
+                    consts[dest as usize] = Data::Bool(str.parse::<f64>().is_ok())
+                }}
+            }
+            // trim_left
+            Instr::CallFunc(7, tgt, dest) => {
+                if_likely! { let Data::String(str) = consts[tgt as usize] => {
+                    consts[dest as usize] = Data::String(Intern::from(str.trim_start().to_string()));
+                }}
+            }
+            // trim_right
+            Instr::CallFunc(8, tgt, dest) => {
+                if_likely! { let Data::String(str) = consts[tgt as usize] => {
+                    consts[dest as usize] = Data::String(Intern::from(str.trim_end().to_string()));
+                }}
+            }
+            // trim_sequence_left
+            Instr::CallFunc(9, tgt, dest) => {
+                if_likely! { let Data::String(str) = consts[tgt as usize] => {
+                    let arg = args.swap_remove(0);
+                    if_likely!{ let Data::String(arg) = consts[arg as usize] => {
+                        let chars: Vec<char> = arg.chars().collect();
+                        consts[dest as usize] =
+                            Data::String(Intern::from(str.trim_start_matches(&chars[..]).to_string()));
+                    }}
+                }}
+            }
+            // trim_sequence_right
+            Instr::CallFunc(10, tgt, dest) => {
+                if_likely! { let Data::String(str) = consts[tgt as usize] => {
+                    let arg = consts[args.swap_remove(0) as usize];
+                    if_likely!{ let Data::String(arg) = arg => {
+                        let chars: Vec<char> = arg.chars().collect();
+                        consts[dest as usize] =
+                            Data::String(Intern::from(str.trim_end_matches(&chars[..]).to_string()));
+                    }}
+                }}
+            }
+            // rindex
+            Instr::CallFunc(11, tgt, dest) => match consts[tgt as usize] {
+                Data::String(str) => {
+                    let arg = consts[args.swap_remove(0) as usize];
+                    if_likely! { let Data::String(arg) = arg => {
+                        consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
+                            fatal_error!(Instr::CallFunc(11, tgt, dest), "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
+                        }) as Num);
+                    }}
+                }
+                Data::Array(x) => {
+                    let arg = consts[args.swap_remove(0) as usize];
+                    consts[dest as usize] = Data::Number(arrays[x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
+                            fatal_error!(Instr::CallFunc(11, tgt, dest),"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
+                        }) as Num);
+                }
+                _ => unreachable!(),
+            },
+            // repeat
+            Instr::CallFunc(12, tgt, dest) => match consts[tgt as usize] {
+                Data::String(str) => {
+                    let arg = args.swap_remove(0);
+                    if_likely! { let Data::Number(arg) = consts[arg as usize] => {
+                        consts[dest as usize] = Data::String(Intern::from(str.repeat(arg as usize)))
+                    }}
+                }
+                Data::Array(x) => {
+                    let arg = args.swap_remove(0);
+                    if_likely! { let Data::Number(arg) = consts[arg as usize] => {
+                        consts[dest as usize] = Data::Array(arrays.insert(arrays[x].repeat(arg as usize)));
+                    }}
+                }
+                _ => unreachable!(),
+            },
+            // round
+            Instr::CallFunc(13, tgt, dest) => {
+                if_likely! {let Data::Number(num) = consts[tgt as usize] => {
+                    consts[dest as usize] = Data::Number(is_float!(num.round(),num));
+                }}
+            }
+            // abs
+            Instr::CallFunc(14, tgt, dest) => {
+                if_likely! {let Data::Number(num) = consts[tgt as usize] => {
+                    consts[dest as usize] = Data::Number(is_float!(num.abs(),num))
+                }}
+            }
+            // read
+            Instr::CallFunc(15, tgt, dest) => {
+                if_likely! {let Data::File(path) = consts[tgt as usize] => {
+                    consts[dest as usize] = Data::String(Intern::from(std::fs::read_to_string(path.as_str()).unwrap_or_else(|_| {
+                        fatal_error!(Instr::CallFunc(15, tgt, dest), "File does not exist or cannot be read",format_args!("Cannot read file {color_red}{path}{color_reset}"));
+                    })))
+                }}
+            }
+            // write
+            Instr::CallFunc(16, tgt, dest) => {
+                if_likely! {let Data::File(path) = consts[tgt as usize] => {
+                    if_likely!{let Data::String(contents) = consts[args.swap_remove(0) as usize] => {
+                        if_likely!{let Data::Bool(truncate) = consts[args.swap_remove(0) as usize] => {
+                            fs::OpenOptions::new()
+                                .write(true)
+                                .truncate(truncate)
+                                .open(path.as_str()).unwrap_or_else(|_| {
+                                    fatal_error!(Instr::CallFunc(16, tgt, dest),"File does not exist or cannot be opened",format_args!("Cannot open file {color_red}{path}{color_reset}"));
+                                }).write_all(contents.as_bytes()).unwrap_or_else(|_| {
+                                    fatal_error!(Instr::CallFunc(16, tgt, dest),"File does not exist or cannot be written to",format_args!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
+                            });
+                        }}
+                    }}
+                }}
+            }
+            // revrese
+            Instr::CallFunc(17, tgt, dest) => match consts[tgt as usize] {
+                Data::Array(id) => {
+                    arrays.get_mut(id).unwrap().reverse();
+                    consts[dest as usize] = Data::Array(id)
+                }
+                Data::String(str) => {
+                    consts[dest as usize] =
+                        Data::String(Intern::from(str.chars().rev().collect::<String>()))
+                }
+                _ => unreachable!(),
+            },
+            Instr::CallFunc(_, _, _) => unreachable!(),
         }
         i += 1;
     }
