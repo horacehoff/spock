@@ -187,7 +187,7 @@ fn track_returns(
     track_condition: bool,
 ) -> Vec<DataType> {
     let mut return_types: Vec<DataType> = Vec::new();
-    let mut complete_return_condition = true;
+    // let mut complete_return_condition = true;
     for content in content {
         match content {
             Expr::Condition(_, code, _, _) => {
