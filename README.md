@@ -28,7 +28,7 @@ git clone https://github.com/horacehoff/spock
 ```
 3. Run/Build Spock
 ```diff
-+ Using --release is very recommended, as it's much faster and doesn't print Spock debug information
++ Using --release is very recommended on x86, as it's much faster and doesn't print Spock debug information
 cargo run --release
 cargo build --release
 ```
