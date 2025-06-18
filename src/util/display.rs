@@ -41,10 +41,7 @@ pub fn format_expr(x: &Expr) -> String {
         }
         Expr::Array(a, _, _) => concat_string!(
             "[",
-            a.iter()
-                .map(|x| format_expr(x))
-                .collect::<Vec<_>>()
-                .join(","),
+            a.iter().map(format_expr).collect::<Vec<_>>().join(","),
             "]"
         ),
         Expr::Var(x, _, _) => x.to_string(),

@@ -1,23 +1,23 @@
-use crate::parser::{Expr, Function, FunctionState, get_id};
+use crate::parser::{Expr, Function, FunctionState, ParserData, get_id};
 use crate::type_inference::DataType;
 use crate::{ArrayStorage, Data, Instr};
 use internment::Intern;
 
 pub fn while_loop_summation(
     output: &mut Vec<Instr>,
-    consts: &mut Vec<Data>,
     v: &mut Vec<(Intern<String>, u16)>,
-    var_types: &mut Vec<(Intern<String>, DataType)>,
-    fns: &mut Vec<Function>,
-    arrs: &mut ArrayStorage,
-    fn_state: Option<&FunctionState>,
-    id: u16,
-    // (filename, contents)
-    src: (&str, &str),
-    instr_src: &mut Vec<(Instr, usize, usize)>,
+    (var_types, consts, fns, fn_state, arrays, block_id, src, instr_src): ParserData,
     condition: &Expr,
     code: &[Expr],
 ) -> bool {
+    macro_rules! parser_data {
+        () => {
+            (
+                var_types, consts, fns, fn_state, arrays, block_id, src, instr_src,
+            )
+        };
+    }
+
     if code.len() == 1 {
         if let Expr::VarAssign(x, increment, _, _) = &code[0] {
             if let Expr::Inf(a, b, _, _) = condition {
@@ -28,14 +28,8 @@ pub fn while_loop_summation(
                                 // most simple option
                                 if add_var == *x {
                                     if *increment == Expr::Num(1.0) {
-                                        let limit_id = get_id(
-                                            b, v, var_types, consts, output, fns, arrs, fn_state,
-                                            id, src, instr_src,
-                                        );
-                                        let var_id = get_id(
-                                            a, v, var_types, consts, output, fns, arrs, fn_state,
-                                            id, src, instr_src,
-                                        );
+                                        let limit_id = get_id(b, v, parser_data!(), output);
+                                        let var_id = get_id(a, v, parser_data!(), output);
                                         output.push(Instr::Mov(limit_id, var_id));
                                         return true;
                                     } else if let Expr::Num(increment_num) = *increment {

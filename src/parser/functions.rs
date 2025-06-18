@@ -9,6 +9,7 @@ use crate::check_args_range;
 use crate::display::format_expr;
 use crate::get_id;
 use crate::parser::Expr;
+use crate::parser::ParserData;
 use crate::parser::move_to_id;
 use crate::parser::parser_to_instr_set;
 use crate::parser_error;
@@ -21,14 +22,7 @@ use internment::Intern;
 pub fn handle_functions(
     output: &mut Vec<Instr>,
     v: &mut Vec<(Intern<String>, u16)>,
-    var_types: &mut Vec<(Intern<String>, DataType)>,
-    consts: &mut Vec<Data>,
-    fns: &mut Vec<Function>,
-    fn_state: Option<&FunctionState>,
-    arrs: &mut ArrayStorage,
-    id: u16,
-    src: (&str, &str),
-    instr_src: &mut Vec<(Instr, usize, usize)>,
+    (var_types, consts, fns, fn_state, arrays, block_id, src, instr_src): ParserData,
 
     // method call data
     args: &[Expr],
@@ -37,6 +31,14 @@ pub fn handle_functions(
     end: usize,
     args_indexes: &[(usize, usize)],
 ) -> Option<u16> {
+    macro_rules! parser_data {
+        () => {
+            (
+                var_types, consts, fns, fn_state, arrays, block_id, src, instr_src,
+            )
+        };
+    }
+
     let mut check_type = |arg: usize, expected: &[DataType]| {
         let infered = infer_type(&args[arg], var_types, fns, src);
         if !{
@@ -55,7 +57,7 @@ pub fn handle_functions(
                 format_args!(
                     "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                     expected
-                        .into_iter()
+                        .iter()
                         .map(|x| x.to_string().to_lowercase())
                         .collect::<Vec<String>>()
                         .join(" or "),
@@ -72,9 +74,7 @@ pub fn handle_functions(
         match name {
             "print" => {
                 for arg in args {
-                    let id = get_id(
-                        arg, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
-                    );
+                    let id = get_id(arg, v, parser_data!(), output);
                     output.push(Instr::Print(id));
                 }
             }
@@ -86,27 +86,21 @@ pub fn handle_functions(
             "num" => {
                 check_args!(args, 1, "num", src.0, src.1, start, end);
                 check_type(0, &[DataType::String, DataType::Number]);
-                let id = get_id(
-                    &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
-                );
+                let id = get_id(&args[0], v, parser_data!(), output);
                 consts.push(Data::Null);
                 instr_src.push((Instr::Num(id, (consts.len() - 1) as u16), start, end));
                 output.push(Instr::Num(id, (consts.len() - 1) as u16));
             }
             "str" => {
                 check_args!(args, 1, "str", src.0, src.1, start, end);
-                let id = get_id(
-                    &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
-                );
+                let id = get_id(&args[0], v, parser_data!(), output);
                 consts.push(Data::Null);
                 output.push(Instr::Str(id, (consts.len() - 1) as u16));
             }
             "bool" => {
                 check_args!(args, 1, "bool", src.0, src.1, start, end);
                 check_type(0, &[DataType::String, DataType::Bool]);
-                let id = get_id(
-                    &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
-                );
+                let id = get_id(&args[0], v, parser_data!(), output);
                 consts.push(Data::Null);
                 instr_src.push((Instr::Bool(id, (consts.len() - 1) as u16), start, end));
                 output.push(Instr::Bool(id, (consts.len() - 1) as u16));
@@ -118,10 +112,7 @@ pub fn handle_functions(
                     consts.push(Data::String(Intern::from(String::new())));
                     (consts.len() - 1) as u16
                 } else {
-                    get_id(
-                        &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src,
-                        instr_src,
-                    )
+                    get_id(&args[0], v, parser_data!(), output)
                 };
                 consts.push(Data::Null);
                 output.push(Instr::Input(id, (consts.len() - 1) as u16));
@@ -130,10 +121,7 @@ pub fn handle_functions(
                 check_args_range!(args, 1, 2, "range", src.0, src.1, start, end);
                 if args.len() == 1 {
                     check_type(0, &[DataType::Number]);
-                    let id_x = get_id(
-                        &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src,
-                        instr_src,
-                    );
+                    let id_x = get_id(&args[0], v, parser_data!(), output);
                     consts.push(Data::Number(0.0 as Num));
                     consts.push(Data::Null);
                     output.push(Instr::Range(
@@ -144,14 +132,8 @@ pub fn handle_functions(
                 } else {
                     check_type(0, &[DataType::Number]);
                     check_type(1, &[DataType::Number]);
-                    let id_x = get_id(
-                        &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src,
-                        instr_src,
-                    );
-                    let id_y = get_id(
-                        &args[1], v, var_types, consts, output, fns, arrs, fn_state, id, src,
-                        instr_src,
-                    );
+                    let id_x = get_id(&args[0], v, parser_data!(), output);
+                    let id_y = get_id(&args[1], v, parser_data!(), output);
                     consts.push(Data::Null);
                     output.push(Instr::Range(id_x, id_y, (consts.len() - 1) as u16));
                 }
@@ -159,9 +141,7 @@ pub fn handle_functions(
             "floor" => {
                 check_args!(args, 1, "floor", src.0, src.1, start, end);
                 check_type(0, &[DataType::Number]);
-                let id = get_id(
-                    &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
-                );
+                let id = get_id(&args[0], v, parser_data!(), output);
                 consts.push(Data::Null);
                 instr_src.push((Instr::Num(id, (consts.len() - 1) as u16), start, end));
                 output.push(Instr::Num(id, (consts.len() - 1) as u16));
@@ -196,11 +176,10 @@ pub fn handle_functions(
                 dbg!(&infered_arg_types);
 
                 let mut fn_loc_data = if !fn_data.is_empty() {
-                    if let Some(x) = fn_data.iter().find(|(_, _, t)| t == &infered_arg_types) {
-                        Some(x.clone())
-                    } else {
-                        None
-                    }
+                    fn_data
+                        .iter()
+                        .find(|(_, _, t)| t == &infered_arg_types)
+                        .cloned()
                 } else {
                     None
                 };
@@ -210,8 +189,6 @@ pub fn handle_functions(
 
                 if fn_data.is_empty() || fn_loc_data.is_none() {
                     println!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
-                    let loc;
-                    let args_loc: Vec<u16>;
 
                     let mut vars: Vec<(Intern<String>, u16)> = Vec::new();
                     let mut recorded_types: Vec<usize> = Vec::new();
@@ -223,11 +200,11 @@ pub fn handle_functions(
                         var_types.push((Intern::from(x.clone()), infered));
                         dbg!(&var_types);
                     }
-                    args_loc = vars.iter().map(|(_, x)| *x).collect::<Vec<u16>>();
+                    let args_loc = vars.iter().map(|(_, x)| *x).collect::<Vec<u16>>();
                     output.push(Instr::Jmp(0));
                     let jump_idx = output.len() - 1;
                     let fn_start = output.len();
-                    loc = fn_start as u16;
+                    let loc = fn_start as u16;
 
                     fn_loc_data = Some((loc, args_loc.clone(), infered_arg_types.clone()));
                     fns.get_mut(function_id)
@@ -235,18 +212,7 @@ pub fn handle_functions(
                         .3
                         .push((loc, args_loc, infered_arg_types));
 
-                    let parsed = parser_to_instr_set(
-                        fn_code,
-                        &mut vars,
-                        var_types,
-                        consts,
-                        &mut *fns,
-                        Some(&(true, fn_name.to_string())),
-                        arrs,
-                        id,
-                        src,
-                        instr_src,
-                    );
+                    let parsed = parser_to_instr_set(fn_code, &mut vars, parser_data!());
                     println!("PARSED IS {parsed:?}");
                     output.extend(parsed);
                     output.push(Instr::JmpLoad);
@@ -264,10 +230,7 @@ pub fn handle_functions(
                     let fn_args = fn_args.1.to_vec();
                     for (x, tgt_id) in fn_args.iter().enumerate() {
                         let start_len = output.len();
-                        let arg_id = get_id(
-                            &args[x], v, var_types, consts, output, fns, arrs, fn_state, id, src,
-                            instr_src,
-                        );
+                        let arg_id = get_id(&args[x], v, parser_data!(), output);
                         println!("MOVING ARG TO {tgt_id}");
                         if output.len() != start_len {
                             move_to_id(output, *tgt_id);
@@ -295,18 +258,13 @@ pub fn handle_functions(
             "open" => {
                 check_args_range!(args, 1, 2, "open", src.0, src.1, start, end);
                 consts.push(Data::Null);
-                let arg_id = get_id(
-                    &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
-                );
+                let arg_id = get_id(&args[0], v, parser_data!(), output);
 
                 let second_arg = if args.len() == 1 {
                     consts.push(Data::Bool(false));
                     (consts.len() - 1) as u16
                 } else {
-                    get_id(
-                        &args[1], v, var_types, consts, output, fns, arrs, fn_state, id, src,
-                        instr_src,
-                    )
+                    get_id(&args[1], v, parser_data!(), output)
                 };
 
                 instr_src.push((
@@ -318,9 +276,7 @@ pub fn handle_functions(
             }
             "delete" => {
                 check_args!(args, 1, "delete", src.0, src.1, start, end);
-                let arg_id = get_id(
-                    &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
-                );
+                let arg_id = get_id(&args[0], v, parser_data!(), output);
                 instr_src.push((Instr::IoDelete(arg_id), start, end));
                 output.push(Instr::IoDelete(arg_id));
             }

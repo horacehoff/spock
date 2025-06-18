@@ -8,6 +8,7 @@ use crate::check_args_range;
 use crate::display::format_expr;
 use crate::get_id;
 use crate::parser::Expr;
+use crate::parser::ParserData;
 use crate::parser_error;
 use crate::type_inference::DataType;
 use crate::type_inference::infer_type;
@@ -18,15 +19,8 @@ use internment::Intern;
 pub fn handle_method_calls(
     output: &mut Vec<Instr>,
     v: &mut Vec<(Intern<String>, u16)>,
-    var_types: &mut Vec<(Intern<String>, DataType)>,
-    consts: &mut Vec<Data>,
-    fns: &mut Vec<Function>,
-    fn_state: Option<&FunctionState>,
-    // arrays
-    arrs: &mut ArrayStorage,
-    id: u16,
-    src: (&str, &str),
-    instr_src: &mut Vec<(Instr, usize, usize)>,
+    (var_types, consts, fns, fn_state, arrays, block_id, src, instr_src): ParserData,
+
     obj: &Expr,
     args: &[Expr],
     namespace: &[String],
@@ -34,22 +28,26 @@ pub fn handle_method_calls(
     end: usize,
     args_indexes: &[(usize, usize)],
 ) {
+    macro_rules! parser_data {
+        () => {
+            (
+                var_types, consts, fns, fn_state, arrays, block_id, src, instr_src,
+            )
+        };
+    }
+
     let len = namespace.len() - 1;
     let name = namespace[len].as_str();
     // not in use for now
     let namespace = &namespace[0..len];
 
     let infered = infer_type(obj, var_types, fns, src);
-    let id = get_id(
-        obj, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
-    );
+    let id = get_id(obj, v, parser_data!(), output);
 
     macro_rules! add_args {
         () => {
             for arg in args {
-                let arg_id = get_id(
-                    &arg, v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
-                );
+                let arg_id = get_id(&arg, v, parser_data!(), output);
                 output.push(Instr::StoreFuncArg(arg_id));
             }
         };
@@ -370,9 +368,7 @@ pub fn handle_method_calls(
                 }
             }
 
-            let arg_id = get_id(
-                &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
-            );
+            let arg_id = get_id(&args[0], v, parser_data!(), output);
             output.push(Instr::Push(id, arg_id));
         }
         "sqrt" => {
@@ -456,9 +452,7 @@ pub fn handle_method_calls(
                 );
             }
 
-            let arg_id = get_id(
-                &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
-            );
+            let arg_id = get_id(&args[0], v, parser_data!(), output);
             consts.push(Data::Null);
             output.push(Instr::Split(id, arg_id, (consts.len() - 1) as u16));
         }
@@ -480,9 +474,7 @@ pub fn handle_method_calls(
                 );
             }
 
-            let arg_id = get_id(
-                &args[0], v, var_types, consts, output, fns, arrs, fn_state, id, src, instr_src,
-            );
+            let arg_id = get_id(&args[0], v, parser_data!(), output);
             instr_src.push((Instr::Remove(id, arg_id), start, end));
             output.push(Instr::Remove(id, arg_id));
         }

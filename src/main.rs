@@ -199,7 +199,7 @@ pub fn execute(
                 let to_return = return_ids.pop().unwrap();
                 consts[to_return as usize] = consts[tgt as usize];
                 println!("IM RETURNING {:?}", consts[to_return as usize]);
-                i = jmps.pop().unwrap() as usize;
+                i = jmps.pop().unwrap();
             }
             Instr::Cmp(cond_id, size) => {
                 if let Data::Bool(false) = consts[cond_id as usize] {
