@@ -111,6 +111,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         .unwrap()
     {
         Instr::Mov(_, y)
+        | Instr::JmpSave(_, y)
         | Instr::Add(_, _, y)
         | Instr::ArrayAdd(_, _, y)
         | Instr::StrAdd(_, _, y)
@@ -152,6 +153,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
 fn get_tgt_id(x: Instr) -> Option<u16> {
     match x {
         Instr::Mov(_, y)
+        | Instr::JmpSave(_, y)
         | Instr::Add(_, _, y)
         | Instr::ArrayAdd(_, _, y)
         | Instr::StrAdd(_, _, y)
@@ -178,7 +180,6 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::ArrayGet(_, _, y)
         | Instr::ArrayStrGet(_, _, y)
         | Instr::Range(_, _, y)
-        // | Instr::Type(_, y)
         | Instr::IoOpen(_, y, _)
         | Instr::Floor(_, y)
         | Instr::TheAnswer(y)
@@ -791,14 +792,14 @@ fn parse_loop_flow_control(
 }
 
 fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_length: u16) {
-    loop_code.iter_mut().enumerate().for_each(|x| {
-        if let Instr::Break(break_id) = x.1 {
+    loop_code.iter_mut().enumerate().for_each(|(i, x)| {
+        if let Instr::Break(break_id) = x {
             if *break_id == loop_id {
-                *x.1 = Instr::Jmp(code_length - x.0 as u16);
+                *x = Instr::Jmp(code_length - i as u16);
             }
-        } else if let Instr::Continue(continue_id) = x.1 {
+        } else if let Instr::Continue(continue_id) = x {
             if *continue_id == loop_id {
-                *x.1 = Instr::Jmp(code_length - x.0 as u16 - 3);
+                *x = Instr::Jmp(code_length - i as u16 - 3);
             }
         }
     });

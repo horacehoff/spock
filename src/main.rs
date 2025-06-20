@@ -194,6 +194,7 @@ pub fn execute(
             }
             Instr::JmpLoad => {
                 i = jmps.pop().unwrap();
+                continue;
             }
             Instr::Return(tgt) => {
                 let to_return = return_ids.pop().unwrap();
