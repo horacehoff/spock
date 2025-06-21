@@ -420,6 +420,13 @@ pub fn infer_type(
             _ => todo!(),
         },
         Expr::FunctionCall(args, namespace, start, end, _) => {
+            if namespace.len() == 1 && &namespace[0] == "io" {
+                match namespace.last().unwrap().as_str() {
+                    "open" => return DataType::File,
+                    "delete" => return DataType::Null,
+                    _ => unreachable!(),
+                }
+            }
             match namespace.last().unwrap().as_str() {
                 "print" => DataType::Null,
                 "type" => DataType::String,

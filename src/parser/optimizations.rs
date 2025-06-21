@@ -1,6 +1,5 @@
-use crate::parser::{Expr, Function, FunctionState, ParserData, get_id};
-use crate::type_inference::DataType;
-use crate::{ArrayStorage, Data, Instr};
+use crate::parser::{Expr, ParserData, get_id};
+use crate::{Data, Instr};
 use internment::Intern;
 
 pub fn while_loop_summation(

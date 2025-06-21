@@ -1,7 +1,4 @@
-use crate::ArrayStorage;
 use crate::Data;
-use crate::Function;
-use crate::FunctionState;
 use crate::Instr;
 use crate::check_args;
 use crate::check_args_range;
@@ -39,7 +36,7 @@ pub fn handle_method_calls(
     let len = namespace.len() - 1;
     let name = namespace[len].as_str();
     // not in use for now
-    let namespace = &namespace[0..len];
+    // let namespace = &namespace[0..len];
 
     let infered = infer_type(obj, var_types, fns, src);
     let id = get_id(obj, v, parser_data!(), output);

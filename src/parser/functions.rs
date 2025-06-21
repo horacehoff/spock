@@ -1,7 +1,4 @@
-use crate::ArrayStorage;
 use crate::Data;
-use crate::Function;
-use crate::FunctionState;
 use crate::Instr;
 use crate::Num;
 use crate::check_args;
@@ -67,7 +64,7 @@ pub fn handle_functions(
         }
     };
     let len = namespace.len() - 1;
-    let full_identifier = namespace.join("::");
+    // let full_identifier = namespace.join("::");
     let name = namespace[len].as_str();
     let namespace = &namespace[0..len];
     if namespace.is_empty() {
