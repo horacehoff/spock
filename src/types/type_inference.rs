@@ -281,17 +281,17 @@ pub fn infer_type(
         Expr::Var(name, start, end) => var_types
             .iter()
             .rfind(|(n, _)| n == name)
-            .unwrap()
-            // .unwrap_or_else(|| {
-            //     parser_error!(
-            //         src.0,
-            //         src.1,
-            //         *start,
-            //         *end,
-            //         "Variable type",
-            //         "Unable to get variable's type"
-            //     );
-            // })
+            // .unwrap()
+            .unwrap_or_else(|| {
+                parser_error!(
+                    src.0,
+                    src.1,
+                    *start,
+                    *end,
+                    "Variable type",
+                    "Unable to get variable's type"
+                );
+            })
             .1
             .clone(),
         Expr::Num(_) => DataType::Number,
