@@ -459,8 +459,7 @@ pub fn infer_type(
                         var_types.push((Intern::from_ref(&fn_args[i]), infered))
                     });
 
-                    // -----
-                    // MORE COMPLEX SOLUTION (DOES NOT ALLOW NULL OPS)
+                    // ----- MORE COMPLEX SOLUTION (DOES NOT ALLOW NULL OPS) -----
                     // let mut fn_type = [
                     //     track_returns(fn_code, var_types, fns, src, function, false),
                     //     track_returns(fn_code, var_types, fns, src, function, true),
@@ -485,7 +484,7 @@ pub fn infer_type(
                 }
             }
         }
-        Expr::ObjFunctionCall(obj, args, namespace, start, end, _) => {
+        Expr::ObjFunctionCall(obj, _, namespace, _, _, _) => {
             match namespace.last().unwrap().as_str() {
                 "uppercase" => DataType::String,
                 "lowercase" => DataType::String,

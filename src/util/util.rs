@@ -1,4 +1,5 @@
 use crate::type_inference::DataType;
+
 #[macro_export]
 macro_rules! error {
     ($x: expr) => {
