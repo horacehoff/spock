@@ -808,7 +808,7 @@ pub fn execute(
                 }
                 _ => unreachable!(),
             },
-            Instr::CallFunc(_, _, _) => unreachable!(),
+            _ => unreachable!(),
         }
         i += 1;
     }

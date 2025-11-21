@@ -4,7 +4,6 @@ use crate::parser_error;
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
-// use std::collections::HashSet;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[repr(u8)]
@@ -513,9 +512,9 @@ pub fn infer_type(
                 "sqrt" => DataType::Number,
                 "round" => DataType::Number,
                 "abs" => DataType::Number,
-                // io::read
+                // io::read => doesn't work
                 "read" => DataType::String,
-                // io::write
+                // io::write => doesn't work
                 "write" => DataType::Null,
                 "reverse" => {
                     let obj_type = infer_type(obj, var_types, fns, src);

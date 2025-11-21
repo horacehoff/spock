@@ -4,7 +4,7 @@ use crate::type_inference::DataType;
 macro_rules! error {
     ($x: expr) => {
         eprintln!(
-            "--------------\n{color_red}SPOCK ERROR:{color_reset}\n{}\n--------------",
+            "--------------\n{color_red}SPOCK RUNTIME ERROR:{color_reset}\n{}\n--------------",
             $x
         );
         std::process::exit(1);
