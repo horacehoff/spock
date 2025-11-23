@@ -54,7 +54,13 @@ fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                     return true;
                 }
             }
-
+            Expr::ReturnVal(code) => {
+                if let Some(code) = code.as_ref() {
+                    if contains_recursive_call(std::slice::from_ref(code), fn_name) {
+                        return true;
+                    }
+                }
+            }
             // name+args -- code
             Expr::FunctionDecl(_, x, _, _) => {
                 if contains_recursive_call(x, fn_name) {
@@ -203,7 +209,7 @@ fn track_returns(
             }
             Expr::ElseIfBlock(_, code) | Expr::ElseBlock(code) => {
                 let to_return = track_returns(code, var_types, fns, src, fn_name, track_condition);
-                if to_return.len() > 0 {
+                if to_return.len() > 0 || contains_recursive_call(code, fn_name) {
                     return_types.extend(to_return)
                 } else {
                     return_types.push(DataType::Null);
@@ -220,6 +226,7 @@ fn track_returns(
             Expr::ReturnVal(return_val) => {
                 if let Some(val) = *return_val.to_owned() {
                     let contains_call = contains_recursive_call(&[val.clone()], fn_name);
+                    dbg!(contains_call);
                     if !contains_call {
                         let infered = infer_type(&val, var_types, fns, src);
                         if !return_types.contains(&infered) {
