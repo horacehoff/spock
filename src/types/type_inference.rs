@@ -291,7 +291,6 @@ pub fn infer_type(
     fns: &[Function],
     src: (&str, &str),
 ) -> DataType {
-    dbg!(&x);
     match x {
         Expr::Var(name, start, end) => var_types
             .iter()
@@ -489,7 +488,6 @@ pub fn infer_type(
                     // -----
 
                     let fn_type = track_returns(fn_code, var_types, fns, src, function, true);
-                    dbg!(&fn_type);
                     let to_return = if fn_type.len() > 0 {
                         // If function returns anything, check if it returns the same thing each time
                         check_poly(DataType::Poly(Box::from(fn_type)))
@@ -586,7 +584,6 @@ pub fn infer_type(
 }
 
 fn check_poly(data: DataType) -> DataType {
-    dbg!(&data);
     if let DataType::Poly(ref elems) = data {
         if elems.len() > 0 {
             let first_type = &elems[0];
