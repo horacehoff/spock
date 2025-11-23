@@ -1,3 +1,4 @@
+use crate::Data;
 use crate::parser::Expr;
 use crate::parser::Function;
 use crate::parser_error;
@@ -198,25 +199,35 @@ fn track_returns(
                         src,
                         fn_name,
                         track_condition,
-                    ))
+                    ));
                 }
             }
-            Expr::ElseIfBlock(_, code) => return_types.extend(track_returns(
-                code,
-                var_types,
-                fns,
-                src,
-                fn_name,
-                track_condition,
-            )),
-            Expr::ElseBlock(code) => return_types.extend(track_returns(
-                code,
-                var_types,
-                fns,
-                src,
-                fn_name,
-                track_condition,
-            )),
+            Expr::ElseIfBlock(_, code) => {
+                if return_types.len() == 0 {
+                    return_types.push(DataType::Null);
+                }
+                return_types.extend(track_returns(
+                    code,
+                    var_types,
+                    fns,
+                    src,
+                    fn_name,
+                    track_condition,
+                ))
+            }
+            Expr::ElseBlock(code) => {
+                if return_types.len() == 0 {
+                    return_types.push(DataType::Null);
+                }
+                return_types.extend(track_returns(
+                    code,
+                    var_types,
+                    fns,
+                    src,
+                    fn_name,
+                    track_condition,
+                ))
+            }
             Expr::WhileBlock(_, code) => return_types.extend(track_returns(
                 code,
                 var_types,
@@ -267,7 +278,11 @@ fn track_returns(
             _ => continue,
         }
     }
-    return_types
+    if return_types.len() > 0 {
+        return_types
+    } else {
+        vec![DataType::Null]
+    }
 }
 
 pub fn infer_type(
@@ -276,6 +291,7 @@ pub fn infer_type(
     fns: &[Function],
     src: (&str, &str),
 ) -> DataType {
+    dbg!(&x);
     match x {
         Expr::Var(name, start, end) => var_types
             .iter()
@@ -473,7 +489,14 @@ pub fn infer_type(
                     // -----
 
                     let fn_type = track_returns(fn_code, var_types, fns, src, function, true);
-                    let to_return = check_poly(DataType::Poly(Box::from(fn_type)));
+                    dbg!(&fn_type);
+                    let to_return = if fn_type.len() > 0 {
+                        // If function returns anything, check if it returns the same thing each time
+                        check_poly(DataType::Poly(Box::from(fn_type)))
+                    } else {
+                        // If function doesn't return anything, return nothing
+                        DataType::Null
+                    };
 
                     arg_types.iter().for_each(|i| {
                         var_types.remove(*i);
@@ -556,7 +579,6 @@ pub fn infer_type(
                     }
                 }
             }
-
             check_poly(DataType::Poly(Box::from(types)))
         }
         unknown_type => todo!("TYPE: {unknown_type:?}"),
@@ -564,12 +586,17 @@ pub fn infer_type(
 }
 
 fn check_poly(data: DataType) -> DataType {
+    dbg!(&data);
     if let DataType::Poly(ref elems) = data {
-        let first_type = &elems[0];
-        if elems.iter().all(|x| x == first_type) {
-            first_type.clone()
+        if elems.len() > 0 {
+            let first_type = &elems[0];
+            if elems.iter().all(|x| x == first_type) {
+                first_type.clone()
+            } else {
+                data
+            }
         } else {
-            data
+            panic!();
         }
     } else {
         unreachable!()

@@ -856,15 +856,15 @@ fn main() {
     println!("PARSING TIME {:.2?}", now.elapsed());
 
     let now = Instant::now();
-    execute(
-        &instructions,
-        &mut consts,
-        &mut Vec::with_capacity(func_args_count),
-        &mut arrays,
-        &instr_src,
-        &contents,
-        filename,
-    );
+    // execute(
+    //     &instructions,
+    //     &mut consts,
+    //     &mut Vec::with_capacity(func_args_count),
+    //     &mut arrays,
+    //     &instr_src,
+    //     &contents,
+    //     filename,
+    // );
     let end = now.elapsed();
     println!("EXEC TIME {:.2?}", end);
 }
