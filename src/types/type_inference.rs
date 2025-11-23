@@ -18,20 +18,20 @@ pub enum DataType {
     Poly(Box<[DataType]>),
 }
 
+// Check if given function body contains a call to that same function
 fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
-    let mut contains_call = false;
     for content in content {
         match content {
             Expr::FunctionCall(_, namespace, _, _, _) => {
                 if namespace.last().unwrap().as_str() == fn_name {
-                    contains_call = true;
+                    return true;
                 }
             }
             Expr::Condition(x, y, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(y, fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
 
@@ -39,33 +39,33 @@ fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(y, fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::ElseBlock(x) => {
                 if contains_recursive_call(x, fn_name) {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::ObjFunctionCall(x, y, _, _, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(y, fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
 
             // name+args -- code
             Expr::FunctionDecl(_, x, _, _) => {
                 if contains_recursive_call(x, fn_name) {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::GetIndex(x, y, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(y, fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
 
@@ -73,109 +73,109 @@ fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::Div(x, y, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::Add(x, y, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::Sub(x, y, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::Mod(x, y, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::Pow(x, y, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::Eq(x, y) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::NotEq(x, y) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::Sup(x, y, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::SupEq(x, y, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::Inf(x, y, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::InfEq(x, y, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::BoolAnd(x, y, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::BoolOr(x, y, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name)
                     || contains_recursive_call(&[*y.clone()], fn_name)
                 {
-                    contains_call = true
+                    return true;
                 }
             }
             Expr::Neg(x, _, _) => {
                 if contains_recursive_call(&[*x.clone()], fn_name) {
-                    contains_call = true
+                    return true;
                 }
             }
             _ => continue,
         }
     }
-    contains_call
+    false
 }
 
 fn track_returns(
@@ -187,7 +187,6 @@ fn track_returns(
     track_condition: bool,
 ) -> Vec<DataType> {
     let mut return_types: Vec<DataType> = Vec::new();
-    // let mut complete_return_condition = true;
     for content in content {
         match content {
             Expr::Condition(_, code, _, _) => {
@@ -202,31 +201,13 @@ fn track_returns(
                     ));
                 }
             }
-            Expr::ElseIfBlock(_, code) => {
-                if return_types.len() == 0 {
+            Expr::ElseIfBlock(_, code) | Expr::ElseBlock(code) => {
+                let to_return = track_returns(code, var_types, fns, src, fn_name, track_condition);
+                if to_return.len() > 0 {
+                    return_types.extend(to_return)
+                } else {
                     return_types.push(DataType::Null);
                 }
-                return_types.extend(track_returns(
-                    code,
-                    var_types,
-                    fns,
-                    src,
-                    fn_name,
-                    track_condition,
-                ))
-            }
-            Expr::ElseBlock(code) => {
-                if return_types.len() == 0 {
-                    return_types.push(DataType::Null);
-                }
-                return_types.extend(track_returns(
-                    code,
-                    var_types,
-                    fns,
-                    src,
-                    fn_name,
-                    track_condition,
-                ))
             }
             Expr::WhileBlock(_, code) => return_types.extend(track_returns(
                 code,
@@ -275,14 +256,24 @@ fn track_returns(
                 fn_name,
                 track_condition,
             )),
+            Expr::FunctionCall(args, namespace, start, end, _) => {
+                println!("I CHECKED!");
+                return_types.extend(track_returns(
+                    &fns.iter()
+                        .find(|(name, _, _, _)| name == &namespace[0])
+                        .unwrap()
+                        .2,
+                    var_types,
+                    fns,
+                    src,
+                    fn_name,
+                    track_condition,
+                ))
+            }
             _ => continue,
         }
     }
-    if return_types.len() > 0 {
-        return_types
-    } else {
-        vec![DataType::Null]
-    }
+    return_types
 }
 
 pub fn infer_type(
