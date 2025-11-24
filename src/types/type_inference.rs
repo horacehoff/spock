@@ -226,7 +226,6 @@ fn track_returns(
             Expr::ReturnVal(return_val) => {
                 if let Some(val) = *return_val.to_owned() {
                     let contains_call = contains_recursive_call(&[val.clone()], fn_name);
-                    dbg!(contains_call);
                     if !contains_call {
                         let infered = infer_type(&val, var_types, fns, src);
                         if !return_types.contains(&infered) {
@@ -263,20 +262,6 @@ fn track_returns(
                 fn_name,
                 track_condition,
             )),
-            Expr::FunctionCall(args, namespace, start, end, _) => {
-                println!("I CHECKED!");
-                return_types.extend(track_returns(
-                    &fns.iter()
-                        .find(|(name, _, _, _)| name == &namespace[0])
-                        .unwrap()
-                        .2,
-                    var_types,
-                    fns,
-                    src,
-                    fn_name,
-                    track_condition,
-                ))
-            }
             _ => continue,
         }
     }
