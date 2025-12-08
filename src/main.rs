@@ -70,7 +70,9 @@ pub enum Instr {
 
     // LOGIC
     // size -- is_neg
+    /// Jumps x instructions
     Jmp(u16),
+    /// Jumps x instructions backwards
     JmpNeg(u16),
     // condition id -- size
     Cmp(u16, u16),
@@ -83,7 +85,6 @@ pub enum Instr {
     ArrayEqCmp(u16, u16, u16),
     ArrayNotEqCmp(u16, u16, u16),
 
-    // CopyArg(u16, u16),
     Mov(u16, u16),
 
     // OPS
@@ -144,8 +145,9 @@ pub enum Instr {
     // --- TEMP - NEVER APPEARS IN FINAL CODE
     Break(u16),
     Continue(u16),
-    // ---
+    /// JmpSave(n,y) - Jumps to the nth instruction, and adds y as a slot to be set by the Return instruction; JmpLoad will jump back to this location
     JmpSave(u16, u16),
+    /// Jumps to the instruction right after the last JmpSave encountered by the interpreter
     JmpLoad,
     Return(u16),
 }
@@ -173,7 +175,7 @@ pub fn execute(
     let mut jmps: Vec<usize> = Vec::with_capacity(10);
     let mut return_ids: Vec<u16> = Vec::with_capacity(10);
     while i < instructions.len() {
-        // println!("{:?}", instructions[i]);
+        debug!("{:?}", instructions[i]);
         match instructions[i] {
             Instr::Break(_) | Instr::Continue(_) => unreachable!(),
 
@@ -185,11 +187,10 @@ pub fn execute(
                 i -= size as usize;
                 continue;
             }
-            Instr::JmpSave(size, return_id) => {
-                // println!("JMP_SAVE {size} {is_neg} {return_id}");
+            Instr::JmpSave(new_loc, return_id) => {
                 jmps.push(i);
                 return_ids.push(return_id);
-                i = size as usize;
+                i = new_loc as usize;
                 continue;
             }
             Instr::JmpLoad => {
@@ -199,7 +200,7 @@ pub fn execute(
             Instr::Return(tgt) => {
                 let to_return = return_ids.pop().unwrap();
                 consts[to_return as usize] = consts[tgt as usize];
-                println!("IM RETURNING {:?}", consts[to_return as usize]);
+                debug!("IM RETURNING {:?}", consts[to_return as usize]);
                 i = jmps.pop().unwrap();
             }
             Instr::Cmp(cond_id, size) => {

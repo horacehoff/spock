@@ -3,6 +3,7 @@ use crate::Instr;
 use crate::Num;
 use crate::check_args;
 use crate::check_args_range;
+use crate::debug;
 use crate::display::format_expr;
 use crate::get_id;
 use crate::parser::Expr;
@@ -170,7 +171,6 @@ pub fn handle_functions(
                     .iter()
                     .map(|x| infer_type(x, var_types, fns, src))
                     .collect::<Vec<DataType>>();
-                dbg!(&infered_arg_types);
 
                 let mut fn_loc_data = if !fn_data.is_empty() {
                     fn_data
@@ -185,7 +185,7 @@ pub fn handle_functions(
                 check_args!(args, args_len, fn_name, src.0, src.1, start, end);
 
                 if fn_data.is_empty() || fn_loc_data.is_none() {
-                    println!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
+                    debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
 
                     let mut vars: Vec<(Intern<String>, u16)> = Vec::new();
                     let mut recorded_types: Vec<usize> = Vec::new();
@@ -195,7 +195,6 @@ pub fn handle_functions(
                         let infered = infer_type(&args[i], var_types, fns, src);
                         recorded_types.push(var_types.len());
                         var_types.push((Intern::from(x.clone()), infered));
-                        dbg!(&var_types);
                     }
                     let args_loc = vars.iter().map(|(_, x)| *x).collect::<Vec<u16>>();
                     output.push(Instr::Jmp(0));
@@ -210,7 +209,7 @@ pub fn handle_functions(
                         .push((loc, args_loc, infered_arg_types));
 
                     let parsed = parser_to_instr_set(fn_code, &mut vars, parser_data!());
-                    println!("PARSED IS {parsed:?}");
+                    debug!("PARSED IS {parsed:?}");
                     output.extend(parsed);
                     output.push(Instr::JmpLoad);
                     *output.get_mut(jump_idx).unwrap() =
@@ -228,7 +227,7 @@ pub fn handle_functions(
                     for (x, tgt_id) in fn_args.iter().enumerate() {
                         let start_len = output.len();
                         let arg_id = get_id(&args[x], v, parser_data!(), output);
-                        println!("MOVING ARG TO {tgt_id}");
+                        debug!("MOVING ARG TO {tgt_id}");
                         if output.len() != start_len {
                             move_to_id(output, *tgt_id);
                         } else {
@@ -242,9 +241,9 @@ pub fn handle_functions(
                     unreachable!()
                 };
 
-                println!("LOC IS {loc:?}");
-                println!("OUTP LEN IS {}", output.len());
-                println!("OUTPUT IS {output:?}");
+                debug!("LOC IS {loc:?}");
+                debug!("OUTP LEN IS {}", output.len());
+                debug!("OUTPUT IS {output:?}");
                 consts.push(Data::Null);
                 output.push(Instr::JmpSave(loc, (consts.len() - 1) as u16));
                 return Some((consts.len() - 1) as u16);

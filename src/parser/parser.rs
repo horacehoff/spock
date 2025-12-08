@@ -1,4 +1,5 @@
 use crate::ArrayStorage;
+use crate::debug;
 use crate::display::{lalrpop_error, print_debug};
 use crate::functions::handle_functions;
 use crate::grammar::Token;
@@ -1100,7 +1101,7 @@ pub fn parser_to_instr_set(
                         cmp_markers.push(output.len() - 1);
                         let mut priv_vars = v.clone();
                         let cond_code = parser_to_instr_set(code, &mut priv_vars, parser_data!());
-                        println!("COND CODE IS {cond_code:?}");
+                        debug!("COND CODE IS {cond_code:?}");
                         output.extend(cond_code);
                         output.push(Instr::Jmp(0));
                         jmp_markers.push(output.len() - 1);
@@ -1108,7 +1109,7 @@ pub fn parser_to_instr_set(
                         condition_markers.push(output.len());
                         let mut priv_vars = v.clone();
                         let cond_code = parser_to_instr_set(code, &mut priv_vars, parser_data!());
-                        println!("COND CODE IS {cond_code:?}");
+                        debug!("COND CODE IS {cond_code:?}");
                         output.extend(cond_code);
                     }
                 }
@@ -1297,7 +1298,7 @@ pub fn parser_to_instr_set(
                     .find(|(v_name, _)| v_name == name)
                     .unwrap()
                     .1 = var_type;
-                println!("NEW VAR TYPES ARE {var_types:?}");
+                debug!("NEW VAR TYPES ARE {var_types:?}");
             }
 
             Expr::FunctionCall(args, namespace, start, end, args_indexes) => {

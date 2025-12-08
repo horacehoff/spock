@@ -12,10 +12,10 @@ macro_rules! error {
 }
 
 #[macro_export]
-macro_rules! print {
+macro_rules! debug {
     ($($x:tt)*) => {
         #[cfg(debug_assertions)]
-        println!("\x1b[33m[LOG] {}\x1b[0m", format!($($x)*))
+        println!("[DEBUG] {}", format!($($x)*))
     }
 }
 
