@@ -150,6 +150,8 @@ pub fn handle_functions(
                 output.push(Instr::TheAnswer((consts.len() - 1) as u16));
             }
             fn_name => {
+                // Lookup function by name in function registry
+                // Registry is (fn_name, fn_args, fn_code, fn_data (per implementation: loc, args_loc, arg_types) )
                 let function_id = fns
                     .iter_mut()
                     .position(|(a, _, _, _)| *a == fn_name)
@@ -165,13 +167,16 @@ pub fn handle_functions(
                             )
                         );
                     });
+                // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
                 let (_, fn_args, fn_code, fn_data) = &fns[function_id].clone();
 
+                // Infer arg types
                 let infered_arg_types = args
                     .iter()
                     .map(|x| infer_type(x, var_types, fns, src))
                     .collect::<Vec<DataType>>();
 
+                // Try to check if function has already been compiled for these specific arg types
                 let mut fn_loc_data = if !fn_data.is_empty() {
                     fn_data
                         .iter()
@@ -184,37 +189,54 @@ pub fn handle_functions(
                 let args_len = fn_args.len();
                 check_args!(args, args_len, fn_name, src.0, src.1, start, end);
 
+                // If the function hasn't already been compiled for these arg types, compile it now
                 if fn_data.is_empty() || fn_loc_data.is_none() {
                     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
 
+                    // Local vector vars and recorded_types to allow the inner body to type-check correctly
                     let mut vars: Vec<(Intern<String>, u16)> = Vec::new();
                     let mut recorded_types: Vec<usize> = Vec::new();
                     for (i, x) in fn_args.iter().enumerate() {
+                        // Allocate a consts slot for each func arg
                         consts.push(Data::Null);
                         vars.push((Intern::from(x.clone()), (consts.len() - 1) as u16));
+                        // Infer local type of arg and record it
                         let infered = infer_type(&args[i], var_types, fns, src);
                         recorded_types.push(var_types.len());
                         var_types.push((Intern::from(x.clone()), infered));
                     }
+                    // Get the arg destination ids
                     let args_loc = vars.iter().map(|(_, x)| *x).collect::<Vec<u16>>();
+
+                    // Temporarily jump over function to prevent executing it right now
+                    // This is a placeholder that's modified later on
                     output.push(Instr::Jmp(0));
                     let jump_idx = output.len() - 1;
+
+                    // Record start location for the compiled func body
                     let fn_start = output.len();
                     let loc = fn_start as u16;
 
+                    // Add this func specialization to the func's metadata, storing start location, location of args, and infered arg types
                     fn_loc_data = Some((loc, args_loc.clone(), infered_arg_types.clone()));
                     fns.get_mut(function_id)
                         .unwrap()
                         .3
                         .push((loc, args_loc, infered_arg_types));
 
+                    // Compile the function into instructions using local vars
                     let parsed = parser_to_instr_set(fn_code, &mut vars, parser_data!());
                     debug!("PARSED IS {parsed:?}");
                     output.extend(parsed);
+
+                    // JmpLoad to return to the call site (which will also return a value if necessary)
                     output.push(Instr::JmpLoad);
+
+                    // Fix the placeholder Jmp(0) to skip over the function body
                     *output.get_mut(jump_idx).unwrap() =
                         Instr::Jmp((output.len() - fn_start + 1) as u16);
 
+                    // Clean up type env by removing the arg types pushed earlier for this function
                     recorded_types.iter().for_each(|x| {
                         if *x < var_types.len() {
                             var_types.remove(*x);
@@ -222,15 +244,18 @@ pub fn handle_functions(
                     });
                 }
 
+                // Move evaluated call args into the expected arg slots
                 if let Some(fn_args) = &fn_loc_data {
                     let fn_args = fn_args.1.to_vec();
                     for (x, tgt_id) in fn_args.iter().enumerate() {
                         let start_len = output.len();
                         let arg_id = get_id(&args[x], v, parser_data!(), output);
                         debug!("MOVING ARG TO {tgt_id}");
+                        // If get_id emitted code, adjust arg dest with move_to_id
                         if output.len() != start_len {
                             move_to_id(output, *tgt_id);
                         } else {
+                            // Else just directly move the arg to the expected slot
                             output.push(Instr::Mov(arg_id, *tgt_id))
                         }
                     }
@@ -244,8 +269,11 @@ pub fn handle_functions(
                 debug!("LOC IS {loc:?}");
                 debug!("OUTP LEN IS {}", output.len());
                 debug!("OUTPUT IS {output:?}");
+                // Alocate return slot
                 consts.push(Data::Null);
+                // JmpSave to the func body start location (loc => )
                 output.push(Instr::JmpSave(loc, (consts.len() - 1) as u16));
+                // Return return slot address
                 return Some((consts.len() - 1) as u16);
             }
         }

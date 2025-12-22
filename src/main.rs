@@ -143,9 +143,10 @@ pub enum Instr {
     // tgt - separator - dest
     Split(u16, u16, u16),
 
-    // --- TEMP - NEVER APPEARS IN FINAL CODE
+    // -- NEVER APPEARS IN FINAL CODE --
     Break(u16),
     Continue(u16),
+    // ----------
     /// JmpSave(n,y) - Jumps to the nth instruction, and adds y as a slot to be set by the Return instruction; JmpLoad will jump back to this location
     JmpSave(u16, u16),
     /// Jumps to the instruction right after the last JmpSave encountered by the interpreter
