@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::ArrayStorage;
 use crate::parser::Expr;
 use crate::{Data, Instr};
@@ -247,4 +249,12 @@ pub fn print_debug(instructions: &[Instr], consts: &[Data], arrays: &ArrayStorag
         println!("{instr}{}{}", margins[i], indicators);
     }
     println!("{color_yellow}------------------{color_reset}");
+}
+
+pub fn format_consts_inline(consts: &[Data]) -> String {
+    let mut output = String::from_str("[").unwrap();
+    consts.iter().enumerate().for_each(|(i, x)| {
+        output.push_str(&format!("{i} {x:?}, "));
+    });
+    output + "]"
 }

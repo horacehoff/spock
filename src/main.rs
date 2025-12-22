@@ -1,4 +1,4 @@
-use crate::display::format_data;
+use crate::display::{format_consts_inline, format_data};
 use crate::parser::parse;
 use ariadne::*;
 use concat_string::concat_string;
@@ -152,6 +152,10 @@ pub enum Instr {
     /// Jumps to the instruction right after the last JmpSave encountered by the interpreter
     JmpLoad,
     Return(u16),
+
+    // HORRIBLE TEMPORARY FIX
+    // const idx
+    SaveConst(u16),
 }
 
 pub type ArrayStorage = Slab<Vec<Data>>;
@@ -167,6 +171,7 @@ pub fn execute_instr(
     jmps: &mut Vec<usize>,
     return_ids: &mut Vec<u16>,
     i: &mut usize,
+    frames: &mut Vec<(Data, u16)>,
 ) {
     macro_rules! fatal_error {
         ($instr: expr,$err:expr,$msg:expr) => {
@@ -174,7 +179,8 @@ pub fn execute_instr(
             parser_error!(filename, src, *start, *end, $err, $msg);
         };
     }
-
+    debug!("{}", format_consts_inline(consts));
+    debug!("{i} - {instr:?}");
     match instr {
         Instr::Break(_) | Instr::Continue(_) => unreachable!(),
 
@@ -196,10 +202,18 @@ pub fn execute_instr(
             *i = jmps.pop().unwrap();
             return;
         }
+        Instr::SaveConst(x) => {
+            frames.push((consts[x as usize], x));
+        }
         Instr::Return(tgt) => {
-            let to_return = return_ids.pop().unwrap();
-            consts[to_return as usize] = consts[tgt as usize];
-            debug!("IM RETURNING {:?}", consts[to_return as usize]);
+            let to_return_slot = return_ids.pop().unwrap();
+            let to_return_value = consts[tgt as usize];
+            for (x, y) in frames {
+                consts[*y as usize] = *x;
+            }
+
+            consts[to_return_slot as usize] = to_return_value;
+            debug!("IM RETURNING {:?}", consts[to_return_slot as usize]);
             *i = jmps.pop().unwrap();
         }
         Instr::Cmp(cond_id, size) => {
@@ -824,8 +838,11 @@ pub fn execute(
 
     let mut jmps: Vec<usize> = Vec::with_capacity(10);
     let mut return_ids: Vec<u16> = Vec::with_capacity(10);
+
+    let mut frames: Vec<(Data, u16)> = Vec::new();
+
     while i < instructions.len() {
-        println!("i:{i}");
+        // println!("i:{i}");
         execute_instr(
             instructions[i],
             consts,
@@ -837,6 +854,7 @@ pub fn execute(
             &mut jmps,
             &mut return_ids,
             &mut i,
+            &mut frames,
         );
     }
 }

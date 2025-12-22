@@ -249,6 +249,7 @@ pub fn handle_functions(
                     let fn_args = fn_args.1.to_vec();
                     for (x, tgt_id) in fn_args.iter().enumerate() {
                         let start_len = output.len();
+
                         let arg_id = get_id(&args[x], v, parser_data!(), output);
                         debug!("MOVING ARG TO {tgt_id}");
                         // If get_id emitted code, adjust arg dest with move_to_id
@@ -258,6 +259,9 @@ pub fn handle_functions(
                             // Else just directly move the arg to the expected slot
                             output.push(Instr::Mov(arg_id, *tgt_id))
                         }
+                        // -- TEMPORARY FIX --
+                        output.insert(start_len, Instr::SaveConst(*tgt_id));
+                        // -------------------
                     }
                 }
                 let loc = if let Some(fn_loc) = fn_loc_data {

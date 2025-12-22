@@ -1351,7 +1351,7 @@ pub fn parser_to_instr_set(
                 ));
             }
             Expr::ReturnVal(val) => {
-                if let Some(x) = *val.clone() {
+                if let Some(x) = &**val {
                     let id = get_id(&x, v, parser_data!(), &mut output);
                     output.push(Instr::Return(id));
                 }
