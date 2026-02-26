@@ -4,6 +4,7 @@ use crate::display::{lalrpop_error, print_debug};
 use crate::functions::handle_functions;
 use crate::grammar::Token;
 use crate::method_calls::handle_method_calls;
+use crate::op_error;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::type_inference::{DataType, infer_type};
 use crate::types::is_indexable;
@@ -214,24 +215,6 @@ pub fn get_id(
     (var_types, consts, fns, fn_state, arrays, block_id, src, instr_src): ParserData,
     output: &mut Vec<Instr>,
 ) -> u16 {
-    macro_rules! op_error {
-        ($l: expr,$r:expr,$op:expr,$start:expr,$end:expr) => {
-            parser_error!(
-                src.0,
-                src.1,
-                *$start,
-                *$end,
-                "Invalid operation",
-                format_args!(
-                    "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{}{color_bright_blue} {}{color_reset}{style_reset}",
-                    infer_type($l, var_types, fns,src),
-                    $op,
-                    infer_type($r, var_types, fns,src)
-                )
-            );
-        };
-    }
-
     macro_rules! parser_data {
         () => {
             (
@@ -239,7 +222,6 @@ pub fn get_id(
             )
         };
     }
-
     match input {
         Expr::Num(num) => {
             consts.push(Data::Number(*num as Num));
@@ -312,7 +294,14 @@ pub fn get_id(
             if infer_type(l, var_types, fns, src) != DataType::Number
                 || infer_type(r, var_types, fns, src) != DataType::Number
             {
-                op_error!(l, r, "*", start, end);
+                op_error!(
+                    src,
+                    infer_type(l, var_types, fns, src),
+                    infer_type(r, var_types, fns, src),
+                    "*",
+                    start,
+                    end
+                );
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -325,7 +314,14 @@ pub fn get_id(
             if infer_type(l, var_types, fns, src) != DataType::Number
                 || infer_type(r, var_types, fns, src) != DataType::Number
             {
-                op_error!(l, r, "/", start, end);
+                op_error!(
+                    src,
+                    infer_type(l, var_types, fns, src),
+                    infer_type(r, var_types, fns, src),
+                    "/",
+                    start,
+                    end
+                );
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -343,7 +339,14 @@ pub fn get_id(
                     DataType::String | DataType::Array(_) | DataType::Number
                 )
             {
-                op_error!(l, r, "+", start, end);
+                op_error!(
+                    src,
+                    infer_type(l, var_types, fns, src),
+                    infer_type(r, var_types, fns, src),
+                    "+",
+                    start,
+                    end
+                );
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -362,7 +365,14 @@ pub fn get_id(
             if infer_type(l, var_types, fns, src) != DataType::Number
                 || infer_type(r, var_types, fns, src) != DataType::Number
             {
-                op_error!(l, r, "-", start, end);
+                op_error!(
+                    src,
+                    infer_type(l, var_types, fns, src),
+                    infer_type(r, var_types, fns, src),
+                    "-",
+                    start,
+                    end
+                );
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -375,7 +385,14 @@ pub fn get_id(
             if infer_type(l, var_types, fns, src) != DataType::Number
                 || infer_type(r, var_types, fns, src) != DataType::Number
             {
-                op_error!(l, r, "%", start, end);
+                op_error!(
+                    src,
+                    infer_type(l, var_types, fns, src),
+                    infer_type(r, var_types, fns, src),
+                    "%",
+                    start,
+                    end
+                );
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -388,7 +405,14 @@ pub fn get_id(
             if infer_type(l, var_types, fns, src) != DataType::Number
                 || infer_type(r, var_types, fns, src) != DataType::Number
             {
-                op_error!(l, r, "^", start, end);
+                op_error!(
+                    src,
+                    infer_type(l, var_types, fns, src),
+                    infer_type(r, var_types, fns, src),
+                    "^",
+                    start,
+                    end
+                );
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -429,7 +453,14 @@ pub fn get_id(
             if infer_type(l, var_types, fns, src) != DataType::Number
                 || infer_type(r, var_types, fns, src) != DataType::Number
             {
-                op_error!(l, r, ">", start, end);
+                op_error!(
+                    src,
+                    infer_type(l, var_types, fns, src),
+                    infer_type(r, var_types, fns, src),
+                    ">",
+                    start,
+                    end
+                );
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -442,7 +473,14 @@ pub fn get_id(
             if infer_type(l, var_types, fns, src) != DataType::Number
                 || infer_type(r, var_types, fns, src) != DataType::Number
             {
-                op_error!(l, r, ">=", start, end);
+                op_error!(
+                    src,
+                    infer_type(l, var_types, fns, src),
+                    infer_type(r, var_types, fns, src),
+                    ">=",
+                    start,
+                    end
+                );
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -455,7 +493,14 @@ pub fn get_id(
             if infer_type(l, var_types, fns, src) != DataType::Number
                 || infer_type(r, var_types, fns, src) != DataType::Number
             {
-                op_error!(l, r, "<", start, end);
+                op_error!(
+                    src,
+                    infer_type(l, var_types, fns, src),
+                    infer_type(r, var_types, fns, src),
+                    "<",
+                    start,
+                    end
+                );
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -468,7 +513,14 @@ pub fn get_id(
             if infer_type(l, var_types, fns, src) != DataType::Number
                 || infer_type(r, var_types, fns, src) != DataType::Number
             {
-                op_error!(l, r, "<=", start, end);
+                op_error!(
+                    src,
+                    infer_type(l, var_types, fns, src),
+                    infer_type(r, var_types, fns, src),
+                    "<=",
+                    start,
+                    end
+                );
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -481,7 +533,14 @@ pub fn get_id(
             if infer_type(l, var_types, fns, src) != DataType::Bool
                 || infer_type(r, var_types, fns, src) != DataType::Bool
             {
-                op_error!(l, r, "&&", start, end);
+                op_error!(
+                    src,
+                    infer_type(l, var_types, fns, src),
+                    infer_type(r, var_types, fns, src),
+                    "&&",
+                    start,
+                    end
+                );
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -494,7 +553,14 @@ pub fn get_id(
             if infer_type(l, var_types, fns, src) != DataType::Bool
                 || infer_type(r, var_types, fns, src) != DataType::Bool
             {
-                op_error!(l, r, "||", start, end);
+                op_error!(
+                    src,
+                    infer_type(l, var_types, fns, src),
+                    infer_type(r, var_types, fns, src),
+                    "||",
+                    start,
+                    end
+                );
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);

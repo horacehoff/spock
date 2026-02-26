@@ -179,8 +179,8 @@ pub fn execute_instr(
             parser_error!(filename, src, *start, *end, $err, $msg);
         };
     }
-    debug!("{}", format_consts_inline(consts));
-    debug!("{i} - {instr:?}");
+    // debug!("{}", format_consts_inline(consts));
+    // debug!("{i} - {instr:?}");
     match instr {
         Instr::Break(_) | Instr::Continue(_) => unreachable!(),
 
@@ -203,13 +203,30 @@ pub fn execute_instr(
             return;
         }
         Instr::SaveConst(x) => {
-            frames.push((consts[x as usize], x));
+            if x == u16::MAX {
+                frames.push((Data::Null, x));
+            } else {
+                frames.push((consts[x as usize], x));
+            }
         }
         Instr::Return(tgt) => {
             let to_return_slot = return_ids.pop().unwrap();
             let to_return_value = consts[tgt as usize];
-            for (x, y) in frames {
-                consts[*y as usize] = *x;
+            // let mut encountered: Vec<u16> = Vec::new();
+            // for (x, y) in frames.iter().rev() {
+            //     if !encountered.contains(y) {
+            //         consts[*y as usize] = *x;
+            //         encountered.push(*y);
+            //     } else {
+            //         break;
+            //     }
+            // }
+            //
+            while let Some((val, idx)) = frames.pop() {
+                if idx == u16::MAX {
+                    break;
+                }
+                consts[idx as usize] = val;
             }
 
             consts[to_return_slot as usize] = to_return_value;

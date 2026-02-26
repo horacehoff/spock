@@ -67,6 +67,25 @@ fn token_recognition(token: String) -> String {
 }
 
 #[macro_export]
+macro_rules! op_error {
+    ($src:expr, $l: expr,$r:expr,$op:expr,$start:expr,$end:expr) => {
+        parser_error!(
+            $src.0,
+            $src.1,
+            *$start,
+            *$end,
+            "Invalid operation",
+            format_args!(
+                "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{}{color_bright_blue} {}{color_reset}{style_reset}",
+                $l,
+                $op,
+                $r
+            )
+        );
+    };
+}
+
+#[macro_export]
 macro_rules! parser_error {
     ($filename: expr,
     $source: expr,

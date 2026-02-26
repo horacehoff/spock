@@ -264,6 +264,7 @@ pub fn handle_functions(
                         // -------------------
                     }
                 }
+                output.push(Instr::SaveConst(u16::MAX));
                 let loc = if let Some(fn_loc) = fn_loc_data {
                     fn_loc.0
                 } else {
