@@ -1,4 +1,4 @@
-use crate::display::{format_consts_inline, format_data};
+use crate::display::{format_data, format_registers_inline};
 use crate::parser::parse;
 use ariadne::*;
 use concat_string::concat_string;
@@ -126,7 +126,7 @@ pub enum Instr {
     CallFunc(u8, u16, u16),
 
     ArrayMov(u16, u16, u16),
-    // different than ArrayMov => looks into the consts
+    // different than ArrayMov => looks into the registers
     ArrayMod(u16, u16, u16),
     StrMod(u16, u16, u16),
     ArrayGet(u16, u16, u16),
@@ -161,7 +161,7 @@ pub type ArrayStorage = Slab<Vec<Data>>;
 
 pub fn execute_instr(
     instr: Instr,
-    consts: &mut [Data],
+    registers: &mut [Data],
     args: &mut Vec<u16>,
     arrays: &mut ArrayStorage,
     instr_src: &[(Instr, usize, usize)],
@@ -178,7 +178,7 @@ pub fn execute_instr(
             parser_error!(filename, src, *start, *end, $err, $msg);
         };
     }
-    // debug!("{}", format_consts_inline(consts));
+    // debug!("{}", format_registers_inline(registers));
     // debug!("{i} - {instr:?}");
     match instr {
         Instr::Break(_) | Instr::Continue(_) => unreachable!(),
@@ -205,16 +205,16 @@ pub fn execute_instr(
             if x == u16::MAX {
                 frames.push((Data::Null, x));
             } else {
-                frames.push((consts[x as usize], x));
+                frames.push((registers[x as usize], x));
             }
         }
         Instr::Return(tgt) => {
             let to_return_slot = return_ids.pop().unwrap();
-            let to_return_value = consts[tgt as usize];
+            let to_return_value = registers[tgt as usize];
             // let mut encountered: Vec<u16> = Vec::new();
             // for (x, y) in frames.iter().rev() {
             //     if !encountered.contains(y) {
-            //         consts[*y as usize] = *x;
+            //         registers[*y as usize] = *x;
             //         encountered.push(*y);
             //     } else {
             //         break;
@@ -225,34 +225,34 @@ pub fn execute_instr(
                 if idx == u16::MAX {
                     break;
                 }
-                consts[idx as usize] = val;
+                registers[idx as usize] = val;
             }
 
-            consts[to_return_slot as usize] = to_return_value;
-            debug!("IM RETURNING {:?}", consts[to_return_slot as usize]);
+            registers[to_return_slot as usize] = to_return_value;
+            debug!("IM RETURNING {:?}", registers[to_return_slot as usize]);
             *i = jmps.pop().unwrap();
         }
         Instr::Cmp(cond_id, size) => {
-            if let Data::Bool(false) = consts[cond_id as usize] {
+            if let Data::Bool(false) = registers[cond_id as usize] {
                 *i += size as usize;
                 return;
             }
         }
         Instr::Mov(tgt, dest) => {
-            consts[dest as usize] = consts[tgt as usize];
+            registers[dest as usize] = registers[tgt as usize];
         }
         Instr::Add(o1, o2, dest) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Number(parent + child);
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Number(parent + child);
             }}
         }
         Instr::StrAdd(o1, o2, dest) => {
-            if_likely! {let (Data::String(parent), Data::String(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                consts[dest as usize] = Data::String(Intern::from(concat_string!(*parent, *child)));
+            if_likely! {let (Data::String(parent), Data::String(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
+                registers[dest as usize] = Data::String(Intern::from(concat_string!(*parent, *child)));
             }}
         }
         Instr::ArrayAdd(o1, o2, dest) => {
-            if_likely! {let (Data::Array(a), Data::Array(b)) = (consts[o1 as usize], consts[o2 as usize]) => {
+            if_likely! {let (Data::Array(a), Data::Array(b)) = (registers[o1 as usize], registers[o2 as usize]) => {
                 let arr_a = &arrays[a];
                 let arr_b = &arrays[b];
 
@@ -260,50 +260,50 @@ pub fn execute_instr(
                 combined.extend_from_slice(arr_a);
                 combined.extend_from_slice(arr_b);
                 let id = arrays.insert(combined);
-                consts[dest as usize] = Data::Array(id);
+                registers[dest as usize] = Data::Array(id);
             }}
         }
         Instr::Mul(o1, o2, dest) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Number(parent * child);
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Number(parent * child);
             }}
         }
         Instr::Div(o1, o2, dest) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Number(parent / child);
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Number(parent / child);
             }}
         }
         Instr::Sub(o1, o2, dest) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Number(parent - child);
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Number(parent - child);
             }}
         }
         Instr::Mod(o1, o2, dest) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Number(parent % child);
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Number(parent % child);
             }}
         }
         Instr::Pow(o1, o2, dest) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Number(is_float!(parent.powf(child), parent.pow(child as u32)));
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Number(is_float!(parent.powf(child), parent.pow(child as u32)));
             }}
         }
         Instr::Eq(o1, o2, dest) => {
-            consts[dest as usize] = Data::Bool(consts[o1 as usize] == consts[o2 as usize]);
+            registers[dest as usize] = Data::Bool(registers[o1 as usize] == registers[o2 as usize]);
         }
         Instr::ArrayEq(o1, o2, dest) => {
-            if_likely! {let (Data::Array(a1),Data::Array(a2)) = (consts[o1 as usize],consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Bool(arrays[a1] == arrays[a2])
+            if_likely! {let (Data::Array(a1),Data::Array(a2)) = (registers[o1 as usize],registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Bool(arrays[a1] == arrays[a2])
             }}
         }
         Instr::EqCmp(o1, o2, jump_size) => {
-            if consts[o1 as usize] != consts[o2 as usize] {
+            if registers[o1 as usize] != registers[o2 as usize] {
                 *i += jump_size as usize;
                 return;
             }
         }
         Instr::ArrayEqCmp(o1, o2, jump_size) => {
-            if_likely! {let (Data::Array(a1),Data::Array(a2)) = (consts[o1 as usize],consts[o2 as usize]) => {
+            if_likely! {let (Data::Array(a1),Data::Array(a2)) = (registers[o1 as usize],registers[o2 as usize]) => {
                 if arrays[a1] != arrays[a2] {
                     *i += jump_size as usize;
                     return;
@@ -311,21 +311,21 @@ pub fn execute_instr(
             }}
         }
         Instr::NotEq(o1, o2, dest) => {
-            consts[dest as usize] = Data::Bool(consts[o1 as usize] != consts[o2 as usize]);
+            registers[dest as usize] = Data::Bool(registers[o1 as usize] != registers[o2 as usize]);
         }
         Instr::ArrayNotEq(o1, o2, dest) => {
-            if_likely! {let (Data::Array(a1),Data::Array(a2)) = (consts[o1 as usize],consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Bool(arrays[a1] != arrays[a2])
+            if_likely! {let (Data::Array(a1),Data::Array(a2)) = (registers[o1 as usize],registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Bool(arrays[a1] != arrays[a2])
             }}
         }
         Instr::NotEqCmp(o1, o2, jump_size) => {
-            if consts[o1 as usize] == consts[o2 as usize] {
+            if registers[o1 as usize] == registers[o2 as usize] {
                 *i += jump_size as usize;
                 return;
             }
         }
         Instr::ArrayNotEqCmp(o1, o2, jump_size) => {
-            if_likely! {let (Data::Array(a1),Data::Array(a2)) = (consts[o1 as usize],consts[o2 as usize]) => {
+            if_likely! {let (Data::Array(a1),Data::Array(a2)) = (registers[o1 as usize],registers[o2 as usize]) => {
                 if arrays[a1] == arrays[a2] {
                     *i += jump_size as usize;
                     return;
@@ -333,12 +333,12 @@ pub fn execute_instr(
             }}
         }
         Instr::Sup(o1, o2, dest) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Bool(parent > child);
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Bool(parent > child);
             }}
         }
         Instr::SupCmp(o1, o2, jump_size) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
                 if parent <= child {
                     *i += jump_size as usize;
                     return;
@@ -346,12 +346,12 @@ pub fn execute_instr(
             }}
         }
         Instr::SupEq(o1, o2, dest) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Bool(parent >= child);
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Bool(parent >= child);
             }}
         }
         Instr::SupEqCmp(o1, o2, jump_size) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
                 if parent < child {
                     *i += jump_size as usize;
                     return;
@@ -359,12 +359,12 @@ pub fn execute_instr(
             }}
         }
         Instr::Inf(o1, o2, dest) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Bool(parent < child);
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Bool(parent < child);
             }}
         }
         Instr::InfCmp(o1, o2, jump_size) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
                 if parent >= child {
                 *i += jump_size as usize;
                 return;
@@ -372,12 +372,12 @@ pub fn execute_instr(
             }}
         }
         Instr::InfEq(o1, o2, dest) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Bool(parent <= child);
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Bool(parent <= child);
             }}
         }
         Instr::InfEqCmp(o1, o2, jump_size) => {
-            if_likely! {let (Data::Number(parent), Data::Number(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
+            if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
                 if parent > child {
                     *i += jump_size as usize;
                     return;
@@ -385,26 +385,26 @@ pub fn execute_instr(
             }}
         }
         Instr::BoolAnd(o1, o2, dest) => {
-            if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Bool(parent && child);
+            if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Bool(parent && child);
             }}
         }
         Instr::BoolOr(o1, o2, dest) => {
-            if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (consts[o1 as usize], consts[o2 as usize]) => {
-                consts[dest as usize] = Data::Bool(parent || child);
+            if_likely! {let (Data::Bool(parent), Data::Bool(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
+                registers[dest as usize] = Data::Bool(parent || child);
             }}
         }
         Instr::Neg(tgt, dest) => {
-            if_likely! {let Data::Number(x) = consts[tgt as usize] => {
-                consts[dest as usize] = Data::Number(-x);
+            if_likely! {let Data::Number(x) = registers[tgt as usize] => {
+                registers[dest as usize] = Data::Number(-x);
             }}
         }
         Instr::Print(target) => {
-            println!("{}", format_data(consts[target as usize], arrays, false));
+            println!("{}", format_data(registers[target as usize], arrays, false));
         }
-        Instr::Num(tgt, dest) => match consts[tgt as usize] {
+        Instr::Num(tgt, dest) => match registers[tgt as usize] {
             Data::String(str) => {
-                consts[dest as usize] = Data::Number(str.parse::<Num>().unwrap_or_else_likely(|_| {
+                registers[dest as usize] = Data::Number(str.parse::<Num>().unwrap_or_else_likely(|_| {
                     fatal_error!(
                         Instr::Num(tgt, dest),
                         "Invalid type",
@@ -415,20 +415,20 @@ pub fn execute_instr(
                     );
                 }));
             }
-            Data::Number(num) => consts[dest as usize] = Data::Number(num),
+            Data::Number(num) => registers[dest as usize] = Data::Number(num),
             _ => unreachable!(),
         },
         Instr::Str(tgt, dest) => {
-            consts[dest as usize] = Data::String(Intern::from(format_data(
-                consts[tgt as usize],
+            registers[dest as usize] = Data::String(Intern::from(format_data(
+                registers[tgt as usize],
                 arrays,
                 false,
             )));
         }
         Instr::Bool(tgt, dest) => {
-            let base = consts[tgt as usize];
+            let base = registers[tgt as usize];
             if_likely! {let Data::String(str) = base => {
-                consts[dest as usize] = Data::Bool(str.parse::<bool>().unwrap_or_else_likely(|_| {
+                registers[dest as usize] = Data::Bool(str.parse::<bool>().unwrap_or_else_likely(|_| {
                    fatal_error!(
                         Instr::Bool(tgt, dest),
                         "Invalid type",
@@ -441,24 +441,24 @@ pub fn execute_instr(
             }}
         }
         Instr::Input(msg, dest) => {
-            if_likely! {let Data::String(str) = consts[msg as usize] => {
+            if_likely! {let Data::String(str) = registers[msg as usize] => {
                 println!("{str}");
                 std::io::stdout().flush().unwrap();
                 let mut line = String::new();
                 std::io::stdin().read_line(&mut line).unwrap();
-                consts[dest as usize] = Data::String(Intern::from(line.trim().to_string()));
+                registers[dest as usize] = Data::String(Intern::from(line.trim().to_string()));
             }}
         }
         Instr::StoreFuncArg(id) => args.push(id),
-        // takes tgt from consts, moves it to dest-th array at idx-th index
+        // takes tgt from registers, moves it to dest-th array at idx-th index
         Instr::ArrayMov(tgt, dest, idx) => {
-            arrays.get_mut(dest as usize).unwrap()[idx as usize] = consts[tgt as usize];
+            arrays.get_mut(dest as usize).unwrap()[idx as usize] = registers[tgt as usize];
         }
-        // takes tgt from consts, idx from consts,
+        // takes tgt from registers, idx from registers,
         Instr::ArrayMod(tgt, dest, idx) => {
-            if_likely! {let Data::Number(index) = consts[idx as usize] => {
-                let requested_mod = consts[dest as usize];
-                if_likely!{let Data::Array(array_id) = consts[tgt as usize] => {
+            if_likely! {let Data::Number(index) = registers[idx as usize] => {
+                let requested_mod = registers[dest as usize];
+                if_likely!{let Data::Array(array_id) = registers[tgt as usize] => {
                     let array = arrays.get_mut(array_id).unwrap();
                     if likely(array.len() > index as usize) {
                         array[index as usize] = requested_mod;
@@ -477,9 +477,9 @@ pub fn execute_instr(
             }}
         }
         Instr::StrMod(tgt, dest, idx) => {
-            if_likely! {let Data::Number(index) = consts[idx as usize] => {
-                let requested_mod = consts[dest as usize];
-                if_likely!{let Data::String(str) = consts.get_mut(tgt as usize).unwrap() => {
+            if_likely! {let Data::Number(index) = registers[idx as usize] => {
+                let requested_mod = registers[dest as usize];
+                if_likely!{let Data::String(str) = registers.get_mut(tgt as usize).unwrap() => {
                     if_likely!{let Data::String(letter) = requested_mod => {
                         if likely(str.len() > index as usize) {
                             let mut temp = str.to_string();
@@ -501,13 +501,13 @@ pub fn execute_instr(
                 }}
             }}
         }
-        // takes tgt from  consts, index is index, dest is consts index destination
+        // takes tgt from  registers, index is index, dest is registers index destination
         Instr::ArrayGet(tgt, index, dest) => {
-            if_likely! {let Data::Number(idx) = consts[index as usize] => {
-                if_likely! {let Data::Array(x) = consts[tgt as usize] => {
+            if_likely! {let Data::Number(idx) = registers[index as usize] => {
+                if_likely! {let Data::Array(x) = registers[tgt as usize] => {
                         let array = &arrays[x];
                         if likely(array.len() > idx as usize) {
-                            consts[dest as usize] = array[idx as usize];
+                            registers[dest as usize] = array[idx as usize];
                         } else {
                            fatal_error!(
                                 Instr::ArrayGet(tgt, index, dest),
@@ -523,10 +523,10 @@ pub fn execute_instr(
             }}
         }
         Instr::ArrayStrGet(tgt, index, dest) => {
-            if_likely! {let Data::Number(idx) = consts[index as usize] => {
-                if_likely! {let Data::String(str) = consts[tgt as usize] => {
+            if_likely! {let Data::Number(idx) = registers[index as usize] => {
+                if_likely! {let Data::String(str) = registers[tgt as usize] => {
                     if likely(str.len() > idx as usize) {
-                        consts[dest as usize] = Data::String(Intern::from(
+                        registers[dest as usize] = Data::String(Intern::from(
                             str.get(idx as usize..=idx as usize).unwrap().to_string(),
                         ));
                     } else {
@@ -544,17 +544,17 @@ pub fn execute_instr(
             }}
         }
         Instr::Range(min, max, dest) => {
-            if_likely! {let Data::Number(x) = consts[min as usize] => {
-                    if_likely! {let Data::Number(y) = consts[max as usize] => {
+            if_likely! {let Data::Number(x) = registers[min as usize] => {
+                    if_likely! {let Data::Number(y) = registers[max as usize] => {
                         let id = arrays.insert((x as u64..y as u64).map(|x| Data::Number(x as Num)).collect());
-                        consts[dest as usize] = Data::Array(id);
+                        registers[dest as usize] = Data::Array(id);
                     }}
                 }
             }
         }
         Instr::IoOpen(path, dest, create) => {
-            if_likely! {let Data::String(str) = consts[path as usize] => {
-                if_likely!{let Data::Bool(create) = consts[create as usize] => {
+            if_likely! {let Data::String(str) = registers[path as usize] => {
+                if_likely!{let Data::Bool(create) = registers[create as usize] => {
                     if create {
                         File::create(str.as_str()).unwrap_or_else(|_| {
                             // error_b!(format_args!("Cannot create file {color_red}{str}{color_reset}"));
@@ -566,67 +566,69 @@ pub fn execute_instr(
                     })) {
                         // error_b!(format_args!("File {color_red}{str}{color_reset} does not exist"));
                     }
-                    consts[dest as usize] = Data::File(str);
+                    registers[dest as usize] = Data::File(str);
                 } else {
-                    // error_b!(format_args!("Invalid create option: {color_red}{}{color_reset}", format_data(consts[create as usize], arrays)));
+                    // error_b!(format_args!("Invalid create option: {color_red}{}{color_reset}", format_data(registers[create as usize], arrays)));
                 }}
             } else {
-                // error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", format_data(consts[path as usize], arrays)));
+                // error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", format_data(registers[path as usize], arrays)));
             }}
         }
         Instr::IoDelete(path) => {
-            if_likely! {let Data::String(str) = consts[path as usize] => {
+            if_likely! {let Data::String(str) = registers[path as usize] => {
                 fs::remove_file(str.as_str()).unwrap_or_else(|_| {
                     // error_b!(format_args!("Cannot remove file {color_red}{str}{color_reset}"));
                     todo!()
                 });
             } else {
                 todo!()
-                // error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", format_data(consts[path as usize], arrays)));
+                // error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", format_data(registers[path as usize], arrays)));
             }}
         }
         Instr::Floor(tgt, dest) => {
-            if_likely! {let Data::Number(x) = consts[tgt as usize] => {
-                consts[dest as usize] = Data::Number(is_float!(x.floor(),x));
+            if_likely! {let Data::Number(x) = registers[tgt as usize] => {
+                registers[dest as usize] = Data::Number(is_float!(x.floor(),x));
             }}
         }
         Instr::TheAnswer(dest) => {
             println!(
                 "The answer to the Ultimate Question of Life, the Universe, and Everything is 42."
             );
-            consts[dest as usize] = Data::Number(42.0 as Num);
+            registers[dest as usize] = Data::Number(42.0 as Num);
         }
         Instr::Push(array, element) => {
-            if_likely! {let Data::Array(id) = consts[array as usize] => {
+            if_likely! {let Data::Array(id) = registers[array as usize] => {
                 arrays
                     .get_mut(id)
                     .unwrap()
-                    .push(consts[element as usize]);
+                    .push(registers[element as usize]);
             }}
         }
         Instr::Len(tgt, dest) => {
-            match consts[tgt as usize] {
-                Data::Array(arr) => consts[dest as usize] = Data::Number(arrays[arr].len() as Num),
+            match registers[tgt as usize] {
+                Data::Array(arr) => {
+                    registers[dest as usize] = Data::Number(arrays[arr].len() as Num)
+                }
                 Data::String(str) => {
-                    consts[dest as usize] = Data::Number(str.chars().count() as Num)
+                    registers[dest as usize] = Data::Number(str.chars().count() as Num)
                 }
                 _ => unreachable!(),
             };
         }
         Instr::Sqrt(tgt, dest) => {
-            if_likely! {let Data::Number(num) = consts[tgt as usize] => {
-                consts[dest as usize] = Data::Number(is_float!(num.sqrt(), num.isqrt()))
+            if_likely! {let Data::Number(num) = registers[tgt as usize] => {
+                registers[dest as usize] = Data::Number(is_float!(num.sqrt(), num.isqrt()))
             }}
         }
-        Instr::Split(tgt, sep, dest) => match consts[tgt as usize] {
+        Instr::Split(tgt, sep, dest) => match registers[tgt as usize] {
             Data::String(str) => {
-                if_likely! { let Data::String(separator) = consts[sep as usize] => {
+                if_likely! { let Data::String(separator) = registers[sep as usize] => {
                     let id = arrays.insert(
                         str.split(separator.as_str())
                             .map(|x| Data::String(Intern::from_ref(x)))
                             .collect(),
                     );
-                    consts[dest as usize] = Data::Array(id);
+                    registers[dest as usize] = Data::Array(id);
                 }}
             }
             Data::Array(array_id) => {
@@ -634,7 +636,7 @@ pub fn execute_instr(
                 // get the array and split it
                 arrays[array_id]
                     .to_vec()
-                    .split(|x| x == &consts[sep as usize])
+                    .split(|x| x == &registers[sep as usize])
                     .for_each(|x| {
                         arrays.insert(x.to_vec());
                     });
@@ -643,71 +645,71 @@ pub fn execute_instr(
                         .map(|x| Data::Array(x as usize))
                         .collect::<Vec<Data>>(),
                 );
-                consts[dest as usize] = Data::Array(id);
+                registers[dest as usize] = Data::Array(id);
             }
             _ => unreachable!(),
         },
         Instr::Remove(array, idx) => {
-            if_likely! {let Data::Number(idx) = consts[idx as usize] => {
+            if_likely! {let Data::Number(idx) = registers[idx as usize] => {
                     arrays.get_mut(array as usize).unwrap().remove(idx as usize);
             }}
         }
         // uppercase
         Instr::CallFunc(0, tgt, dest) => {
-            if_likely! { let Data::String(str) = consts[tgt as usize] => {
-                consts[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
+            if_likely! { let Data::String(str) = registers[tgt as usize] => {
+                registers[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
             }}
         }
         // lowercase
         Instr::CallFunc(1, tgt, dest) => {
-            if_likely! {let Data::String(str) = consts[tgt as usize] => {
-                consts[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
+            if_likely! {let Data::String(str) = registers[tgt as usize] => {
+                registers[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
             }}
         }
         // contains
-        Instr::CallFunc(2, tgt, dest) => match consts[tgt as usize] {
+        Instr::CallFunc(2, tgt, dest) => match registers[tgt as usize] {
             Data::String(str) => {
                 let arg = args.swap_remove(0);
-                if_likely! { let Data::String(arg) = consts[arg as usize] => {
-                    consts[dest as usize] = Data::Bool(str.contains(arg.as_str()))
+                if_likely! { let Data::String(arg) = registers[arg as usize] => {
+                    registers[dest as usize] = Data::Bool(str.contains(arg.as_str()))
                 }}
             }
             Data::Array(x) => {
-                let arg = consts[args.swap_remove(0) as usize];
-                consts[dest as usize] = Data::Bool(arrays[x].contains(&arg))
+                let arg = registers[args.swap_remove(0) as usize];
+                registers[dest as usize] = Data::Bool(arrays[x].contains(&arg))
             }
             _ => unreachable!(),
         },
         // trim
         Instr::CallFunc(3, tgt, dest) => {
-            if_likely! { let Data::String(str) = consts[tgt as usize] => {
-                consts[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
+            if_likely! { let Data::String(str) = registers[tgt as usize] => {
+                registers[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
             }}
         }
         // trim_sequence
         Instr::CallFunc(4, tgt, dest) => {
-            if_likely! { let Data::String(str) = consts[tgt as usize] => {
+            if_likely! { let Data::String(str) = registers[tgt as usize] => {
                 let arg = args.swap_remove(0);
-                if_likely!{ let Data::String(arg) = consts[arg as usize] => {
+                if_likely!{ let Data::String(arg) = registers[arg as usize] => {
                     let chars: Vec<char> = arg.chars().collect();
-                    consts[dest as usize] =
+                    registers[dest as usize] =
                         Data::String(Intern::from(str.trim_matches(&chars[..]).to_string()));
                 }}
             }}
         }
         // index
-        Instr::CallFunc(5, tgt, dest) => match consts[tgt as usize] {
+        Instr::CallFunc(5, tgt, dest) => match registers[tgt as usize] {
             Data::String(str) => {
-                let arg = consts[args.swap_remove(0) as usize];
+                let arg = registers[args.swap_remove(0) as usize];
                 if_likely! { let Data::String(arg) = arg => {
-                    consts[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
+                    registers[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
                         fatal_error!(Instr::CallFunc(5, tgt, dest),"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
                     }) as Num);
                 }}
             }
             Data::Array(x) => {
-                let arg = consts[args.swap_remove(0) as usize];
-                consts[dest as usize] = Data::Number(arrays[x].iter().position(|x| x == &arg).unwrap_or_else(|| {
+                let arg = registers[args.swap_remove(0) as usize];
+                registers[dest as usize] = Data::Number(arrays[x].iter().position(|x| x == &arg).unwrap_or_else(|| {
                         fatal_error!(Instr::CallFunc(5, tgt, dest), "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
                     }) as Num);
             }
@@ -715,103 +717,103 @@ pub fn execute_instr(
         },
         // is_num
         Instr::CallFunc(6, tgt, dest) => {
-            if_likely! { let Data::String(str) = consts[tgt as usize] => {
-                consts[dest as usize] = Data::Bool(str.parse::<f64>().is_ok())
+            if_likely! { let Data::String(str) = registers[tgt as usize] => {
+                registers[dest as usize] = Data::Bool(str.parse::<f64>().is_ok())
             }}
         }
         // trim_left
         Instr::CallFunc(7, tgt, dest) => {
-            if_likely! { let Data::String(str) = consts[tgt as usize] => {
-                consts[dest as usize] = Data::String(Intern::from(str.trim_start().to_string()));
+            if_likely! { let Data::String(str) = registers[tgt as usize] => {
+                registers[dest as usize] = Data::String(Intern::from(str.trim_start().to_string()));
             }}
         }
         // trim_right
         Instr::CallFunc(8, tgt, dest) => {
-            if_likely! { let Data::String(str) = consts[tgt as usize] => {
-                consts[dest as usize] = Data::String(Intern::from(str.trim_end().to_string()));
+            if_likely! { let Data::String(str) = registers[tgt as usize] => {
+                registers[dest as usize] = Data::String(Intern::from(str.trim_end().to_string()));
             }}
         }
         // trim_sequence_left
         Instr::CallFunc(9, tgt, dest) => {
-            if_likely! { let Data::String(str) = consts[tgt as usize] => {
+            if_likely! { let Data::String(str) = registers[tgt as usize] => {
                 let arg = args.swap_remove(0);
-                if_likely!{ let Data::String(arg) = consts[arg as usize] => {
+                if_likely!{ let Data::String(arg) = registers[arg as usize] => {
                     let chars: Vec<char> = arg.chars().collect();
-                    consts[dest as usize] =
+                    registers[dest as usize] =
                         Data::String(Intern::from(str.trim_start_matches(&chars[..]).to_string()));
                 }}
             }}
         }
         // trim_sequence_right
         Instr::CallFunc(10, tgt, dest) => {
-            if_likely! { let Data::String(str) = consts[tgt as usize] => {
-                let arg = consts[args.swap_remove(0) as usize];
+            if_likely! { let Data::String(str) = registers[tgt as usize] => {
+                let arg = registers[args.swap_remove(0) as usize];
                 if_likely!{ let Data::String(arg) = arg => {
                     let chars: Vec<char> = arg.chars().collect();
-                    consts[dest as usize] =
+                    registers[dest as usize] =
                         Data::String(Intern::from(str.trim_end_matches(&chars[..]).to_string()));
                 }}
             }}
         }
         // rindex
-        Instr::CallFunc(11, tgt, dest) => match consts[tgt as usize] {
+        Instr::CallFunc(11, tgt, dest) => match registers[tgt as usize] {
             Data::String(str) => {
-                let arg = consts[args.swap_remove(0) as usize];
+                let arg = registers[args.swap_remove(0) as usize];
                 if_likely! { let Data::String(arg) = arg => {
-                    consts[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
+                    registers[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
                         fatal_error!(Instr::CallFunc(11, tgt, dest), "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
                     }) as Num);
                 }}
             }
             Data::Array(x) => {
-                let arg = consts[args.swap_remove(0) as usize];
-                consts[dest as usize] = Data::Number(arrays[x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
+                let arg = registers[args.swap_remove(0) as usize];
+                registers[dest as usize] = Data::Number(arrays[x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
                         fatal_error!(Instr::CallFunc(11, tgt, dest),"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
                     }) as Num);
             }
             _ => unreachable!(),
         },
         // repeat
-        Instr::CallFunc(12, tgt, dest) => match consts[tgt as usize] {
+        Instr::CallFunc(12, tgt, dest) => match registers[tgt as usize] {
             Data::String(str) => {
                 let arg = args.swap_remove(0);
-                if_likely! { let Data::Number(arg) = consts[arg as usize] => {
-                    consts[dest as usize] = Data::String(Intern::from(str.repeat(arg as usize)))
+                if_likely! { let Data::Number(arg) = registers[arg as usize] => {
+                    registers[dest as usize] = Data::String(Intern::from(str.repeat(arg as usize)))
                 }}
             }
             Data::Array(x) => {
                 let arg = args.swap_remove(0);
-                if_likely! { let Data::Number(arg) = consts[arg as usize] => {
-                    consts[dest as usize] = Data::Array(arrays.insert(arrays[x].repeat(arg as usize)));
+                if_likely! { let Data::Number(arg) = registers[arg as usize] => {
+                    registers[dest as usize] = Data::Array(arrays.insert(arrays[x].repeat(arg as usize)));
                 }}
             }
             _ => unreachable!(),
         },
         // round
         Instr::CallFunc(13, tgt, dest) => {
-            if_likely! {let Data::Number(num) = consts[tgt as usize] => {
-                consts[dest as usize] = Data::Number(is_float!(num.round(),num));
+            if_likely! {let Data::Number(num) = registers[tgt as usize] => {
+                registers[dest as usize] = Data::Number(is_float!(num.round(),num));
             }}
         }
         // abs
         Instr::CallFunc(14, tgt, dest) => {
-            if_likely! {let Data::Number(num) = consts[tgt as usize] => {
-                consts[dest as usize] = Data::Number(is_float!(num.abs(),num))
+            if_likely! {let Data::Number(num) = registers[tgt as usize] => {
+                registers[dest as usize] = Data::Number(is_float!(num.abs(),num))
             }}
         }
         // read
         Instr::CallFunc(15, tgt, dest) => {
-            if_likely! {let Data::File(path) = consts[tgt as usize] => {
-                consts[dest as usize] = Data::String(Intern::from(std::fs::read_to_string(path.as_str()).unwrap_or_else(|_| {
+            if_likely! {let Data::File(path) = registers[tgt as usize] => {
+                registers[dest as usize] = Data::String(Intern::from(std::fs::read_to_string(path.as_str()).unwrap_or_else(|_| {
                     fatal_error!(Instr::CallFunc(15, tgt, dest), "File does not exist or cannot be read",format_args!("Cannot read file {color_red}{path}{color_reset}"));
                 })))
             }}
         }
         // write
         Instr::CallFunc(16, tgt, dest) => {
-            if_likely! {let Data::File(path) = consts[tgt as usize] => {
-                if_likely!{let Data::String(contents) = consts[args.swap_remove(0) as usize] => {
-                    if_likely!{let Data::Bool(truncate) = consts[args.swap_remove(0) as usize] => {
+            if_likely! {let Data::File(path) = registers[tgt as usize] => {
+                if_likely!{let Data::String(contents) = registers[args.swap_remove(0) as usize] => {
+                    if_likely!{let Data::Bool(truncate) = registers[args.swap_remove(0) as usize] => {
                         fs::OpenOptions::new()
                             .write(true)
                             .truncate(truncate)
@@ -825,13 +827,13 @@ pub fn execute_instr(
             }}
         }
         // revrese
-        Instr::CallFunc(17, tgt, dest) => match consts[tgt as usize] {
+        Instr::CallFunc(17, tgt, dest) => match registers[tgt as usize] {
             Data::Array(id) => {
                 arrays.get_mut(id).unwrap().reverse();
-                consts[dest as usize] = Data::Array(id)
+                registers[dest as usize] = Data::Array(id)
             }
             Data::String(str) => {
-                consts[dest as usize] =
+                registers[dest as usize] =
                     Data::String(Intern::from(str.chars().rev().collect::<String>()))
             }
             _ => unreachable!(),
@@ -843,7 +845,7 @@ pub fn execute_instr(
 
 pub fn execute(
     instructions: &[Instr],
-    consts: &mut [Data],
+    registers: &mut [Data],
     args: &mut Vec<u16>,
     arrays: &mut ArrayStorage,
     instr_src: &[(Instr, usize, usize)],
@@ -861,7 +863,7 @@ pub fn execute(
         // println!("i:{i}");
         execute_instr(
             instructions[i],
-            consts,
+            registers,
             args,
             arrays,
             instr_src,
@@ -910,7 +912,7 @@ fn main() {
 
     let now = Instant::now();
 
-    let (instructions, mut consts, mut arrays, instr_src) = parse(&contents, filename);
+    let (instructions, mut registers, mut arrays, instr_src) = parse(&contents, filename);
 
     let func_args_count = get_vec_capacity(&instructions);
 
@@ -919,7 +921,7 @@ fn main() {
     let now = Instant::now();
     execute(
         &instructions,
-        &mut consts,
+        &mut registers,
         &mut Vec::with_capacity(func_args_count),
         &mut arrays,
         &instr_src,
