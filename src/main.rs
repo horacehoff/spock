@@ -6,7 +6,6 @@ use inline_colorization::*;
 use internment::Intern;
 use likely_stable::{LikelyResult, if_likely, likely, unlikely};
 use parser::*;
-use rayon::prelude::*;
 use slab::Slab;
 use std::cmp::PartialEq;
 use std::fs;
