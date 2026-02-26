@@ -167,10 +167,12 @@ pub fn execute_instr(
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
+    // -- WORK-IN-PROGESS FOR RECURSION --
     jmps: &mut Vec<usize>,
     return_ids: &mut Vec<u16>,
     i: &mut usize,
     frames: &mut Vec<(Data, u16)>,
+    // -----------------------------------
 ) {
     macro_rules! fatal_error {
         ($instr: expr,$err:expr,$msg:expr) => {
@@ -227,9 +229,10 @@ pub fn execute_instr(
                 }
                 registers[idx as usize] = val;
             }
-
+            // WIP RECURSION
             registers[to_return_slot as usize] = to_return_value;
             debug!("IM RETURNING {:?}", registers[to_return_slot as usize]);
+            // --
             *i = jmps.pop().unwrap();
         }
         Instr::Cmp(cond_id, size) => {
