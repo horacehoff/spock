@@ -203,7 +203,7 @@ where
     std::process::exit(1);
 }
 
-pub fn print_debug(instructions: &[Instr], consts: &[Data], arrays: &ArrayStorage) {
+pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArrayStorage) {
     println!("{color_yellow}---- DEBUG ----{color_reset}");
     if !arrays.is_empty() {
         println!("{color_green}---  ARRAYS  ---{color_reset}");
@@ -212,7 +212,7 @@ pub fn print_debug(instructions: &[Instr], consts: &[Data], arrays: &ArrayStorag
         }
     }
     println!("{color_green}-- CONSTANTS --{color_reset}");
-    for (i, data) in consts.iter().enumerate() {
+    for (i, data) in registers.iter().enumerate() {
         println!(" {i} {data:?}")
     }
     println!("{color_red}-- INSTRUCTIONS --{color_reset}");
@@ -270,9 +270,9 @@ pub fn print_debug(instructions: &[Instr], consts: &[Data], arrays: &ArrayStorag
     println!("{color_yellow}------------------{color_reset}");
 }
 
-pub fn format_consts_inline(consts: &[Data]) -> String {
+pub fn format_registers_inline(registers: &[Data]) -> String {
     let mut output = String::from_str("[").unwrap();
-    consts.iter().enumerate().for_each(|(i, x)| {
+    registers.iter().enumerate().for_each(|(i, x)| {
         output.push_str(&format!("{i} {x:?}, "));
     });
     output + "]"
