@@ -12,7 +12,7 @@ grammar;
 
 match {
     r#"[\s]*"# => { },
-    //r"//[^\n\r]*[\n\r]*" => { }, // `// comment`
+    r"//[^\n\r]*[\n\r]*" => { }, // `// comment`
 } else {_}
 
 Comma<T>: Vec<T> = {
