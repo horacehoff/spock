@@ -887,7 +887,7 @@ pub type FunctionState = (bool, String);
 pub type ParserData<'a> = (
     // var_types
     &'a mut Vec<(Intern<String>, DataType)>,
-    // constants
+    // registers
     &'a mut Vec<Data>,
     // functions
     &'a mut Vec<Function>,
@@ -922,7 +922,7 @@ pub fn parser_to_instr_set(
 
     for x in input {
         match x {
-            // if number / bool / str, just push it to the constants, and the caller will grab the last index
+            // if number / bool / str, just push it to the registers, and the caller will grab the last index
             Expr::Num(num) => registers.push(Data::Number(*num as Num)),
             Expr::Bool(bool) => registers.push(Data::Bool(*bool)),
             Expr::String(str) => registers.push(Data::String(Intern::from(str.to_string()))),
@@ -964,7 +964,7 @@ pub fn parser_to_instr_set(
                 for elem in elems {
                     // process each array element
                     let x = parser_to_instr_set(slice::from_ref(elem), v, parser_data!());
-                    // if there are no instructions, then that means the element has been pushed to the constants, so pop it and push it directly to the array
+                    // if there are no instructions, then that means the element has been pushed to the registers, so pop it and push it directly to the array
                     if x.is_empty() {
                         arrays
                             .get_mut(array_id)
@@ -989,7 +989,7 @@ pub fn parser_to_instr_set(
                 let mut infered = infer_type(target, var_types, fns, src);
                 // process the array/string that is being indexed
                 let mut id = get_id(target, v, parser_data!(), &mut output);
-                // for each index operation, process the index, adjust the id variable for the next index operation, push null to constants to use GetIndex to index at runtime
+                // for each index operation, process the index, adjust the id variable for the next index operation, push null to registers to use GetIndex to index at runtime
                 for elem in index {
                     if !is_indexable(&infered) {
                         parser_error!(
