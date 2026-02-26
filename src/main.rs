@@ -404,7 +404,9 @@ pub fn execute_instr(
         }
         Instr::Num(tgt, dest) => match registers[tgt as usize] {
             Data::String(str) => {
-                registers[dest as usize] = Data::Number(str.parse::<Num>().unwrap_or_else_likely(|_| {
+                dbg!("{}", instr_src);
+                dbg!("{}", Instr::Num(tgt, dest));
+                registers[dest as usize] = Data::Number(str.parse::<Num>().unwrap_or_else(|_| {
                     fatal_error!(
                         Instr::Num(tgt, dest),
                         "Invalid type",

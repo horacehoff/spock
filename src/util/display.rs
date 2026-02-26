@@ -211,7 +211,7 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
             println!(" {i} {data:?}")
         }
     }
-    println!("{color_green}-- CONSTANTS --{color_reset}");
+    println!("{color_green}-- REGISTERS --{color_reset}");
     for (i, data) in registers.iter().enumerate() {
         println!(" {i} {data:?}")
     }
