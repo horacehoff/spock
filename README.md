@@ -4,7 +4,7 @@ Spock
 > [!WARNING]
 >
 > This language is very experimental, and there may be logic-breaking bugs. Expect breaking changes.
-> Recursion is currently broken.
+> Recursion is very buggy, and may not work as expected.
 
 A work-in-progress interpreted programming language written in Rust for the best performance possible, whose syntax takes inspiration from Rust and Python. 
 Its goal is to provide a faster alternative to Python, and one that's closer to low-level languages, while still being accessible to a wide audience.
