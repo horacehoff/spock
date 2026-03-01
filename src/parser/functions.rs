@@ -260,11 +260,11 @@ pub fn handle_functions(
                             output.push(Instr::Mov(arg_id, *tgt_id))
                         }
                         // -- TEMPORARY FIX --
-                        output.insert(start_len, Instr::SaveConst(*tgt_id));
+                        // output.insert(start_len, Instr::SaveConst(*tgt_id));
                         // -------------------
                     }
                 }
-                output.push(Instr::SaveConst(u16::MAX));
+                // BROKEN: output.push(Instr::SaveConst(u16::MAX));
                 let loc = if let Some(fn_loc) = fn_loc_data {
                     fn_loc.0
                 } else {
