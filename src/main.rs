@@ -74,7 +74,7 @@ pub enum Instr {
     Jmp(u16),
     /// Jumps x instructions backwards
     JmpNeg(u16),
-    // condition id -- size
+    // condition id -- jump size
     Cmp(u16, u16),
     InfCmp(u16, u16, u16),
     InfEqCmp(u16, u16, u16),
@@ -88,9 +88,12 @@ pub enum Instr {
     Mov(u16, u16),
 
     // OPS
+    // (3) = (1) + (2)
     Add(u16, u16, u16),
+    // (3) = (1) ∪ (2)
     ArrayAdd(u16, u16, u16),
     StrAdd(u16, u16, u16),
+    // (3) = (1) * (2)
     Mul(u16, u16, u16),
     Sub(u16, u16, u16),
     Div(u16, u16, u16),
