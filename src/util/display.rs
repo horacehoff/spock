@@ -213,7 +213,7 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
     }
     println!("{color_green}-- REGISTERS --{color_reset}");
     for (i, data) in registers.iter().enumerate() {
-        println!(" {i} {data:?}")
+        println!(" [{i}] {data:?}")
     }
     println!("{color_red}-- INSTRUCTIONS --{color_reset}");
     let mut flows: Vec<(usize, usize)> = Vec::new();
@@ -237,7 +237,7 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
     let instr_str = instructions
         .iter()
         .enumerate()
-        .map(|(i, instr)| format!(" {i} {instr:?} "))
+        .map(|(i, instr)| format!(" {i}: {instr:?} "))
         .collect::<Vec<String>>();
     let max_len = instr_str.iter().max_by_key(|x| x.len()).unwrap().len();
     let margins = instr_str
