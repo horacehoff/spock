@@ -174,7 +174,8 @@ pub fn execute_instr(
     jmps: &mut Vec<usize>,
     return_ids: &mut Vec<u16>,
     i: &mut usize,
-    frames: &mut Vec<(Data, u16)>,
+    stack: &mut Vec<Data>,
+    // frames: &mut Vec<(Data, u16)>,
     // -----------------------------------
 ) {
     macro_rules! fatal_error {
@@ -183,8 +184,7 @@ pub fn execute_instr(
             parser_error!(filename, src, *start, *end, $err, $msg);
         };
     }
-    // debug!("{}", format_registers_inline(registers));
-    // debug!("{i} - {instr:?}");
+
     match instr {
         Instr::Break(_) | Instr::Continue(_) => unreachable!(),
 
@@ -206,37 +206,9 @@ pub fn execute_instr(
             *i = jmps.pop().unwrap();
             return;
         }
-        Instr::SaveConst(x) => {
-            if x == u16::MAX {
-                frames.push((Data::Null, x));
-            } else {
-                frames.push((registers[x as usize], x));
-            }
-        }
         Instr::Return(tgt) => {
-            let to_return_slot = return_ids.pop().unwrap();
-            let to_return_value = registers[tgt as usize];
-            // let mut encountered: Vec<u16> = Vec::new();
-            // for (x, y) in frames.iter().rev() {
-            //     if !encountered.contains(y) {
-            //         registers[*y as usize] = *x;
-            //         encountered.push(*y);
-            //     } else {
-            //         break;
-            //     }
-            // }
-            //
-            while let Some((val, idx)) = frames.pop() {
-                if idx == u16::MAX {
-                    break;
-                }
-                registers[idx as usize] = val;
-            }
-            // WIP RECURSION
-            registers[to_return_slot as usize] = to_return_value;
-            debug!("IM RETURNING {:?}", registers[to_return_slot as usize]);
-            // --
             *i = jmps.pop().unwrap();
+            registers[return_ids.pop().unwrap() as usize] = registers[tgt as usize];
         }
         Instr::Cmp(cond_id, size) => {
             if let Data::Bool(false) = registers[cond_id as usize] {
@@ -865,7 +837,12 @@ pub fn execute(
     let mut jmps: Vec<usize> = Vec::with_capacity(10);
     let mut return_ids: Vec<u16> = Vec::with_capacity(10);
 
-    let mut frames: Vec<(Data, u16)> = Vec::new();
+    let mut stack: Vec<Data> = Vec::with_capacity(
+        instructions
+            .iter()
+            .filter(|x| matches!(x, Instr::Return(_)))
+            .count(),
+    );
 
     while i < instructions.len() {
         // println!("i:{i}");
@@ -880,7 +857,7 @@ pub fn execute(
             &mut jmps,
             &mut return_ids,
             &mut i,
-            &mut frames,
+            &mut stack,
         );
     }
 }
