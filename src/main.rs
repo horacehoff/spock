@@ -155,6 +155,8 @@ pub enum Instr {
     JmpLoad,
     Return(u16),
 
+    RecursiveCall(u16, u16),
+
     // HORRIBLE TEMPORARY FIX
     // const idx
     SaveConst(u16),
@@ -173,10 +175,8 @@ pub fn execute_instr(
     // -- WORK-IN-PROGESS FOR RECURSION --
     jmps: &mut Vec<usize>,
     return_ids: &mut Vec<u16>,
-    i: &mut usize,
-    stack: &mut Vec<Data>,
-    // frames: &mut Vec<(Data, u16)>,
-    // -----------------------------------
+    i: &mut usize, // frames: &mut Vec<(Data, u16)>,
+                   // -----------------------------------
 ) {
     macro_rules! fatal_error {
         ($instr: expr,$err:expr,$msg:expr) => {
@@ -202,6 +202,7 @@ pub fn execute_instr(
             *i = new_loc as usize;
             return;
         }
+        Instr::RecursiveCall(new_loc, return_id) => {}
         Instr::JmpLoad => {
             *i = jmps.pop().unwrap();
             return;
@@ -837,13 +838,6 @@ pub fn execute(
     let mut jmps: Vec<usize> = Vec::with_capacity(10);
     let mut return_ids: Vec<u16> = Vec::with_capacity(10);
 
-    let mut stack: Vec<Data> = Vec::with_capacity(
-        instructions
-            .iter()
-            .filter(|x| matches!(x, Instr::Return(_)))
-            .count(),
-    );
-
     while i < instructions.len() {
         // println!("i:{i}");
         execute_instr(
@@ -857,7 +851,6 @@ pub fn execute(
             &mut jmps,
             &mut return_ids,
             &mut i,
-            &mut stack,
         );
     }
 }
