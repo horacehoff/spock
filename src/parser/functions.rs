@@ -1,3 +1,5 @@
+use std::slice;
+
 use crate::Data;
 use crate::Instr;
 use crate::Num;
@@ -11,7 +13,9 @@ use crate::parser::ParserData;
 use crate::parser::move_to_id;
 use crate::parser::parser_to_instr_set;
 use crate::parser_error;
+use crate::type_inference;
 use crate::type_inference::DataType;
+use crate::type_inference::contains_recursive_call;
 use crate::type_inference::infer_type;
 use ariadne::*;
 use inline_colorization::*;
@@ -226,8 +230,22 @@ pub fn handle_functions(
 
                     // Compile the function into instructions using local vars
                     let parsed = parser_to_instr_set(fn_code, &mut vars, parser_data!());
-                    debug!("PARSED IS {parsed:?}");
-                    output.extend(parsed);
+
+                    let is_recursive = type_inference::contains_recursive_call(fn_code, fn_name);
+
+                    if is_recursive {
+                        output.extend(parser_to_instr_set(
+                            &recursive_to_iterative(fn_code, fn_name),
+                            &mut vars,
+                            parser_data!(),
+                        ))
+                    } else {
+                        output.extend(parsed);
+                    }
+                    // recursive_to_iterative(fn_code, fn_name);
+                    // println!("RECURSIVE: {is_recursive}");
+
+                    // debug!("PARSED IS {parsed:?}");
 
                     // JmpLoad to return to the call site (which will also return a value if necessary)
                     output.push(Instr::JmpLoad);
@@ -349,4 +367,17 @@ pub fn handle_functions(
         );
     }
     None
+}
+
+pub fn recursive_to_iterative(function_code: &[Expr], fn_name: &str) -> Vec<Expr> {
+    dbg!("ENTERING RECURSIVE TRANSFORMATION");
+    dbg!(function_code);
+    let mut output: Vec<Expr> = Vec::new();
+    for instruction in function_code {
+        if !contains_recursive_call(slice::from_ref(&instruction), fn_name) {
+            output.push(instruction.clone());
+        }
+    }
+    dbg!(&output);
+    return output;
 }

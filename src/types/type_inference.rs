@@ -19,7 +19,7 @@ pub enum DataType {
 }
 
 // Check if given function body contains a call to that same function
-fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
+pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
     for content in content {
         match content {
             Expr::FunctionCall(_, namespace, _, _, _) => {
