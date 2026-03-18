@@ -6,6 +6,7 @@ use crate::grammar::Token;
 use crate::method_calls::handle_method_calls;
 use crate::op_error;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
+use crate::type_inference::contains_recursive_call;
 use crate::type_inference::{DataType, infer_type};
 use crate::types::is_indexable;
 use crate::{Data, Instr, Num, error};
@@ -881,6 +882,8 @@ pub type Function = (
     Box<[Expr]>,
     // fn loc, fn args loc, argument types
     Vec<(u16, Vec<u16>, Vec<DataType>)>,
+    // is_recursive
+    bool,
 );
 pub type FunctionState = (bool, String);
 
@@ -1395,7 +1398,7 @@ pub fn parser_to_instr_set(
             Expr::FunctionDecl(x, y, start, end) => {
                 if fns
                     .iter()
-                    .any(|(name, _, _, _)| **name == *x.first().unwrap())
+                    .any(|(name, _, _, _, _)| **name == *x.first().unwrap())
                 {
                     parser_error!(
                         src.0,
@@ -1414,6 +1417,7 @@ pub fn parser_to_instr_set(
                     x.into_iter().skip(1).map(ToString::to_string).collect(),
                     y.clone(),
                     Vec::new(),
+                    contains_recursive_call(y, x.first().unwrap()),
                 ));
             }
             Expr::ReturnVal(val) => {
@@ -1458,7 +1462,13 @@ pub fn parse(
         .into_iter()
         .map(|w| {
             if let Expr::FunctionDecl(x, y, _, _) = w {
-                (x[0].to_string(), x[1..].into(), y, Vec::new())
+                (
+                    x[0].to_string(),
+                    x[1..].into(),
+                    y.clone(),
+                    Vec::new(),
+                    contains_recursive_call(&y, &x[0]),
+                )
             } else {
                 unreachable!()
             }

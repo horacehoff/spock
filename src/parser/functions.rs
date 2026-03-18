@@ -158,7 +158,7 @@ pub fn handle_functions(
                 // Registry is (fn_name, fn_args, fn_code, fn_data (per implementation: loc, args_loc, arg_types) )
                 let function_id = fns
                     .iter_mut()
-                    .position(|(a, _, _, _)| *a == fn_name)
+                    .position(|(a, _, _, _, _)| *a == fn_name)
                     .unwrap_or_else(|| {
                         parser_error!(
                             src.0,
@@ -172,8 +172,8 @@ pub fn handle_functions(
                         );
                     });
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
-                let (_, fn_args, fn_code, fn_data) = &fns[function_id].clone();
-
+                let (_, fn_args, fn_code, fn_data, is_recursive) = &fns[function_id].clone();
+                dbg!(is_recursive);
                 // Infer arg types
                 let infered_arg_types = args
                     .iter()
@@ -295,7 +295,11 @@ pub fn handle_functions(
                 // Alocate return slot
                 registers.push(Data::Null);
                 // JmpSave to the func body start location (loc => )
-                output.push(Instr::JmpSave(loc, (registers.len() - 1) as u16));
+                if !*is_recursive {
+                    output.push(Instr::JmpSave(loc, (registers.len() - 1) as u16));
+                } else {
+                    output.push(Instr::RecursiveCall(loc, (registers.len() - 1) as u16));
+                }
                 // Return return slot address
                 return Some((registers.len() - 1) as u16);
             }
