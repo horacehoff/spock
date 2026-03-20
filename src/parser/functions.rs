@@ -263,11 +263,10 @@ pub fn handle_functions(
                     });
                 }
 
-                let mut n = 0;
                 if *is_recursive {
                     output.push(Instr::SaveFrame(0, 0));
-                    n = output.len() - 1;
                 }
+                let n = output.len() - 1;
                 // Move evaluated call args into the expected arg slots
                 if let Some(fn_args) = &fn_loc_data {
                     let fn_args = fn_args.1.to_vec();
@@ -307,8 +306,11 @@ pub fn handle_functions(
                     *is_recursive,
                 ));
                 if *is_recursive {
-                    output[n] =
-                        Instr::SaveFrame((registers.len() - 1) as u16, (output.len() - 1) as u16);
+                    println!("OUTPUT LEN IS {}", output.len() - 1);
+                    output[n] = Instr::SaveFrame(
+                        (registers.len() - 1) as u16,
+                        (output.len() - 1 - n) as u16,
+                    );
                 }
 
                 // } else {
