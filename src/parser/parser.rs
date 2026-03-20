@@ -237,7 +237,6 @@ pub fn get_id(
         var_types,
         registers,
         fns,
-        fn_state,
         arrays,
         block_id,
         src,
@@ -254,7 +253,6 @@ pub fn get_id(
                 var_types,
                 registers,
                 fns,
-                fn_state,
                 arrays,
                 block_id,
                 src,
@@ -929,7 +927,6 @@ pub type Function = (
     // id
     u16,
 );
-pub type FunctionState = (bool, String);
 
 pub type ParserData<'a> = (
     // var_types
@@ -938,8 +935,6 @@ pub type ParserData<'a> = (
     &'a mut Vec<Data>,
     // functions
     &'a mut Vec<Function>,
-    // function state
-    Option<&'a FunctionState>,
     // arrays
     &'a mut ArrayStorage,
     // block_id
@@ -965,7 +960,6 @@ pub fn parser_to_instr_set(
         var_types,
         registers,
         fns,
-        fn_state,
         arrays,
         block_id,
         src,
@@ -983,7 +977,6 @@ pub fn parser_to_instr_set(
                 var_types,
                 registers,
                 fns,
-                fn_state,
                 arrays,
                 block_id,
                 src,
@@ -1578,7 +1571,6 @@ pub fn parse(
             &mut var_types,
             &mut registers,
             &mut functions,
-            None,
             &mut arrays,
             0,
             (filename, contents),
