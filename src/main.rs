@@ -159,8 +159,15 @@ pub enum Instr {
 
 pub type ArrayStorage = Slab<Vec<Data>>;
 
-pub fn execute_instr(
-    instructions: &[Instr],
+// Define once
+#[derive(Clone, Debug)]
+struct RecFrame {
+    return_line: usize,
+    return_slot: u16,
+    saved_registers: Vec<Data>,
+}
+
+fn execute_instr(
     instr: Instr,
     registers: &mut [Data],
     args: &mut Vec<u16>,
@@ -172,9 +179,8 @@ pub fn execute_instr(
     jmps: &mut Vec<usize>,
     return_ids: &mut Vec<u16>,
     i: &mut usize,
-    is_recursive: bool,
-    original_registers: Vec<Data>,
-) -> Option<Data> {
+    recursion_stack: &mut Vec<RecFrame>,
+) {
     macro_rules! fatal_error {
         ($instr: expr,$err:expr,$msg:expr) => {
             let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &$instr).unwrap();
@@ -187,60 +193,44 @@ pub fn execute_instr(
 
         Instr::Jmp(size) => {
             *i += size as usize;
-            return None;
+            return;
         }
         Instr::JmpNeg(size) => {
             *i -= size as usize;
-            return None;
+            return;
         }
         Instr::CallFunc(new_loc, return_id, is_recursive) => {
-            // BROKEN
-            if is_recursive {
-                let mut i: usize = new_loc as usize;
-                let original_registers = if is_recursive {
-                    original_registers.clone()
-                } else {
-                    registers.to_vec()
-                };
-                let mut temp_registers = registers.to_vec();
-
-                loop {
-                    if let Some(data) = execute_instr(
-                        instructions,
-                        instructions[i],
-                        &mut temp_registers,
-                        args,
-                        arrays,
-                        instr_src,
-                        src,
-                        filename,
-                        &mut Vec::new(),
-                        &mut Vec::new(),
-                        &mut i,
-                        true,
-                        original_registers.clone(),
-                    ) {
-                        dbg!(&temp_registers);
-                        registers[return_id as usize] = data;
-                        return None;
-                    }
-                }
-            } else {
+            if !is_recursive {
                 jmps.push(*i);
                 return_ids.push(return_id);
                 *i = new_loc as usize;
+                return;
             }
-            return None;
+
+            let frame = RecFrame {
+                return_line: *i,
+                return_slot: return_id,
+                saved_registers: registers.to_vec(),
+            };
+            recursion_stack.push(frame);
+            // Jump into the function
+            *i = new_loc as usize;
+            return;
         }
         Instr::VoidReturn => {
             *i = jmps.pop().unwrap();
-            return None;
+            return;
         }
         Instr::Return(tgt) => {
-            if is_recursive {
-                // *i = jmps.pop().unwrap();
-                println!("RETURNING {:?}", registers[tgt as usize]);
-                return Some(registers[tgt as usize]);
+            if recursion_stack.is_empty() {
+                // inside recursive stuff
+                // do some shit
+                let temp = registers[tgt as usize];
+                let frame = recursion_stack.pop().unwrap();
+                registers.copy_from_slice(&frame.saved_registers);
+                registers[frame.return_slot as usize] = temp;
+                *i = frame.return_line;
+                return;
             } else {
                 *i = jmps.pop().unwrap();
                 registers[return_ids.pop().unwrap() as usize] = registers[tgt as usize];
@@ -249,7 +239,7 @@ pub fn execute_instr(
         Instr::Cmp(cond_id, size) => {
             if let Data::Bool(false) = registers[cond_id as usize] {
                 *i += size as usize;
-                return None;
+                return;
             }
         }
         Instr::Mov(tgt, dest) => {
@@ -313,14 +303,14 @@ pub fn execute_instr(
         Instr::EqCmp(o1, o2, jump_size) => {
             if registers[o1 as usize] != registers[o2 as usize] {
                 *i += jump_size as usize;
-                return None;
+                return;
             }
         }
         Instr::ArrayEqCmp(o1, o2, jump_size) => {
             if_likely! {let (Data::Array(a1),Data::Array(a2)) = (registers[o1 as usize],registers[o2 as usize]) => {
                 if arrays[a1] != arrays[a2] {
                     *i += jump_size as usize;
-                    return None;
+                    return;
                 }
             }}
         }
@@ -335,14 +325,14 @@ pub fn execute_instr(
         Instr::NotEqCmp(o1, o2, jump_size) => {
             if registers[o1 as usize] == registers[o2 as usize] {
                 *i += jump_size as usize;
-                return None;
+                return;
             }
         }
         Instr::ArrayNotEqCmp(o1, o2, jump_size) => {
             if_likely! {let (Data::Array(a1),Data::Array(a2)) = (registers[o1 as usize],registers[o2 as usize]) => {
                 if arrays[a1] == arrays[a2] {
                     *i += jump_size as usize;
-                    return None;
+                    return;
                 }
             }}
         }
@@ -355,7 +345,7 @@ pub fn execute_instr(
             if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
                 if parent <= child {
                     *i += jump_size as usize;
-                    return None;
+                    return;
                 }
             }}
         }
@@ -368,7 +358,7 @@ pub fn execute_instr(
             if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
                 if parent < child {
                     *i += jump_size as usize;
-                    return None;
+                    return;
                 }
             }}
         }
@@ -381,7 +371,7 @@ pub fn execute_instr(
             if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
                 if parent >= child {
                 *i += jump_size as usize;
-                return None;
+                return;
                 }
             }}
         }
@@ -394,7 +384,7 @@ pub fn execute_instr(
             if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
                 if parent > child {
                     *i += jump_size as usize;
-                    return None;
+                    return;
                 }
             }}
         }
@@ -857,7 +847,7 @@ pub fn execute_instr(
         _ => unreachable!(),
     }
     *i += 1;
-    return None;
+    return;
 }
 
 pub fn execute(
@@ -873,11 +863,11 @@ pub fn execute(
 
     let mut jmps: Vec<usize> = Vec::with_capacity(10);
     let mut return_ids: Vec<u16> = Vec::with_capacity(10);
+    let mut recursion_stack: Vec<RecFrame> = Vec::new();
 
     while i < instructions.len() {
         // println!("i:{i}");
         execute_instr(
-            instructions,
             instructions[i],
             registers,
             args,
@@ -888,8 +878,7 @@ pub fn execute(
             &mut jmps,
             &mut return_ids,
             &mut i,
-            false,
-            Vec::new(),
+            &mut recursion_stack,
         );
     }
 }
