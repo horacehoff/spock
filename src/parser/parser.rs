@@ -134,7 +134,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Neg(_, y)
         | Instr::Num(_, y)
         | Instr::Bool(_, y)
-        | Instr::CallLibFuncCallLibFunc(_, _, y)
+        | Instr::CallLibFunc(_, _, y)
         | Instr::Input(_, y)
         | Instr::ArrayGet(_, _, y)
         | Instr::ArrayStrGet(_, _, y)
@@ -186,7 +186,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::Neg(_, y)
         | Instr::Num(_, y)
         | Instr::Bool(_, y)
-        | Instr::CallLibFuncCallLibFunc(_, _, y)
+        | Instr::CallLibFunc(_, _, y)
         | Instr::Input(_, y)
         | Instr::ArrayGet(_, _, y)
         | Instr::ArrayStrGet(_, _, y)
@@ -200,6 +200,18 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::Str(_, y) => Some(y),
         _ => None,
     }
+}
+
+pub fn get_tgt_ids(x: &[Instr]) -> Vec<u16> {
+    let mut ids = Vec::new();
+    for instruction in x {
+        if let Some(id) = get_tgt_id(*instruction) {
+            ids.push(id);
+        }
+    }
+    ids.sort();
+    ids.dedup();
+    ids
 }
 
 fn get_tgt_id_vec(x: &[Instr]) -> Option<u16> {
@@ -900,6 +912,8 @@ pub type Function = (
     Vec<(u16, Vec<u16>, Vec<DataType>)>,
     // is_recursive
     bool,
+    // modified_registers
+    Vec<u16>,
 );
 pub type FunctionState = (bool, String);
 
@@ -1424,7 +1438,7 @@ pub fn parser_to_instr_set(
             Expr::FunctionDecl(x, y, start, end) => {
                 if fns
                     .iter()
-                    .any(|(name, _, _, _, _)| **name == *x.first().unwrap())
+                    .any(|(name, _, _, _, _, _)| **name == *x.first().unwrap())
                 {
                     parser_error!(
                         src.0,
@@ -1444,6 +1458,7 @@ pub fn parser_to_instr_set(
                     y.clone(),
                     Vec::new(),
                     contains_recursive_call(y, x.first().unwrap()),
+                    Vec::new(),
                 ));
             }
             Expr::ReturnVal(val) => {
@@ -1498,6 +1513,7 @@ pub fn parse(
                     y.clone(),
                     Vec::new(),
                     contains_recursive_call(&y, &x[0]),
+                    Vec::new(),
                 )
             } else {
                 unreachable!()

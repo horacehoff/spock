@@ -459,8 +459,8 @@ pub fn infer_type(
                 "floor" => DataType::Number,
                 "the_answer" => DataType::Number,
                 function => {
-                    let (_, fn_args, fn_code, _, is_recursive) =
-                        fns.iter().find(|(a, _, _, _, _)| *a == function).unwrap_or_else(|| {
+                    let (_, fn_args, fn_code, _, _, _) =
+                        fns.iter().find(|(a, _, _, _, _, _)| *a == function).unwrap_or_else(|| {
                             parser_error!(
                                 src.0,
                                 src.1,
