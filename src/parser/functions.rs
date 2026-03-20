@@ -13,9 +13,7 @@ use crate::parser::ParserData;
 use crate::parser::move_to_id;
 use crate::parser::parser_to_instr_set;
 use crate::parser_error;
-use crate::type_inference;
 use crate::type_inference::DataType;
-use crate::type_inference::contains_recursive_call;
 use crate::type_inference::infer_type;
 use ariadne::*;
 use inline_colorization::*;
@@ -24,7 +22,7 @@ use internment::Intern;
 pub fn handle_functions(
     output: &mut Vec<Instr>,
     v: &mut Vec<(Intern<String>, u16)>,
-    (var_types, registers, fns, fn_state, arrays, block_id, src, instr_src): ParserData,
+    (var_types, registers, fns, fn_state, arrays, block_id, src, instr_src,is_parsing_recursive): ParserData,
 
     // method call data
     args: &[Expr],
@@ -36,7 +34,15 @@ pub fn handle_functions(
     macro_rules! parser_data {
         () => {
             (
-                var_types, registers, fns, fn_state, arrays, block_id, src, instr_src,
+                var_types,
+                registers,
+                fns,
+                fn_state,
+                arrays,
+                block_id,
+                src,
+                instr_src,
+                is_parsing_recursive,
             )
         };
     }
@@ -228,22 +234,16 @@ pub fn handle_functions(
                         .push((loc, args_loc, infered_arg_types));
 
                     // Compile the function into instructions using local vars
-                    let parsed = parser_to_instr_set(fn_code, &mut vars, parser_data!());
+                    let parsed = parser_to_instr_set(
+                        fn_code,
+                        &mut vars,
+                        (
+                            var_types, registers, fns, fn_state, arrays, block_id, src, instr_src,
+                            true,
+                        ),
+                    );
 
-                    // if is_recursive {
-                    //     output.extend(parser_to_instr_set(
-                    //         &recursive_to_iterative(fn_code, fn_name),
-                    //         &mut vars,
-                    //         parser_data!(),
-                    //     ))
-                    // } else {
-                    //     output.extend(parsed);
-                    // }
                     output.extend(parsed);
-                    // recursive_to_iterative(fn_code, fn_name);
-                    // println!("RECURSIVE: {is_recursive}");
-
-                    // debug!("PARSED IS {parsed:?}");
 
                     // JmpLoad to return to the call site (which will also return a value if necessary)
                     output.push(Instr::VoidReturn);
@@ -293,7 +293,6 @@ pub fn handle_functions(
                 // Alocate return slot
                 registers.push(Data::Null);
                 // JmpSave to the func body start location (loc => )
-                // if !*is_recursive {
                 debug!("REGLEN {}", registers.len() - 1);
                 output.push(Instr::CallFunc(
                     loc,
@@ -309,9 +308,6 @@ pub fn handle_functions(
                     );
                 }
 
-                // } else {
-                // output.push(Instr::RecursiveCall(loc, (registers.len() - 1) as u16));
-                // }
                 // Return return slot address
                 return Some((registers.len() - 1) as u16);
             }
