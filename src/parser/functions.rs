@@ -173,7 +173,6 @@ pub fn handle_functions(
                     });
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
                 let (_, fn_args, fn_code, fn_data, is_recursive) = &fns[function_id].clone();
-                dbg!(is_recursive);
                 // Infer arg types
                 let infered_arg_types = args
                     .iter()
@@ -231,8 +230,6 @@ pub fn handle_functions(
                     // Compile the function into instructions using local vars
                     let parsed = parser_to_instr_set(fn_code, &mut vars, parser_data!());
 
-                    let is_recursive = type_inference::contains_recursive_call(fn_code, fn_name);
-
                     // if is_recursive {
                     //     output.extend(parser_to_instr_set(
                     //         &recursive_to_iterative(fn_code, fn_name),
@@ -266,7 +263,7 @@ pub fn handle_functions(
                 if *is_recursive {
                     output.push(Instr::SaveFrame(0, 0));
                 }
-                let n = output.len() - 1;
+                let saveframe_loc = output.len() - 1;
                 // Move evaluated call args into the expected arg slots
                 if let Some(fn_args) = &fn_loc_data {
                     let fn_args = fn_args.1.to_vec();
@@ -282,9 +279,6 @@ pub fn handle_functions(
                             // Else just directly move the arg to the expected slot
                             output.push(Instr::Mov(arg_id, *tgt_id))
                         }
-                        // -- TEMPORARY FIX --
-                        // output.insert(start_len, Instr::SaveConst(*tgt_id));
-                        // -------------------
                     }
                 }
                 let loc = if let Some(fn_loc) = fn_loc_data {
@@ -300,16 +294,18 @@ pub fn handle_functions(
                 registers.push(Data::Null);
                 // JmpSave to the func body start location (loc => )
                 // if !*is_recursive {
+                debug!("REGLEN {}", registers.len() - 1);
                 output.push(Instr::CallFunc(
                     loc,
                     (registers.len() - 1) as u16,
                     *is_recursive,
                 ));
+                debug!("REGLEN {}", registers.len() - 1);
                 if *is_recursive {
-                    println!("OUTPUT LEN IS {}", output.len() - 1);
-                    output[n] = Instr::SaveFrame(
+                    debug!("OUTPUT LEN IS {}", output.len() - 1);
+                    output[saveframe_loc] = Instr::SaveFrame(
+                        (output.len() - 1 - saveframe_loc) as u16,
                         (registers.len() - 1) as u16,
-                        (output.len() - 1 - n) as u16,
                     );
                 }
 
@@ -387,17 +383,4 @@ pub fn handle_functions(
         );
     }
     None
-}
-
-pub fn recursive_to_iterative(function_code: &[Expr], fn_name: &str) -> Vec<Expr> {
-    dbg!("ENTERING RECURSIVE TRANSFORMATION");
-    dbg!(function_code);
-    let mut output: Vec<Expr> = Vec::new();
-    for instruction in function_code {
-        if !contains_recursive_call(slice::from_ref(&instruction), fn_name) {
-            output.push(instruction.clone());
-        }
-    }
-    dbg!(&output);
-    return output;
 }
