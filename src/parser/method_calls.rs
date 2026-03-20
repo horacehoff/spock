@@ -16,7 +16,7 @@ use internment::Intern;
 pub fn handle_method_calls(
     output: &mut Vec<Instr>,
     v: &mut Vec<(Intern<String>, u16)>,
-    (var_types, registers, fns, fn_state, arrays, block_id, src, instr_src): ParserData,
+    (var_types, registers, fns, fn_state, arrays, block_id, src, instr_src,is_parsing_recursive): ParserData,
 
     obj: &Expr,
     args: &[Expr],
@@ -28,7 +28,15 @@ pub fn handle_method_calls(
     macro_rules! parser_data {
         () => {
             (
-                var_types, registers, fns, fn_state, arrays, block_id, src, instr_src,
+                var_types,
+                registers,
+                fns,
+                fn_state,
+                arrays,
+                block_id,
+                src,
+                instr_src,
+                is_parsing_recursive,
             )
         };
     }

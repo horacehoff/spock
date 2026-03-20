@@ -221,13 +221,21 @@ fn get_tgt_id_vec(x: &[Instr]) -> Option<u16> {
 pub fn get_id(
     input: &Expr,
     v: &mut Vec<(Intern<String>, u16)>,
-    (var_types, registers, fns, fn_state, arrays, block_id, src, instr_src): ParserData,
+    (var_types, registers, fns, fn_state, arrays, block_id, src, instr_src, is_parsing_recursive): ParserData,
     output: &mut Vec<Instr>,
 ) -> u16 {
     macro_rules! parser_data {
         () => {
             (
-                var_types, registers, fns, fn_state, arrays, block_id, src, instr_src,
+                var_types,
+                registers,
+                fns,
+                fn_state,
+                arrays,
+                block_id,
+                src,
+                instr_src,
+                is_parsing_recursive,
             )
         };
     }
@@ -912,6 +920,8 @@ pub type ParserData<'a> = (
     (&'a str, &'a str),
     // instr_src
     &'a mut Vec<(Instr, usize, usize)>,
+    // is_parsing_recursive
+    bool,
 );
 
 #[inline(always)]
@@ -919,14 +929,22 @@ pub fn parser_to_instr_set(
     input: &[Expr],
     // variables
     v: &mut Vec<(Intern<String>, u16)>,
-    (var_types, registers, fns, fn_state, arrays, block_id, src, instr_src): ParserData,
+    (var_types, registers, fns, fn_state, arrays, block_id, src, instr_src, is_parsing_recursive): ParserData,
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::with_capacity(input.len());
 
     macro_rules! parser_data {
         () => {
             (
-                var_types, registers, fns, fn_state, arrays, block_id, src, instr_src,
+                var_types,
+                registers,
+                fns,
+                fn_state,
+                arrays,
+                block_id,
+                src,
+                instr_src,
+                is_parsing_recursive,
             )
         };
     }
@@ -1431,7 +1449,11 @@ pub fn parser_to_instr_set(
             Expr::ReturnVal(val) => {
                 if let Some(x) = &**val {
                     let id = get_id(&x, v, parser_data!(), &mut output);
-                    output.push(Instr::Return(id));
+                    if is_parsing_recursive {
+                        output.push(Instr::RecursiveReturn(id));
+                    } else {
+                        output.push(Instr::Return(id));
+                    }
                 }
             }
             Expr::Break => output.push(Instr::Break(block_id)),
@@ -1509,6 +1531,7 @@ pub fn parse(
             0,
             (filename, contents),
             &mut instr_src,
+            false,
         ),
     );
     #[cfg(debug_assertions)]
