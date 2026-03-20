@@ -188,7 +188,7 @@ fn execute_instr(
             parser_error!(filename, src, *start, *end, $err, $msg);
         };
     }
-    println!("{i} {:?}", registers);
+    println!("{}", format_registers_inline(registers));
     println!("{i} {:?}", instr);
     match instr {
         Instr::Break(_) | Instr::Continue(_) => unreachable!(),
@@ -224,16 +224,24 @@ fn execute_instr(
             *i = jmps.pop().unwrap();
             return;
         }
-        Instr::SaveFrame(return_id, loc) => {
+        Instr::SaveFrame(return_id, relative_func_loc) => {
             let saved = registers.to_vec();
             let frame = RecFrame {
-                return_line: loc as usize,
+                return_line: *i + relative_func_loc as usize,
                 return_slot: return_id,
                 saved_registers: saved,
             };
             recursion_stack.push(frame);
         }
         Instr::Return(tgt) => {
+            println!(
+                "RECURSION STACK {} EMPTY",
+                if recursion_stack.is_empty() {
+                    "is"
+                } else {
+                    "isn't"
+                }
+            );
             if !recursion_stack.is_empty() {
                 // inside recursive stuff
                 // do some shit

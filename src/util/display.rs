@@ -271,9 +271,9 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
 }
 
 pub fn format_registers_inline(registers: &[Data]) -> String {
-    let mut output = String::from_str("[").unwrap();
+    let mut output = String::new();
     registers.iter().enumerate().for_each(|(i, x)| {
-        output.push_str(&format!("{i} {x:?}, "));
+        output.push_str(&format!("[{i}] {x:?} "));
     });
-    output + "]"
+    output
 }
