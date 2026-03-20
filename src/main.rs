@@ -150,16 +150,17 @@ pub enum Instr {
     Break(u16),
     Continue(u16),
     // ----------
-    /// CallFunc(n,y,is_recursive) - Jumps to the nth instruction, and adds y as a slot to be set by the Return instruction; JmpLoad will jump back to this location
+    /// CallFunc(n,y,is_recursive) - Jumps to the nth instruction, and adds y as a slot to be set by the Return instruction; VoidReturn/Return will jump back to this location
     CallFunc(u16, u16, bool),
-    /// Jumps to the instruction right after the last JmpSave encountered by the interpreter
+    /// Jumps to the instruction right after the last CallFunc encountered by the interpreter
     VoidReturn,
+    /// Return(n) => returns the data located in register n
     Return(u16),
+    SaveFrame(u16, u16),
 }
 
 pub type ArrayStorage = Slab<Vec<Data>>;
 
-// Define once
 #[derive(Clone, Debug)]
 struct RecFrame {
     return_line: usize,
@@ -187,7 +188,8 @@ fn execute_instr(
             parser_error!(filename, src, *start, *end, $err, $msg);
         };
     }
-    println!("{:?}", instr);
+    println!("{i} {:?}", registers);
+    println!("{i} {:?}", instr);
     match instr {
         Instr::Break(_) | Instr::Continue(_) => unreachable!(),
 
@@ -206,14 +208,15 @@ fn execute_instr(
                 *i = new_loc as usize;
                 return;
             }
-
-            let frame = RecFrame {
-                return_line: *i,
-                return_slot: return_id,
-                saved_registers: registers.to_vec(),
-            };
-            recursion_stack.push(frame);
-            // Jump into the function
+            // let saved = registers.to_vec();
+            // let frame = RecFrame {
+            //     return_line: *i,
+            //     return_slot: return_id,
+            //     saved_registers: saved,
+            // };
+            // recursion_stack.push(frame);
+            // dbg!(recursion_stack);
+            println!("PUSHED FRAME TO RECURSION STACK");
             *i = new_loc as usize;
             return;
         }
@@ -221,8 +224,17 @@ fn execute_instr(
             *i = jmps.pop().unwrap();
             return;
         }
+        Instr::SaveFrame(return_id, loc) => {
+            let saved = registers.to_vec();
+            let frame = RecFrame {
+                return_line: loc as usize,
+                return_slot: return_id,
+                saved_registers: saved,
+            };
+            recursion_stack.push(frame);
+        }
         Instr::Return(tgt) => {
-            if recursion_stack.is_empty() {
+            if !recursion_stack.is_empty() {
                 // inside recursive stuff
                 // do some shit
                 let temp = registers[tgt as usize];
@@ -230,7 +242,6 @@ fn execute_instr(
                 registers.copy_from_slice(&frame.saved_registers);
                 registers[frame.return_slot as usize] = temp;
                 *i = frame.return_line;
-                return;
             } else {
                 *i = jmps.pop().unwrap();
                 registers[return_ids.pop().unwrap() as usize] = registers[tgt as usize];
