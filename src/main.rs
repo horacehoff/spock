@@ -206,25 +206,21 @@ fn execute_instr(
             return;
         }
         Instr::SaveFrame(relative_func_loc, return_register) => {
-            // let saved = registers.to_vec();
-            // let frame = (*i + relative_func_loc as usize, return_register, saved);
             jmps.push(*i + relative_func_loc as usize);
             return_ids.push(return_register);
+            // Create a "snapshot" of the registers, so as to be able to reset them when the function returns.
             recursion_stack.extend(registers.iter());
         }
         Instr::Return(tgt) => {
-            if !recursion_stack.is_empty() {
-                let temp = registers[tgt as usize];
-
-                for i in 0..registers.len() {
-                    registers[registers.len() - 1 - i] = recursion_stack.pop().unwrap();
-                }
-
-                registers[return_ids.pop().unwrap() as usize] = temp;
-                *i = jmps.pop().unwrap();
-            } else {
-                *i = jmps.pop().unwrap();
+            *i = jmps.pop().unwrap();
+            if recursion_stack.is_empty() {
                 registers[return_ids.pop().unwrap() as usize] = registers[tgt as usize];
+            } else {
+                let temp = registers[tgt as usize];
+                let reg_range = (recursion_stack.len() - registers.len())..;
+                registers.copy_from_slice(&recursion_stack[reg_range.clone()]);
+                recursion_stack.drain(reg_range);
+                registers[return_ids.pop().unwrap() as usize] = temp;
             }
         }
         Instr::Cmp(cond_id, size) => {
