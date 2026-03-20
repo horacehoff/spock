@@ -23,7 +23,19 @@ use internment::Intern;
 pub fn handle_functions(
     output: &mut Vec<Instr>,
     v: &mut Vec<(Intern<String>, u16)>,
-    (var_types, registers, fns, fn_state, arrays, block_id, src, instr_src,is_parsing_recursive): ParserData,
+    (
+        var_types,
+        registers,
+        fns,
+        fn_state,
+        arrays,
+        block_id,
+        src,
+        instr_src,
+        is_parsing_recursive,
+        fn_registers,
+        parsing_fn_id,
+    ): ParserData,
 
     // method call data
     args: &[Expr],
@@ -44,6 +56,8 @@ pub fn handle_functions(
                 src,
                 instr_src,
                 is_parsing_recursive,
+                fn_registers,
+                parsing_fn_id,
             )
         };
     }
@@ -179,8 +193,7 @@ pub fn handle_functions(
                         );
                     });
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
-                let (_, fn_args, fn_code, fn_data, is_recursive, fn_registers) =
-                    &fns[function_id].clone();
+                let (_, fn_args, fn_code, fn_data, is_recursive, fn_id) = &fns[function_id].clone();
                 // Infer arg types
                 let infered_arg_types = args
                     .iter()
@@ -240,12 +253,26 @@ pub fn handle_functions(
                         fn_code,
                         &mut vars,
                         (
-                            var_types, registers, fns, fn_state, arrays, block_id, src, instr_src,
+                            var_types,
+                            registers,
+                            fns,
+                            fn_state,
+                            arrays,
+                            block_id,
+                            src,
+                            instr_src,
                             true,
+                            fn_registers,
+                            Some(*fn_id),
                         ),
                     );
-                    let fn_registers = get_tgt_ids(&parsed);
-                    fns.get_mut(function_id).unwrap().5.extend(fn_registers);
+                    let fn_temp_registers = get_tgt_ids(&parsed);
+                    fn_registers
+                        .get_mut(*fn_id as usize)
+                        .unwrap()
+                        .extend(fn_temp_registers);
+                    // fns.get_mut(function_id).unwrap().5.extend(fn_registers);
+
                     output.extend(parsed);
 
                     // JmpLoad to return to the call site (which will also return a value if necessary)
@@ -264,7 +291,7 @@ pub fn handle_functions(
                 }
 
                 if *is_recursive {
-                    output.push(Instr::SaveFrame(0, 0));
+                    output.push(Instr::SaveFrame(0, 0, 0));
                 }
                 let saveframe_loc = output.len() - 1;
                 // Move evaluated call args into the expected arg slots
@@ -284,6 +311,15 @@ pub fn handle_functions(
                         }
                     }
                 }
+                fn_registers
+                    .get_mut(*fn_id as usize)
+                    .unwrap()
+                    .extend(get_tgt_ids(&output[saveframe_loc..]));
+                // fns.get_mut(function_id)
+                //     .unwrap()
+                //     .5
+                //     .extend(get_tgt_ids(&output[saveframe_loc..]));
+
                 let loc = if let Some(fn_loc) = fn_loc_data {
                     fn_loc.0
                 } else {
@@ -303,11 +339,13 @@ pub fn handle_functions(
                     *is_recursive,
                 ));
                 debug!("REGLEN {}", registers.len() - 1);
+
                 if *is_recursive {
                     debug!("OUTPUT LEN IS {}", output.len() - 1);
                     output[saveframe_loc] = Instr::SaveFrame(
                         (output.len() - 1 - saveframe_loc) as u16,
                         (registers.len() - 1) as u16,
+                        *fn_id,
                     );
                 }
 
