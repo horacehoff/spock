@@ -233,22 +233,23 @@ pub fn handle_functions(
 
                     let is_recursive = type_inference::contains_recursive_call(fn_code, fn_name);
 
-                    if is_recursive {
-                        output.extend(parser_to_instr_set(
-                            &recursive_to_iterative(fn_code, fn_name),
-                            &mut vars,
-                            parser_data!(),
-                        ))
-                    } else {
-                        output.extend(parsed);
-                    }
+                    // if is_recursive {
+                    //     output.extend(parser_to_instr_set(
+                    //         &recursive_to_iterative(fn_code, fn_name),
+                    //         &mut vars,
+                    //         parser_data!(),
+                    //     ))
+                    // } else {
+                    //     output.extend(parsed);
+                    // }
+                    output.extend(parsed);
                     // recursive_to_iterative(fn_code, fn_name);
                     // println!("RECURSIVE: {is_recursive}");
 
                     // debug!("PARSED IS {parsed:?}");
 
                     // JmpLoad to return to the call site (which will also return a value if necessary)
-                    output.push(Instr::JmpLoad);
+                    output.push(Instr::VoidReturn);
 
                     // Fix the placeholder Jmp(0) to skip over the function body
                     *output.get_mut(jump_idx).unwrap() =
@@ -282,7 +283,6 @@ pub fn handle_functions(
                         // -------------------
                     }
                 }
-                // BROKEN: output.push(Instr::SaveConst(u16::MAX));
                 let loc = if let Some(fn_loc) = fn_loc_data {
                     fn_loc.0
                 } else {
@@ -295,11 +295,15 @@ pub fn handle_functions(
                 // Alocate return slot
                 registers.push(Data::Null);
                 // JmpSave to the func body start location (loc => )
-                if !*is_recursive {
-                    output.push(Instr::JmpSave(loc, (registers.len() - 1) as u16));
-                } else {
-                    output.push(Instr::RecursiveCall(loc, (registers.len() - 1) as u16));
-                }
+                // if !*is_recursive {
+                output.push(Instr::CallFunc(
+                    loc,
+                    (registers.len() - 1) as u16,
+                    *is_recursive,
+                ));
+                // } else {
+                // output.push(Instr::RecursiveCall(loc, (registers.len() - 1) as u16));
+                // }
                 // Return return slot address
                 return Some((registers.len() - 1) as u16);
             }

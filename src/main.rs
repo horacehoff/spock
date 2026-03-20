@@ -11,6 +11,7 @@ use std::cmp::PartialEq;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
+use std::num::NonZeroU64;
 use std::time::Instant;
 
 #[path = "./util/display.rs"]
@@ -126,7 +127,7 @@ pub enum Instr {
     IoDelete(u16),
 
     StoreFuncArg(u16),
-    CallFunc(u8, u16, u16),
+    CallLibFuncCallLibFunc(u8, u16, u16),
 
     ArrayMov(u16, u16, u16),
     // different than ArrayMov => looks into the registers
@@ -149,22 +150,17 @@ pub enum Instr {
     Break(u16),
     Continue(u16),
     // ----------
-    /// JmpSave(n,y) - Jumps to the nth instruction, and adds y as a slot to be set by the Return instruction; JmpLoad will jump back to this location
-    JmpSave(u16, u16),
+    /// CallFunc(n,y,is_recursive) - Jumps to the nth instruction, and adds y as a slot to be set by the Return instruction; JmpLoad will jump back to this location
+    CallFunc(u16, u16, bool),
     /// Jumps to the instruction right after the last JmpSave encountered by the interpreter
-    JmpLoad,
+    VoidReturn,
     Return(u16),
-
-    RecursiveCall(u16, u16),
-
-    // HORRIBLE TEMPORARY FIX
-    // const idx
-    SaveConst(u16),
 }
 
 pub type ArrayStorage = Slab<Vec<Data>>;
 
 pub fn execute_instr(
+    instructions: &[Instr],
     instr: Instr,
     registers: &mut [Data],
     args: &mut Vec<u16>,
@@ -175,46 +171,85 @@ pub fn execute_instr(
     // -- WORK-IN-PROGESS FOR RECURSION --
     jmps: &mut Vec<usize>,
     return_ids: &mut Vec<u16>,
-    i: &mut usize, // frames: &mut Vec<(Data, u16)>,
-                   // -----------------------------------
-) {
+    i: &mut usize,
+    is_recursive: bool,
+    original_registers: Vec<Data>,
+) -> Option<Data> {
     macro_rules! fatal_error {
         ($instr: expr,$err:expr,$msg:expr) => {
             let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &$instr).unwrap();
             parser_error!(filename, src, *start, *end, $err, $msg);
         };
     }
-
+    println!("{:?}", instr);
     match instr {
         Instr::Break(_) | Instr::Continue(_) => unreachable!(),
 
         Instr::Jmp(size) => {
             *i += size as usize;
-            return;
+            return None;
         }
         Instr::JmpNeg(size) => {
             *i -= size as usize;
-            return;
+            return None;
         }
-        Instr::JmpSave(new_loc, return_id) => {
-            jmps.push(*i);
-            return_ids.push(return_id);
-            *i = new_loc as usize;
-            return;
+        Instr::CallFunc(new_loc, return_id, is_recursive) => {
+            // BROKEN
+            if is_recursive {
+                let mut i: usize = new_loc as usize;
+                let original_registers = if is_recursive {
+                    original_registers.clone()
+                } else {
+                    registers.to_vec()
+                };
+                let mut temp_registers = registers.to_vec();
+
+                loop {
+                    if let Some(data) = execute_instr(
+                        instructions,
+                        instructions[i],
+                        &mut temp_registers,
+                        args,
+                        arrays,
+                        instr_src,
+                        src,
+                        filename,
+                        &mut Vec::new(),
+                        &mut Vec::new(),
+                        &mut i,
+                        true,
+                        original_registers.clone(),
+                    ) {
+                        dbg!(&temp_registers);
+                        registers[return_id as usize] = data;
+                        return None;
+                    }
+                }
+            } else {
+                jmps.push(*i);
+                return_ids.push(return_id);
+                *i = new_loc as usize;
+            }
+            return None;
         }
-        Instr::RecursiveCall(new_loc, return_id) => {}
-        Instr::JmpLoad => {
+        Instr::VoidReturn => {
             *i = jmps.pop().unwrap();
-            return;
+            return None;
         }
         Instr::Return(tgt) => {
-            *i = jmps.pop().unwrap();
-            registers[return_ids.pop().unwrap() as usize] = registers[tgt as usize];
+            if is_recursive {
+                // *i = jmps.pop().unwrap();
+                println!("RETURNING {:?}", registers[tgt as usize]);
+                return Some(registers[tgt as usize]);
+            } else {
+                *i = jmps.pop().unwrap();
+                registers[return_ids.pop().unwrap() as usize] = registers[tgt as usize];
+            }
         }
         Instr::Cmp(cond_id, size) => {
             if let Data::Bool(false) = registers[cond_id as usize] {
                 *i += size as usize;
-                return;
+                return None;
             }
         }
         Instr::Mov(tgt, dest) => {
@@ -278,14 +313,14 @@ pub fn execute_instr(
         Instr::EqCmp(o1, o2, jump_size) => {
             if registers[o1 as usize] != registers[o2 as usize] {
                 *i += jump_size as usize;
-                return;
+                return None;
             }
         }
         Instr::ArrayEqCmp(o1, o2, jump_size) => {
             if_likely! {let (Data::Array(a1),Data::Array(a2)) = (registers[o1 as usize],registers[o2 as usize]) => {
                 if arrays[a1] != arrays[a2] {
                     *i += jump_size as usize;
-                    return;
+                    return None;
                 }
             }}
         }
@@ -300,14 +335,14 @@ pub fn execute_instr(
         Instr::NotEqCmp(o1, o2, jump_size) => {
             if registers[o1 as usize] == registers[o2 as usize] {
                 *i += jump_size as usize;
-                return;
+                return None;
             }
         }
         Instr::ArrayNotEqCmp(o1, o2, jump_size) => {
             if_likely! {let (Data::Array(a1),Data::Array(a2)) = (registers[o1 as usize],registers[o2 as usize]) => {
                 if arrays[a1] == arrays[a2] {
                     *i += jump_size as usize;
-                    return;
+                    return None;
                 }
             }}
         }
@@ -320,7 +355,7 @@ pub fn execute_instr(
             if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
                 if parent <= child {
                     *i += jump_size as usize;
-                    return;
+                    return None;
                 }
             }}
         }
@@ -333,7 +368,7 @@ pub fn execute_instr(
             if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
                 if parent < child {
                     *i += jump_size as usize;
-                    return;
+                    return None;
                 }
             }}
         }
@@ -346,7 +381,7 @@ pub fn execute_instr(
             if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
                 if parent >= child {
                 *i += jump_size as usize;
-                return;
+                return None;
                 }
             }}
         }
@@ -359,7 +394,7 @@ pub fn execute_instr(
             if_likely! {let (Data::Number(parent), Data::Number(child)) = (registers[o1 as usize], registers[o2 as usize]) => {
                 if parent > child {
                     *i += jump_size as usize;
-                    return;
+                    return None;
                 }
             }}
         }
@@ -636,19 +671,19 @@ pub fn execute_instr(
             }}
         }
         // uppercase
-        Instr::CallFunc(0, tgt, dest) => {
+        Instr::CallLibFuncCallLibFunc(0, tgt, dest) => {
             if_likely! { let Data::String(str) = registers[tgt as usize] => {
                 registers[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
             }}
         }
         // lowercase
-        Instr::CallFunc(1, tgt, dest) => {
+        Instr::CallLibFuncCallLibFunc(1, tgt, dest) => {
             if_likely! {let Data::String(str) = registers[tgt as usize] => {
                 registers[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
             }}
         }
         // contains
-        Instr::CallFunc(2, tgt, dest) => match registers[tgt as usize] {
+        Instr::CallLibFuncCallLibFunc(2, tgt, dest) => match registers[tgt as usize] {
             Data::String(str) => {
                 let arg = args.swap_remove(0);
                 if_likely! { let Data::String(arg) = registers[arg as usize] => {
@@ -662,13 +697,13 @@ pub fn execute_instr(
             _ => unreachable!(),
         },
         // trim
-        Instr::CallFunc(3, tgt, dest) => {
+        Instr::CallLibFuncCallLibFunc(3, tgt, dest) => {
             if_likely! { let Data::String(str) = registers[tgt as usize] => {
                 registers[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
             }}
         }
         // trim_sequence
-        Instr::CallFunc(4, tgt, dest) => {
+        Instr::CallLibFuncCallLibFunc(4, tgt, dest) => {
             if_likely! { let Data::String(str) = registers[tgt as usize] => {
                 let arg = args.swap_remove(0);
                 if_likely!{ let Data::String(arg) = registers[arg as usize] => {
@@ -679,43 +714,43 @@ pub fn execute_instr(
             }}
         }
         // index
-        Instr::CallFunc(5, tgt, dest) => match registers[tgt as usize] {
+        Instr::CallLibFuncCallLibFunc(5, tgt, dest) => match registers[tgt as usize] {
             Data::String(str) => {
                 let arg = registers[args.swap_remove(0) as usize];
                 if_likely! { let Data::String(arg) = arg => {
                     registers[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
-                        fatal_error!(Instr::CallFunc(5, tgt, dest),"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
+                        fatal_error!(Instr::CallLibFuncCallLibFunc(5, tgt, dest),"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
                     }) as Num);
                 }}
             }
             Data::Array(x) => {
                 let arg = registers[args.swap_remove(0) as usize];
                 registers[dest as usize] = Data::Number(arrays[x].iter().position(|x| x == &arg).unwrap_or_else(|| {
-                        fatal_error!(Instr::CallFunc(5, tgt, dest), "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
+                        fatal_error!(Instr::CallLibFuncCallLibFunc(5, tgt, dest), "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
                     }) as Num);
             }
             _ => unreachable!(),
         },
         // is_num
-        Instr::CallFunc(6, tgt, dest) => {
+        Instr::CallLibFuncCallLibFunc(6, tgt, dest) => {
             if_likely! { let Data::String(str) = registers[tgt as usize] => {
                 registers[dest as usize] = Data::Bool(str.parse::<f64>().is_ok())
             }}
         }
         // trim_left
-        Instr::CallFunc(7, tgt, dest) => {
+        Instr::CallLibFuncCallLibFunc(7, tgt, dest) => {
             if_likely! { let Data::String(str) = registers[tgt as usize] => {
                 registers[dest as usize] = Data::String(Intern::from(str.trim_start().to_string()));
             }}
         }
         // trim_right
-        Instr::CallFunc(8, tgt, dest) => {
+        Instr::CallLibFuncCallLibFunc(8, tgt, dest) => {
             if_likely! { let Data::String(str) = registers[tgt as usize] => {
                 registers[dest as usize] = Data::String(Intern::from(str.trim_end().to_string()));
             }}
         }
         // trim_sequence_left
-        Instr::CallFunc(9, tgt, dest) => {
+        Instr::CallLibFuncCallLibFunc(9, tgt, dest) => {
             if_likely! { let Data::String(str) = registers[tgt as usize] => {
                 let arg = args.swap_remove(0);
                 if_likely!{ let Data::String(arg) = registers[arg as usize] => {
@@ -726,7 +761,7 @@ pub fn execute_instr(
             }}
         }
         // trim_sequence_right
-        Instr::CallFunc(10, tgt, dest) => {
+        Instr::CallLibFuncCallLibFunc(10, tgt, dest) => {
             if_likely! { let Data::String(str) = registers[tgt as usize] => {
                 let arg = registers[args.swap_remove(0) as usize];
                 if_likely!{ let Data::String(arg) = arg => {
@@ -737,25 +772,25 @@ pub fn execute_instr(
             }}
         }
         // rindex
-        Instr::CallFunc(11, tgt, dest) => match registers[tgt as usize] {
+        Instr::CallLibFuncCallLibFunc(11, tgt, dest) => match registers[tgt as usize] {
             Data::String(str) => {
                 let arg = registers[args.swap_remove(0) as usize];
                 if_likely! { let Data::String(arg) = arg => {
                     registers[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
-                        fatal_error!(Instr::CallFunc(11, tgt, dest), "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
+                        fatal_error!(Instr::CallLibFuncCallLibFunc(11, tgt, dest), "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
                     }) as Num);
                 }}
             }
             Data::Array(x) => {
                 let arg = registers[args.swap_remove(0) as usize];
                 registers[dest as usize] = Data::Number(arrays[x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
-                        fatal_error!(Instr::CallFunc(11, tgt, dest),"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
+                        fatal_error!(Instr::CallLibFuncCallLibFunc(11, tgt, dest),"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
                     }) as Num);
             }
             _ => unreachable!(),
         },
         // repeat
-        Instr::CallFunc(12, tgt, dest) => match registers[tgt as usize] {
+        Instr::CallLibFuncCallLibFunc(12, tgt, dest) => match registers[tgt as usize] {
             Data::String(str) => {
                 let arg = args.swap_remove(0);
                 if_likely! { let Data::Number(arg) = registers[arg as usize] => {
@@ -771,27 +806,27 @@ pub fn execute_instr(
             _ => unreachable!(),
         },
         // round
-        Instr::CallFunc(13, tgt, dest) => {
+        Instr::CallLibFuncCallLibFunc(13, tgt, dest) => {
             if_likely! {let Data::Number(num) = registers[tgt as usize] => {
                 registers[dest as usize] = Data::Number(is_float!(num.round(),num));
             }}
         }
         // abs
-        Instr::CallFunc(14, tgt, dest) => {
+        Instr::CallLibFuncCallLibFunc(14, tgt, dest) => {
             if_likely! {let Data::Number(num) = registers[tgt as usize] => {
                 registers[dest as usize] = Data::Number(is_float!(num.abs(),num))
             }}
         }
         // read
-        Instr::CallFunc(15, tgt, dest) => {
+        Instr::CallLibFuncCallLibFunc(15, tgt, dest) => {
             if_likely! {let Data::File(path) = registers[tgt as usize] => {
                 registers[dest as usize] = Data::String(Intern::from(std::fs::read_to_string(path.as_str()).unwrap_or_else(|_| {
-                    fatal_error!(Instr::CallFunc(15, tgt, dest), "File does not exist or cannot be read",format_args!("Cannot read file {color_red}{path}{color_reset}"));
+                    fatal_error!(Instr::CallLibFuncCallLibFunc(15, tgt, dest), "File does not exist or cannot be read",format_args!("Cannot read file {color_red}{path}{color_reset}"));
                 })))
             }}
         }
         // write
-        Instr::CallFunc(16, tgt, dest) => {
+        Instr::CallLibFuncCallLibFunc(16, tgt, dest) => {
             if_likely! {let Data::File(path) = registers[tgt as usize] => {
                 if_likely!{let Data::String(contents) = registers[args.swap_remove(0) as usize] => {
                     if_likely!{let Data::Bool(truncate) = registers[args.swap_remove(0) as usize] => {
@@ -799,16 +834,16 @@ pub fn execute_instr(
                             .write(true)
                             .truncate(truncate)
                             .open(path.as_str()).unwrap_or_else(|_| {
-                                fatal_error!(Instr::CallFunc(16, tgt, dest),"File does not exist or cannot be opened",format_args!("Cannot open file {color_red}{path}{color_reset}"));
+                                fatal_error!(Instr::CallLibFuncCallLibFunc(16, tgt, dest),"File does not exist or cannot be opened",format_args!("Cannot open file {color_red}{path}{color_reset}"));
                             }).write_all(contents.as_bytes()).unwrap_or_else(|_| {
-                                fatal_error!(Instr::CallFunc(16, tgt, dest),"File does not exist or cannot be written to",format_args!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
+                                fatal_error!(Instr::CallLibFuncCallLibFunc(16, tgt, dest),"File does not exist or cannot be written to",format_args!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
                         });
                     }}
                 }}
             }}
         }
         // revrese
-        Instr::CallFunc(17, tgt, dest) => match registers[tgt as usize] {
+        Instr::CallLibFuncCallLibFunc(17, tgt, dest) => match registers[tgt as usize] {
             Data::Array(id) => {
                 arrays.get_mut(id).unwrap().reverse();
                 registers[dest as usize] = Data::Array(id)
@@ -822,6 +857,7 @@ pub fn execute_instr(
         _ => unreachable!(),
     }
     *i += 1;
+    return None;
 }
 
 pub fn execute(
@@ -841,6 +877,7 @@ pub fn execute(
     while i < instructions.len() {
         // println!("i:{i}");
         execute_instr(
+            instructions,
             instructions[i],
             registers,
             args,
@@ -851,6 +888,8 @@ pub fn execute(
             &mut jmps,
             &mut return_ids,
             &mut i,
+            false,
+            Vec::new(),
         );
     }
 }
@@ -861,7 +900,7 @@ fn get_vec_capacity(instructions: &[Instr]) -> usize {
     for instr in instructions {
         match instr {
             Instr::StoreFuncArg(_) => func_args += 1,
-            Instr::CallFunc(_, _, _) => {
+            Instr::CallLibFuncCallLibFunc(_, _, _) => {
                 max_func_args = max_func_args.max(func_args);
                 func_args = 0;
             }
