@@ -10,6 +10,7 @@ use crate::display::format_expr;
 use crate::get_id;
 use crate::parser::Expr;
 use crate::parser::ParserData;
+use crate::parser::get_tgt_ids;
 use crate::parser::move_to_id;
 use crate::parser::parser_to_instr_set;
 use crate::parser_error;
@@ -164,7 +165,7 @@ pub fn handle_functions(
                 // Registry is (fn_name, fn_args, fn_code, fn_data (per implementation: loc, args_loc, arg_types) )
                 let function_id = fns
                     .iter_mut()
-                    .position(|(a, _, _, _, _)| *a == fn_name)
+                    .position(|(a, _, _, _, _, _)| *a == fn_name)
                     .unwrap_or_else(|| {
                         parser_error!(
                             src.0,
@@ -178,7 +179,8 @@ pub fn handle_functions(
                         );
                     });
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
-                let (_, fn_args, fn_code, fn_data, is_recursive) = &fns[function_id].clone();
+                let (_, fn_args, fn_code, fn_data, is_recursive, fn_registers) =
+                    &fns[function_id].clone();
                 // Infer arg types
                 let infered_arg_types = args
                     .iter()
@@ -242,7 +244,8 @@ pub fn handle_functions(
                             true,
                         ),
                     );
-
+                    let fn_registers = get_tgt_ids(&parsed);
+                    fns.get_mut(function_id).unwrap().5.extend(fn_registers);
                     output.extend(parsed);
 
                     // JmpLoad to return to the call site (which will also return a value if necessary)
