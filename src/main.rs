@@ -11,7 +11,6 @@ use std::cmp::PartialEq;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
-use std::num::NonZeroU64;
 use std::time::Instant;
 
 #[path = "./util/display.rs"]
@@ -161,13 +160,6 @@ pub enum Instr {
 
 pub type ArrayStorage = Slab<Vec<Data>>;
 
-#[derive(Clone, Debug)]
-struct RecFrame {
-    return_line: usize,
-    return_slot: u16,
-    saved_registers: Vec<Data>,
-}
-
 fn execute_instr(
     instr: Instr,
     registers: &mut [Data],
@@ -180,7 +172,7 @@ fn execute_instr(
     jmps: &mut Vec<usize>,
     return_ids: &mut Vec<u16>,
     i: &mut usize,
-    recursion_stack: &mut Vec<RecFrame>,
+    recursion_stack: &mut Vec<Data>,
 ) {
     macro_rules! fatal_error {
         ($instr: expr,$err:expr,$msg:expr) => {
@@ -188,8 +180,8 @@ fn execute_instr(
             parser_error!(filename, src, *start, *end, $err, $msg);
         };
     }
-    println!("{}", format_registers_inline(registers));
-    println!("{i} {:?}", instr);
+    debug!("{}", format_registers_inline(registers));
+    debug!("{i} {:?}", instr);
     match instr {
         Instr::Break(_) | Instr::Continue(_) => unreachable!(),
 
@@ -205,18 +197,7 @@ fn execute_instr(
             if !is_recursive {
                 jmps.push(*i);
                 return_ids.push(return_id);
-                *i = new_loc as usize;
-                return;
             }
-            // let saved = registers.to_vec();
-            // let frame = RecFrame {
-            //     return_line: *i,
-            //     return_slot: return_id,
-            //     saved_registers: saved,
-            // };
-            // recursion_stack.push(frame);
-            // dbg!(recursion_stack);
-            println!("PUSHED FRAME TO RECURSION STACK");
             *i = new_loc as usize;
             return;
         }
@@ -224,32 +205,23 @@ fn execute_instr(
             *i = jmps.pop().unwrap();
             return;
         }
-        Instr::SaveFrame(return_id, relative_func_loc) => {
-            let saved = registers.to_vec();
-            let frame = RecFrame {
-                return_line: *i + relative_func_loc as usize,
-                return_slot: return_id,
-                saved_registers: saved,
-            };
-            recursion_stack.push(frame);
+        Instr::SaveFrame(relative_func_loc, return_register) => {
+            // let saved = registers.to_vec();
+            // let frame = (*i + relative_func_loc as usize, return_register, saved);
+            jmps.push(*i + relative_func_loc as usize);
+            return_ids.push(return_register);
+            recursion_stack.extend(registers.iter());
         }
         Instr::Return(tgt) => {
-            println!(
-                "RECURSION STACK {} EMPTY",
-                if recursion_stack.is_empty() {
-                    "is"
-                } else {
-                    "isn't"
-                }
-            );
             if !recursion_stack.is_empty() {
-                // inside recursive stuff
-                // do some shit
                 let temp = registers[tgt as usize];
-                let frame = recursion_stack.pop().unwrap();
-                registers.copy_from_slice(&frame.saved_registers);
-                registers[frame.return_slot as usize] = temp;
-                *i = frame.return_line;
+
+                for i in 0..registers.len() {
+                    registers[registers.len() - 1 - i] = recursion_stack.pop().unwrap();
+                }
+
+                registers[return_ids.pop().unwrap() as usize] = temp;
+                *i = jmps.pop().unwrap();
             } else {
                 *i = jmps.pop().unwrap();
                 registers[return_ids.pop().unwrap() as usize] = registers[tgt as usize];
@@ -427,8 +399,8 @@ fn execute_instr(
         }
         Instr::Num(tgt, dest) => match registers[tgt as usize] {
             Data::String(str) => {
-                dbg!("{}", instr_src);
-                dbg!("{}", Instr::Num(tgt, dest));
+                // dbg!("{}", instr_src);
+                // dbg!("{}", Instr::Num(tgt, dest));
                 registers[dest as usize] = Data::Number(str.parse::<Num>().unwrap_or_else(|_| {
                     fatal_error!(
                         Instr::Num(tgt, dest),
@@ -882,7 +854,12 @@ pub fn execute(
 
     let mut jmps: Vec<usize> = Vec::with_capacity(10);
     let mut return_ids: Vec<u16> = Vec::with_capacity(10);
-    let mut recursion_stack: Vec<RecFrame> = Vec::new();
+    let mut recursion_stack: Vec<Data> = Vec::with_capacity(
+        instructions
+            .iter()
+            .filter(|x| matches!(x, Instr::CallFunc(_, _, _)))
+            .count(),
+    );
 
     while i < instructions.len() {
         // println!("i:{i}");

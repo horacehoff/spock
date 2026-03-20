@@ -1,4 +1,3 @@
-use crate::Data;
 use crate::type_inference::DataType;
 
 #[macro_export]

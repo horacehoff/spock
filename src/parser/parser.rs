@@ -105,16 +105,14 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     {
         return;
     }
-    match x
-        .get_mut(
-            x.iter()
-                .rposition(|w| get_tgt_id(*w).is_some())
-                .unwrap_or(x.len() - 1),
-        )
-        .unwrap()
-    {
+    let matching_elem_index = x
+        .iter()
+        .rposition(|w| get_tgt_id(*w).is_some())
+        .unwrap_or(x.len() - 1);
+    let matching_elem = x.get_mut(matching_elem_index).unwrap();
+    match matching_elem{
         Instr::Mov(_, y)
-        | Instr::CallFunc(_, y, _)
+        | Instr::CallFunc(_, y, false)
         | Instr::Add(_, _, y)
         | Instr::ArrayAdd(_, _, y)
         | Instr::StrAdd(_, _, y)
@@ -149,6 +147,15 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Sqrt(_, y)
         | Instr::Split(_, _, y)
         | Instr::Str(_, y) => *y = tgt_id,
+        | Instr::CallFunc(_, y, true) => {
+            *y = tgt_id;
+            for i in 1..x.len() - 1 {
+                if let Some(Instr::SaveFrame(_, y)) = x.get_mut(matching_elem_index - i) {
+                    *y = tgt_id;
+                    break;
+                }
+            }
+        }
         _ => unreachable!(),
     }
 }
@@ -157,6 +164,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
     match x {
         Instr::Mov(_, y)
         | Instr::CallFunc(_, y, _)
+        | Instr::SaveFrame(_, y)
         | Instr::Add(_, _, y)
         | Instr::ArrayAdd(_, _, y)
         | Instr::StrAdd(_, _, y)
