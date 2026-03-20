@@ -114,7 +114,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         .unwrap()
     {
         Instr::Mov(_, y)
-        | Instr::JmpSave(_, y)
+        | Instr::CallFunc(_, y, _)
         | Instr::Add(_, _, y)
         | Instr::ArrayAdd(_, _, y)
         | Instr::StrAdd(_, _, y)
@@ -136,7 +136,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Neg(_, y)
         | Instr::Num(_, y)
         | Instr::Bool(_, y)
-        | Instr::CallFunc(_, _, y)
+        | Instr::CallLibFuncCallLibFunc(_, _, y)
         | Instr::Input(_, y)
         | Instr::ArrayGet(_, _, y)
         | Instr::ArrayStrGet(_, _, y)
@@ -156,7 +156,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
 fn get_tgt_id(x: Instr) -> Option<u16> {
     match x {
         Instr::Mov(_, y)
-        | Instr::JmpSave(_, y)
+        | Instr::CallFunc(_, y, _)
         | Instr::Add(_, _, y)
         | Instr::ArrayAdd(_, _, y)
         | Instr::StrAdd(_, _, y)
@@ -178,7 +178,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::Neg(_, y)
         | Instr::Num(_, y)
         | Instr::Bool(_, y)
-        | Instr::CallFunc(_, _, y)
+        | Instr::CallLibFuncCallLibFunc(_, _, y)
         | Instr::Input(_, y)
         | Instr::ArrayGet(_, _, y)
         | Instr::ArrayStrGet(_, _, y)

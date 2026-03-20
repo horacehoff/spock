@@ -229,7 +229,7 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
             | Instr::ArrayEqCmp(_, _, jump_size)
             | Instr::NotEqCmp(_, _, jump_size)
             | Instr::ArrayNotEqCmp(_, _, jump_size) => flows.push((i, i + *jump_size as usize)),
-            Instr::JmpSave(jump_size, _) => flows.push((i, *jump_size as usize)),
+            Instr::CallLibFuncCallLibFunc(jump_size, _, _) => flows.push((i, *jump_size as usize)),
             Instr::JmpNeg(jump_size) => flows.push((i, i - *jump_size as usize)),
             _ => continue,
         }
