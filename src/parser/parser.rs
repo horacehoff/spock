@@ -150,7 +150,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::CallFunc(_, y, true) => {
             *y = tgt_id;
             for i in 1..x.len() - 1 {
-                if let Some(Instr::SaveFrame(_, y)) = x.get_mut(matching_elem_index - i) {
+                if let Some(Instr::SaveFrame(_, y, _)) = x.get_mut(matching_elem_index - i) {
                     *y = tgt_id;
                     break;
                 }
@@ -164,7 +164,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
     match x {
         Instr::Mov(_, y)
         | Instr::CallFunc(_, y, _)
-        | Instr::SaveFrame(_, y)
+        | Instr::SaveFrame(_, y, _)
         | Instr::Add(_, _, y)
         | Instr::ArrayAdd(_, _, y)
         | Instr::StrAdd(_, _, y)
@@ -233,7 +233,19 @@ fn get_tgt_id_vec(x: &[Instr]) -> Option<u16> {
 pub fn get_id(
     input: &Expr,
     v: &mut Vec<(Intern<String>, u16)>,
-    (var_types, registers, fns, fn_state, arrays, block_id, src, instr_src, is_parsing_recursive): ParserData,
+    (
+        var_types,
+        registers,
+        fns,
+        fn_state,
+        arrays,
+        block_id,
+        src,
+        instr_src,
+        is_parsing_recursive,
+        fn_registers,
+        parsing_fn_id,
+    ): ParserData,
     output: &mut Vec<Instr>,
 ) -> u16 {
     macro_rules! parser_data {
@@ -248,6 +260,8 @@ pub fn get_id(
                 src,
                 instr_src,
                 is_parsing_recursive,
+                fn_registers,
+                parsing_fn_id,
             )
         };
     }
@@ -912,8 +926,8 @@ pub type Function = (
     Vec<(u16, Vec<u16>, Vec<DataType>)>,
     // is_recursive
     bool,
-    // modified_registers
-    Vec<u16>,
+    // id
+    u16,
 );
 pub type FunctionState = (bool, String);
 
@@ -936,6 +950,10 @@ pub type ParserData<'a> = (
     &'a mut Vec<(Instr, usize, usize)>,
     // is_parsing_recursive
     bool,
+    // fn_registers
+    &'a mut Vec<Vec<u16>>,
+    // current function id,
+    Option<u16>,
 );
 
 #[inline(always)]
@@ -943,7 +961,19 @@ pub fn parser_to_instr_set(
     input: &[Expr],
     // variables
     v: &mut Vec<(Intern<String>, u16)>,
-    (var_types, registers, fns, fn_state, arrays, block_id, src, instr_src, is_parsing_recursive): ParserData,
+    (
+        var_types,
+        registers,
+        fns,
+        fn_state,
+        arrays,
+        block_id,
+        src,
+        instr_src,
+        is_parsing_recursive,
+        fn_registers,
+        parsing_fn_id,
+    ): ParserData,
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::with_capacity(input.len());
 
@@ -959,6 +989,8 @@ pub fn parser_to_instr_set(
                 src,
                 instr_src,
                 is_parsing_recursive,
+                fn_registers,
+                parsing_fn_id,
             )
         };
     }
@@ -1458,14 +1490,15 @@ pub fn parser_to_instr_set(
                     y.clone(),
                     Vec::new(),
                     contains_recursive_call(y, x.first().unwrap()),
-                    Vec::new(),
+                    fn_registers.len() as u16,
                 ));
+                fn_registers.push(Vec::new());
             }
             Expr::ReturnVal(val) => {
                 if let Some(x) = &**val {
                     let id = get_id(&x, v, parser_data!(), &mut output);
                     if is_parsing_recursive {
-                        output.push(Instr::RecursiveReturn(id));
+                        output.push(Instr::RecursiveReturn(id, parsing_fn_id.unwrap()));
                     } else {
                         output.push(Instr::Return(id));
                     }
@@ -1493,6 +1526,7 @@ pub fn parse(
     Vec<Data>,
     ArrayStorage,
     Vec<(Instr, usize, usize)>,
+    Vec<Vec<u16>>,
 ) {
     let now = std::time::Instant::now();
     let functions: Vec<Expr> = grammar::FileParser::new()
@@ -1503,29 +1537,31 @@ pub fn parse(
         });
     println!("LALRPOP TIME {:.2?}", now.elapsed());
     // println!("FUNCS {functions:?}");
-    let mut functions: Vec<Function> = functions
-        .into_iter()
-        .map(|w| {
-            if let Expr::FunctionDecl(x, y, _, _) = w {
-                (
-                    x[0].to_string(),
-                    x[1..].into(),
-                    y.clone(),
-                    Vec::new(),
-                    contains_recursive_call(&y, &x[0]),
-                    Vec::new(),
-                )
-            } else {
-                unreachable!()
-            }
-        })
-        .collect();
 
     let mut variables: Vec<(Intern<String>, u16)> = Vec::new();
     let mut registers: Vec<Data> = Vec::new();
     let mut arrays: ArrayStorage = Slab::with_capacity(20);
     let mut instr_src = Vec::new();
     let mut var_types: Vec<(Intern<String>, DataType)> = Vec::new();
+    let mut fn_registers: Vec<Vec<u16>> = Vec::new();
+    let mut functions: Vec<Function> = functions
+        .into_iter()
+        .map(|w| {
+            if let Expr::FunctionDecl(x, y, _, _) = w {
+                fn_registers.push(Vec::new());
+                (
+                    x[0].to_string(),
+                    x[1..].into(),
+                    y.clone(),
+                    Vec::new(),
+                    contains_recursive_call(&y, &x[0]),
+                    (fn_registers.len() - 1) as u16,
+                )
+            } else {
+                unreachable!()
+            }
+        })
+        .collect();
 
     let instructions = parser_to_instr_set(
         functions
@@ -1548,11 +1584,17 @@ pub fn parse(
             (filename, contents),
             &mut instr_src,
             false,
+            &mut fn_registers,
+            None,
         ),
     );
+    for x in fn_registers.iter_mut() {
+        x.sort();
+        x.dedup();
+    }
     #[cfg(debug_assertions)]
     {
         print_debug(&instructions, &registers, &arrays);
     }
-    (instructions, registers, arrays, instr_src)
+    (instructions, registers, arrays, instr_src, fn_registers)
 }

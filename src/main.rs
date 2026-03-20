@@ -23,7 +23,6 @@ mod method_calls;
 mod optimizations;
 #[path = "./parser/parser.rs"]
 mod parser;
-mod tests;
 #[path = "./types/type_inference.rs"]
 mod type_inference;
 #[path = "./types/types.rs"]
@@ -156,9 +155,10 @@ pub enum Instr {
     VoidReturn,
     /// Return(n) => returns the data located in register n
     Return(u16),
-    /// RecursiveReturn(n) => returns the data located in register n
-    RecursiveReturn(u16),
-    SaveFrame(u16, u16),
+    /// RecursiveReturn(n,function_id) => returns the data located in register n
+    RecursiveReturn(u16, u16),
+    /// SaveFrame(function_location, return_register, function_id)
+    SaveFrame(u16, u16, u16),
 }
 
 pub type ArrayStorage = Slab<Vec<Data>>;
@@ -171,6 +171,7 @@ pub fn execute(
     instr_src: &[(Instr, usize, usize)],
     src: &str,
     filename: &str,
+    fn_registers: &[Vec<u16>],
 ) {
     macro_rules! fatal_error {
         ($instr: expr,$err:expr,$msg:expr) => {
@@ -182,20 +183,14 @@ pub fn execute(
 
     let call_depth = instructions
         .iter()
-        .filter(|x| matches!(x, Instr::CallFunc(_, _, _) | Instr::SaveFrame(_, _)))
+        .filter(|x| matches!(x, Instr::CallFunc(_, _, _) | Instr::SaveFrame(_, _, _)))
         .count();
     let mut jmps: Vec<usize> = Vec::with_capacity(call_depth);
     let mut return_ids: Vec<u16> = Vec::with_capacity(call_depth);
-    let mut recursion_stack: Vec<Data> = Vec::with_capacity(
-        instructions
-            .iter()
-            .filter(|x| matches!(x, Instr::CallFunc(_, _, _)))
-            .count()
-            * registers.len(),
-    );
+    let mut recursion_stack: Vec<Data> = Vec::with_capacity(call_depth);
 
     while i < instructions.len() {
-        debug!("{}", format_registers_inline(registers));
+        // debug!("{}", format_registers_inline(registers));
         match instructions[i] {
             Instr::Break(_) | Instr::Continue(_) => unreachable!(),
 
@@ -219,26 +214,30 @@ pub fn execute(
                 i = jmps.pop().unwrap();
                 continue;
             }
-            Instr::SaveFrame(relative_func_loc, return_register) => {
+            Instr::SaveFrame(relative_func_loc, return_register, fn_id) => {
                 jmps.push(i + relative_func_loc as usize);
                 return_ids.push(return_register);
                 // Create a "snapshot" of the registers, so as to be able to reset them when the function returns.
-                recursion_stack.extend_from_slice(registers);
+                for register in fn_registers[fn_id as usize].iter() {
+                    recursion_stack.push(registers[*register as usize]);
+                }
             }
             Instr::Return(tgt) => {
                 i = jmps.pop().unwrap();
                 registers[return_ids.pop().unwrap() as usize] = registers[tgt as usize];
             }
-            Instr::RecursiveReturn(tgt) => {
+            Instr::RecursiveReturn(tgt, fn_id) => {
                 i = jmps.pop().unwrap();
                 let temp = registers[tgt as usize];
-                let reg_starting_range = recursion_stack.len() - registers.len();
-                registers.copy_from_slice(&recursion_stack[reg_starting_range..]);
+                let regs = &fn_registers[fn_id as usize];
+                let base = recursion_stack.len() - regs.len();
+                for (reg, &saved) in regs.iter().zip(&recursion_stack[base..]) {
+                    registers[*reg as usize] = saved;
+                }
                 unsafe {
-                    recursion_stack.set_len(reg_starting_range);
+                    recursion_stack.set_len(base);
                 }
                 registers[return_ids.pop().unwrap() as usize] = temp;
-                debug!("RESTORING FRAME");
             }
             Instr::Cmp(cond_id, size) => {
                 if let Data::Bool(false) = registers[cond_id as usize] {
@@ -891,7 +890,8 @@ fn main() {
 
     let now = Instant::now();
 
-    let (instructions, mut registers, mut arrays, instr_src) = parse(&contents, filename);
+    let (instructions, mut registers, mut arrays, instr_src, fn_registers) =
+        parse(&contents, filename);
 
     let func_args_count = get_vec_capacity(&instructions);
 
@@ -906,6 +906,7 @@ fn main() {
         &instr_src,
         &contents,
         filename,
+        &fn_registers,
     );
     let end = now.elapsed();
     println!("EXEC TIME {:.2?}", end);

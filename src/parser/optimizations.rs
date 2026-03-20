@@ -5,7 +5,19 @@ use internment::Intern;
 pub fn while_loop_summation(
     output: &mut Vec<Instr>,
     v: &mut Vec<(Intern<String>, u16)>,
-    (var_types, registers, fns, fn_state, arrays, block_id, src, instr_src, is_parsing_recursive): ParserData,
+    (
+        var_types,
+        registers,
+        fns,
+        fn_state,
+        arrays,
+        block_id,
+        src,
+        instr_src,
+        is_parsing_recursive,
+        fn_registers,
+        parsing_fn_id,
+    ): ParserData,
     condition: &Expr,
     code: &[Expr],
 ) -> bool {
@@ -21,6 +33,8 @@ pub fn while_loop_summation(
                 src,
                 instr_src,
                 is_parsing_recursive,
+                fn_registers,
+                parsing_fn_id,
             )
         };
     }
