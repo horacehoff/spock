@@ -203,13 +203,8 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
 }
 
 pub fn get_tgt_ids(x: &[Instr]) -> Vec<u16> {
-    let mut ids = Vec::new();
-    for instruction in x {
-        if let Some(id) = get_tgt_id(*instruction) {
-            ids.push(id);
-        }
-    }
-    ids.sort();
+    let mut ids: Vec<u16> = x.iter().filter_map(|i| get_tgt_id(*i)).collect();
+    ids.sort_unstable();
     ids.dedup();
     ids
 }
@@ -556,7 +551,7 @@ pub fn get_id(
             return_id
         }
         Expr::FunctionCall(args, namespace, start, end, args_indexes) => {
-            let some_id = handle_functions(
+            return handle_functions(
                 output,
                 v,
                 parser_data!(),
@@ -565,12 +560,8 @@ pub fn get_id(
                 *start,
                 *end,
                 args_indexes,
-            );
-            if let Some(id) = some_id {
-                return id;
-            } else {
-                return (registers.len() - 1) as u16;
-            }
+            )
+            .unwrap_or_else(|| (registers.len() - 1) as u16);
         }
         other => {
             let output_code = parser_to_instr_set(slice::from_ref(other), v, parser_data!());
@@ -593,91 +584,22 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
     if output.is_empty() {
         return output.push(Instr::Cmp(condition_id, *len));
     }
-    match *output.last().unwrap() {
-        Instr::Inf(o1, o2, o3) => {
-            if o3 == condition_id {
-                *output.last_mut().unwrap() = Instr::InfCmp(o1, o2, *len);
-                if jmp_backwards {
-                    *len -= 1;
-                }
-            } else {
-                unreachable!()
-            }
-        }
-        Instr::InfEq(o1, o2, o3) => {
-            if o3 == condition_id {
-                *output.last_mut().unwrap() = Instr::InfEqCmp(o1, o2, *len);
-                if jmp_backwards {
-                    *len -= 1;
-                }
-            } else {
-                unreachable!()
-            }
-        }
-        Instr::Sup(o1, o2, o3) => {
-            if o3 == condition_id {
-                *output.last_mut().unwrap() = Instr::SupCmp(o1, o2, *len);
-                if jmp_backwards {
-                    *len -= 1;
-                }
-            } else {
-                unreachable!()
-            }
-        }
-        Instr::SupEq(o1, o2, o3) => {
-            if o3 == condition_id {
-                *output.last_mut().unwrap() = Instr::SupEqCmp(o1, o2, *len);
-                if jmp_backwards {
-                    *len -= 1;
-                }
-            } else {
-                unreachable!()
-            }
-        }
-        Instr::Eq(o1, o2, o3) => {
-            if o3 == condition_id {
-                *output.last_mut().unwrap() = Instr::EqCmp(o1, o2, *len);
-                if jmp_backwards {
-                    *len -= 1;
-                }
-            } else {
-                unreachable!()
-            }
-        }
-        Instr::ArrayEq(o1, o2, o3) => {
-            if o3 == condition_id {
-                *output.last_mut().unwrap() = Instr::ArrayEqCmp(o1, o2, *len);
-                if jmp_backwards {
-                    *len -= 1;
-                }
-            } else {
-                unreachable!()
-            }
-        }
-        Instr::NotEq(o1, o2, o3) => {
-            if o3 == condition_id {
-                *output.last_mut().unwrap() = Instr::NotEqCmp(o1, o2, *len);
-                if jmp_backwards {
-                    *len -= 1;
-                }
-            } else {
-                unreachable!()
-            }
-        }
-        Instr::ArrayNotEq(o1, o2, o3) => {
-            if o3 == condition_id {
-                *output.last_mut().unwrap() = Instr::ArrayNotEqCmp(o1, o2, *len);
-                if jmp_backwards {
-                    *len -= 1;
-                }
-            } else {
-                unreachable!()
-            }
-        }
-
+    *output.last_mut().unwrap() = match *output.last().unwrap() {
+        Instr::Inf(o1, o2, o3) if o3 == condition_id => Instr::InfCmp(o1, o2, *len),
+        Instr::InfEq(o1, o2, o3) if o3 == condition_id => Instr::InfEqCmp(o1, o2, *len),
+        Instr::Sup(o1, o2, o3) if o3 == condition_id => Instr::SupCmp(o1, o2, *len),
+        Instr::SupEq(o1, o2, o3) if o3 == condition_id => Instr::SupEqCmp(o1, o2, *len),
+        Instr::Eq(o1, o2, o3) if o3 == condition_id => Instr::EqCmp(o1, o2, *len),
+        Instr::ArrayEq(o1, o2, o3) if o3 == condition_id => Instr::ArrayEqCmp(o1, o2, *len),
+        Instr::NotEq(o1, o2, o3) if o3 == condition_id => Instr::NotEqCmp(o1, o2, *len),
+        Instr::ArrayNotEq(o1, o2, o3) if o3 == condition_id => Instr::ArrayNotEqCmp(o1, o2, *len),
         _ => {
             output.push(Instr::Cmp(condition_id, *len));
+            return;
         }
+    };
+    if jmp_backwards {
+        *len -= 1;
     }
 }
 
