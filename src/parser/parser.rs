@@ -264,22 +264,22 @@ pub fn get_id(
         };
     }
 
-    macro_rules! op {
-        ($instr: ident, $l: expr, $r: expr, $start: expr, $end: expr) => {
+    macro_rules! uniform_op {
+        ($instr: ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type:expr) => {{
             let (t_l, t_r) = (
                 infer_type($l, var_types, fns, src),
                 infer_type($r, var_types, fns, src),
             );
-            if t_l != DataType::Number || t_r != DataType::Number {
-                op_error!(src, t_l, t_r, "*", $start, $end);
+            if t_l != $type || t_r != $type {
+                op_error(src, t_l, t_r, $symbol, *$start, *$end);
             }
-            let id_l = get_id(l, v, parser_data!(), output);
-            let id_r = get_id(r, v, parser_data!(), output);
+            let id_l = get_id($l, v, parser_data!(), output);
+            let id_r = get_id($r, v, parser_data!(), output);
             let id = registers.len() as u16;
             registers.push(Data::Null);
             output.push(Instr::$instr(id_l, id_r, id));
             id
-        };
+        }};
     }
     match input {
         Expr::Num(num) => {
@@ -348,37 +348,8 @@ pub fn get_id(
             registers.push(Data::Array(array_id));
             (registers.len() - 1) as u16
         }
-        Expr::Mul(l, r, start, end) => {
-            let (t_l, t_r) = (
-                infer_type(l, var_types, fns, src),
-                infer_type(r, var_types, fns, src),
-            );
-            if t_l != DataType::Number || t_r != DataType::Number {
-                op_error(src, t_l, t_r, "*", *start, *end);
-            }
-            let id_l = get_id(l, v, parser_data!(), output);
-            let id_r = get_id(r, v, parser_data!(), output);
-            let id = registers.len() as u16;
-            registers.push(Data::Null);
-            output.push(Instr::Mul(id_l, id_r, id));
-            id
-            // op_error(Mul, l, r, start, end)
-        }
-        Expr::Div(l, r, start, end) => {
-            let (t_l, t_r) = (
-                infer_type(l, var_types, fns, src),
-                infer_type(r, var_types, fns, src),
-            );
-            if t_l != DataType::Number || t_r != DataType::Number {
-                op_error(src, t_l, t_r, "/", *start, *end);
-            }
-            let id_l = get_id(l, v, parser_data!(), output);
-            let id_r = get_id(r, v, parser_data!(), output);
-            let id = registers.len() as u16;
-            registers.push(Data::Null);
-            output.push(Instr::Div(id_l, id_r, id));
-            id
-        }
+        Expr::Mul(l, r, start, end) => uniform_op!(Mul, "*", l, r, start, end, DataType::Number),
+        Expr::Div(l, r, start, end) => uniform_op!(Div, "/", l, r, start, end, DataType::Number),
         Expr::Add(l, r, start, end) => {
             let t_l = infer_type(l, var_types, fns, src);
             let t_r = infer_type(r, var_types, fns, src);
@@ -403,51 +374,9 @@ pub fn get_id(
             }
             id
         }
-        Expr::Sub(l, r, start, end) => {
-            let (t_l, t_r) = (
-                infer_type(l, var_types, fns, src),
-                infer_type(r, var_types, fns, src),
-            );
-            if t_l != DataType::Number || t_r != DataType::Number {
-                op_error(src, t_l, t_r, "-", *start, *end);
-            }
-            let id_l = get_id(l, v, parser_data!(), output);
-            let id_r = get_id(r, v, parser_data!(), output);
-            let id = registers.len() as u16;
-            registers.push(Data::Null);
-            output.push(Instr::Sub(id_l, id_r, id));
-            id
-        }
-        Expr::Mod(l, r, start, end) => {
-            let (t_l, t_r) = (
-                infer_type(l, var_types, fns, src),
-                infer_type(r, var_types, fns, src),
-            );
-            if t_l != DataType::Number || t_r != DataType::Number {
-                op_error(src, t_l, t_r, "%", *start, *end);
-            }
-            let id_l = get_id(l, v, parser_data!(), output);
-            let id_r = get_id(r, v, parser_data!(), output);
-            let id = registers.len() as u16;
-            registers.push(Data::Null);
-            output.push(Instr::Mod(id_l, id_r, id));
-            id
-        }
-        Expr::Pow(l, r, start, end) => {
-            let (t_l, t_r) = (
-                infer_type(l, var_types, fns, src),
-                infer_type(r, var_types, fns, src),
-            );
-            if t_l != DataType::Number || t_r != DataType::Number {
-                op_error(src, t_l, t_r, "^", *start, *end);
-            }
-            let id_l = get_id(l, v, parser_data!(), output);
-            let id_r = get_id(r, v, parser_data!(), output);
-            let id = registers.len() as u16;
-            registers.push(Data::Null);
-            output.push(Instr::Pow(id_l, id_r, id));
-            id
-        }
+        Expr::Sub(l, r, start, end) => uniform_op!(Sub, "-", l, r, start, end, DataType::Number),
+        Expr::Mod(l, r, start, end) => uniform_op!(Mod, "%", l, r, start, end, DataType::Number),
+        Expr::Pow(l, r, start, end) => uniform_op!(Pow, "^", l, r, start, end, DataType::Number),
         Expr::Eq(l, r) => {
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -476,95 +405,19 @@ pub fn get_id(
             }
             id
         }
-        Expr::Sup(l, r, start, end) => {
-            let (t_l, t_r) = (
-                infer_type(l, var_types, fns, src),
-                infer_type(r, var_types, fns, src),
-            );
-            if t_l != DataType::Number || t_r != DataType::Number {
-                op_error(src, t_l, t_r, ">", *start, *end);
-            }
-            let id_l = get_id(l, v, parser_data!(), output);
-            let id_r = get_id(r, v, parser_data!(), output);
-            let id = registers.len() as u16;
-            registers.push(Data::Null);
-            output.push(Instr::Sup(id_l, id_r, id));
-            id
-        }
+        Expr::Sup(l, r, start, end) => uniform_op!(Sup, ">", l, r, start, end, DataType::Number),
         Expr::SupEq(l, r, start, end) => {
-            let (t_l, t_r) = (
-                infer_type(l, var_types, fns, src),
-                infer_type(r, var_types, fns, src),
-            );
-            if t_l != DataType::Number || t_r != DataType::Number {
-                op_error(src, t_l, t_r, ">=", *start, *end);
-            }
-            let id_l = get_id(l, v, parser_data!(), output);
-            let id_r = get_id(r, v, parser_data!(), output);
-            let id = registers.len() as u16;
-            registers.push(Data::Null);
-            output.push(Instr::SupEq(id_l, id_r, id));
-            id
+            uniform_op!(SupEq, ">=", l, r, start, end, DataType::Number)
         }
-        Expr::Inf(l, r, start, end) => {
-            let (t_l, t_r) = (
-                infer_type(l, var_types, fns, src),
-                infer_type(r, var_types, fns, src),
-            );
-            if t_l != DataType::Number || t_r != DataType::Number {
-                op_error(src, t_l, t_r, "<", *start, *end);
-            }
-            let id_l = get_id(l, v, parser_data!(), output);
-            let id_r = get_id(r, v, parser_data!(), output);
-            let id = registers.len() as u16;
-            registers.push(Data::Null);
-            output.push(Instr::Inf(id_l, id_r, id));
-            id
-        }
+        Expr::Inf(l, r, start, end) => uniform_op!(Inf, "<", l, r, start, end, DataType::Number),
         Expr::InfEq(l, r, start, end) => {
-            let (t_l, t_r) = (
-                infer_type(l, var_types, fns, src),
-                infer_type(r, var_types, fns, src),
-            );
-            if t_l != DataType::Number || t_r != DataType::Number {
-                op_error(src, t_l, t_r, "<=", *start, *end);
-            }
-            let id_l = get_id(l, v, parser_data!(), output);
-            let id_r = get_id(r, v, parser_data!(), output);
-            let id = registers.len() as u16;
-            registers.push(Data::Null);
-            output.push(Instr::InfEq(id_l, id_r, id));
-            id
+            uniform_op!(InfEq, "<=", l, r, start, end, DataType::Number)
         }
         Expr::BoolAnd(l, r, start, end) => {
-            let (t_l, t_r) = (
-                infer_type(l, var_types, fns, src),
-                infer_type(r, var_types, fns, src),
-            );
-            if t_l != DataType::Bool || t_r != DataType::Bool {
-                op_error(src, t_l, t_r, "&&", *start, *end);
-            }
-            let id_l = get_id(l, v, parser_data!(), output);
-            let id_r = get_id(r, v, parser_data!(), output);
-            let id = registers.len() as u16;
-            registers.push(Data::Null);
-            output.push(Instr::BoolAnd(id_l, id_r, id));
-            id
+            uniform_op!(BoolAnd, "&&", l, r, start, end, DataType::Bool)
         }
         Expr::BoolOr(l, r, start, end) => {
-            let (t_l, t_r) = (
-                infer_type(l, var_types, fns, src),
-                infer_type(r, var_types, fns, src),
-            );
-            if t_l != DataType::Bool || t_r != DataType::Bool {
-                op_error(src, t_l, t_r, "||", *start, *end);
-            }
-            let id_l = get_id(l, v, parser_data!(), output);
-            let id_r = get_id(r, v, parser_data!(), output);
-            let id = registers.len() as u16;
-            registers.push(Data::Null);
-            output.push(Instr::BoolOr(id_l, id_r, id));
-            id
+            uniform_op!(BoolOr, "||", l, r, start, end, DataType::Bool)
         }
         Expr::Neg(l, start, end) => {
             let infered = infer_type(l, var_types, fns, src);
