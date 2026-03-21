@@ -1,7 +1,7 @@
-use crate::op_error;
+use crate::display::op_error;
+use crate::display::parser_error;
 use crate::parser::Expr;
 use crate::parser::Function;
-use crate::parser_error;
 use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
@@ -280,13 +280,13 @@ pub fn infer_type(
             .rfind(|(n, _)| n == name)
             // .unwrap()
             .unwrap_or_else(|| {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     *start,
                     *end,
                     "Variable type",
-                    "Unable to get variable's type"
+                    "Unable to get variable's type",
+                    "",
                 );
             })
             .1
@@ -304,7 +304,7 @@ pub fn infer_type(
                 (DataType::String, DataType::String) => DataType::String,
                 (DataType::Array(type1), DataType::Array(_)) => DataType::Array(type1),
                 (a, b) => {
-                    op_error!(src, a, b, "+", start, end);
+                    op_error(src, a, b, "+", *start, *end);
                 }
             }
         }
@@ -315,7 +315,7 @@ pub fn infer_type(
             ) {
                 (DataType::Number, DataType::Number) => DataType::Number,
                 (a, b) => {
-                    op_error!(src, a, b, "*", start, end);
+                    op_error(src, a, b, "*", *start, *end);
                 }
             }
         }
@@ -326,7 +326,7 @@ pub fn infer_type(
             ) {
                 (DataType::Number, DataType::Number) => DataType::Number,
                 (a, b) => {
-                    op_error!(src, a, b, "/", start, end);
+                    op_error(src, a, b, "/", *start, *end);
                 }
             }
         }
@@ -337,7 +337,7 @@ pub fn infer_type(
             ) {
                 (DataType::Number, DataType::Number) => DataType::Number,
                 (a, b) => {
-                    op_error!(src, a, b, "-", start, end);
+                    op_error(src, a, b, "-", *start, *end);
                 }
             }
         }
@@ -348,7 +348,7 @@ pub fn infer_type(
             ) {
                 (DataType::Number, DataType::Number) => DataType::Number,
                 (a, b) => {
-                    op_error!(src, a, b, "%", start, end);
+                    op_error(src, a, b, "%", *start, *end);
                 }
             }
         }
@@ -359,7 +359,7 @@ pub fn infer_type(
             ) {
                 (DataType::Number, DataType::Number) => DataType::Number,
                 (a, b) => {
-                    op_error!(src, a, b, "^", start, end);
+                    op_error(src, a, b, "^", *start, *end);
                 }
             }
         }
@@ -372,7 +372,7 @@ pub fn infer_type(
             ) {
                 (DataType::Number, DataType::Number) => DataType::Bool,
                 (a, b) => {
-                    op_error!(src, a, b, ">", start, end);
+                    op_error(src, a, b, ">", *start, *end);
                 }
             }
         }
@@ -383,7 +383,7 @@ pub fn infer_type(
             ) {
                 (DataType::Number, DataType::Number) => DataType::Bool,
                 (a, b) => {
-                    op_error!(src, a, b, ">=", start, end);
+                    op_error(src, a, b, ">=", *start, *end);
                 }
             }
         }
@@ -394,7 +394,7 @@ pub fn infer_type(
             ) {
                 (DataType::Number, DataType::Number) => DataType::Bool,
                 (a, b) => {
-                    op_error!(src, a, b, "<", start, end);
+                    op_error(src, a, b, "<", *start, *end);
                 }
             }
         }
@@ -405,7 +405,7 @@ pub fn infer_type(
             ) {
                 (DataType::Number, DataType::Number) => DataType::Bool,
                 (a, b) => {
-                    op_error!(src, a, b, "<=", start, end);
+                    op_error(src, a, b, "<=", *start, *end);
                 }
             }
         }
@@ -416,7 +416,7 @@ pub fn infer_type(
             ) {
                 (DataType::Bool, DataType::Bool) => DataType::Bool,
                 (a, b) => {
-                    op_error!(src, a, b, "&&", start, end);
+                    op_error(src, a, b, "&&", *start, *end);
                 }
             }
         }
@@ -427,7 +427,7 @@ pub fn infer_type(
             ) {
                 (DataType::Bool, DataType::Bool) => DataType::Bool,
                 (a, b) => {
-                    op_error!(src, a, b, "||", start, end);
+                    op_error(src, a, b, "||", *start, *end);
                 }
             }
         }
@@ -461,15 +461,14 @@ pub fn infer_type(
                 function => {
                     let (_, fn_args, fn_code, _, _, _) =
                         fns.iter().find(|(a, _, _, _, _, _)| *a == function).unwrap_or_else(|| {
-                            parser_error!(
-                                src.0,
-                                src.1,
+                            parser_error(
+                                src,
                                 *start,
                                 *end,
                                 "Unknown function",
-                                format_args!(
+                                &format!(
                                     "Function {color_bright_blue}{style_bold}{function}{color_reset}{style_reset} does not exist or has not been declared yet"
-                                )
+                                ),""
                             );
                         });
 

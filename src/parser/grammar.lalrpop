@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use crate::parser::Expr;
 use inline_colorization::*;
-use crate::error;
+use crate::util::error;
 use crate::Num;
 use crate::is_float;
 use internment::Intern;
@@ -448,7 +448,7 @@ Array:Expr = {
 }
 
 Num: Num = {
-    <n: r"([0-9]*[.])?[0-9]+"> => Num::from_str(n).unwrap_or_else(|_| {error!(format_args!("Invalid number: '{color_red}{n}{color_reset}'"));})
+    <n: r"([0-9]*[.])?[0-9]+"> => Num::from_str(n).unwrap_or_else(|_| {error(format!("Invalid number: '{color_red}{n}{color_reset}'"))})
 }
 
 Bool: bool = {

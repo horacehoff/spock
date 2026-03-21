@@ -1,5 +1,6 @@
 use crate::ArrayStorage;
 use crate::parser::Expr;
+use crate::type_inference::DataType;
 use crate::{Data, Instr};
 use ariadne::*;
 use concat_string::concat_string;
@@ -64,72 +65,69 @@ fn token_recognition(token: String) -> String {
     }
 }
 
-#[macro_export]
-macro_rules! op_error {
-    ($src:expr, $l: expr,$r:expr,$op:expr,$start:expr,$end:expr) => {
-        parser_error!(
-            $src.0,
-            $src.1,
-            *$start,
-            *$end,
-            "Invalid operation",
-            format_args!(
-                "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{}{color_bright_blue} {}{color_reset}{style_reset}",
-                $l,
-                $op,
-                $r
-            )
-        );
-    };
-}
-
-#[macro_export]
-macro_rules! parser_error {
-    ($filename: expr,
-    $source: expr,
-    $start: expr,
-    $end: expr,
-    $error_general: expr,
-    $msg:expr) => {
-        eprintln!("{color_red}SPOCK ERROR{color_reset}");
-        Report::build(ReportKind::Error, ($filename, $start..$end))
-            .with_message($error_general)
-            .with_label(
-                Label::new(($filename, $start..$end))
-                    .with_message($msg)
-                    .with_color(Color::Red),
-            )
-            .finish()
-            .print(($filename, Source::from($source)))
-            .unwrap();
-        std::process::exit(1);
-    };
-    ($filename: expr,
-    $source: expr,
-    $start: expr,
-    $end: expr,
-    $error_general: expr,
-    $msg:expr,
-    $note: expr
-    ) => {
-        eprintln!("{color_red}SPOCK ERROR{color_reset}");
-        Report::build(ReportKind::Error, ($filename, $start..$end))
-            .with_message($error_general)
-            .with_label(
-                Label::new(($filename, $start..$end))
-                    .with_message($msg)
-                    .with_color(Color::Red),
-            )
-            .with_note($note)
-            .finish()
-            .print(($filename, Source::from($source)))
-            .unwrap();
-        std::process::exit(1);
-    };
+#[inline(never)]
+#[cold]
+pub fn op_error(
+    src: (&str, &str),
+    l: DataType,
+    r: DataType,
+    op: &str,
+    start: usize,
+    end: usize,
+) -> ! {
+    parser_error(
+        src,
+        start,
+        end,
+        "Invalid operation",
+        &format!(
+            "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{}{color_bright_blue} {}{color_reset}{style_reset}",
+            l, op, r
+        ),
+        "",
+    )
 }
 
 #[cold]
-pub fn lalrpop_error<'a, L, T, E>(x: ParseError<usize, T, &str>, file: &str, filename: &str)
+#[inline(never)]
+pub fn parser_error(
+    src: (&str, &str),
+    start: usize,
+    end: usize,
+    general_error: &str,
+    msg: &str,
+    note: &str,
+) -> ! {
+    eprintln!("{color_red}SPOCK ERROR{color_reset}");
+    if note.len() > 0 {
+        Report::build(ReportKind::Error, (src.0, start..end))
+            .with_message(general_error)
+            .with_label(
+                Label::new((src.0, start..end))
+                    .with_message(msg)
+                    .with_color(Color::Red),
+            )
+            .with_note(note)
+            .finish()
+            .print((src.0, Source::from(src.1)))
+            .unwrap();
+    } else {
+        Report::build(ReportKind::Error, (src.0, start..end))
+            .with_message(general_error)
+            .with_label(
+                Label::new((src.0, start..end))
+                    .with_message(msg)
+                    .with_color(Color::Red),
+            )
+            .finish()
+            .print((src.0, Source::from(src.1)))
+            .unwrap();
+    }
+    std::process::exit(1);
+}
+
+#[cold]
+pub fn lalrpop_error<'a, L, T, E>(x: ParseError<usize, T, &str>, file: &str, filename: &str) -> !
 where
     Token<'a>: From<T>,
 {

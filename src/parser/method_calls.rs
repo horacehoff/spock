@@ -3,13 +3,12 @@ use crate::Instr;
 use crate::check_args;
 use crate::check_args_range;
 use crate::display::format_expr;
+use crate::display::parser_error;
 use crate::get_id;
 use crate::parser::Expr;
 use crate::parser::ParserData;
-use crate::parser_error;
 use crate::type_inference::DataType;
 use crate::type_inference::infer_type;
-use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
 
@@ -79,17 +78,17 @@ pub fn handle_method_calls(
                     matches!(infered, $expected)
                 }
             } {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     start,
                     end,
                     "Invalid type",
-                    format_args!(
+                    &format!(
                         "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         $expected_str,
                         infered
-                    )
+                    ),
+                    ""
                 );
             }
         };
@@ -102,11 +101,10 @@ pub fn handle_method_calls(
                 args,
                 $args,
                 name,
-                src.0,
-                src.1,
+                src,
                 args_indexes[0].0,
                 args_indexes.last().unwrap().1
-            );
+            )
         };
         ($expected:pat,$expected_str:expr, $args_min:expr,$args_max:expr) => {
             check_type!($expected, $expected_str);
@@ -115,11 +113,10 @@ pub fn handle_method_calls(
                 $args_min,
                 $args_max,
                 name,
-                src.0,
-                src.1,
+                src,
                 args_indexes[0].0,
                 args_indexes.last().unwrap().1
-            );
+            )
         };
     }
 
@@ -147,16 +144,16 @@ pub fn handle_method_calls(
 
             let arg_infered = infer_type(&args[0], var_types, fns, src);
             if infered == DataType::String && arg_infered != DataType::String {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    format_args!(
+                    &format!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         arg_infered
-                    )
+                    ),
+                    "",
                 );
             }
 
@@ -178,16 +175,16 @@ pub fn handle_method_calls(
 
             let infered = infer_type(&args[0], var_types, fns, src);
             if infered != DataType::String {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    format_args!(
+                    &format!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         infered
-                    )
+                    ),
+                    "",
                 );
             }
             add_args!();
@@ -202,29 +199,29 @@ pub fn handle_method_calls(
             let arg_infered = infer_type(&args[0], var_types, fns, src);
             if let DataType::Array(array_type) = &infered {
                 if **array_type != arg_infered {
-                    parser_error!(
-                        src.0,
-                        src.1,
+                    parser_error(
+                        src,
                         args_indexes[0].0,
                         args_indexes[0].1,
                         "Invalid type",
-                        format_args!(
+                        &format!(
                             "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                             array_type, infered, arg_infered
-                        )
+                        ),
+                        "",
                     );
                 }
             } else if arg_infered != infered {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    format_args!(
+                    &format!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         arg_infered
-                    )
+                    ),
+                    "",
                 );
             }
 
@@ -258,16 +255,16 @@ pub fn handle_method_calls(
 
             let infered = infer_type(&args[0], var_types, fns, src);
             if infered != DataType::String {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    format_args!(
+                    &format!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         infered
-                    )
+                    ),
+                    "",
                 );
             }
 
@@ -282,16 +279,16 @@ pub fn handle_method_calls(
 
             let infered = infer_type(&args[0], var_types, fns, src);
             if infered != DataType::String {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    format_args!(
+                    &format!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         infered
-                    )
+                    ),
+                    "",
                 );
             }
 
@@ -307,29 +304,29 @@ pub fn handle_method_calls(
             let arg_infered = infer_type(&args[0], var_types, fns, src);
             if let DataType::Array(array_type) = &infered {
                 if **array_type != arg_infered {
-                    parser_error!(
-                        src.0,
-                        src.1,
+                    parser_error(
+                        src,
                         args_indexes[0].0,
                         args_indexes[0].1,
                         "Invalid type",
-                        format_args!(
+                        &format!(
                             "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                             array_type, infered, arg_infered,
-                        )
+                        ),
+                        "",
                     );
                 }
             } else if arg_infered != infered {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    format_args!(
+                    &format!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         arg_infered,
-                    )
+                    ),
+                    "",
                 );
             }
 
@@ -345,16 +342,16 @@ pub fn handle_method_calls(
 
             let arg_infered = infer_type(&args[0], var_types, fns, src);
             if arg_infered != DataType::Number {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    format_args!(
+                    &format!(
                         "Expected Number, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         arg_infered,
-                    )
+                    ),
+                    "",
                 );
             }
 
@@ -371,16 +368,16 @@ pub fn handle_method_calls(
             let arg_infered = infer_type(&args[0], var_types, fns, src);
             if let DataType::Array(array_type) = &infered {
                 if **array_type != arg_infered {
-                    parser_error!(
-                        src.0,
-                        src.1,
+                    parser_error(
+                        src,
                         args_indexes[0].0,
                         args_indexes[0].1,
                         "Invalid type",
-                        format_args!(
+                        &format!(
                             "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                             array_type, infered, arg_infered
-                        )
+                        ),
+                        "",
                     );
                 }
             }
@@ -443,29 +440,29 @@ pub fn handle_method_calls(
             let arg_infered = infer_type(&args[0], var_types, fns, src);
             if let DataType::Array(array_type) = infered {
                 if *array_type != arg_infered {
-                    parser_error!(
-                        src.0,
-                        src.1,
+                    parser_error(
+                        src,
                         args_indexes[0].0,
                         args_indexes[0].1,
                         "Invalid type",
-                        format_args!(
+                        &format!(
                             "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                             array_type, arg_infered
-                        )
+                        ),
+                        "",
                     );
                 }
             } else if infered != arg_infered {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    format_args!(
+                    &format!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         arg_infered
-                    )
+                    ),
+                    "",
                 );
             }
 
@@ -478,16 +475,16 @@ pub fn handle_method_calls(
 
             let infered = infer_type(&args[0], var_types, fns, src);
             if infered != DataType::Number {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    format_args!(
+                    &format!(
                         "Expected Number, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         infered
-                    )
+                    ),
+                    "",
                 );
             }
 
@@ -496,15 +493,15 @@ pub fn handle_method_calls(
             output.push(Instr::Remove(id, arg_id));
         }
         _ => {
-            parser_error!(
-                src.0,
-                src.1,
+            parser_error(
+                src,
                 start,
                 end,
                 "Unknown function",
-                format_args!(
+                &format!(
                     "Function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} does not exist"
-                )
+                ),
+                "",
             );
         }
     }
