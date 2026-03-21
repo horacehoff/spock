@@ -1,5 +1,3 @@
-use std::slice;
-
 use crate::Data;
 use crate::Instr;
 use crate::Num;

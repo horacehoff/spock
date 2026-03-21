@@ -146,7 +146,10 @@ where
                 .print((filename, Source::from(file)))
                 .unwrap();
         }
-        ParseError::UnrecognizedEof { location, expected } => {
+        ParseError::UnrecognizedEof {
+            location,
+            expected: _,
+        } => {
             Report::build(ReportKind::Error, (filename, location..location + 1))
                 .with_message("Unrecognized EOF")
                 .with_label(
@@ -267,7 +270,7 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
     println!("{color_yellow}------------------{color_reset}");
 }
 
-pub fn format_registers_inline(registers: &[Data]) -> String {
+pub fn _format_registers_inline(registers: &[Data]) -> String {
     let mut output = String::new();
     registers.iter().enumerate().for_each(|(i, x)| {
         output.push_str(&format!("[{i}] {x:?} "));

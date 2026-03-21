@@ -94,6 +94,29 @@ pub enum Expr {
     Neg(Box<Expr>, usize, usize),
 }
 
+#[cold]
+#[inline(never)]
+pub fn symbol_of_expr(expr: &Expr) -> &str {
+    match expr {
+        Expr::Mul(_, _, _, _) => "*",
+        Expr::Div(_, _, _, _) => "/",
+        Expr::Add(_, _, _, _) => "+",
+        Expr::Sub(_, _, _, _) => "-",
+        Expr::Mod(_, _, _, _) => "%",
+        Expr::Pow(_, _, _, _) => "^",
+        Expr::Eq(_, _) => "==",
+        Expr::NotEq(_, _) => "!=",
+        Expr::Sup(_, _, _, _) => ">",
+        Expr::SupEq(_, _, _, _) => ">=",
+        Expr::Inf(_, _, _, _) => "<",
+        Expr::InfEq(_, _, _, _) => "<=",
+        Expr::BoolAnd(_, _, _, _) => "&&",
+        Expr::BoolOr(_, _, _, _) => "||",
+        Expr::Neg(_, _, _) => "-",
+        _ => unreachable!(),
+    }
+}
+
 lalrpop_mod!(pub grammar);
 
 pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
