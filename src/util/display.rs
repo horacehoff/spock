@@ -127,6 +127,7 @@ pub fn parser_error(
 }
 
 #[cold]
+#[inline(never)]
 pub fn lalrpop_error<'a, L, T, E>(x: ParseError<usize, T, &str>, file: &str, filename: &str) -> !
 where
     Token<'a>: From<T>,

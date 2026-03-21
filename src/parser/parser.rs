@@ -828,7 +828,7 @@ pub fn parser_to_instr_set(
                         output.push(Instr::ArrayStrGet(id, f_id, (registers.len() - 1) as u16));
                     } else {
                         instr_src.push((
-                            Instr::ArrayStrGet(id, f_id, (registers.len() - 1) as u16),
+                            Instr::ArrayGet(id, f_id, (registers.len() - 1) as u16),
                             *start,
                             *end,
                         ));
@@ -1064,12 +1064,10 @@ pub fn parser_to_instr_set(
                 temp_vars.push((*var_name, current_element_id));
                 var_types.push((
                     *var_name,
-                    if array_type == DataType::String {
-                        DataType::String
-                    } else if let DataType::Array(a_type) = &array_type {
-                        *a_type.clone()
-                    } else {
-                        todo!("For loop invalid type")
+                    match &array_type {
+                        DataType::String => DataType::String,
+                        DataType::Array(a_type) => *a_type.clone(),
+                        _ => todo!("For loop invalid type"),
                     },
                 ));
 
@@ -1253,10 +1251,7 @@ pub fn parse(
     let now = std::time::Instant::now();
     let functions: Vec<Expr> = grammar::FileParser::new()
         .parse(contents)
-        .unwrap_or_else(|x| {
-            lalrpop_error::<usize, Token<'_>, &str>(x, contents, filename);
-            std::process::exit(1);
-        });
+        .unwrap_or_else(|x| lalrpop_error::<usize, Token<'_>, &str>(x, contents, filename));
     println!("LALRPOP TIME {:.2?}", now.elapsed());
     // println!("FUNCS {functions:?}");
 

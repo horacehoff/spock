@@ -190,7 +190,12 @@ pub fn handle_functions(
                         );
                     });
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
-                let (_, fn_args, fn_code, fn_data, is_recursive, fn_id) = &fns[function_id].clone();
+                // let (_, fn_args, fn_code, fn_data, is_recursive, fn_id) = &fns[function_id].clone();
+                let fn_id = fns[function_id].5;
+                let is_recursive = fns[function_id].4;
+                let fn_args = fns[function_id].1.clone(); // Box<[String]> — unavoidable
+                let fn_code = fns[function_id].2.clone(); // Box<[Expr]> — unavoidable if needed
+                let fn_data = fns[function_id].3.clone();
                 // Infer arg types
                 let infered_arg_types = args
                     .iter()
@@ -198,14 +203,10 @@ pub fn handle_functions(
                     .collect::<Vec<DataType>>();
 
                 // Try to check if function has already been compiled for these specific arg types
-                let mut fn_loc_data = if !fn_data.is_empty() {
-                    fn_data
-                        .iter()
-                        .find(|(_, _, t)| t == &infered_arg_types)
-                        .cloned()
-                } else {
-                    None
-                };
+                let mut fn_loc_data = fn_data
+                    .iter()
+                    .find(|(_, _, t)| t == &infered_arg_types)
+                    .cloned();
 
                 let args_len = fn_args.len();
                 check_args!(args, args_len, fn_name, src, start, end);
@@ -247,7 +248,7 @@ pub fn handle_functions(
 
                     // Compile the function into instructions using local vars
                     let parsed = parser_to_instr_set(
-                        fn_code,
+                        &fn_code,
                         &mut vars,
                         (
                             var_types,
@@ -259,12 +260,12 @@ pub fn handle_functions(
                             instr_src,
                             true,
                             fn_registers,
-                            Some(*fn_id),
+                            Some(fn_id),
                         ),
                     );
                     let fn_temp_registers = get_tgt_ids(&parsed);
                     fn_registers
-                        .get_mut(*fn_id as usize)
+                        .get_mut(fn_id as usize)
                         .unwrap()
                         .extend(fn_temp_registers);
                     // fns.get_mut(function_id).unwrap().5.extend(fn_registers);
@@ -286,7 +287,7 @@ pub fn handle_functions(
                     });
                 }
 
-                if *is_recursive {
+                if is_recursive {
                     output.push(Instr::SaveFrame(0, 0, 0));
                 }
                 let saveframe_loc = output.len() - 1;
@@ -308,7 +309,7 @@ pub fn handle_functions(
                     }
                 }
                 fn_registers
-                    .get_mut(*fn_id as usize)
+                    .get_mut(fn_id as usize)
                     .unwrap()
                     .extend(get_tgt_ids(&output[saveframe_loc..]));
                 // fns.get_mut(function_id)
@@ -316,11 +317,7 @@ pub fn handle_functions(
                 //     .5
                 //     .extend(get_tgt_ids(&output[saveframe_loc..]));
 
-                let loc = if let Some(fn_loc) = fn_loc_data {
-                    fn_loc.0
-                } else {
-                    unreachable!()
-                };
+                let loc = fn_loc_data.unwrap().0;
 
                 debug!("LOC IS {loc:?}");
                 debug!("OUTP LEN IS {}", output.len());
@@ -332,16 +329,16 @@ pub fn handle_functions(
                 output.push(Instr::CallFunc(
                     loc,
                     (registers.len() - 1) as u16,
-                    *is_recursive,
+                    is_recursive,
                 ));
                 debug!("REGLEN {}", registers.len() - 1);
 
-                if *is_recursive {
+                if is_recursive {
                     debug!("OUTPUT LEN IS {}", output.len() - 1);
                     output[saveframe_loc] = Instr::SaveFrame(
                         (output.len() - 1 - saveframe_loc) as u16,
                         (registers.len() - 1) as u16,
-                        *fn_id,
+                        fn_id,
                     );
                 }
 

@@ -165,7 +165,6 @@ pub type ArrayStorage = Slab<Vec<Data>>;
 pub fn execute(
     instructions: &[Instr],
     registers: &mut [Data],
-    args: &mut Vec<u16>,
     arrays: &mut ArrayStorage,
     instr_src: &[(Instr, usize, usize)],
     src: (&str, &str),
@@ -179,13 +178,19 @@ pub fn execute(
     }
     let mut i: usize = 0;
 
+    let mut args: Vec<u16> = Vec::with_capacity(
+        instructions
+            .iter()
+            .filter(|x| matches!(x, Instr::StoreFuncArg(_)))
+            .count(),
+    );
     let call_depth = instructions
         .iter()
         .filter(|x| matches!(x, Instr::CallFunc(_, _, _) | Instr::SaveFrame(_, _, _)))
         .count();
     let mut jmps: Vec<usize> = Vec::with_capacity(call_depth);
     let mut return_ids: Vec<u16> = Vec::with_capacity(call_depth);
-    let mut recursion_stack: Vec<Data> = Vec::with_capacity(call_depth);
+    let mut recursion_stack: Vec<Data> = Vec::with_capacity(call_depth * registers.len());
 
     while i < instructions.len() {
         // debug!("{}", format_registers_inline(registers));
@@ -216,9 +221,11 @@ pub fn execute(
                 jmps.push(i + relative_func_loc as usize);
                 return_ids.push(return_register);
                 // Create a "snapshot" of the registers, so as to be able to reset them when the function returns.
-                for register in fn_registers[fn_id as usize].iter() {
-                    recursion_stack.push(registers[*register as usize]);
-                }
+                recursion_stack.extend(
+                    fn_registers[fn_id as usize]
+                        .iter()
+                        .map(|&r| registers[r as usize]),
+                );
             }
             Instr::Return(tgt) => {
                 i = jmps.pop().unwrap();
@@ -853,29 +860,13 @@ pub fn execute(
     }
 }
 
-fn get_vec_capacity(instructions: &[Instr]) -> usize {
-    let (mut func_args, mut max_func_args) = (0, 0);
-
-    for instr in instructions {
-        match instr {
-            Instr::StoreFuncArg(_) => func_args += 1,
-            Instr::CallLibFunc(_, _, _) => {
-                max_func_args = max_func_args.max(func_args);
-                func_args = 0;
-            }
-            _ => {}
-        }
-    }
-    max_func_args
-}
-
 // Live long and prosper
 fn main() {
     #[cfg(debug_assertions)]
     let filename = "test.spock";
 
     #[cfg(not(debug_assertions))]
-    let filename = &std::env::args().skip(1).next().unwrap_or_else(|| {
+    let filename = &std::env::args().nth(1).unwrap_or_else(|| {
         println!("{}", util::SPOCK_LOGO);
         std::process::exit(0);
     });
@@ -891,15 +882,12 @@ fn main() {
     let (instructions, mut registers, mut arrays, instr_src, fn_registers) =
         parse(&contents, filename);
 
-    let func_args_count = get_vec_capacity(&instructions);
-
     println!("PARSING TIME {:.2?}", now.elapsed());
 
     let now = Instant::now();
     execute(
         &instructions,
         &mut registers,
-        &mut Vec::with_capacity(func_args_count),
         &mut arrays,
         &instr_src,
         (filename, &contents),
