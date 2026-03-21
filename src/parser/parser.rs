@@ -1,17 +1,17 @@
 use crate::ArrayStorage;
 use crate::debug;
+use crate::display::op_error;
+use crate::display::parser_error;
 use crate::display::{lalrpop_error, print_debug};
 use crate::functions::handle_functions;
 use crate::grammar::Token;
 use crate::method_calls::handle_method_calls;
-use crate::op_error;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
+use crate::type_inference;
 use crate::type_inference::contains_recursive_call;
 use crate::type_inference::{DataType, infer_type};
 use crate::types::is_indexable;
 use crate::{Data, Instr, Num, error};
-use crate::{parser_error, type_inference};
-use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
@@ -263,6 +263,24 @@ pub fn get_id(
             )
         };
     }
+
+    macro_rules! op {
+        ($instr: ident, $l: expr, $r: expr, $start: expr, $end: expr) => {
+            let (t_l, t_r) = (
+                infer_type($l, var_types, fns, src),
+                infer_type($r, var_types, fns, src),
+            );
+            if t_l != DataType::Number || t_r != DataType::Number {
+                op_error!(src, t_l, t_r, "*", $start, $end);
+            }
+            let id_l = get_id(l, v, parser_data!(), output);
+            let id_r = get_id(r, v, parser_data!(), output);
+            let id = registers.len() as u16;
+            registers.push(Data::Null);
+            output.push(Instr::$instr(id_l, id_r, id));
+            id
+        };
+    }
     match input {
         Expr::Num(num) => {
             registers.push(Data::Number(*num as Num));
@@ -280,17 +298,16 @@ pub fn get_id(
             if let Some((_, id)) = v.iter().find(|(var, _)| *name == *var) {
                 *id
             } else {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     *start,
                     *end,
                     "Unknown variable",
-                    format_args!(
+                    &format!(
                         "Variable {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} has not been declared yet"
                     ),
-                    format_args!("Declare it with {color_green}let {name} = 0;{color_reset}")
-                );
+                    &format!("Declare it with {color_green}let {name} = 0;{color_reset}"),
+                )
             }
         }
         Expr::Array(elems, start, end) => {
@@ -299,13 +316,13 @@ pub fn get_id(
                 .iter()
                 .all(|x| infer_type(x, var_types, fns, src) == first_type)
             {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     *start,
                     *end,
                     "Array",
-                    format_args!("Arrays can only hold one type of value")
+                    &format!("Arrays can only hold one type of value"),
+                    "",
                 );
             }
             let array_id = arrays.insert(Vec::new());
@@ -332,17 +349,12 @@ pub fn get_id(
             (registers.len() - 1) as u16
         }
         Expr::Mul(l, r, start, end) => {
-            if infer_type(l, var_types, fns, src) != DataType::Number
-                || infer_type(r, var_types, fns, src) != DataType::Number
-            {
-                op_error!(
-                    src,
-                    infer_type(l, var_types, fns, src),
-                    infer_type(r, var_types, fns, src),
-                    "*",
-                    start,
-                    end
-                );
+            let (t_l, t_r) = (
+                infer_type(l, var_types, fns, src),
+                infer_type(r, var_types, fns, src),
+            );
+            if t_l != DataType::Number || t_r != DataType::Number {
+                op_error(src, t_l, t_r, "*", *start, *end);
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -350,19 +362,15 @@ pub fn get_id(
             registers.push(Data::Null);
             output.push(Instr::Mul(id_l, id_r, id));
             id
+            // op_error(Mul, l, r, start, end)
         }
         Expr::Div(l, r, start, end) => {
-            if infer_type(l, var_types, fns, src) != DataType::Number
-                || infer_type(r, var_types, fns, src) != DataType::Number
-            {
-                op_error!(
-                    src,
-                    infer_type(l, var_types, fns, src),
-                    infer_type(r, var_types, fns, src),
-                    "/",
-                    start,
-                    end
-                );
+            let (t_l, t_r) = (
+                infer_type(l, var_types, fns, src),
+                infer_type(r, var_types, fns, src),
+            );
+            if t_l != DataType::Number || t_r != DataType::Number {
+                op_error(src, t_l, t_r, "/", *start, *end);
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -372,48 +380,36 @@ pub fn get_id(
             id
         }
         Expr::Add(l, r, start, end) => {
-            let type_l = infer_type(l, var_types, fns, src);
-            let type_r = infer_type(r, var_types, fns, src);
-            if type_l != type_r
+            let t_l = infer_type(l, var_types, fns, src);
+            let t_r = infer_type(r, var_types, fns, src);
+            if t_l != t_r
                 || !matches!(
-                    type_l,
+                    t_l,
                     DataType::String | DataType::Array(_) | DataType::Number
                 )
             {
-                op_error!(
-                    src,
-                    infer_type(l, var_types, fns, src),
-                    infer_type(r, var_types, fns, src),
-                    "+",
-                    start,
-                    end
-                );
+                op_error(src, t_l, t_r, "+", *start, *end);
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
             let id = registers.len() as u16;
             registers.push(Data::Null);
-            if matches!(type_l, DataType::Array(_)) {
+            if matches!(t_l, DataType::Array(_)) {
                 output.push(Instr::ArrayAdd(id_l, id_r, id));
-            } else if type_l == DataType::String {
+            } else if t_l == DataType::String {
                 output.push(Instr::StrAdd(id_l, id_r, id));
-            } else if type_l == DataType::Number {
+            } else if t_l == DataType::Number {
                 output.push(Instr::Add(id_l, id_r, id));
             }
             id
         }
         Expr::Sub(l, r, start, end) => {
-            if infer_type(l, var_types, fns, src) != DataType::Number
-                || infer_type(r, var_types, fns, src) != DataType::Number
-            {
-                op_error!(
-                    src,
-                    infer_type(l, var_types, fns, src),
-                    infer_type(r, var_types, fns, src),
-                    "-",
-                    start,
-                    end
-                );
+            let (t_l, t_r) = (
+                infer_type(l, var_types, fns, src),
+                infer_type(r, var_types, fns, src),
+            );
+            if t_l != DataType::Number || t_r != DataType::Number {
+                op_error(src, t_l, t_r, "-", *start, *end);
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -423,17 +419,12 @@ pub fn get_id(
             id
         }
         Expr::Mod(l, r, start, end) => {
-            if infer_type(l, var_types, fns, src) != DataType::Number
-                || infer_type(r, var_types, fns, src) != DataType::Number
-            {
-                op_error!(
-                    src,
-                    infer_type(l, var_types, fns, src),
-                    infer_type(r, var_types, fns, src),
-                    "%",
-                    start,
-                    end
-                );
+            let (t_l, t_r) = (
+                infer_type(l, var_types, fns, src),
+                infer_type(r, var_types, fns, src),
+            );
+            if t_l != DataType::Number || t_r != DataType::Number {
+                op_error(src, t_l, t_r, "%", *start, *end);
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -443,17 +434,12 @@ pub fn get_id(
             id
         }
         Expr::Pow(l, r, start, end) => {
-            if infer_type(l, var_types, fns, src) != DataType::Number
-                || infer_type(r, var_types, fns, src) != DataType::Number
-            {
-                op_error!(
-                    src,
-                    infer_type(l, var_types, fns, src),
-                    infer_type(r, var_types, fns, src),
-                    "^",
-                    start,
-                    end
-                );
+            let (t_l, t_r) = (
+                infer_type(l, var_types, fns, src),
+                infer_type(r, var_types, fns, src),
+            );
+            if t_l != DataType::Number || t_r != DataType::Number {
+                op_error(src, t_l, t_r, "^", *start, *end);
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -491,17 +477,12 @@ pub fn get_id(
             id
         }
         Expr::Sup(l, r, start, end) => {
-            if infer_type(l, var_types, fns, src) != DataType::Number
-                || infer_type(r, var_types, fns, src) != DataType::Number
-            {
-                op_error!(
-                    src,
-                    infer_type(l, var_types, fns, src),
-                    infer_type(r, var_types, fns, src),
-                    ">",
-                    start,
-                    end
-                );
+            let (t_l, t_r) = (
+                infer_type(l, var_types, fns, src),
+                infer_type(r, var_types, fns, src),
+            );
+            if t_l != DataType::Number || t_r != DataType::Number {
+                op_error(src, t_l, t_r, ">", *start, *end);
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -511,17 +492,12 @@ pub fn get_id(
             id
         }
         Expr::SupEq(l, r, start, end) => {
-            if infer_type(l, var_types, fns, src) != DataType::Number
-                || infer_type(r, var_types, fns, src) != DataType::Number
-            {
-                op_error!(
-                    src,
-                    infer_type(l, var_types, fns, src),
-                    infer_type(r, var_types, fns, src),
-                    ">=",
-                    start,
-                    end
-                );
+            let (t_l, t_r) = (
+                infer_type(l, var_types, fns, src),
+                infer_type(r, var_types, fns, src),
+            );
+            if t_l != DataType::Number || t_r != DataType::Number {
+                op_error(src, t_l, t_r, ">=", *start, *end);
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -531,17 +507,12 @@ pub fn get_id(
             id
         }
         Expr::Inf(l, r, start, end) => {
-            if infer_type(l, var_types, fns, src) != DataType::Number
-                || infer_type(r, var_types, fns, src) != DataType::Number
-            {
-                op_error!(
-                    src,
-                    infer_type(l, var_types, fns, src),
-                    infer_type(r, var_types, fns, src),
-                    "<",
-                    start,
-                    end
-                );
+            let (t_l, t_r) = (
+                infer_type(l, var_types, fns, src),
+                infer_type(r, var_types, fns, src),
+            );
+            if t_l != DataType::Number || t_r != DataType::Number {
+                op_error(src, t_l, t_r, "<", *start, *end);
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -551,17 +522,12 @@ pub fn get_id(
             id
         }
         Expr::InfEq(l, r, start, end) => {
-            if infer_type(l, var_types, fns, src) != DataType::Number
-                || infer_type(r, var_types, fns, src) != DataType::Number
-            {
-                op_error!(
-                    src,
-                    infer_type(l, var_types, fns, src),
-                    infer_type(r, var_types, fns, src),
-                    "<=",
-                    start,
-                    end
-                );
+            let (t_l, t_r) = (
+                infer_type(l, var_types, fns, src),
+                infer_type(r, var_types, fns, src),
+            );
+            if t_l != DataType::Number || t_r != DataType::Number {
+                op_error(src, t_l, t_r, "<=", *start, *end);
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -571,17 +537,12 @@ pub fn get_id(
             id
         }
         Expr::BoolAnd(l, r, start, end) => {
-            if infer_type(l, var_types, fns, src) != DataType::Bool
-                || infer_type(r, var_types, fns, src) != DataType::Bool
-            {
-                op_error!(
-                    src,
-                    infer_type(l, var_types, fns, src),
-                    infer_type(r, var_types, fns, src),
-                    "&&",
-                    start,
-                    end
-                );
+            let (t_l, t_r) = (
+                infer_type(l, var_types, fns, src),
+                infer_type(r, var_types, fns, src),
+            );
+            if t_l != DataType::Bool || t_r != DataType::Bool {
+                op_error(src, t_l, t_r, "&&", *start, *end);
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -591,17 +552,12 @@ pub fn get_id(
             id
         }
         Expr::BoolOr(l, r, start, end) => {
-            if infer_type(l, var_types, fns, src) != DataType::Bool
-                || infer_type(r, var_types, fns, src) != DataType::Bool
-            {
-                op_error!(
-                    src,
-                    infer_type(l, var_types, fns, src),
-                    infer_type(r, var_types, fns, src),
-                    "||",
-                    start,
-                    end
-                );
+            let (t_l, t_r) = (
+                infer_type(l, var_types, fns, src),
+                infer_type(r, var_types, fns, src),
+            );
+            if t_l != DataType::Bool || t_r != DataType::Bool {
+                op_error(src, t_l, t_r, "||", *start, *end);
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -613,16 +569,16 @@ pub fn get_id(
         Expr::Neg(l, start, end) => {
             let infered = infer_type(l, var_types, fns, src);
             if infered != DataType::Number {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     *start,
                     *end,
                     "Invalid operation",
-                    format_args!(
+                    &format!(
                         "Cannot negate {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         infered,
-                    )
+                    ),
+                    "",
                 );
             }
             let id_l = get_id(l, v, parser_data!(), output);
@@ -709,13 +665,13 @@ pub fn get_id(
                 }
             }
             if !else_exists {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     *start,
                     *end,
                     "Invalid condition",
-                    format_args!("Inline conditions need an else statement")
+                    &format!("Inline conditions need an else statement"),
+                    "",
                 );
             }
 
@@ -999,16 +955,15 @@ pub fn parser_to_instr_set(
                     registers.push(Data::Null);
                     output.push(Instr::Mov(*id, (registers.len() - 1) as u16));
                 } else {
-                    parser_error!(
-                        src.0,
-                        src.1,
+                    parser_error(
+                        src,
                         *start,
                         *end,
                         "Unknown variable",
-                        format_args!(
+                        &format!(
                             "Variable {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} has not been declared yet"
                         ),
-                        format_args!("Declare it with {color_green}let {name} = 0;{color_reset}")
+                        &format!("Declare it with {color_green}let {name} = 0;{color_reset}"),
                     );
                 }
             }
@@ -1018,13 +973,13 @@ pub fn parser_to_instr_set(
                     .iter()
                     .all(|x| infer_type(x, var_types, fns, src) == first_type)
                 {
-                    parser_error!(
-                        src.0,
-                        src.1,
+                    parser_error(
+                        src,
                         *start,
                         *end,
                         "Array",
-                        format_args!("Arrays can only hold one type of value")
+                        &format!("Arrays can only hold one type of value"),
+                        "",
                     );
                 }
                 // create new blank array with latest id
@@ -1060,31 +1015,31 @@ pub fn parser_to_instr_set(
                 // for each index operation, process the index, adjust the id variable for the next index operation, push null to registers to use GetIndex to index at runtime
                 for elem in index {
                     if !is_indexable(&infered) {
-                        parser_error!(
-                            src.0,
-                            src.1,
+                        parser_error(
+                            src,
                             *start,
                             *end,
                             "Invalid type",
-                            format_args!(
+                            &format!(
                                 "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                                 infered,
-                            )
+                            ),
+                            "",
                         );
                     }
 
                     let index_infered = infer_type(elem, var_types, fns, src);
                     if index_infered != DataType::Number {
-                        parser_error!(
-                            src.0,
-                            src.1,
+                        parser_error(
+                            src,
                             *start,
                             *end,
                             "Invalid type",
-                            format_args!(
+                            &format!(
                                 "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a valid index",
                                 index_infered
-                            )
+                            ),
+                            "",
                         );
                     }
                     let f_id = get_id(elem, v, parser_data!(), &mut output);
@@ -1114,16 +1069,16 @@ pub fn parser_to_instr_set(
             Expr::ArrayModify(x, z, w, index_start, index_end, elem_start, elem_end) => {
                 let infered = infer_type(x, var_types, fns, src);
                 if !is_indexable(&infered) {
-                    parser_error!(
-                        src.0,
-                        src.1,
+                    parser_error(
+                        src,
                         *index_start,
                         *index_end,
                         "Invalid type",
-                        format_args!(
+                        &format!(
                             "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                             infered
-                        )
+                        ),
+                        "",
                     );
                 }
                 // get the id of the target array
@@ -1132,16 +1087,16 @@ pub fn parser_to_instr_set(
                 for elem in z.iter().rev().skip(1).rev() {
                     let infered = infer_type(elem, var_types, fns, src);
                     if infered != DataType::Number {
-                        parser_error!(
-                            src.0,
-                            src.1,
+                        parser_error(
+                            src,
                             *index_start,
                             *index_end,
                             "Invalid type",
-                            format_args!(
+                            &format!(
                                 "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a valid index",
                                 infered,
-                            )
+                            ),
+                            "",
                         );
                     }
                     let f_id = get_id(elem, v, parser_data!(), &mut output);
@@ -1159,29 +1114,29 @@ pub fn parser_to_instr_set(
 
                 if let DataType::Array(array_type) = &infered {
                     if **array_type != elem_type {
-                        parser_error!(
-                            src.0,
-                            src.1,
+                        parser_error(
+                            src,
                             *elem_start,
                             *elem_end,
                             "Invalid type",
-                            format_args!(
+                            &format!(
                                 "Cannot insert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} in {}",
                                 elem_type, infered,
-                            )
+                            ),
+                            "",
                         );
                     }
                 } else if infered == DataType::String && elem_type != DataType::String {
-                    parser_error!(
-                        src.0,
-                        src.1,
+                    parser_error(
+                        src,
                         *elem_start,
                         *elem_end,
                         "Invalid type",
-                        format_args!(
+                        &format!(
                             "Cannot insert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} in String",
                             elem_type,
-                        )
+                        ),
+                        "",
                     );
                 }
 
@@ -1406,17 +1361,16 @@ pub fn parser_to_instr_set(
                     .iter()
                     .find(|(w, _)| w == name)
                     .unwrap_or_else(|| {
-                        parser_error!(
-                            src.0,
-                            src.1,
+                        parser_error(
+                            src,
                             *start,
                             *end,
                             "Unknown variable",
-                            format_args!(
+                            &format!(
                                 "Variable {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} has not been declared yet"
                             ),
-                            format_args!("Declare it with {color_green}let {name} = 0;{color_reset}")
-                        );
+                            &format!("Declare it with {color_green}let {name} = 0;{color_reset}")
+                        )
                     })
                     .1;
                 let output_len = output.len();
@@ -1465,16 +1419,16 @@ pub fn parser_to_instr_set(
                     .iter()
                     .any(|(name, _, _, _, _, _)| **name == *x.first().unwrap())
                 {
-                    parser_error!(
-                        src.0,
-                        src.1,
+                    parser_error(
+                        src,
                         *start,
                         *end,
                         "Function defined twice",
-                        format_args!(
+                        &format!(
                             "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} is already defined",
                             x[0]
-                        )
+                        ),
+                        "",
                     );
                 }
                 fns.push((
@@ -1561,7 +1515,7 @@ pub fn parse(
             .iter()
             .find(|x| x.0 == "main")
             .unwrap_or_else(|| {
-                error!("Could not find main function");
+                error(String::from("Could not find main function"));
             })
             .2
             .to_vec()

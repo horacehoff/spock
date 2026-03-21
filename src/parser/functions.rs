@@ -7,16 +7,15 @@ use crate::check_args;
 use crate::check_args_range;
 use crate::debug;
 use crate::display::format_expr;
+use crate::display::parser_error;
 use crate::get_id;
 use crate::parser::Expr;
 use crate::parser::ParserData;
 use crate::parser::get_tgt_ids;
 use crate::parser::move_to_id;
 use crate::parser::parser_to_instr_set;
-use crate::parser_error;
 use crate::type_inference::DataType;
 use crate::type_inference::infer_type;
-use ariadne::*;
 use inline_colorization::*;
 use internment::Intern;
 
@@ -69,13 +68,12 @@ pub fn handle_functions(
                 expected.contains(&infered)
             }
         } {
-            parser_error!(
-                src.0,
-                src.1,
+            parser_error(
+                src,
                 args_indexes[arg].0,
                 args_indexes[arg].1,
                 "Invalid type",
-                format_args!(
+                &format!(
                     "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                     expected
                         .iter()
@@ -83,7 +81,8 @@ pub fn handle_functions(
                         .collect::<Vec<String>>()
                         .join(" or "),
                     infered.to_string()
-                )
+                ),
+                "",
             );
         }
     };
@@ -100,12 +99,12 @@ pub fn handle_functions(
                 }
             }
             "type" => {
-                check_args!(args, 1, "type", src.0, src.1, start, end);
+                check_args!(args, 1, "type", src, start, end);
                 let infered = infer_type(&args[0], var_types, fns, src);
                 registers.push(Data::String(Intern::from(infered.to_string())));
             }
             "num" => {
-                check_args!(args, 1, "num", src.0, src.1, start, end);
+                check_args!(args, 1, "num", src, start, end);
                 check_type(0, &[DataType::String, DataType::Number]);
                 let id = get_id(&args[0], v, parser_data!(), output);
                 registers.push(Data::Null);
@@ -113,13 +112,13 @@ pub fn handle_functions(
                 output.push(Instr::Num(id, (registers.len() - 1) as u16));
             }
             "str" => {
-                check_args!(args, 1, "str", src.0, src.1, start, end);
+                check_args!(args, 1, "str", src, start, end);
                 let id = get_id(&args[0], v, parser_data!(), output);
                 registers.push(Data::Null);
                 output.push(Instr::Str(id, (registers.len() - 1) as u16));
             }
             "bool" => {
-                check_args!(args, 1, "bool", src.0, src.1, start, end);
+                check_args!(args, 1, "bool", src, start, end);
                 check_type(0, &[DataType::String, DataType::Bool]);
                 let id = get_id(&args[0], v, parser_data!(), output);
                 registers.push(Data::Null);
@@ -127,7 +126,7 @@ pub fn handle_functions(
                 output.push(Instr::Bool(id, (registers.len() - 1) as u16));
             }
             "input" => {
-                check_args_range!(args, 0, 1, "input", src.0, src.1, start, end);
+                check_args_range!(args, 0, 1, "input", src, start, end);
                 check_type(0, &[DataType::String]);
                 let id = if args.is_empty() {
                     registers.push(Data::String(Intern::from(String::new())));
@@ -139,7 +138,7 @@ pub fn handle_functions(
                 output.push(Instr::Input(id, (registers.len() - 1) as u16));
             }
             "range" => {
-                check_args_range!(args, 1, 2, "range", src.0, src.1, start, end);
+                check_args_range!(args, 1, 2, "range", src, start, end);
                 if args.len() == 1 {
                     check_type(0, &[DataType::Number]);
                     let id_x = get_id(&args[0], v, parser_data!(), output);
@@ -160,7 +159,7 @@ pub fn handle_functions(
                 }
             }
             "floor" => {
-                check_args!(args, 1, "floor", src.0, src.1, start, end);
+                check_args!(args, 1, "floor", src, start, end);
                 check_type(0, &[DataType::Number]);
                 let id = get_id(&args[0], v, parser_data!(), output);
                 registers.push(Data::Null);
@@ -168,7 +167,7 @@ pub fn handle_functions(
                 output.push(Instr::Num(id, (registers.len() - 1) as u16));
             }
             "the_answer" => {
-                check_args!(args, 0, "the_answer", src.0, src.1, start, end);
+                check_args!(args, 0, "the_answer", src, start, end);
                 registers.push(Data::Null);
                 output.push(Instr::TheAnswer((registers.len() - 1) as u16));
             }
@@ -179,15 +178,15 @@ pub fn handle_functions(
                     .iter_mut()
                     .position(|(a, _, _, _, _, _)| *a == fn_name)
                     .unwrap_or_else(|| {
-                        parser_error!(
-                            src.0,
-                            src.1,
+                        parser_error(
+                            src,
                             start,
                             end,
                             "Unknown function",
-                            format_args!(
+                            &format!(
                                 "Function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} does not exist or has not been declared yet"
-                            )
+                            ),
+                            ""
                         );
                     });
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
@@ -209,7 +208,7 @@ pub fn handle_functions(
                 };
 
                 let args_len = fn_args.len();
-                check_args!(args, args_len, fn_name, src.0, src.1, start, end);
+                check_args!(args, args_len, fn_name, src, start, end);
 
                 // If the function hasn't already been compiled for these arg types, compile it now
                 if fn_data.is_empty() || fn_loc_data.is_none() {
@@ -353,7 +352,7 @@ pub fn handle_functions(
     } else if *namespace == ["io"] {
         match name {
             "open" => {
-                check_args_range!(args, 1, 2, "open", src.0, src.1, start, end);
+                check_args_range!(args, 1, 2, "open", src, start, end);
                 registers.push(Data::Null);
                 let arg_id = get_id(&args[0], v, parser_data!(), output);
 
@@ -376,44 +375,44 @@ pub fn handle_functions(
                 ));
             }
             "delete" => {
-                check_args!(args, 1, "delete", src.0, src.1, start, end);
+                check_args!(args, 1, "delete", src, start, end);
                 let arg_id = get_id(&args[0], v, parser_data!(), output);
                 instr_src.push((Instr::IoDelete(arg_id), start, end));
                 output.push(Instr::IoDelete(arg_id));
             }
             _ => {
-                parser_error!(
-                    src.0,
-                    src.1,
+                parser_error(
+                    src,
                     start,
                     end,
                     "Unknown function in namespace",
-                    format_args!(
+                    &format!(
                         "Namespace {color_bright_blue}{style_bold}{}{color_reset}{style_reset} does not contain function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset}",
                         namespace
                             .iter()
                             .map(|x| (*x).to_string())
                             .collect::<Vec<String>>()
                             .join("::")
-                    )
+                    ),
+                    "",
                 );
             }
         }
     } else {
-        parser_error!(
-            src.0,
-            src.1,
+        parser_error(
+            src,
             start,
             end,
             "Unknown namespace",
-            format_args!(
+            &format!(
                 "Namespace {color_bright_blue}{style_bold}{}{color_reset}{style_reset} does not exist",
                 namespace
                     .iter()
                     .map(|x| (*x).to_string())
                     .collect::<Vec<String>>()
                     .join("::")
-            )
+            ),
+            "",
         );
     }
     None

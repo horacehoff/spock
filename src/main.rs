@@ -1,6 +1,6 @@
-use crate::display::{format_data, format_registers_inline};
+use crate::display::{format_data, parser_error};
 use crate::parser::parse;
-use ariadne::*;
+use crate::util::error;
 use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
@@ -68,12 +68,11 @@ pub enum Instr {
     Print(u16),
 
     // LOGIC
-    // size -- is_neg
-    /// Jumps x instructions
+    /// Jumps x instructions forwards
     Jmp(u16),
     /// Jumps x instructions backwards
     JmpNeg(u16),
-    // condition id -- jump size
+    /// Cmp(condition_register_id, jump_size) - jumps if false
     Cmp(u16, u16),
     InfCmp(u16, u16, u16),
     InfEqCmp(u16, u16, u16),
@@ -169,14 +168,13 @@ pub fn execute(
     args: &mut Vec<u16>,
     arrays: &mut ArrayStorage,
     instr_src: &[(Instr, usize, usize)],
-    src: &str,
-    filename: &str,
+    src: (&str, &str),
     fn_registers: &[Vec<u16>],
 ) {
     macro_rules! fatal_error {
         ($instr: expr,$err:expr,$msg:expr) => {
             let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &$instr).unwrap();
-            parser_error!(filename, src, *start, *end, $err, $msg);
+            parser_error(src, *start, *end, $err, $msg, "");
         };
     }
     let mut i: usize = 0;
@@ -419,7 +417,7 @@ pub fn execute(
                     fatal_error!(
                         Instr::Num(tgt, dest),
                         "Invalid type",
-                        format_args!(
+                        &format!(
                             "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Number",
                             str
                         )
@@ -443,7 +441,7 @@ pub fn execute(
                        fatal_error!(
                             Instr::Bool(tgt, dest),
                             "Invalid type",
-                            format_args!(
+                            &format!(
                                 "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Boolean",
                                 str
                             )
@@ -477,7 +475,7 @@ pub fn execute(
                             fatal_error!(
                                 Instr::ArrayMod(tgt, dest, idx),
                                 "Invalid index",
-                                format_args!(
+                                &format!(
                                     "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but array has {} elements",
                                     index,
                                     array.len()
@@ -501,7 +499,7 @@ pub fn execute(
                                 fatal_error!(
                                     Instr::StrMod(tgt, dest, idx),
                                     "Invalid index",
-                                    format_args!(
+                                    &format!(
                                         "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but string has {} characters",
                                         index,
                                         str.len()
@@ -523,7 +521,7 @@ pub fn execute(
                                fatal_error!(
                                     Instr::ArrayGet(tgt, index, dest),
                                     "Invalid index",
-                                    format_args!(
+                                    &format!(
                                         "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but Array has {} elements",
                                         idx,
                                         array.len()
@@ -544,7 +542,7 @@ pub fn execute(
                             fatal_error!(
                                 Instr::ArrayGet(tgt, index, dest),
                                 "Invalid index",
-                                format_args!(
+                                &format!(
                                     "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but String has {} characters",
                                     idx,
                                     str.len()
@@ -714,14 +712,14 @@ pub fn execute(
                     let arg = registers[args.swap_remove(0) as usize];
                     if_likely! { let Data::String(arg) = arg => {
                         registers[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
-                            fatal_error!(Instr::CallLibFunc(5, tgt, dest),"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
+                            fatal_error!(Instr::CallLibFunc(5, tgt, dest),"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
                         }) as Num);
                     }}
                 }
                 Data::Array(x) => {
                     let arg = registers[args.swap_remove(0) as usize];
                     registers[dest as usize] = Data::Number(arrays[x].iter().position(|x| x == &arg).unwrap_or_else(|| {
-                        fatal_error!(Instr::CallLibFunc(5, tgt, dest), "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
+                        fatal_error!(Instr::CallLibFunc(5, tgt, dest), "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
                     }) as Num);
                 }
                 _ => unreachable!(),
@@ -772,14 +770,14 @@ pub fn execute(
                     let arg = registers[args.swap_remove(0) as usize];
                     if_likely! { let Data::String(arg) = arg => {
                         registers[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
-                            fatal_error!(Instr::CallLibFunc(11, tgt, dest), "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
+                            fatal_error!(Instr::CallLibFunc(11, tgt, dest), "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
                         }) as Num);
                     }}
                 }
                 Data::Array(x) => {
                     let arg = registers[args.swap_remove(0) as usize];
                     registers[dest as usize] = Data::Number(arrays[x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
-                        fatal_error!(Instr::CallLibFunc(11, tgt, dest),"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
+                        fatal_error!(Instr::CallLibFunc(11, tgt, dest),"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
                     }) as Num);
                 }
                 _ => unreachable!(),
@@ -816,7 +814,7 @@ pub fn execute(
             Instr::CallLibFunc(15, tgt, dest) => {
                 if_likely! {let Data::File(path) = registers[tgt as usize] => {
                     registers[dest as usize] = Data::String(Intern::from(std::fs::read_to_string(path.as_str()).unwrap_or_else(|_| {
-                        fatal_error!(Instr::CallLibFunc(15, tgt, dest), "File does not exist or cannot be read",format_args!("Cannot read file {color_red}{path}{color_reset}"));
+                        fatal_error!(Instr::CallLibFunc(15, tgt, dest), "File does not exist or cannot be read",&format!("Cannot read file {color_red}{path}{color_reset}"));
                     })))
                 }}
             }
@@ -829,9 +827,9 @@ pub fn execute(
                                 .write(true)
                                 .truncate(truncate)
                                 .open(path.as_str()).unwrap_or_else(|_| {
-                                    fatal_error!(Instr::CallLibFunc(16, tgt, dest),"File does not exist or cannot be opened",format_args!("Cannot open file {color_red}{path}{color_reset}"));
+                                    fatal_error!(Instr::CallLibFunc(16, tgt, dest),"File does not exist or cannot be opened",&format!("Cannot open file {color_red}{path}{color_reset}"));
                                 }).write_all(contents.as_bytes()).unwrap_or_else(|_| {
-                                    fatal_error!(Instr::CallLibFunc(16, tgt, dest),"File does not exist or cannot be written to",format_args!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
+                                    fatal_error!(Instr::CallLibFunc(16, tgt, dest),"File does not exist or cannot be written to",&format!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
                             });
                         }}
                     }}
@@ -883,9 +881,9 @@ fn main() {
     });
 
     let contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-        error!(format_args!(
+        error(format!(
             "Unable to read contents of file {color_red}{filename}{color_reset}"
-        ));
+        ))
     });
 
     let now = Instant::now();
@@ -904,8 +902,7 @@ fn main() {
         &mut Vec::with_capacity(func_args_count),
         &mut arrays,
         &instr_src,
-        &contents,
-        filename,
+        (filename, &contents),
         &fn_registers,
     );
     let end = now.elapsed();
