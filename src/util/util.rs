@@ -4,6 +4,26 @@ use inline_colorization::color_reset;
 
 #[cold]
 #[inline(never)]
+pub fn cold() {}
+
+#[inline(always)]
+pub fn likely(b: bool) -> bool {
+    if !b {
+        cold();
+    }
+    b
+}
+
+#[inline(always)]
+pub fn unlikely(b: bool) -> bool {
+    if b {
+        cold();
+    }
+    b
+}
+
+#[cold]
+#[inline(never)]
 pub fn error(x: String) -> ! {
     eprintln!(
         "--------------\n{color_red}SPOCK RUNTIME ERROR:{color_reset}\n{}\n--------------",
