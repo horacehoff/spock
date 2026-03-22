@@ -355,8 +355,6 @@ pub fn execute(
                 if registers[o1 as usize] != registers[o2 as usize] {
                     i += jump_size as usize;
                     continue;
-                } else {
-                    unsafe { unreachable_unchecked() }
                 }
             }
             Instr::ArrayEqCmp(o1, o2, jump_size) => {
@@ -388,8 +386,6 @@ pub fn execute(
                 if registers[o1 as usize] == registers[o2 as usize] {
                     i += jump_size as usize;
                     continue;
-                } else {
-                    unsafe { unreachable_unchecked() }
                 }
             }
             Instr::ArrayNotEqCmp(o1, o2, jump_size) => {
@@ -542,8 +538,7 @@ pub fn execute(
                 )));
             }
             Instr::Bool(tgt, dest) => {
-                let base = registers[tgt as usize];
-                if let Data::String(str) = base {
+                if let Data::String(str) = registers[tgt as usize] {
                     registers[dest as usize] = Data::Bool(str.parse::<bool>().unwrap_or_else(|_| {
                        fatal_error!(
                             Instr::Bool(tgt, dest),
