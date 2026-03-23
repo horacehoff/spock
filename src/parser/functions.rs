@@ -324,11 +324,11 @@ pub fn handle_functions(
                 registers.push(Data::Null);
                 // JmpSave to the func body start location (loc => )
                 debug!("REGLEN {}", registers.len() - 1);
-                output.push(Instr::CallFunc(
-                    loc,
-                    (registers.len() - 1) as u16,
-                    is_recursive,
-                ));
+                if is_recursive {
+                    output.push(Instr::CallFuncRecursive(loc, (registers.len() - 1) as u16));
+                } else {
+                    output.push(Instr::CallFunc(loc, (registers.len() - 1) as u16));
+                }
                 debug!("REGLEN {}", registers.len() - 1);
 
                 if is_recursive {

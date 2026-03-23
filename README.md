@@ -9,7 +9,7 @@ A work-in-progress interpreted programming language written in Rust for the best
 Its goal is to provide a faster alternative to Python, and one that's closer to low-level languages, while still being accessible to a wide audience.
 
 Key info:
-- ~5-10x faster than Python in most cases.
+- ~2-10x faster than Python in most cases.
   Comparisons [here](COMPARISONS.md)
 - Inlined functions
 - Constant folding

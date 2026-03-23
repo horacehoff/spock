@@ -18,6 +18,8 @@ use lalrpop_util::lalrpop_mod;
 use slab::Slab;
 use std::slice;
 
+lalrpop_mod!(pub grammar);
+
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum Expr {
@@ -117,8 +119,6 @@ pub fn symbol_of_expr(expr: &Expr) -> &str {
     }
 }
 
-lalrpop_mod!(pub grammar);
-
 pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     if x.is_empty()
         || matches!(
@@ -135,7 +135,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     let matching_elem = x.get_mut(matching_elem_index).unwrap();
     match matching_elem{
         Instr::Mov(_, y)
-        | Instr::CallFunc(_, y, false)
+        | Instr::CallFunc(_, y)
         | Instr::Add(_, _, y)
         | Instr::ArrayAdd(_, _, y)
         | Instr::StrAdd(_, _, y)
@@ -170,7 +170,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Sqrt(_, y)
         | Instr::Split(_, _, y)
         | Instr::Str(_, y) => *y = tgt_id,
-        | Instr::CallFunc(_, y, true) => {
+        Instr::CallFuncRecursive(_, y) => {
             *y = tgt_id;
             for i in 1..x.len() - 1 {
                 if let Some(Instr::SaveFrame(_, y, _)) = x.get_mut(matching_elem_index - i) {
@@ -186,7 +186,8 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
 fn get_tgt_id(x: Instr) -> Option<u16> {
     match x {
         Instr::Mov(_, y)
-        | Instr::CallFunc(_, y, _)
+        | Instr::CallFunc(_, y)
+        | Instr::CallFuncRecursive(_, y)
         | Instr::SaveFrame(_, y, _)
         | Instr::Add(_, _, y)
         | Instr::ArrayAdd(_, _, y)
@@ -633,7 +634,7 @@ fn parse_loop_flow_control(
     for_loop: bool,
 ) {
     loop_code.iter_mut().enumerate().for_each(|x| {
-        if let Instr::Break(break_id) = x.1 {
+        if let Instr::EqCmp(break_id, 0, 0) = x.1 {
             if *break_id == loop_id {
                 if for_loop {
                     *x.1 = Instr::Jmp(code_length - x.0 as u16 - 1);
@@ -641,7 +642,7 @@ fn parse_loop_flow_control(
                     *x.1 = Instr::Jmp(code_length - x.0 as u16);
                 }
             }
-        } else if let Instr::Continue(continue_id) = x.1 {
+        } else if let Instr::NotEqCmp(continue_id, 0, 0) = x.1 {
             if *continue_id == loop_id {
                 if for_loop {
                     *x.1 = Instr::Jmp(code_length - x.0 as u16 - 3);
@@ -655,11 +656,11 @@ fn parse_loop_flow_control(
 
 fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_length: u16) {
     loop_code.iter_mut().enumerate().for_each(|(i, x)| {
-        if let Instr::Break(break_id) = x {
+        if let Instr::EqCmp(break_id, 0, 0) = x {
             if *break_id == loop_id {
                 *x = Instr::Jmp(code_length - i as u16);
             }
-        } else if let Instr::Continue(continue_id) = x {
+        } else if let Instr::NotEqCmp(continue_id, 0, 0) = x {
             if *continue_id == loop_id {
                 *x = Instr::Jmp(code_length - i as u16 - 3);
             }
@@ -1247,8 +1248,10 @@ pub fn parser_to_instr_set(
                     }
                 }
             }
-            Expr::Break => output.push(Instr::Break(block_id)),
-            Expr::Continue => output.push(Instr::Continue(block_id)),
+            // Break(block_id) = EqCmp(block_id, 0, 0)
+            Expr::Break => output.push(Instr::EqCmp(block_id, 0, 0)),
+            // Break(block_id) = NotEqCmp(block_id, 0, 0)
+            Expr::Continue => output.push(Instr::NotEqCmp(block_id, 0, 0)),
             Expr::EvalBlock(code) => {
                 let mut vars = v.clone();
                 output.extend(parser_to_instr_set(code, &mut vars, parser_data!()))
