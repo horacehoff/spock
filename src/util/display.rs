@@ -231,6 +231,7 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
             | Instr::ArrayNotEqCmp(_, _, jump_size) => flows.push((i, i + *jump_size as usize)),
             Instr::CallLibFunc(jump_size, _, _) => flows.push((i, *jump_size as usize)),
             Instr::JmpNeg(jump_size) => flows.push((i, i - *jump_size as usize)),
+            Instr::CallFunc(n, _) => flows.push((i, *n as usize)),
             _ => continue,
         }
     }
@@ -249,18 +250,18 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
         for x in &flows {
             if i == x.0 {
                 if x.1 > x.0 {
-                    indicators.push_str("  -┐");
+                    indicators.push_str("  ─┐");
                 } else {
-                    indicators.push_str("  -┘");
+                    indicators.push_str("  ─┘");
                 }
             } else if i == x.1 {
                 if x.1 > x.0 {
-                    indicators.push_str(" ←-┘");
+                    indicators.push_str(" <─┘");
                 } else {
-                    indicators.push_str(" ←-┐");
+                    indicators.push_str(" <─┐");
                 }
             } else if (x.0..x.1).contains(&i) || (x.1..x.0).contains(&i) {
-                indicators.push_str("   |");
+                indicators.push_str("   │");
             } else {
                 indicators.push_str("    ");
             }

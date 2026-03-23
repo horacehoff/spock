@@ -1,8 +1,8 @@
 use crate::display::{format_data, parser_error};
 use crate::parser::parse;
+use crate::util::error;
 use crate::util::likely;
 use crate::util::unlikely;
-use crate::util::{cold, error};
 use concat_string::concat_string;
 use inline_colorization::*;
 use internment::Intern;
@@ -146,23 +146,27 @@ pub enum Instr {
     // tgt - separator - dest
     Split(u16, u16, u16),
 
-    // -- NEVER APPEARS IN FINAL CODE --
-    Break(u16),
-    Continue(u16),
-    // ----------
-    /// CallFunc(n,y,is_recursive) - Jumps to the nth instruction, and adds y as a slot to be set by the Return instruction; VoidReturn/Return will jump back to this location
-    CallFunc(u16, u16, bool),
+    /// CallFunc(n,y) - Jumps to the nth instruction, and adds y as a slot to be set by the Return instruction; VoidReturn/Return will jump back to this location
+    CallFunc(u16, u16),
+    /// CallFuncRecursive(n, register_id) - Jumps to the nth instruction, register_id is only used during parsing.
+    CallFuncRecursive(u16, u16),
     /// Jumps to the instruction right after the last CallFunc encountered by the interpreter
     VoidReturn,
     /// Return(n) => returns the data located in register n
     Return(u16),
-    /// RecursiveReturn(n,function_id) => returns the data located in register n
+    /// RecursiveReturn(n,function_id) => returns the data located in register n, and restores the function's register state
     RecursiveReturn(u16, u16),
     /// SaveFrame(function_location, return_register, function_id)
     SaveFrame(u16, u16, u16),
 }
 
 pub type ArrayStorage = Slab<Vec<Data>>;
+
+#[repr(C)]
+struct CallFrame {
+    return_addr: u32,
+    return_reg: u16,
+}
 
 pub fn execute(
     instructions: &[Instr],
@@ -179,7 +183,6 @@ pub fn execute(
         };
     }
     let mut i: usize = 0;
-
     let mut args: Vec<u16> = Vec::with_capacity(
         instructions
             .iter()
@@ -188,17 +191,14 @@ pub fn execute(
     );
     let call_depth = instructions
         .iter()
-        .filter(|x| matches!(x, Instr::CallFunc(_, _, _) | Instr::SaveFrame(_, _, _)))
+        .filter(|x| matches!(x, Instr::CallFunc(_, _) | Instr::SaveFrame(_, _, _)))
         .count();
-    let mut jmps: Vec<usize> = Vec::with_capacity(call_depth);
-    let mut return_ids: Vec<u16> = Vec::with_capacity(call_depth);
+    let mut call_frames: Vec<CallFrame> = Vec::with_capacity(call_depth);
     let mut recursion_stack: Vec<Data> = Vec::with_capacity(call_depth * registers.len());
 
-    while i < instructions.len() {
-        // debug!("{}", format_registers_inline(registers));
+    let len = instructions.len();
+    while i < len {
         match instructions[i] {
-            Instr::Break(_) | Instr::Continue(_) => unreachable!(),
-
             Instr::Jmp(size) => {
                 i += size as usize;
                 continue;
@@ -207,21 +207,27 @@ pub fn execute(
                 i -= size as usize;
                 continue;
             }
-            Instr::CallFunc(new_loc, return_id, is_recursive) => {
-                if !is_recursive {
-                    jmps.push(i);
-                    return_ids.push(return_id);
-                }
+            Instr::CallFunc(new_loc, return_id) => {
+                call_frames.push(CallFrame {
+                    return_addr: i as u32,
+                    return_reg: return_id,
+                });
+                i = new_loc as usize;
+                continue;
+            }
+            Instr::CallFuncRecursive(new_loc, _) => {
                 i = new_loc as usize;
                 continue;
             }
             Instr::VoidReturn => {
-                i = jmps.pop().unwrap();
+                i = call_frames.pop().unwrap().return_addr as usize;
                 continue;
             }
             Instr::SaveFrame(relative_func_loc, return_register, fn_id) => {
-                jmps.push(i + relative_func_loc as usize);
-                return_ids.push(return_register);
+                call_frames.push(CallFrame {
+                    return_addr: (i + relative_func_loc as usize) as u32,
+                    return_reg: return_register,
+                });
                 // Create a "snapshot" of the registers, so as to be able to reset them when the function returns.
                 recursion_stack.extend(
                     fn_registers[fn_id as usize]
@@ -230,11 +236,13 @@ pub fn execute(
                 );
             }
             Instr::Return(tgt) => {
-                i = jmps.pop().unwrap();
-                registers[return_ids.pop().unwrap() as usize] = registers[tgt as usize];
+                let call_frame = call_frames.pop().unwrap();
+                i = call_frame.return_addr as usize;
+                registers[call_frame.return_reg as usize] = registers[tgt as usize];
             }
             Instr::RecursiveReturn(tgt, fn_id) => {
-                i = jmps.pop().unwrap();
+                let call_frame = call_frames.pop().unwrap();
+                i = call_frame.return_addr as usize;
                 let temp = registers[tgt as usize];
                 let regs = &fn_registers[fn_id as usize];
                 let base = recursion_stack.len() - regs.len();
@@ -244,7 +252,7 @@ pub fn execute(
                 unsafe {
                     recursion_stack.set_len(base);
                 }
-                registers[return_ids.pop().unwrap() as usize] = temp;
+                registers[call_frame.return_reg as usize] = temp;
             }
             Instr::Cmp(cond_id, size) => {
                 if let Data::Bool(false) = registers[cond_id as usize] {
