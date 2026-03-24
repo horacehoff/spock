@@ -388,8 +388,6 @@ pub fn execute(
                 registers[call_frame.return_reg as usize] = registers[tgt as usize];
             }
             Instr::RecursiveReturn(tgt, fn_id) => {
-                let call_frame = call_frames.pop().unwrap();
-                i = call_frame.return_addr as usize;
                 let temp = registers[tgt as usize];
                 let regs = &fn_registers[fn_id as usize];
                 let base = recursion_stack.len() - regs.len();
@@ -399,6 +397,8 @@ pub fn execute(
                 unsafe {
                     recursion_stack.set_len(base);
                 }
+                let call_frame = call_frames.pop().unwrap();
+                i = call_frame.return_addr as usize;
                 registers[call_frame.return_reg as usize] = temp;
             }
             Instr::Cmp(cond_id, size) => {
@@ -407,9 +407,7 @@ pub fn execute(
                     continue;
                 }
             }
-            Instr::Mov(tgt, dest) => {
-                registers[dest as usize] = registers[tgt as usize];
-            }
+            Instr::Mov(tgt, dest) => registers[dest as usize] = registers[tgt as usize],
             Instr::Add(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_num() + registers[o2 as usize].as_num()).into();
@@ -494,7 +492,7 @@ pub fn execute(
             }
             Instr::ArrayNotEqCmp(o1, o2, jump_size) => {
                 if arrays[registers[o1 as usize].as_array() as usize]
-                    == arrays[registers[o1 as usize].as_array() as usize]
+                    == arrays[registers[o2 as usize].as_array() as usize]
                 {
                     i += jump_size as usize;
                     continue;
@@ -967,32 +965,36 @@ fn main() {
         parse(&contents, filename);
 
     println!("PARSING TIME {:.2?}", now.elapsed());
-    let now = Instant::now();
-    execute(
-        &instructions,
-        &mut registers,
-        &mut arrays,
-        &instr_src,
-        (filename, &contents),
-        &fn_registers,
-    );
-    println!(
-        "EXECUTION TIME: {:.3}ms",
-        now.elapsed().as_nanos() / 1000000
-    );
-
-    // benchmark(
-    //     &instructions,
-    //     &mut registers,
-    //     &mut arrays,
-    //     &instr_src,
-    //     (filename, &contents),
-    //     &fn_registers,
-    //     10,
-    //     150,
-    // );
+    if std::env::args().len() > 2 && std::env::args().nth(2).unwrap() == "--bench" {
+        benchmark(
+            &instructions,
+            &mut registers,
+            &mut arrays,
+            &instr_src,
+            (filename, &contents),
+            &fn_registers,
+            10,
+            150,
+        );
+    } else {
+        let now = Instant::now();
+        execute(
+            &instructions,
+            &mut registers,
+            &mut arrays,
+            &instr_src,
+            (filename, &contents),
+            &fn_registers,
+        );
+        println!(
+            "EXECUTION TIME: {:.3}ms",
+            now.elapsed().as_nanos() / 1000000
+        );
+    }
 }
 
+#[cold]
+#[inline(never)]
 pub fn benchmark(
     instructions: &[Instr],
     registers: &mut [Data],
@@ -1008,14 +1010,16 @@ pub fn benchmark(
     for _ in 0..warmup_runs {
         black_box(execute(
             black_box(instructions),
-            black_box(registers),
-            black_box(arrays),
+            black_box(&mut registers.to_vec()),
+            black_box(&mut arrays.to_owned()),
             black_box(instr_src),
             black_box(src),
             black_box(fn_registers),
         ));
     }
     for _ in 0..samples_count {
+        let registers = &mut registers.to_vec();
+        let arrays = &mut arrays.to_owned();
         let now = Instant::now();
         black_box(execute(
             black_box(instructions),
