@@ -3,7 +3,6 @@ use crate::parser::Expr;
 use inline_colorization::*;
 use crate::util::error;
 use crate::Num;
-use crate::is_float;
 use internment::Intern;
 use concat_string::concat_string;
 
@@ -86,8 +85,7 @@ ConditionalBlock: Expr = {
                 } else {
                     Expr::EvalBlock(Box::from([]))
                 }
-            } else {
-                if let Expr::ElseIfBlock(condition,code) = &o3[0] {
+            } else if let Expr::ElseIfBlock(condition,code) = &o3[0] {
                     Expr::Condition(
                         condition.clone(),
                         Box::from(
@@ -99,8 +97,7 @@ ConditionalBlock: Expr = {
                             }]
                         .concat()
                     ),start,end)
-                } else {unreachable!();}
-            }
+            } else {unreachable!();}
         } else {
             return Expr::Condition(
                 Box::from(o1),
@@ -128,8 +125,7 @@ InlineConditionalBlock: Expr = {
                 } else {
                     Expr::EvalBlock(Box::from([]))
                 }
-            } else {
-                if let Expr::ElseIfBlock(condition,code) = &o3[0] {
+            } else if let Expr::ElseIfBlock(condition,code) = &o3[0] {
                     Expr::Condition(
                         condition.clone(),
                         Box::from(
@@ -142,7 +138,6 @@ InlineConditionalBlock: Expr = {
                         .concat()
                     ),start,end)
                 } else {unreachable!();}
-            }
         } else {
             Expr::Condition(
                 Box::from(o1),

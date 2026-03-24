@@ -34,14 +34,6 @@ cargo run --release
 cargo build --release
 ```
 
-## Numeric type
-By default, Spock uses `f64` as its numeric type. If desired, you can run/build Spock with `i64` as the numeric type instead of `f64` by enabling the "int" feature:
-```sh
-cargo run --release --features "int"
-cargo build --release --features "int"
-```
-This is useful in cases where `i64` can be faster than `f64`. Please note that, unless you know what you're doing, you should use the default numeric type.
-
 ## Instruction Set
 
 Spock uses an instruction set with a size of 8 bytes.

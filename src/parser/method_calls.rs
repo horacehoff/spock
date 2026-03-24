@@ -124,19 +124,19 @@ pub fn handle_method_calls(
         "uppercase" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(0, id, f_id));
         }
         "lowercase" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(1, id, f_id));
         }
         "len" => {
             check!(DataType::Array(_) | DataType::String, "Array or String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::Len(id, f_id));
         }
         "contains" => {
@@ -160,14 +160,14 @@ pub fn handle_method_calls(
             add_args!();
 
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
 
             output.push(Instr::CallLibFunc(2, id, f_id));
         }
         "trim" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(3, id, f_id));
         }
         "trim_sequence" => {
@@ -190,7 +190,7 @@ pub fn handle_method_calls(
             add_args!();
 
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(4, id, f_id));
         }
         "index" => {
@@ -228,26 +228,26 @@ pub fn handle_method_calls(
             add_args!();
 
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(5, id, f_id));
             instr_src.push((Instr::CallLibFunc(5, id, f_id), start, end))
         }
         "is_num" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(6, id, f_id));
         }
         "trim_left" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(7, id, f_id));
         }
         "trim_right" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(8, id, f_id));
         }
         "trim_sequence_left" => {
@@ -269,7 +269,7 @@ pub fn handle_method_calls(
             }
 
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
 
             add_args!();
             output.push(Instr::CallLibFunc(9, id, f_id));
@@ -293,7 +293,7 @@ pub fn handle_method_calls(
             }
 
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
 
             add_args!();
             output.push(Instr::CallLibFunc(10, id, f_id));
@@ -331,7 +331,7 @@ pub fn handle_method_calls(
             }
 
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
 
             add_args!();
             output.push(Instr::CallLibFunc(11, id, f_id));
@@ -358,7 +358,7 @@ pub fn handle_method_calls(
             add_args!();
 
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
 
             output.push(Instr::CallLibFunc(12, id, f_id));
         }
@@ -388,26 +388,26 @@ pub fn handle_method_calls(
         "sqrt" => {
             check!(DataType::Number, "Number", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::Sqrt(id, f_id));
         }
         "round" => {
             check!(DataType::Number, "Number", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(13, id, f_id));
         }
         "abs" => {
             check!(DataType::Number, "Number", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(14, id, f_id));
         }
         // io::read
         "read" => {
             check!(DataType::File, "File", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(15, id, f_id));
             instr_src.push((Instr::CallLibFunc(15, id, f_id), start, end))
         }
@@ -418,12 +418,12 @@ pub fn handle_method_calls(
             let len = args.len();
             add_args!();
             if len == 1 {
-                registers.push(Data::Bool(false));
+                registers.push(Data::FALSE);
                 output.push(Instr::StoreFuncArg((registers.len() - 1) as u16));
             }
 
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
 
             output.push(Instr::CallLibFunc(16, id, f_id));
             instr_src.push((Instr::CallLibFunc(16, id, f_id), start, end))
@@ -431,7 +431,7 @@ pub fn handle_method_calls(
         "reverse" => {
             check!(DataType::Array(_) | DataType::String, "Array or String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(17, id, f_id));
         }
         "split" => {
@@ -467,7 +467,7 @@ pub fn handle_method_calls(
             }
 
             let arg_id = get_id(&args[0], v, parser_data!(), output);
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::Split(id, arg_id, (registers.len() - 1) as u16));
         }
         "remove" => {

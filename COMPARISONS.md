@@ -51,7 +51,7 @@ end</code></pre></td>
  </tr>
 <tr>
 <td>
-0.0017s (547x faster)
+0.0014s
 </td>
 <td>
 0.93s
@@ -84,7 +84,7 @@ print(len(i))</code></pre></td>
  </tr>
 <tr>
 <td>
-1.47s (11.8x faster)
+1.04s
 </td>
 <td>
 17.4s
@@ -121,7 +121,7 @@ print(x)</code></pre></td>
 </tr>
 <tr>
 <td>
-0.151s (9.2x faster)
+0.151s
 </td>
 <td>
 1.4s
@@ -177,7 +177,7 @@ print(result)</code></pre></td>
 </tr>
 <tr>
 <td>
-0.016s (7x faster)
+0.027s
 </td>
 <td>
 0.120s
@@ -220,7 +220,7 @@ print(i)</code></pre></td>
  </tr>
 <tr>
 <td>
-0.00007s (600000x faster)
+0.00005s
 </td>
 <td>
 42s

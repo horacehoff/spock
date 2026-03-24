@@ -1,3 +1,5 @@
+use std::hint::unreachable_unchecked;
+
 use crate::ArrayStorage;
 use crate::parser::Expr;
 use crate::type_inference::DataType;
@@ -8,29 +10,59 @@ use inline_colorization::*;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
 
-pub fn format_data(x: Data, arrays: &ArrayStorage, show_str: bool) -> String {
-    match x {
-        Data::Number(num) => num.to_string(),
-        Data::Bool(bool) => bool.to_string(),
-        Data::String(str) => {
-            if show_str {
-                str.to_string()
-            } else {
-                format!("\"{str}\"")
-            }
+pub fn format_data(x: Data, arrays: Option<&ArrayStorage>, show_str: bool) -> String {
+    if x.is_num() {
+        x.as_num().to_string()
+    } else if x.is_bool() {
+        x.as_bool().to_string()
+    } else if x.is_str() {
+        let s = x.as_str();
+        if show_str { s } else { format!("\"{s}\"") }
+    } else if x.is_array() {
+        if let Some(arrays) = arrays {
+            concat_string!(
+                "[",
+                arrays[x.as_array() as usize]
+                    .iter()
+                    .map(|x| format_data(*x, Some(arrays), true))
+                    .collect::<Vec<_>>()
+                    .join(","),
+                "]"
+            )
+        } else {
+            format!("ARRAY[{}]", x.as_array())
         }
-        Data::Array(a) => concat_string!(
-            "[",
-            arrays[a]
-                .iter()
-                .map(|x| format_data(*x, arrays, true))
-                .collect::<Vec<_>>()
-                .join(","),
-            "]"
-        ),
-        Data::Null => String::from("NULL"),
-        Data::File(path) => format!("FILE({path:?})"),
+    } else if x.is_file() {
+        format!("FILE({:?})", x.as_file())
+    } else if x.is_null() {
+        String::from("NULL")
+    } else {
+        unsafe { unreachable_unchecked() }
     }
+}
+
+impl std::fmt::Display for Data {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", format_data(*self, None, false))
+    }
+}
+
+fn get_data_type_name(x: Data) -> String {
+    String::from(if x.is_array() {
+        "Array"
+    } else if x.is_bool() {
+        "Boolean"
+    } else if x.is_str() {
+        "String"
+    } else if x.is_file() {
+        "File"
+    } else if x.is_num() {
+        "Number"
+    } else if x.is_null() {
+        "Null"
+    } else {
+        unreachable!()
+    })
 }
 
 pub fn format_expr(x: &Expr) -> String {
@@ -99,7 +131,7 @@ pub fn parser_error(
     note: &str,
 ) -> ! {
     eprintln!("{color_red}SPOCK ERROR{color_reset}");
-    if note.len() > 0 {
+    if !note.is_empty() {
         Report::build(ReportKind::Error, (src.0, start..end))
             .with_message(general_error)
             .with_label(
@@ -213,7 +245,7 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
     }
     println!("{color_green}-- REGISTERS --{color_reset}");
     for (i, data) in registers.iter().enumerate() {
-        println!(" [{i}] {data:?}")
+        println!(" [{i}] {}({data})", get_data_type_name(*data))
     }
     println!("{color_red}-- INSTRUCTIONS --{color_reset}");
     let mut flows: Vec<(usize, usize)> = Vec::new();
@@ -261,7 +293,11 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
                     indicators.push_str(" <─┐");
                 }
             } else if (x.0..x.1).contains(&i) || (x.1..x.0).contains(&i) {
-                indicators.push_str("   │");
+                if i == instr_str.len() - 1 {
+                    indicators.push_str("   X");
+                } else {
+                    indicators.push_str("   │");
+                }
             } else {
                 indicators.push_str("    ");
             }
