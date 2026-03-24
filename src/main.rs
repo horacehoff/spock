@@ -1,4 +1,4 @@
-use crate::display::{format_data, parser_error};
+use crate::display::{format_data, parser_error, print_debug};
 use crate::parser::parse;
 use crate::util::error;
 use crate::util::likely;
@@ -226,6 +226,7 @@ pub enum Instr {
     InfCmp(u16, u16, u16),
     InfEqCmp(u16, u16, u16),
     SupCmp(u16, u16, u16),
+    /// Cmp(condition_register_id, jump_size) - jumps if false
     SupEqCmp(u16, u16, u16),
     EqCmp(u16, u16, u16),
     NotEqCmp(u16, u16, u16),
@@ -550,10 +551,10 @@ pub fn execute(
                 registers[dest as usize] = (-registers[tgt as usize].as_num()).into();
             }
             Instr::Print(target) => {
-                println!(
-                    "{}",
-                    format_data(registers[target as usize], Some(arrays), false)
-                );
+                // println!(
+                //     "{}",
+                //     format_data(registers[target as usize], Some(arrays), false)
+                // );
             }
             Instr::Num(tgt, dest) => {
                 let reg = registers[tgt as usize];

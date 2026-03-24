@@ -73,8 +73,19 @@ pub enum Expr {
         usize,
     ),
 
-    /// ForLoop(id_name, loop_array+code)
+    /// ForLoop(loop_var_name, loop_array+code)
     ForLoop(Intern<String>, Box<[Expr]>),
+    /// IntForLoop(loop_var_name, first_elem, final_elem, code)
+    IntForLoop(
+        Intern<String>,
+        Box<Expr>,
+        Box<Expr>,
+        Box<[Expr]>,
+        usize,
+        usize,
+        usize,
+        usize,
+    ),
     Import(String),
     // Closure(Box<[String]>, Box<[Expr]>),
     Break,
@@ -1133,6 +1144,60 @@ pub fn parser_to_instr_set(
                 // clean up, reset the index variable
                 registers.push(0.0.into());
                 output.push(Instr::Mov((registers.len() - 1) as u16, index_id));
+            }
+            Expr::IntForLoop(var_name, start_elem, end_elem, code, start1, end1, start2, end2) => {
+                let t1 = infer_type(start_elem, var_types, fns, src);
+                if t1 != DataType::Number {
+                    parser_error(
+                        src,
+                        *start1,
+                        *end1,
+                        "Invalid type",
+                        &format!(
+                            "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                            DataType::Number,
+                            t1
+                        ),
+                        "",
+                    )
+                }
+                let t2 = infer_type(end_elem, var_types, fns, src);
+                if t2 != DataType::Number {
+                    parser_error(
+                        src,
+                        *start2,
+                        *end2,
+                        "Invalid type",
+                        &format!(
+                            "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                            DataType::Number,
+                            t2
+                        ),
+                        "",
+                    )
+                }
+                let elem_id = get_id(start_elem, v, parser_data!(), &mut output);
+                // Create temporary variable and store its index, so as to delete it later
+                v.push((*var_name, elem_id));
+                var_types.push((*var_name, DataType::Number));
+                let (v_idx, t_idx) = (v.len() - 1, var_types.len() - 1);
+
+                let compiled_loop_code = parser_to_instr_set(code, v, parser_data!());
+                let compiled_loop_code_len = compiled_loop_code.len() as u16;
+                // Clean up variables
+                v.remove(v_idx);
+                var_types.remove(t_idx);
+
+                let end_elem_id = get_id(end_elem, v, parser_data!(), &mut output);
+                output.push(Instr::InfCmp(
+                    elem_id,
+                    end_elem_id,
+                    compiled_loop_code_len + 3,
+                ));
+                output.extend(compiled_loop_code);
+                registers.push(1.0.into());
+                output.push(Instr::Add(elem_id, (registers.len() - 1) as u16, elem_id));
+                output.push(Instr::JmpNeg(1 + compiled_loop_code_len + 1))
             }
             Expr::LoopBlock(code) => {
                 let loop_id = block_id + 1;
