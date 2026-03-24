@@ -253,11 +253,11 @@ pub enum Instr {
     JmpNeg(u16),
     /// Cmp(condition_register_id, jump_size) - jumps if false
     Cmp(u16, u16),
-    InfCmp(u16, u16, u16),
-    InfEqCmp(u16, u16, u16),
-    SupCmp(u16, u16, u16),
+    InfFloatCmp(u16, u16, u16),
+    InfEqFloatCmp(u16, u16, u16),
+    SupFloatCmp(u16, u16, u16),
     /// Cmp(condition_register_id, jump_size) - jumps if false
-    SupEqCmp(u16, u16, u16),
+    SupEqFloatCmp(u16, u16, u16),
     EqCmp(u16, u16, u16),
     NotEqCmp(u16, u16, u16),
     ArrayEqCmp(u16, u16, u16),
@@ -267,28 +267,28 @@ pub enum Instr {
 
     // OPS
     /// (3) = (1) + (2)
-    Add(u16, u16, u16),
+    AddFloat(u16, u16, u16),
     /// (3) = (1) ∪ (2)
-    ArrayAdd(u16, u16, u16),
+    AddArray(u16, u16, u16),
     /// (3) = (1) + (2)
-    StrAdd(u16, u16, u16),
+    AddStr(u16, u16, u16),
     /// (3) = (1) * (2)
-    Mul(u16, u16, u16),
-    Sub(u16, u16, u16),
-    Div(u16, u16, u16),
-    Mod(u16, u16, u16),
-    Pow(u16, u16, u16),
+    MulFloat(u16, u16, u16),
+    SubFloat(u16, u16, u16),
+    DivFloat(u16, u16, u16),
+    ModFloat(u16, u16, u16),
+    PowFloat(u16, u16, u16),
     Eq(u16, u16, u16),
     NotEq(u16, u16, u16),
     ArrayEq(u16, u16, u16),
     ArrayNotEq(u16, u16, u16),
-    Sup(u16, u16, u16),
-    SupEq(u16, u16, u16),
-    Inf(u16, u16, u16),
-    InfEq(u16, u16, u16),
+    SupFloat(u16, u16, u16),
+    SupEqFloat(u16, u16, u16),
+    InfFloat(u16, u16, u16),
+    InfEqFloat(u16, u16, u16),
     BoolAnd(u16, u16, u16),
     BoolOr(u16, u16, u16),
-    Neg(u16, u16),
+    NegFloat(u16, u16),
 
     // General functions
     // Type(u16, u16),
@@ -439,18 +439,18 @@ pub fn execute(
                 }
             }
             Instr::Mov(tgt, dest) => registers[dest as usize] = registers[tgt as usize],
-            Instr::Add(o1, o2, dest) => {
+            Instr::AddFloat(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() + registers[o2 as usize].as_float()).into();
             }
-            Instr::StrAdd(o1, o2, dest) => {
+            Instr::AddStr(o1, o2, dest) => {
                 registers[dest as usize] = concat_string!(
                     registers[o1 as usize].as_str(),
                     registers[o2 as usize].as_str()
                 )
                 .into();
             }
-            Instr::ArrayAdd(o1, o2, dest) => {
+            Instr::AddArray(o1, o2, dest) => {
                 let arr_a = &arrays[registers[o1 as usize].as_array() as usize];
                 let arr_b = &arrays[registers[o2 as usize].as_array() as usize];
 
@@ -460,23 +460,23 @@ pub fn execute(
                 let id = arrays.insert(combined);
                 registers[dest as usize] = Data::array(id as u32);
             }
-            Instr::Mul(o1, o2, dest) => {
+            Instr::MulFloat(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() * registers[o2 as usize].as_float()).into();
             }
-            Instr::Div(o1, o2, dest) => {
+            Instr::DivFloat(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() / registers[o2 as usize].as_float()).into();
             }
-            Instr::Sub(o1, o2, dest) => {
+            Instr::SubFloat(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() - registers[o2 as usize].as_float()).into();
             }
-            Instr::Mod(o1, o2, dest) => {
+            Instr::ModFloat(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() % registers[o2 as usize].as_float()).into();
             }
-            Instr::Pow(o1, o2, dest) => {
+            Instr::PowFloat(o1, o2, dest) => {
                 registers[dest as usize] = (registers[o1 as usize]
                     .as_float()
                     .powf(registers[o2 as usize].as_float()))
@@ -528,41 +528,41 @@ pub fn execute(
                     continue;
                 }
             }
-            Instr::Sup(o1, o2, dest) => {
+            Instr::SupFloat(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() > registers[o2 as usize].as_float()).into();
             }
-            Instr::SupCmp(o1, o2, jump_size) => {
+            Instr::SupFloatCmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_float() <= registers[o2 as usize].as_float() {
                     i += jump_size as usize;
                     continue;
                 }
             }
-            Instr::SupEq(o1, o2, dest) => {
+            Instr::SupEqFloat(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() >= registers[o2 as usize].as_float()).into();
             }
-            Instr::SupEqCmp(o1, o2, jump_size) => {
+            Instr::SupEqFloatCmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_float() < registers[o2 as usize].as_float() {
                     i += jump_size as usize;
                     continue;
                 }
             }
-            Instr::Inf(o1, o2, dest) => {
+            Instr::InfFloat(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() < registers[o2 as usize].as_float()).into();
             }
-            Instr::InfCmp(o1, o2, jump_size) => {
+            Instr::InfFloatCmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_float() >= registers[o2 as usize].as_float() {
                     i += jump_size as usize;
                     continue;
                 }
             }
-            Instr::InfEq(o1, o2, dest) => {
+            Instr::InfEqFloat(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() <= registers[o2 as usize].as_float()).into();
             }
-            Instr::InfEqCmp(o1, o2, jump_size) => {
+            Instr::InfEqFloatCmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_float() > registers[o2 as usize].as_float() {
                     i += jump_size as usize;
                     continue;
@@ -576,7 +576,7 @@ pub fn execute(
                 registers[dest as usize] =
                     (registers[o1 as usize].as_bool() || registers[o2 as usize].as_bool()).into();
             }
-            Instr::Neg(tgt, dest) => {
+            Instr::NegFloat(tgt, dest) => {
                 registers[dest as usize] = (-registers[tgt as usize].as_float()).into();
             }
             Instr::Print(target) => {
@@ -694,7 +694,7 @@ pub fn execute(
                 }
             }
             Instr::ArrayStrGet(tgt, index, dest) => {
-                let idx = registers[index as usize].as_float();
+                let idx = registers[index as usize].as_int();
                 let str = registers[tgt as usize].as_str();
                 if likely(str.len() > idx as usize) {
                     registers[dest as usize] = str.get(idx as usize..=idx as usize).unwrap().into();
@@ -711,9 +711,9 @@ pub fn execute(
                 }
             }
             Instr::Range(min, max, dest) => {
-                let x = registers[min as usize].as_float();
-                let y = registers[max as usize].as_float();
-                let id = arrays.insert((x as u64..y as u64).map(|x| (x as f64).into()).collect());
+                let x = registers[min as usize].as_int();
+                let y = registers[max as usize].as_int();
+                let id = arrays.insert((x..y).map(|x| (x as f64).into()).collect());
                 registers[dest as usize] = Data::array(id as u32);
             }
             Instr::IoOpen(path, dest, create) => {
