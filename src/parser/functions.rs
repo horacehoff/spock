@@ -100,13 +100,13 @@ pub fn handle_functions(
                 let infered = infer_type(&args[0], var_types, fns, src);
                 registers.push(infered.to_string().into());
             }
-            "num" => {
-                check_args!(args, 1, "num", src, start, end);
-                check_type(0, &[DataType::String, DataType::Number]);
+            "float" => {
+                check_args!(args, 1, "float", src, start, end);
+                check_type(0, &[DataType::String, DataType::Float]);
                 let id = get_id(&args[0], v, parser_data!(), output);
                 registers.push(Data::NULL);
-                instr_src.push((Instr::Num(id, (registers.len() - 1) as u16), start, end));
-                output.push(Instr::Num(id, (registers.len() - 1) as u16));
+                instr_src.push((Instr::Float(id, (registers.len() - 1) as u16), start, end));
+                output.push(Instr::Float(id, (registers.len() - 1) as u16));
             }
             "str" => {
                 check_args!(args, 1, "str", src, start, end);
@@ -137,7 +137,7 @@ pub fn handle_functions(
             "range" => {
                 check_args_range!(args, 1, 2, "range", src, start, end);
                 if args.len() == 1 {
-                    check_type(0, &[DataType::Number]);
+                    check_type(0, &[DataType::Float]);
                     let id_x = get_id(&args[0], v, parser_data!(), output);
                     registers.push(0.0.into());
                     registers.push(Data::NULL);
@@ -147,8 +147,8 @@ pub fn handle_functions(
                         (registers.len() - 1) as u16,
                     ));
                 } else {
-                    check_type(0, &[DataType::Number]);
-                    check_type(1, &[DataType::Number]);
+                    check_type(0, &[DataType::Float]);
+                    check_type(1, &[DataType::Float]);
                     let id_x = get_id(&args[0], v, parser_data!(), output);
                     let id_y = get_id(&args[1], v, parser_data!(), output);
                     registers.push(Data::NULL);
@@ -157,11 +157,11 @@ pub fn handle_functions(
             }
             "floor" => {
                 check_args!(args, 1, "floor", src, start, end);
-                check_type(0, &[DataType::Number]);
+                check_type(0, &[DataType::Float]);
                 let id = get_id(&args[0], v, parser_data!(), output);
                 registers.push(Data::NULL);
-                instr_src.push((Instr::Num(id, (registers.len() - 1) as u16), start, end));
-                output.push(Instr::Num(id, (registers.len() - 1) as u16));
+                instr_src.push((Instr::Float(id, (registers.len() - 1) as u16), start, end));
+                output.push(Instr::Float(id, (registers.len() - 1) as u16));
             }
             "the_answer" => {
                 check_args!(args, 0, "the_answer", src, start, end);

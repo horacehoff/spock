@@ -47,12 +47,12 @@ pub fn while_loop_summation(
                         if let Expr::Var(add_var, _, _) = *var {
                             // most simple option
                             if add_var == *x {
-                                if *increment == Expr::Num(1.0) {
+                                if *increment == Expr::Float(1.0) {
                                     let limit_id = get_id(b, v, parser_data!(), output);
                                     let var_id = get_id(a, v, parser_data!(), output);
                                     output.push(Instr::Mov(limit_id, var_id));
                                     return true;
-                                } else if let Expr::Num(increment_num) = *increment {
+                                } else if let Expr::Float(increment_num) = *increment {
                                     // TODO
                                     // let limit_id = get_id(
                                     //     b, v, var_types, registers, output, fns, arrs, fn_state,
@@ -103,7 +103,7 @@ pub fn for_loop_summation(
                 registers.push(Data::NULL);
                 output.push(Instr::Len(array, (registers.len() - 1) as u16));
                 registers.push(
-                    if let Expr::Num(x) = **reps {
+                    if let Expr::Int(x) = **reps {
                         x
                     } else {
                         return false;
@@ -127,7 +127,7 @@ pub fn for_loop_summation(
             registers.push(Data::NULL);
             output.push(Instr::Len(array, (registers.len() - 1) as u16));
             registers.push(
-                if let Expr::Num(x) = **reps {
+                if let Expr::Int(x) = **reps {
                     x
                 } else {
                     return false;

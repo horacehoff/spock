@@ -341,7 +341,7 @@ pub fn handle_method_calls(
             check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
             let arg_infered = infer_type(&args[0], var_types, fns, src);
-            if arg_infered != DataType::Number {
+            if arg_infered != DataType::Float {
                 parser_error(
                     src,
                     args_indexes[0].0,
@@ -386,19 +386,19 @@ pub fn handle_method_calls(
             output.push(Instr::Push(id, arg_id));
         }
         "sqrt" => {
-            check!(DataType::Number, "Number", 0);
+            check!(DataType::Float, "Number", 0);
             let f_id = registers.len() as u16;
             registers.push(Data::NULL);
             output.push(Instr::Sqrt(id, f_id));
         }
         "round" => {
-            check!(DataType::Number, "Number", 0);
+            check!(DataType::Float, "Number", 0);
             let f_id = registers.len() as u16;
             registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(13, id, f_id));
         }
         "abs" => {
-            check!(DataType::Number, "Number", 0);
+            check!(DataType::Float, "Number", 0);
             let f_id = registers.len() as u16;
             registers.push(Data::NULL);
             output.push(Instr::CallLibFunc(14, id, f_id));
@@ -474,7 +474,7 @@ pub fn handle_method_calls(
             check!(DataType::Array(_), "Array", 1);
 
             let infered = infer_type(&args[0], var_types, fns, src);
-            if infered != DataType::Number {
+            if infered != DataType::Float {
                 parser_error(
                     src,
                     args_indexes[0].0,

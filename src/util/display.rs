@@ -11,8 +11,10 @@ use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
 
 pub fn format_data(x: Data, arrays: Option<&ArrayStorage>, show_str: bool) -> String {
-    if x.is_num() {
-        x.as_num().to_string()
+    if x.is_float() {
+        x.as_float().to_string()
+    } else if x.is_int() {
+        x.as_int().to_string()
     } else if x.is_bool() {
         x.as_bool().to_string()
     } else if x.is_str() {
@@ -56,8 +58,10 @@ fn get_data_type_name(x: Data) -> String {
         "String"
     } else if x.is_file() {
         "File"
-    } else if x.is_num() {
-        "Number"
+    } else if x.is_float() {
+        "Float"
+    } else if x.is_int() {
+        "Integer"
     } else if x.is_null() {
         "Null"
     } else {
@@ -67,7 +71,7 @@ fn get_data_type_name(x: Data) -> String {
 
 pub fn format_expr(x: &Expr) -> String {
     match x {
-        Expr::Num(num) => num.to_string(),
+        Expr::Float(num) => num.to_string(),
         Expr::Bool(bool) => bool.to_string(),
         Expr::String(str) => {
             format!("\"{str}\"")

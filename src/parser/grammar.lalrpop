@@ -2,7 +2,6 @@ use std::str::FromStr;
 use crate::parser::Expr;
 use inline_colorization::*;
 use crate::util::error;
-use crate::Num;
 use internment::Intern;
 use concat_string::concat_string;
 
@@ -340,14 +339,16 @@ Expression: Expr = {
 
     #[precedence(level="3")] #[assoc(side="left")]
     <l: Expression> "==" <r: Expression> => match (l,r) {
-        (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x==y),
+        (Expr::Float(x),Expr::Float(y)) => Expr::Bool(x==y),
+        (Expr::Int(x),Expr::Int(y)) => Expr::Bool(x==y),
         (Expr::Bool(x),Expr::Bool(y)) => Expr::Bool(x==y),
         (Expr::String(x),Expr::String(y)) => Expr::Bool(x==y),
         (l,r) => Expr::Eq(Box::from(l),Box::from(r)),
     },
     #[precedence(level="3")] #[assoc(side="left")]
     <l: Expression> "!=" <r: Expression> => match (l,r) {
-        (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x!=y),
+        (Expr::Float(x),Expr::Float(y)) => Expr::Bool(x!=y),
+        (Expr::Int(x),Expr::Int(y)) => Expr::Bool(x!=y),
         (Expr::Bool(x),Expr::Bool(y)) => Expr::Bool(x!=y),
         (Expr::String(x),Expr::String(y)) => Expr::Bool(x!=y),
         (l,r) => Expr::NotEq(Box::from(l),Box::from(r)),
@@ -355,69 +356,81 @@ Expression: Expr = {
 
     #[precedence(level="4")] #[assoc(side="left")]
     <start: @L> <l: Expression> "<" <r: Expression> <end: @R> => match (l,r) {
-        (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x < y),
+        (Expr::Float(x),Expr::Float(y)) => Expr::Bool(x < y),
+        (Expr::Int(x),Expr::Int(y)) => Expr::Bool(x < y),
         (l,r) => Expr::Inf(Box::from(l),Box::from(r), start, end)
     },
     #[precedence(level="4")] #[assoc(side="left")]
     <start: @L> <l: Expression> "<=" <r: Expression> <end: @R> => match (l,r) {
-        (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x <= y),
+        (Expr::Float(x),Expr::Float(y)) => Expr::Bool(x <= y),
+        (Expr::Int(x),Expr::Int(y)) => Expr::Bool(x <= y),
         (l,r) => Expr::InfEq(Box::from(l),Box::from(r), start, end)
     },
     #[precedence(level="4")] #[assoc(side="left")]
     <start: @L> <l: Expression> ">" <r: Expression> <end: @R> => match (l,r) {
-        (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x > y),
+        (Expr::Float(x),Expr::Float(y)) => Expr::Bool(x > y),
+        (Expr::Int(x),Expr::Int(y)) => Expr::Bool(x > y),
         (l,r) => Expr::Sup(Box::from(l),Box::from(r), start, end)
     },
     #[precedence(level="4")] #[assoc(side="left")]
     <start: @L> <l: Expression> ">=" <r: Expression> <end: @R> => match (l,r) {
-        (Expr::Num(x),Expr::Num(y)) => Expr::Bool(x >= y),
+        (Expr::Float(x),Expr::Float(y)) => Expr::Bool(x >= y),
+        (Expr::Int(x),Expr::Int(y)) => Expr::Bool(x >= y),
         (l,r) => Expr::SupEq(Box::from(l),Box::from(r), start, end)
     },
 
     #[precedence(level="5")] #[assoc(side="right")]
     <start: @L> <l: Expression> "^" <r: Expression> <end: @R> => match (l,r) {
-        (Expr::Num(x),Expr::Num(y)) => Expr::Num(x.powf(y)),
+        (Expr::Float(x),Expr::Float(y)) => Expr::Float(x.powf(y)),
+        (Expr::Int(x),Expr::Int(y)) => Expr::Int(x.pow(y as u32)),
         (l,r) => Expr::Pow(Box::from(l),Box::from(r), start, end)
     },
 
     #[precedence(level="6")] #[assoc(side="left")]
     <start: @L> <l: Expression> "*" <r: Expression> <end: @R> => match (l, r) {
-            (Expr::Num(x), Expr::Num(y)) => Expr::Num(x * y),
+            (Expr::Float(x), Expr::Float(y)) => Expr::Float(x * y),
+            (Expr::Int(x), Expr::Int(y)) => Expr::Int(x * y),
             (l, r) => Expr::Mul(Box::from(l), Box::from(r), start, end),
     },
     #[precedence(level="6")] #[assoc(side="left")]
     <start: @L> <l: Expression> "/" <r: Expression> <end: @R> => match (l, r) {
-            (Expr::Num(x), Expr::Num(y)) => Expr::Num(x / y),
+            (Expr::Float(x), Expr::Float(y)) => Expr::Float(x / y),
+            (Expr::Int(x), Expr::Int(y)) => Expr::Int(x / y),
             (l, r) => Expr::Div(Box::from(l), Box::from(r), start, end),
     },
     #[precedence(level="6")] #[assoc(side="left")]
     <start: @L> <l: Expression> "%" <r: Expression> <end: @R> =>  match (l, r) {
-            (Expr::Num(x), Expr::Num(y)) => Expr::Num(x % y),
+            (Expr::Float(x), Expr::Float(y)) => Expr::Float(x % y),
+            (Expr::Int(x), Expr::Int(y)) => Expr::Int(x % y),
             (l, r) => Expr::Mod(Box::from(l), Box::from(r), start, end),
     },
 
     #[precedence(level="7")] #[assoc(side="left")]
     <start: @L> <l: Expression> "+" <r: Expression> <end: @R> => match (l, r) {
-            (Expr::Num(x), Expr::Num(y)) => Expr::Num(x + y),
+            (Expr::Float(x), Expr::Float(y)) => Expr::Float(x + y),
+            (Expr::Int(x), Expr::Int(y)) => Expr::Int(x + y),
             (Expr::String(x), Expr::String(y)) => Expr::String(concat_string!(x, y)),
             (Expr::Array(x,start,_), Expr::Array(y,_,end)) => Expr::Array(Box::from([x, y].concat()),start,end),
             (l, r) => Expr::Add(Box::from(l), Box::from(r), start, end),
     },
     #[precedence(level="7")] #[assoc(side="left")]
     <start: @L> <l: Expression> "-" <r: Expression> <end: @R> => match (l, r) {
-            (Expr::Num(x), Expr::Num(y)) => Expr::Num(x - y),
+            (Expr::Float(x), Expr::Float(y)) => Expr::Float(x - y),
+            (Expr::Int(x), Expr::Int(y)) => Expr::Int(x - y),
             (l, r) => Expr::Sub(Box::from(l), Box::from(r), start, end),
     },
     #[precedence(level="8")] #[assoc(side="left")]
     <start: @L> "-" <r:Expression> <end: @R> => match r {
-            Expr::Num(x) => Expr::Num(-x),
+            Expr::Float(x) => Expr::Float(-x),
+            Expr::Int(x) => Expr::Int(-x),
             l => Expr::Neg(Box::from(l), start, end),
     },
 }
 
 Term: Expr = {
     "(" <e: Expression> ")" => e,
-    <t: Num> => Expr::Num(t),
+    <i: Integer> => Expr::Int(i),
+    <t: Float> => Expr::Float(t),
     <b: Bool> => Expr::Bool(b),
     <start: @L> <v: Var> <end: @R> => Expr::Var(Intern::from(v), start, end),
     <s: String> => Expr::String(s),
@@ -449,9 +462,16 @@ Array:Expr = {
     <start: @L> "[" <arr: Comma<Expression>> "]" <end: @R> => Expr::Array(arr.into_boxed_slice(), start, end)
 }
 
-Num: Num = {
-    <n: r"([0-9]*[.])?[0-9]+"> => Num::from_str(n).unwrap_or_else(|_| {error(format!("Invalid number: '{color_red}{n}{color_reset}'"))})
+Float: f64 = {
+    <n: r"[0-9]*[.][0-9]*"> => f64::from_str(n).unwrap_or_else(|_| {error(format!("Invalid float: '{color_red}{n}{color_reset}'"))})
 }
+
+Integer: i64 = {
+    <n: r"[0-9]+"> => i64::from_str(n)
+        .unwrap_or_else(|_| {
+            error(format!("Integer too large for i64: '{color_red}{n}{color_reset}'"))
+        })
+};
 
 Bool: bool = {
     "true" => true,

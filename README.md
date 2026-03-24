@@ -4,6 +4,7 @@ Spock
 > [!WARNING]
 >
 > This language is very experimental, and there may be logic-breaking bugs. Expect breaking changes.
+> Recursion finally works!!
 
 A work-in-progress interpreted programming language written in Rust for the best performance possible, whose syntax takes inspiration from Rust and Python. 
 Its goal is to provide a faster alternative to Python, and one that's closer to low-level languages, while still being accessible to a wide audience.
@@ -245,11 +246,12 @@ print(x > 1 && x < 1);
 
 ## Types
 - `Boolean` (`true`/`false`)
-- `Number` (internally an f64 by default)
+- `Integer` (i64)
+- `Float` (f64)
 - `Array` (`[1, 2, 3, "4", 5.0, true]`)
 - `String`
 #### Converting types
-- `x` to `Number`=> `num(x)`
+- `x` to `Integer`=> `num(x)`
 - `x` to `Float`=> `float(x)`
 - `x` to `String`=> `str(x)`
 
