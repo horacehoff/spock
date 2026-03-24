@@ -102,12 +102,12 @@ print(len(i))</code></pre></td>
  </tr>
  <tr>
     <td><pre><code>fn main() {
-    let x = 0;
-    for i in range(0,10000000) {
-        x += i.sqrt();
-    }
-    print(x);
-}</code></pre></td>
+        let x = 0;
+        for i in 0..10000000 {
+            x += i.sqrt();
+        }
+        print(x);
+    }</code></pre></td>
     <td><pre><code>from math import sqrt
 x = 0
 for i in range(0,10000000):

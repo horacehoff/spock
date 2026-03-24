@@ -1101,8 +1101,7 @@ pub fn parser_to_instr_set(
                 }
 
                 // parse everything, add the current element variable to temp_vars so that the loop code can interact with it
-                let mut temp_vars = v.clone();
-                temp_vars.push((*var_name, current_element_id));
+                v.push((*var_name, current_element_id));
                 var_types.push((
                     *var_name,
                     match &array_type {
@@ -1111,13 +1110,13 @@ pub fn parser_to_instr_set(
                         _ => todo!("For loop invalid type"),
                     },
                 ));
-
-                let current_element_variable_id = temp_vars.len() - 1;
+                let (v_idx, t_idx) = (v.len() - 1, var_types.len() - 1);
 
                 let loop_id = block_id + 1;
-                let mut cond_code = parser_to_instr_set(code, &mut temp_vars, parser_data!());
-                // discard the current element variable, no longer needed by the parser
-                temp_vars.remove(current_element_variable_id);
+                let mut cond_code = parser_to_instr_set(code, v, parser_data!());
+                // Clean up variables
+                v.remove(v_idx);
+                var_types.remove(t_idx);
 
                 // add the condition ('i < len') jumping logic
                 let mut len = (cond_code.len() + 3) as u16 + if real_var { 1 } else { 0 };
@@ -1146,6 +1145,7 @@ pub fn parser_to_instr_set(
                 output.push(Instr::Mov((registers.len() - 1) as u16, index_id));
             }
             Expr::IntForLoop(var_name, start_elem, end_elem, code, start1, end1, start2, end2) => {
+                // Check start elem type
                 let t1 = infer_type(start_elem, var_types, fns, src);
                 if t1 != DataType::Number {
                     parser_error(
@@ -1161,6 +1161,7 @@ pub fn parser_to_instr_set(
                         "",
                     )
                 }
+                // Check end elem type
                 let t2 = infer_type(end_elem, var_types, fns, src);
                 if t2 != DataType::Number {
                     parser_error(
@@ -1182,13 +1183,17 @@ pub fn parser_to_instr_set(
                 var_types.push((*var_name, DataType::Number));
                 let (v_idx, t_idx) = (v.len() - 1, var_types.len() - 1);
 
+                // Compile the code inside the loop
                 let compiled_loop_code = parser_to_instr_set(code, v, parser_data!());
                 let compiled_loop_code_len = compiled_loop_code.len() as u16;
+
                 // Clean up variables
                 v.remove(v_idx);
                 var_types.remove(t_idx);
 
+                // Loop logic
                 let end_elem_id = get_id(end_elem, v, parser_data!(), &mut output);
+                // Add an InfCmp first, to check if i < end_elem
                 output.push(Instr::InfCmp(
                     elem_id,
                     end_elem_id,
@@ -1196,8 +1201,10 @@ pub fn parser_to_instr_set(
                 ));
                 output.extend(compiled_loop_code);
                 registers.push(1.0.into());
+                // Do i += 1
                 output.push(Instr::Add(elem_id, (registers.len() - 1) as u16, elem_id));
-                output.push(Instr::JmpNeg(1 + compiled_loop_code_len + 1))
+                // Jump back to the start of the function
+                output.push(Instr::JmpNeg(2 + compiled_loop_code_len))
             }
             Expr::LoopBlock(code) => {
                 let loop_id = block_id + 1;
