@@ -177,7 +177,7 @@ print(result)</code></pre></td>
 </tr>
 <tr>
 <td>
-0.027s
+0.018s
 </td>
 <td>
 0.120s
