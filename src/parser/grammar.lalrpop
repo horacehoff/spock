@@ -195,6 +195,12 @@ ForLoop:Expr = {
     }
 }
 
+IntForLoop:Expr = {
+    "for" <o1:Var> "in" <start1:@L> <o2: Expression> <end1:@R> ".." <start2:@L> <o3: Expression> <end2:@R> <o4: Block<Code>> => {
+        Expr::IntForLoop(Intern::from(o1), Box::from(o2), Box::from(o3), o4, start1, end1, start2, end2)
+    }
+}
+
 pub Code: Box<[Expr]> = {
     <s: Statement*> => s.into_boxed_slice()
 }
@@ -222,6 +228,7 @@ Statement: Expr = {
     ConditionalBlock => <>,
     WhileBlock => <>,
     ForLoop => <>,
+    IntForLoop => <>,
     MatchBlock => <>,
     EvalBlock => <>,
     Function => <>,
