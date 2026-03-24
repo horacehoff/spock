@@ -1,4 +1,4 @@
-use crate::display::{format_data, parser_error, print_debug};
+use crate::display::{format_data, parser_error};
 use crate::parser::parse;
 use crate::util::error;
 use crate::util::likely;
@@ -94,6 +94,7 @@ impl Data {
     pub fn is_array(&self) -> bool {
         (self.0 & !PAYLOAD_MASK) == NAN_TAG_ARRAY
     }
+    #[inline(always)]
     pub fn str(s: &str) -> Data {
         if s.len() <= 5 {
             // Store it directly
@@ -107,6 +108,7 @@ impl Data {
             panic!()
         }
     }
+    #[inline(always)]
     pub fn as_str(&self) -> String {
         debug_assert!(self.is_str());
         if (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_SMALL {
@@ -122,10 +124,12 @@ impl Data {
             unreachable!("NOT A STRING");
         }
     }
+    #[inline(always)]
     pub fn is_str(&self) -> bool {
         (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_SMALL
             || (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_LARGE
     }
+    #[inline(always)]
     pub fn file(s: &str) -> Data {
         if s.len() <= 5 {
             // Store it directly
@@ -139,6 +143,7 @@ impl Data {
             panic!()
         }
     }
+    #[inline(always)]
     pub fn as_file(&self) -> String {
         if (self.0 & !PAYLOAD_MASK) == NAN_TAG_FILE {
             let payload = self.0 & PAYLOAD_MASK;
@@ -152,6 +157,7 @@ impl Data {
             unreachable!("NOT A FILE");
         }
     }
+    #[inline(always)]
     pub fn is_file(&self) -> bool {
         (self.0 & !PAYLOAD_MASK) == NAN_TAG_FILE
     }
@@ -165,51 +171,47 @@ impl PartialEq for Data {
 }
 
 impl From<f64> for Data {
+    #[inline(always)]
     fn from(value: f64) -> Self {
         Data::num(value)
     }
 }
 impl From<Data> for f64 {
+    #[inline(always)]
     fn from(value: Data) -> Self {
         value.as_num()
     }
 }
 impl From<bool> for Data {
+    #[inline(always)]
     fn from(value: bool) -> Self {
-        Data::bool(value)
+        if value { Data::TRUE } else { Data::FALSE }
     }
 }
 impl From<Data> for bool {
+    #[inline(always)]
     fn from(value: Data) -> Self {
         value.as_bool()
     }
 }
 impl From<&str> for Data {
+    #[inline(always)]
     fn from(value: &str) -> Self {
         Data::str(value)
     }
 }
 impl From<String> for Data {
+    #[inline(always)]
     fn from(value: String) -> Self {
         Data::str(&value)
     }
 }
 impl From<Data> for String {
+    #[inline(always)]
     fn from(value: Data) -> Self {
         value.as_str()
     }
 }
-
-// #[derive(Debug, Clone, PartialEq, Copy)]
-// #[repr(C)]
-// pub enum Data {
-//     Number(Num),
-//     Bool(bool),
-//     String(Intern<String>),
-//     Array(u32),
-//     Null,
-//     File(Intern<String>),
-// }
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
@@ -389,6 +391,7 @@ pub fn execute(
                 registers[call_frame.return_reg as usize] = registers[tgt as usize];
             }
             Instr::RecursiveReturn(tgt, fn_id) => {
+                let call_frame = call_frames.pop().unwrap();
                 let temp = registers[tgt as usize];
                 let regs = &fn_registers[fn_id as usize];
                 let base = recursion_stack.len() - regs.len();
@@ -398,7 +401,6 @@ pub fn execute(
                 unsafe {
                     recursion_stack.set_len(base);
                 }
-                let call_frame = call_frames.pop().unwrap();
                 i = call_frame.return_addr as usize;
                 registers[call_frame.return_reg as usize] = temp;
             }
@@ -551,10 +553,10 @@ pub fn execute(
                 registers[dest as usize] = (-registers[tgt as usize].as_num()).into();
             }
             Instr::Print(target) => {
-                // println!(
-                //     "{}",
-                //     format_data(registers[target as usize], Some(arrays), false)
-                // );
+                println!(
+                    "{}",
+                    format_data(registers[target as usize], Some(arrays), false)
+                );
             }
             Instr::Num(tgt, dest) => {
                 let reg = registers[tgt as usize];
@@ -943,7 +945,7 @@ pub fn execute(
     }
 }
 
-// Live long and prosper
+/// Live long and prosper
 fn main() {
     #[cfg(debug_assertions)]
     let filename = "test.spock";
