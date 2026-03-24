@@ -11,6 +11,7 @@ use crate::type_inference;
 use crate::type_inference::contains_recursive_call;
 use crate::type_inference::{DataType, infer_type};
 use crate::types::is_indexable;
+use crate::util::compilation_error;
 use crate::{Data, Instr, Num, error};
 use inline_colorization::*;
 use internment::Intern;
@@ -21,22 +22,26 @@ use std::slice;
 lalrpop_mod!(pub grammar);
 
 #[derive(Debug, Clone, PartialEq)]
-#[repr(u8)]
+#[repr(C)]
 pub enum Expr {
     Num(Num),
     Bool(bool),
     String(String),
+    /// Var(name, start, end)
     Var(Intern<String>, usize, usize),
+    /// Array(contents, start, end)
     Array(Box<[Expr]>, usize, usize),
+    /// VarDeclare(name, value),
     VarDeclare(Intern<String>, Box<Expr>),
+    /// VarDeclare(name, value, start, end)
     VarAssign(Intern<String>, Box<Expr>, usize, usize),
-    // condition - code (contains else_if_blocks and potentially else_block)
+    /// Condition(condition, code (contains else_if_blocks and potentially else_block), start, end)
     Condition(Box<Expr>, Box<[Expr]>, usize, usize),
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
     ElseBlock(Box<[Expr]>),
 
     WhileBlock(Box<Expr>, Box<[Expr]>),
-    // args -- (optional namespace + name) -- fn_start -- fn_end -- (arg_start,arg_end)
+    /// FunctionCall(args, (optional namespace + name), start, end, (arg_start,arg_end))
     FunctionCall(
         Box<[Expr]>,
         Box<[String]>,
@@ -52,8 +57,7 @@ pub enum Expr {
         usize,
         Box<[(usize, usize)]>,
     ),
-
-    // name+args -- code
+    /// FunctionDecl(name+args, code, start, end)
     FunctionDecl(Box<[String]>, Box<[Expr]>, usize, usize),
 
     ReturnVal(Box<Option<Expr>>),
@@ -69,7 +73,7 @@ pub enum Expr {
         usize,
     ),
 
-    // id name -- array as first + code
+    /// ForLoop(id_name, loop_array+code)
     ForLoop(Intern<String>, Box<[Expr]>),
     Import(String),
     // Closure(Box<[String]>, Box<[Expr]>),
@@ -115,7 +119,11 @@ pub fn symbol_of_expr(expr: &Expr) -> &str {
         Expr::BoolAnd(_, _, _, _) => "&&",
         Expr::BoolOr(_, _, _, _) => "||",
         Expr::Neg(_, _, _) => "-",
-        _ => unreachable!(),
+        other => compilation_error(
+            "parser.rs",
+            "symbol_of_expr",
+            format_args!("Tried to get symbol of {other:?}"),
+        ),
     }
 }
 
@@ -179,7 +187,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
                 }
             }
         }
-        _ => unreachable!(),
+        other => compilation_error("parser.rs","move_to_id", format_args!("Tried to move {other:?} to tgt_id={tgt_id}")),
     }
 }
 
@@ -295,22 +303,22 @@ pub fn get_id(
             let id_l = get_id($l, v, parser_data!(), output);
             let id_r = get_id($r, v, parser_data!(), output);
             let id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::$instr(id_l, id_r, id));
             id
         }};
     }
     match input {
         Expr::Num(num) => {
-            registers.push(Data::Number(*num as Num));
+            registers.push((*num).into());
             (registers.len() - 1) as u16
         }
         Expr::String(str) => {
-            registers.push(Data::String(Intern::from(str.to_string())));
+            registers.push(str.as_str().into());
             (registers.len() - 1) as u16
         }
         Expr::Bool(bool) => {
-            registers.push(Data::Bool(*bool));
+            registers.push((*bool).into());
             (registers.len() - 1) as u16
         }
         Expr::Var(name, start, end) => {
@@ -340,7 +348,7 @@ pub fn get_id(
                     *start,
                     *end,
                     "Array",
-                    &format!("Arrays can only hold one type of value"),
+                    "Arrays can only hold one type of value",
                     "",
                 );
             }
@@ -349,7 +357,7 @@ pub fn get_id(
                 let x = parser_to_instr_set(slice::from_ref(elem), v, parser_data!());
                 if !x.is_empty() {
                     let c_id = get_tgt_id(*x.last().unwrap()).unwrap();
-                    arrays.get_mut(array_id).unwrap().push(Data::Null);
+                    arrays.get_mut(array_id).unwrap().push(Data::NULL);
 
                     output.extend(x);
                     output.push(Instr::ArrayMov(
@@ -364,7 +372,7 @@ pub fn get_id(
                         .push(registers.pop().unwrap());
                 }
             }
-            registers.push(Data::Array(array_id));
+            registers.push(Data::array(array_id as u32));
             (registers.len() - 1) as u16
         }
         Expr::Mul(l, r, start, end) => uniform_op!(Mul, "*", l, r, start, end, DataType::Number),
@@ -383,7 +391,7 @@ pub fn get_id(
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
             let id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             if matches!(t_l, DataType::Array(_)) {
                 output.push(Instr::ArrayAdd(id_l, id_r, id));
             } else if t_l == DataType::String {
@@ -400,7 +408,7 @@ pub fn get_id(
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
             let id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             if matches!(infer_type(l, var_types, fns, src), DataType::Array(_))
                 && matches!(infer_type(r, var_types, fns, src), DataType::Array(_))
             {
@@ -414,7 +422,7 @@ pub fn get_id(
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
             let id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             if matches!(infer_type(l, var_types, fns, src), DataType::Array(_))
                 && matches!(infer_type(r, var_types, fns, src), DataType::Array(_))
             {
@@ -455,14 +463,14 @@ pub fn get_id(
             }
             let id_l = get_id(l, v, parser_data!(), output);
             let id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
             output.push(Instr::Neg(id_l, id));
             id
         }
 
         Expr::Condition(main_condition, code, start, end) => {
             let return_id = registers.len() as u16;
-            registers.push(Data::Null);
+            registers.push(Data::NULL);
 
             // get first code limit (after which there are only else(if) blocks)
             let main_code_limit = code
@@ -542,7 +550,7 @@ pub fn get_id(
                     *start,
                     *end,
                     "Invalid condition",
-                    &format!("Inline conditions need an else statement"),
+                    "Inline conditions need an else statement",
                     "",
                 );
             }
@@ -574,19 +582,17 @@ pub fn get_id(
             }
             return_id
         }
-        Expr::FunctionCall(args, namespace, start, end, args_indexes) => {
-            return handle_functions(
-                output,
-                v,
-                parser_data!(),
-                args,
-                namespace,
-                *start,
-                *end,
-                args_indexes,
-            )
-            .unwrap_or_else(|| (registers.len() - 1) as u16);
-        }
+        Expr::FunctionCall(args, namespace, start, end, args_indexes) => handle_functions(
+            output,
+            v,
+            parser_data!(),
+            args,
+            namespace,
+            *start,
+            *end,
+            args_indexes,
+        )
+        .unwrap_or_else(|| (registers.len() - 1) as u16),
         other => {
             let output_code = parser_to_instr_set(slice::from_ref(other), v, parser_data!());
             if !output_code.is_empty() {
@@ -634,21 +640,21 @@ fn parse_loop_flow_control(
     for_loop: bool,
 ) {
     loop_code.iter_mut().enumerate().for_each(|x| {
-        if let Instr::EqCmp(break_id, 0, 0) = x.1 {
-            if *break_id == loop_id {
-                if for_loop {
-                    *x.1 = Instr::Jmp(code_length - x.0 as u16 - 1);
-                } else {
-                    *x.1 = Instr::Jmp(code_length - x.0 as u16);
-                }
+        if let Instr::EqCmp(break_id, 0, 0) = x.1
+            && *break_id == loop_id
+        {
+            if for_loop {
+                *x.1 = Instr::Jmp(code_length - x.0 as u16 - 1);
+            } else {
+                *x.1 = Instr::Jmp(code_length - x.0 as u16);
             }
-        } else if let Instr::NotEqCmp(continue_id, 0, 0) = x.1 {
-            if *continue_id == loop_id {
-                if for_loop {
-                    *x.1 = Instr::Jmp(code_length - x.0 as u16 - 3);
-                } else {
-                    *x.1 = Instr::Jmp(code_length - x.0 as u16 - 1);
-                }
+        } else if let Instr::NotEqCmp(continue_id, 0, 0) = x.1
+            && *continue_id == loop_id
+        {
+            if for_loop {
+                *x.1 = Instr::Jmp(code_length - x.0 as u16 - 3);
+            } else {
+                *x.1 = Instr::Jmp(code_length - x.0 as u16 - 1);
             }
         }
     });
@@ -656,14 +662,14 @@ fn parse_loop_flow_control(
 
 fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_length: u16) {
     loop_code.iter_mut().enumerate().for_each(|(i, x)| {
-        if let Instr::EqCmp(break_id, 0, 0) = x {
-            if *break_id == loop_id {
-                *x = Instr::Jmp(code_length - i as u16);
-            }
-        } else if let Instr::NotEqCmp(continue_id, 0, 0) = x {
-            if *continue_id == loop_id {
-                *x = Instr::Jmp(code_length - i as u16 - 3);
-            }
+        if let Instr::EqCmp(break_id, 0, 0) = x
+            && *break_id == loop_id
+        {
+            *x = Instr::Jmp(code_length - i as u16);
+        } else if let Instr::NotEqCmp(continue_id, 0, 0) = x
+            && *continue_id == loop_id
+        {
+            *x = Instr::Jmp(code_length - i as u16 - 3);
         }
     });
 }
@@ -746,12 +752,12 @@ pub fn parser_to_instr_set(
     for x in input {
         match x {
             // if number / bool / str, just push it to the registers, and the caller will grab the last index
-            Expr::Num(num) => registers.push(Data::Number(*num as Num)),
-            Expr::Bool(bool) => registers.push(Data::Bool(*bool)),
-            Expr::String(str) => registers.push(Data::String(Intern::from(str.to_string()))),
+            Expr::Num(num) => registers.push((*num).into()),
+            Expr::Bool(bool) => registers.push((*bool).into()),
+            Expr::String(str) => registers.push(str.as_str().into()),
             Expr::Var(name, start, end) => {
                 if let Some((_, id)) = v.iter().find(|(var, _)| *name == *var) {
-                    registers.push(Data::Null);
+                    registers.push(Data::NULL);
                     output.push(Instr::Mov(*id, (registers.len() - 1) as u16));
                 } else {
                     parser_error(
@@ -777,7 +783,7 @@ pub fn parser_to_instr_set(
                         *start,
                         *end,
                         "Array",
-                        &format!("Arrays can only hold one type of value"),
+                        "Arrays can only hold one type of value",
                         "",
                     );
                 }
@@ -796,7 +802,7 @@ pub fn parser_to_instr_set(
                         // if there are instructions, then push everything, add a null to the array, and then add an instruction to move the element to the array at runtime with ArrayMov
                         let c_id = get_tgt_id(*x.last().unwrap()).unwrap();
                         output.extend(x);
-                        arrays.get_mut(array_id).unwrap().push(Data::Null);
+                        arrays.get_mut(array_id).unwrap().push(Data::NULL);
                         output.push(Instr::ArrayMov(
                             c_id,
                             block_id,
@@ -804,7 +810,7 @@ pub fn parser_to_instr_set(
                         ));
                     }
                 }
-                registers.push(Data::Array(array_id));
+                registers.push(Data::array(array_id as u32));
             }
             // array[index]
             Expr::GetIndex(target, index, start, end) => {
@@ -842,7 +848,7 @@ pub fn parser_to_instr_set(
                         );
                     }
                     let f_id = get_id(elem, v, parser_data!(), &mut output);
-                    registers.push(Data::Null);
+                    registers.push(Data::NULL);
                     if infered == DataType::String {
                         instr_src.push((
                             Instr::ArrayStrGet(id, f_id, (registers.len() - 1) as u16),
@@ -900,7 +906,7 @@ pub fn parser_to_instr_set(
                     }
                     let f_id = get_id(elem, v, parser_data!(), &mut output);
 
-                    registers.push(Data::Null);
+                    registers.push(Data::NULL);
                     output.push(Instr::ArrayGet(id, f_id, (registers.len() - 1) as u16));
                     id = (registers.len() - 1) as u16;
                 }
@@ -1064,23 +1070,23 @@ pub fn parser_to_instr_set(
                 }
 
                 // add an instruction to get array length (func id 2 = len)
-                registers.push(Data::Null);
+                registers.push(Data::NULL);
                 let array_len_id = (registers.len() - 1) as u16;
                 output.push(Instr::Len(array, array_len_id));
 
                 // set up the id of the index variable (0..len)
-                registers.push(Data::Number(0.0 as Num));
+                registers.push(0.0.into());
                 let index_id = (registers.len() - 1) as u16;
 
                 // do the 'i < len' condition, set up the condition's id (true/false)
-                registers.push(Data::Null);
+                registers.push(Data::NULL);
                 let condition_id = (registers.len() - 1) as u16;
                 output.push(Instr::Inf(index_id, array_len_id, condition_id));
 
                 // set up the variable for the current element (for current_element_id in ... {}) => current_element_id = array[index]
                 let current_element_id = registers.len() as u16;
                 if real_var {
-                    registers.push(Data::Null);
+                    registers.push(Data::NULL);
                 }
 
                 // parse everything, add the current element variable to temp_vars so that the loop code can interact with it
@@ -1118,14 +1124,14 @@ pub fn parser_to_instr_set(
                 // then add the condition code
                 output.extend(cond_code);
                 // add 1 to the index (i+=1) so that the next loop iteration will have the next element in the array
-                registers.push(Data::Number(1.0 as Num));
+                registers.push(1.0.into());
                 output.push(Instr::Add(index_id, (registers.len() - 1) as u16, index_id));
 
                 // jump back to the loop if still inside of it
                 output.push(Instr::JmpNeg(len));
 
                 // clean up, reset the index variable
-                registers.push(Data::Number(0.0 as Num));
+                registers.push(0.0.into());
                 output.push(Instr::Mov((registers.len() - 1) as u16, index_id));
             }
             Expr::LoopBlock(code) => {
@@ -1143,7 +1149,7 @@ pub fn parser_to_instr_set(
                 let obj_id = get_id(y, v, parser_data!(), &mut output);
                 if output.len() != output_len {
                     if can_move(output.last().unwrap()) {
-                        registers.push(Data::Null);
+                        registers.push(Data::NULL);
                     }
                     move_to_id(&mut output, (registers.len() - 1) as u16);
                     v.push((*x, (registers.len() - 1) as u16));
@@ -1240,7 +1246,7 @@ pub fn parser_to_instr_set(
             }
             Expr::ReturnVal(val) => {
                 if let Some(x) = &**val {
-                    let id = get_id(&x, v, parser_data!(), &mut output);
+                    let id = get_id(x, v, parser_data!(), &mut output);
                     if is_parsing_recursive {
                         output.push(Instr::RecursiveReturn(id, parsing_fn_id.unwrap()));
                     } else {

@@ -1,3 +1,5 @@
+use std::fmt::Arguments;
+
 use crate::type_inference::DataType;
 use inline_colorization::color_red;
 use inline_colorization::color_reset;
@@ -24,12 +26,21 @@ pub fn unlikely(b: bool) -> bool {
 
 #[cold]
 #[inline(never)]
-pub fn error(x: String) -> ! {
+pub fn error(message: String) -> ! {
     eprintln!(
         "--------------\n{color_red}SPOCK RUNTIME ERROR:{color_reset}\n{}\n--------------",
-        x
+        message
     );
     std::process::exit(1);
+}
+
+#[cold]
+#[inline(always)]
+pub fn compilation_error(file: &str, function: &str, additional_data: Arguments) -> ! {
+    unreachable!(
+        "--------------\n{color_red}SPOCK COMPILATION ERROR:{color_reset}\nFROM FILE: {}\nFROM FUNCTION: {}\nADDITIONAL DATA: {}\n--------------",
+        file, function, additional_data
+    );
 }
 
 #[macro_export]
@@ -117,51 +128,79 @@ macro_rules! check_args {
 #[macro_export]
 macro_rules! check_args_range {
     ($args:expr, $min_args_len:expr,$max_args_len:expr, $fn_name:expr, $src:expr,$start:expr,$end:expr) => {
-        if $args.len() < $min_args_len {
-            parser_error(
-                $src,
-                $start,
-                $end,
-                "Incorrect arguments for function",
-                &format!(
-                    "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects at least {} argument{}",
-                    $fn_name,
-                    $min_args_len,
-                    if $min_args_len > 1 { "s" } else { "" }
-                ),
-                &format!(
-                    "Add {} additional argument{}",
-                    $min_args_len - $args.len(),
-                    if $min_args_len - $args.len() > 1 {
-                        "s"
-                    } else {
-                        ""
-                    }
-                )
-            );
-        } else if $args.len() > $max_args_len {
-            parser_error(
-                $src,
-                $start,
-                $end,
-                "Incorrect arguments for function",
-                &format!(
-                    "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects at most {} argument{}",
-                    $fn_name,
-                    $max_args_len,
-                    if $max_args_len > 1 { "s" } else { "" }
-                ),
-                &format!(
-                    "Remove {} argument{}",
-                    $args.len() - $max_args_len,
-                    if $args.len() - $max_args_len > 1 {
-                        "s"
-                    } else {
-                        ""
-                    }
-                )
-            );
+            if const {$min_args_len == 0} {
+                if $args.len() > $max_args_len {
+                    parser_error(
+                        $src,
+                        $start,
+                        $end,
+                        "Incorrect arguments for function",
+                        &format!(
+                            "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects at most {} argument{}",
+                            $fn_name,
+                            $max_args_len,
+                            if $max_args_len > 1 { "s" } else { "" }
+                        ),
+                        &format!(
+                            "Remove {} argument{}",
+                            $args.len() - $max_args_len,
+                            if $args.len() - $max_args_len > 1 {
+                                "s"
+                            } else {
+                                ""
+                            }
+                        )
+                    );
+                }
+            } else {
+                if $args.len() < $min_args_len {
+                    parser_error(
+                        $src,
+                        $start,
+                        $end,
+                        "Incorrect arguments for function",
+                        &format!(
+                            "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects at least {} argument{}",
+                            $fn_name,
+                            $min_args_len,
+                            if $min_args_len > 1 { "s" } else { "" }
+                        ),
+                        &format!(
+                            "Add {} additional argument{}",
+                            $min_args_len - $args.len(),
+                            if $min_args_len - $args.len() > 1 {
+                                "s"
+                            } else {
+                                ""
+                            }
+                        )
+                    );
+                } else if $args.len() > $max_args_len {
+                    parser_error(
+                        $src,
+                        $start,
+                        $end,
+                        "Incorrect arguments for function",
+                        &format!(
+                            "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects at most {} argument{}",
+                            $fn_name,
+                            $max_args_len,
+                            if $max_args_len > 1 { "s" } else { "" }
+                        ),
+                        &format!(
+                            "Remove {} argument{}",
+                            $args.len() - $max_args_len,
+                            if $args.len() - $max_args_len > 1 {
+                                "s"
+                            } else {
+                                ""
+                            }
+                        )
+                    );
+
+            }
         }
+
     };
 }
 

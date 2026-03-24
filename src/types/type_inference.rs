@@ -53,10 +53,10 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                 }
             }
             Expr::ReturnVal(code) => {
-                if let Some(code) = code.as_ref() {
-                    if contains_recursive_call_expr(code, fn_name) {
-                        return true;
-                    }
+                if let Some(code) = code.as_ref()
+                    && contains_recursive_call_expr(code, fn_name)
+                {
+                    return true;
                 }
             }
             // name+args -- code
@@ -149,10 +149,8 @@ fn track_returns(
                             return_types.push(infered);
                         }
                     }
-                } else {
-                    if !return_types.contains(&DataType::Null) {
-                        return_types.push(DataType::Null);
-                    }
+                } else if !return_types.contains(&DataType::Null) {
+                    return_types.push(DataType::Null);
                 }
             }
             Expr::ForLoop(_, code) => return_types.extend(track_returns(
@@ -427,7 +425,7 @@ pub fn infer_type(
 
 fn check_poly(data: DataType) -> DataType {
     if let DataType::Poly(ref elems) = data {
-        if elems.len() > 0 {
+        if !elems.is_empty() {
             let first_type = &elems[0];
             if elems.iter().all(|x| x == first_type) {
                 first_type.clone()

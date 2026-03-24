@@ -5,13 +5,12 @@ use crate::util::likely;
 use crate::util::unlikely;
 use concat_string::concat_string;
 use inline_colorization::*;
-use internment::Intern;
 use parser::*;
 use slab::Slab;
 use std::cmp::PartialEq;
 use std::fs;
 use std::fs::File;
-use std::hint::unreachable_unchecked;
+use std::hint::black_box;
 use std::io::Write;
 use std::time::Instant;
 
@@ -32,37 +31,185 @@ mod types;
 #[path = "./util/util.rs"]
 mod util;
 
-#[cfg(feature = "int")]
-pub type Num = i64;
-
-#[cfg(not(feature = "int"))]
 pub type Num = f64;
 
-#[macro_export]
-macro_rules! is_float {
-    ($if:expr, $else:expr) => {{
-        #[cfg(feature = "int")]
-        {
-            $else
-        }
+// 51 bits of total payload -- 3 bits for data type => 48 bits of actual payload
+const NAN_BASE: u64 =
+    0b1111_1111_1111_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000;
+const PAYLOAD_MASK: u64 = 0b1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111;
+const NAN_TAG_BOOL: u64 = NAN_BASE | (1 << 48);
+const NAN_TAG_STRING_SMALL: u64 = NAN_BASE | (2 << 48);
+const NAN_TAG_STRING_LARGE: u64 = NAN_BASE | (3 << 48);
+const NAN_TAG_ARRAY: u64 = NAN_BASE | (4 << 48);
+const NAN_TAG_NULL: u64 = NAN_BASE | (5 << 48);
+const NAN_TAG_FILE: u64 = NAN_BASE | (6 << 48);
 
-        #[cfg(not(feature = "int"))]
-        {
-            $if
+#[derive(Debug, Clone, Copy)]
+pub struct Data(u64);
+
+impl Data {
+    pub const NULL: Data = Data(NAN_TAG_NULL);
+    const FALSE: Data = Data(NAN_TAG_BOOL);
+    const TRUE: Data = Data(NAN_TAG_BOOL | 1);
+    #[inline(always)]
+    pub fn is_null(&self) -> bool {
+        self.0 == NAN_TAG_NULL
+    }
+    #[inline(always)]
+    pub fn bool(b: bool) -> Data {
+        Data(NAN_TAG_BOOL | b as u64)
+    }
+    #[inline(always)]
+    pub fn as_bool(&self) -> bool {
+        debug_assert!(self.is_bool());
+        (self.0 & PAYLOAD_MASK) != 0
+    }
+    #[inline(always)]
+    pub fn is_bool(&self) -> bool {
+        (self.0 & !PAYLOAD_MASK) == NAN_TAG_BOOL
+    }
+    #[inline(always)]
+    pub fn num(n: f64) -> Data {
+        Data(n.to_bits())
+    }
+    #[inline(always)]
+    pub fn as_num(&self) -> f64 {
+        debug_assert!(self.is_num());
+        f64::from_bits(self.0)
+    }
+    #[inline(always)]
+    pub fn is_num(&self) -> bool {
+        (self.0 & NAN_BASE) != NAN_BASE
+    }
+    #[inline(always)]
+    pub fn array(id: u32) -> Data {
+        Data(NAN_TAG_ARRAY | id as u64)
+    }
+    #[inline(always)]
+    pub fn as_array(&self) -> u32 {
+        debug_assert!(self.is_array());
+        (self.0 & PAYLOAD_MASK) as u32
+    }
+    #[inline(always)]
+    pub fn is_array(&self) -> bool {
+        (self.0 & !PAYLOAD_MASK) == NAN_TAG_ARRAY
+    }
+    pub fn str(s: &str) -> Data {
+        if s.len() <= 5 {
+            // Store it directly
+            let mut payload: u64 = 0;
+            for (i, &byte) in s.as_bytes().iter().enumerate() {
+                payload |= (byte as u64) << (i * 8);
+            }
+            payload |= (s.len() as u64) << 40;
+            Data(NAN_TAG_STRING_SMALL | payload)
+        } else {
+            panic!()
         }
-    }};
+    }
+    pub fn as_str(&self) -> String {
+        debug_assert!(self.is_str());
+        if (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_SMALL {
+            let payload = self.0 & PAYLOAD_MASK;
+            let len = (payload >> 40) as usize;
+            let mut bytes = [0u8; 5];
+            for (i, b) in bytes.iter_mut().enumerate().take(len) {
+                *b = ((payload >> (i * 8)) & 0xFF) as u8;
+            }
+            str::from_utf8(&bytes[..len]).unwrap().to_string()
+        } else {
+            // LARGE STRING
+            unreachable!("NOT A STRING");
+        }
+    }
+    pub fn is_str(&self) -> bool {
+        (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_SMALL
+            || (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_LARGE
+    }
+    pub fn file(s: &str) -> Data {
+        if s.len() <= 5 {
+            // Store it directly
+            let mut payload: u64 = 0;
+            for (i, &byte) in s.as_bytes().iter().enumerate() {
+                payload |= (byte as u64) << (i * 8);
+            }
+            payload |= (s.len() as u64) << 40;
+            Data(NAN_TAG_FILE | payload)
+        } else {
+            panic!()
+        }
+    }
+    pub fn as_file(&self) -> String {
+        if (self.0 & !PAYLOAD_MASK) == NAN_TAG_FILE {
+            let payload = self.0 & PAYLOAD_MASK;
+            let len = (payload >> 40) as usize;
+            let mut bytes = [0u8; 5];
+            for (i, b) in bytes.iter_mut().enumerate().take(len) {
+                *b = ((payload >> (i * 8)) & 0xFF) as u8;
+            }
+            str::from_utf8(&bytes[..len]).unwrap().to_string()
+        } else {
+            unreachable!("NOT A FILE");
+        }
+    }
+    pub fn is_file(&self) -> bool {
+        (self.0 & !PAYLOAD_MASK) == NAN_TAG_FILE
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
-#[repr(u8)]
-pub enum Data {
-    Number(Num),
-    Bool(bool),
-    String(Intern<String>),
-    Array(usize),
-    Null,
-    File(Intern<String>),
+impl PartialEq for Data {
+    #[inline(always)]
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
 }
+
+impl From<f64> for Data {
+    fn from(value: f64) -> Self {
+        Data::num(value)
+    }
+}
+impl From<Data> for f64 {
+    fn from(value: Data) -> Self {
+        value.as_num()
+    }
+}
+impl From<bool> for Data {
+    fn from(value: bool) -> Self {
+        Data::bool(value)
+    }
+}
+impl From<Data> for bool {
+    fn from(value: Data) -> Self {
+        value.as_bool()
+    }
+}
+impl From<&str> for Data {
+    fn from(value: &str) -> Self {
+        Data::str(value)
+    }
+}
+impl From<String> for Data {
+    fn from(value: String) -> Self {
+        Data::str(&value)
+    }
+}
+impl From<Data> for String {
+    fn from(value: Data) -> Self {
+        value.as_str()
+    }
+}
+
+// #[derive(Debug, Clone, PartialEq, Copy)]
+// #[repr(C)]
+// pub enum Data {
+//     Number(Num),
+//     Bool(bool),
+//     String(Intern<String>),
+//     Array(u32),
+//     Null,
+//     File(Intern<String>),
+// }
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[repr(u8)]
@@ -255,7 +402,7 @@ pub fn execute(
                 registers[call_frame.return_reg as usize] = temp;
             }
             Instr::Cmp(cond_id, size) => {
-                if let Data::Bool(false) = registers[cond_id as usize] {
+                if registers[cond_id as usize] == Data::FALSE {
                     i += size as usize;
                     continue;
                 }
@@ -264,100 +411,56 @@ pub fn execute(
                 registers[dest as usize] = registers[tgt as usize];
             }
             Instr::Add(o1, o2, dest) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] = Data::Number(parent + child);
-                } else {
-                    unsafe {
-                        unreachable_unchecked();
-                    }
-                }
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_num() + registers[o2 as usize].as_num()).into();
             }
             Instr::StrAdd(o1, o2, dest) => {
-                if let (Data::String(parent), Data::String(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] =
-                        Data::String(Intern::from(concat_string!(*parent, *child)));
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] = concat_string!(
+                    registers[o1 as usize].as_str(),
+                    registers[o2 as usize].as_str()
+                )
+                .into();
             }
             Instr::ArrayAdd(o1, o2, dest) => {
-                if let (Data::Array(a), Data::Array(b)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    let arr_a = &arrays[a];
-                    let arr_b = &arrays[b];
+                let arr_a = &arrays[registers[o1 as usize].as_array() as usize];
+                let arr_b = &arrays[registers[o2 as usize].as_array() as usize];
 
-                    let mut combined = Vec::with_capacity(arr_a.len() + arr_b.len());
-                    combined.extend_from_slice(arr_a);
-                    combined.extend_from_slice(arr_b);
-                    let id = arrays.insert(combined);
-                    registers[dest as usize] = Data::Array(id);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                let mut combined = Vec::with_capacity(arr_a.len() + arr_b.len());
+                combined.extend_from_slice(arr_a);
+                combined.extend_from_slice(arr_b);
+                let id = arrays.insert(combined);
+                registers[dest as usize] = Data::array(id as u32);
             }
             Instr::Mul(o1, o2, dest) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] = Data::Number(parent * child);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_num() * registers[o2 as usize].as_num()).into();
             }
             Instr::Div(o1, o2, dest) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] = Data::Number(parent / child);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_num() / registers[o2 as usize].as_num()).into();
             }
             Instr::Sub(o1, o2, dest) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] = Data::Number(parent - child);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_num() - registers[o2 as usize].as_num()).into();
             }
             Instr::Mod(o1, o2, dest) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] = Data::Number(parent % child);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_num() % registers[o2 as usize].as_num()).into();
             }
             Instr::Pow(o1, o2, dest) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] =
-                        Data::Number(is_float!(parent.powf(child), parent.pow(child as u32)));
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] = (registers[o1 as usize]
+                    .as_num()
+                    .powf(registers[o2 as usize].as_num()))
+                .into();
             }
             Instr::Eq(o1, o2, dest) => {
                 registers[dest as usize] =
-                    Data::Bool(registers[o1 as usize] == registers[o2 as usize]);
+                    (registers[o1 as usize] == registers[o2 as usize]).into();
             }
             Instr::ArrayEq(o1, o2, dest) => {
-                if let (Data::Array(a1), Data::Array(a2)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] = Data::Bool(arrays[a1] == arrays[a2])
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] = (arrays[registers[o1 as usize].as_array() as usize]
+                    == arrays[registers[o2 as usize].as_array() as usize])
+                    .into();
             }
             Instr::EqCmp(o1, o2, jump_size) => {
                 if registers[o1 as usize] != registers[o2 as usize] {
@@ -366,29 +469,22 @@ pub fn execute(
                 }
             }
             Instr::ArrayEqCmp(o1, o2, jump_size) => {
-                if let (Data::Array(a1), Data::Array(a2)) =
-                    (registers[o1 as usize], registers[o2 as usize])
+                if arrays[registers[o1 as usize].as_array() as usize]
+                    != arrays[registers[o2 as usize].as_array() as usize]
                 {
-                    if arrays[a1] != arrays[a2] {
-                        i += jump_size as usize;
-                        continue;
-                    }
-                } else {
-                    unsafe { unreachable_unchecked() }
+                    i += jump_size as usize;
+                    continue;
                 }
             }
+
             Instr::NotEq(o1, o2, dest) => {
                 registers[dest as usize] =
-                    Data::Bool(registers[o1 as usize] != registers[o2 as usize]);
+                    (registers[o1 as usize] != registers[o2 as usize]).into();
             }
             Instr::ArrayNotEq(o1, o2, dest) => {
-                if let (Data::Array(a1), Data::Array(a2)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] = Data::Bool(arrays[a1] != arrays[a2])
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] = (arrays[registers[o1 as usize].as_array() as usize]
+                    != arrays[registers[o2 as usize].as_array() as usize])
+                    .into();
             }
             Instr::NotEqCmp(o1, o2, jump_size) => {
                 if registers[o1 as usize] == registers[o2 as usize] {
@@ -397,134 +493,75 @@ pub fn execute(
                 }
             }
             Instr::ArrayNotEqCmp(o1, o2, jump_size) => {
-                if let (Data::Array(a1), Data::Array(a2)) =
-                    (registers[o1 as usize], registers[o2 as usize])
+                if arrays[registers[o1 as usize].as_array() as usize]
+                    == arrays[registers[o1 as usize].as_array() as usize]
                 {
-                    if arrays[a1] == arrays[a2] {
-                        i += jump_size as usize;
-                        continue;
-                    }
-                } else {
-                    unsafe { unreachable_unchecked() }
+                    i += jump_size as usize;
+                    continue;
                 }
             }
             Instr::Sup(o1, o2, dest) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] = Data::Bool(parent > child);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_num() > registers[o2 as usize].as_num()).into();
             }
             Instr::SupCmp(o1, o2, jump_size) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    if parent <= child {
-                        i += jump_size as usize;
-                        continue;
-                    }
-                } else {
-                    unsafe { unreachable_unchecked() }
+                if registers[o1 as usize].as_num() <= registers[o2 as usize].as_num() {
+                    i += jump_size as usize;
+                    continue;
                 }
             }
             Instr::SupEq(o1, o2, dest) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] = Data::Bool(parent >= child);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_num() >= registers[o2 as usize].as_num()).into();
             }
             Instr::SupEqCmp(o1, o2, jump_size) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    if parent < child {
-                        i += jump_size as usize;
-                        continue;
-                    }
-                } else {
-                    unsafe { unreachable_unchecked() }
+                if registers[o1 as usize].as_num() < registers[o2 as usize].as_num() {
+                    i += jump_size as usize;
+                    continue;
                 }
             }
             Instr::Inf(o1, o2, dest) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] = Data::Bool(parent < child);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_num() < registers[o2 as usize].as_num()).into();
             }
             Instr::InfCmp(o1, o2, jump_size) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    if parent >= child {
-                        i += jump_size as usize;
-                        continue;
-                    }
-                } else {
-                    unsafe { unreachable_unchecked() }
+                if registers[o1 as usize].as_num() >= registers[o2 as usize].as_num() {
+                    i += jump_size as usize;
+                    continue;
                 }
             }
             Instr::InfEq(o1, o2, dest) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] = Data::Bool(parent <= child);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_num() <= registers[o2 as usize].as_num()).into();
             }
             Instr::InfEqCmp(o1, o2, jump_size) => {
-                if let (Data::Number(parent), Data::Number(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    if parent > child {
-                        i += jump_size as usize;
-                        continue;
-                    }
-                } else {
-                    unsafe { unreachable_unchecked() }
+                if registers[o1 as usize].as_num() > registers[o2 as usize].as_num() {
+                    i += jump_size as usize;
+                    continue;
                 }
             }
             Instr::BoolAnd(o1, o2, dest) => {
-                if let (Data::Bool(parent), Data::Bool(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] = Data::Bool(parent && child);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_bool() && registers[o2 as usize].as_bool()).into();
             }
             Instr::BoolOr(o1, o2, dest) => {
-                if let (Data::Bool(parent), Data::Bool(child)) =
-                    (registers[o1 as usize], registers[o2 as usize])
-                {
-                    registers[dest as usize] = Data::Bool(parent || child);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_bool() || registers[o2 as usize].as_bool()).into();
             }
             Instr::Neg(tgt, dest) => {
-                if let Data::Number(x) = registers[tgt as usize] {
-                    registers[dest as usize] = Data::Number(-x);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] = (-registers[tgt as usize].as_num()).into();
             }
             Instr::Print(target) => {
-                println!("{}", format_data(registers[target as usize], arrays, false));
+                println!(
+                    "{}",
+                    format_data(registers[target as usize], Some(arrays), false)
+                );
             }
-            Instr::Num(tgt, dest) => match registers[tgt as usize] {
-                Data::String(str) => {
-                    // dbg!("{}", instr_src);
-                    // dbg!("{}", Instr::Num(tgt, dest));
-                    registers[dest as usize] = Data::Number(str.parse::<Num>().unwrap_or_else(|_| {
+            Instr::Num(tgt, dest) => {
+                let reg = registers[tgt as usize];
+                if reg.is_str() {
+                    let str = reg.as_str();
+                    registers[dest as usize] = (str.parse::<Num>().unwrap_or_else(|_| {
                     fatal_error!(
                         Instr::Num(tgt, dest),
                         "Invalid type",
@@ -533,44 +570,35 @@ pub fn execute(
                             str
                         )
                     );
-                }));
+                    })).into();
+                } else {
+                    unreachable!()
                 }
-                Data::Number(num) => registers[dest as usize] = Data::Number(num),
-                _ => unreachable!(),
-            },
+            }
             Instr::Str(tgt, dest) => {
-                registers[dest as usize] = Data::String(Intern::from(format_data(
-                    registers[tgt as usize],
-                    arrays,
-                    false,
-                )));
+                registers[dest as usize] =
+                    format_data(registers[tgt as usize], Some(arrays), false).into();
             }
             Instr::Bool(tgt, dest) => {
-                if let Data::String(str) = registers[tgt as usize] {
-                    registers[dest as usize] = Data::Bool(str.parse::<bool>().unwrap_or_else(|_| {
-                       fatal_error!(
-                            Instr::Bool(tgt, dest),
-                            "Invalid type",
-                            &format!(
-                                "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Boolean",
-                                str
-                            )
-                        );
-                    }));
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                let str = registers[tgt as usize].as_str();
+                registers[dest as usize] = (str.parse::<bool>().unwrap_or_else(|_| {
+                   fatal_error!(
+                        Instr::Bool(tgt, dest),
+                        "Invalid type",
+                        &format!(
+                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Boolean",
+                            str
+                        )
+                    );
+                })).into();
             }
             Instr::Input(msg, dest) => {
-                if let Data::String(str) = registers[msg as usize] {
-                    println!("{str}");
-                    std::io::stdout().flush().unwrap();
-                    let mut line = String::new();
-                    std::io::stdin().read_line(&mut line).unwrap();
-                    registers[dest as usize] = Data::String(Intern::from(line.trim().to_string()));
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                let str = registers[msg as usize].as_str();
+                println!("{str}");
+                std::io::stdout().flush().unwrap();
+                let mut line = String::new();
+                std::io::stdin().read_line(&mut line).unwrap();
+                registers[dest as usize] = (line.trim().to_string()).into();
             }
             Instr::StoreFuncArg(id) => args.push(id),
             // takes tgt from registers, moves it to dest-th array at idx-th index
@@ -579,213 +607,150 @@ pub fn execute(
             }
             // takes tgt from registers, idx from registers,
             Instr::ArrayMod(tgt, dest, idx) => {
-                if let Data::Number(index) = registers[idx as usize] {
-                    let requested_mod = registers[dest as usize];
-                    if let Data::Array(array_id) = registers[tgt as usize] {
-                        let array = arrays.get_mut(array_id).unwrap();
-                        if likely(array.len() > index as usize) {
-                            array[index as usize] = requested_mod;
-                        } else {
-                            fatal_error!(
-                                Instr::ArrayMod(tgt, dest, idx),
-                                "Invalid index",
-                                &format!(
-                                    "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but array has {} elements",
-                                    index,
-                                    array.len()
-                                )
-                            );
-                        }
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
+                let index = registers[idx as usize].as_num();
+                let requested_mod = registers[dest as usize];
+                let array_id = registers[tgt as usize].as_array();
+                let array = arrays.get_mut(array_id as usize).unwrap();
+                if likely(array.len() > index as usize) {
+                    array[index as usize] = requested_mod;
+                } else {
+                    fatal_error!(
+                        Instr::ArrayMod(tgt, dest, idx),
+                        "Invalid index",
+                        &format!(
+                            "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but array has {} elements",
+                            index,
+                            array.len()
+                        )
+                    );
                 }
             }
             Instr::StrMod(tgt, dest, idx) => {
-                if let Data::Number(index) = registers[idx as usize] {
-                    let requested_mod = registers[dest as usize];
-                    if let Data::String(str) = registers.get_mut(tgt as usize).unwrap() {
-                        if let Data::String(letter) = requested_mod {
-                            if likely(str.len() > index as usize) {
-                                let mut temp = str.to_string();
-                                temp.remove(index as usize);
-                                temp.insert_str(index as usize, &letter);
-                                *str = Intern::from(temp);
-                            } else {
-                                fatal_error!(
-                                    Instr::StrMod(tgt, dest, idx),
-                                    "Invalid index",
-                                    &format!(
-                                        "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but string has {} characters",
-                                        index,
-                                        str.len()
-                                    )
-                                );
-                            }
-                        } else {
-                            unsafe { unreachable_unchecked() }
-                        }
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
+                let index = registers[idx as usize].as_num();
+                let str = registers[tgt as usize].as_str();
+                let letter = registers[dest as usize].as_str();
+                if likely(str.len() > index as usize) {
+                    let mut temp = str.to_string();
+                    temp.remove(index as usize);
+                    temp.insert_str(index as usize, &letter);
+                    registers[tgt as usize] = temp.into();
                 } else {
-                    unsafe { unreachable_unchecked() }
+                    fatal_error!(
+                        Instr::StrMod(tgt, dest, idx),
+                        "Invalid index",
+                        &format!(
+                            "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but string has {} characters",
+                            index,
+                            str.len()
+                        )
+                    );
                 }
             }
             // takes tgt from  registers, index is index, dest is registers index destination
             Instr::ArrayGet(tgt, index, dest) => {
-                if let Data::Number(idx) = registers[index as usize] {
-                    if let Data::Array(x) = registers[tgt as usize] {
-                        let array = &arrays[x];
-                        if likely(array.len() > idx as usize) {
-                            registers[dest as usize] = array[idx as usize];
-                        } else {
-                            fatal_error!(
-                                Instr::ArrayGet(tgt, index, dest),
-                                "Invalid index",
-                                &format!(
-                                    "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but Array has {} elements",
-                                    idx,
-                                    array.len()
-                                )
-                            );
-                        }
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
+                let idx = registers[index as usize].as_num();
+                let x = registers[tgt as usize].as_array();
+                let array = &arrays[x as usize];
+                if likely(array.len() > idx as usize) {
+                    registers[dest as usize] = array[idx as usize];
                 } else {
-                    unsafe { unreachable_unchecked() }
+                    fatal_error!(
+                        Instr::ArrayGet(tgt, index, dest),
+                        "Invalid index",
+                        &format!(
+                            "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but Array has {} elements",
+                            idx,
+                            array.len()
+                        )
+                    );
                 }
             }
             Instr::ArrayStrGet(tgt, index, dest) => {
-                if let Data::Number(idx) = registers[index as usize] {
-                    if let Data::String(str) = registers[tgt as usize] {
-                        if likely(str.len() > idx as usize) {
-                            registers[dest as usize] = Data::String(Intern::from(
-                                str.get(idx as usize..=idx as usize).unwrap().to_string(),
-                            ));
-                        } else {
-                            fatal_error!(
-                                Instr::ArrayGet(tgt, index, dest),
-                                "Invalid index",
-                                &format!(
-                                    "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but String has {} characters",
-                                    idx,
-                                    str.len()
-                                )
-                            );
-                        }
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
+                let idx = registers[index as usize].as_num();
+                let str = registers[tgt as usize].as_str();
+                if likely(str.len() > idx as usize) {
+                    registers[dest as usize] = str.get(idx as usize..=idx as usize).unwrap().into();
                 } else {
-                    unsafe { unreachable_unchecked() }
+                    fatal_error!(
+                        Instr::ArrayGet(tgt, index, dest),
+                        "Invalid index",
+                        &format!(
+                            "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but String has {} characters",
+                            idx,
+                            str.len()
+                        )
+                    );
                 }
             }
             Instr::Range(min, max, dest) => {
-                if let Data::Number(x) = registers[min as usize] {
-                    if let Data::Number(y) = registers[max as usize] {
-                        let id = arrays.insert(
-                            (x as u64..y as u64)
-                                .map(|x| Data::Number(x as Num))
-                                .collect(),
-                        );
-                        registers[dest as usize] = Data::Array(id);
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                let x = registers[min as usize].as_num();
+                let y = registers[max as usize].as_num();
+                let id = arrays.insert((x as u64..y as u64).map(|x| (x as f64).into()).collect());
+                registers[dest as usize] = Data::array(id as u32);
             }
             Instr::IoOpen(path, dest, create) => {
-                if let Data::String(str) = registers[path as usize] {
-                    if let Data::Bool(create) = registers[create as usize] {
-                        if likely(create) {
-                            File::create(str.as_str()).unwrap_or_else(|_| {
-                                // error_b!(format_args!("Cannot create file {color_red}{str}{color_reset}"));
-                                todo!()
-                            });
-                        } else if unlikely(!fs::exists(str.as_str()).unwrap_or_else(|_| {
-                            todo!()
-                            // error_b!(format_args!("Cannot check existence of file {color_red}{str}{color_reset}"));
-                        })) {
-                            // error_b!(format_args!("File {color_red}{str}{color_reset} does not exist"));
-                        }
-                        registers[dest as usize] = Data::File(str);
-                    } else {
-                        // error_b!(format_args!("Invalid create option: {color_red}{}{color_reset}", format_data(registers[create as usize], arrays)));
-                    }
-                } else {
-                    // error_b!(format_args!("Invalid file path: {color_red}{}{color_reset}", format_data(registers[path as usize], arrays)));
-                }
-            }
-            Instr::IoDelete(path) => {
-                if let Data::String(str) = registers[path as usize] {
-                    fs::remove_file(str.as_str()).unwrap_or_else(|_| {
-                        // error_b!(format_args!("Cannot remove file {color_red}{str}{color_reset}"));
+                let str = registers[path as usize].as_str();
+                let create = registers[create as usize].as_bool();
+                if likely(create) {
+                    File::create(str.as_str()).unwrap_or_else(|_| {
+                        // error_b!(format_args!("Cannot create file {color_red}{str}{color_reset}"));
                         todo!()
                     });
-                } else {
-                    unsafe { unreachable_unchecked() }
+                } else if unlikely(!fs::exists(str.as_str()).unwrap_or_else(|_| {
+                    todo!()
+                    // error_b!(format_args!("Cannot check existence of file {color_red}{str}{color_reset}"));
+                })) {
+                    // error_b!(format_args!("File {color_red}{str}{color_reset} does not exist"));
                 }
+                registers[dest as usize] = Data::file(&str);
+            }
+            Instr::IoDelete(path) => {
+                let str = registers[path as usize].as_str();
+                fs::remove_file(str.as_str()).unwrap_or_else(|_| {
+                    // error_b!(format_args!("Cannot remove file {color_red}{str}{color_reset}"));
+                    todo!()
+                });
             }
             Instr::Floor(tgt, dest) => {
-                if let Data::Number(x) = registers[tgt as usize] {
-                    registers[dest as usize] = Data::Number(is_float!(x.floor(), x));
-                }
+                registers[dest as usize] = registers[tgt as usize].as_num().floor().into()
             }
+
             Instr::TheAnswer(dest) => {
                 println!(
                     "The answer to the Ultimate Question of Life, the Universe, and Everything is 42."
                 );
-                registers[dest as usize] = Data::Number(42.0 as Num);
+                registers[dest as usize] = 42.0.into();
             }
             Instr::Push(array, element) => {
-                if let Data::Array(id) = registers[array as usize] {
-                    arrays
-                        .get_mut(id)
-                        .unwrap()
-                        .push(registers[element as usize]);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                let id = registers[array as usize].as_array();
+                arrays
+                    .get_mut(id as usize)
+                    .unwrap()
+                    .push(registers[element as usize]);
             }
             Instr::Len(tgt, dest) => {
-                match registers[tgt as usize] {
-                    Data::Array(arr) => {
-                        registers[dest as usize] = Data::Number(arrays[arr].len() as Num)
-                    }
-                    Data::String(str) => {
-                        registers[dest as usize] = Data::Number(str.chars().count() as Num)
-                    }
-                    _ => unreachable!(),
-                };
+                let reg = registers[tgt as usize];
+                if reg.is_array() {
+                    registers[dest as usize] = (arrays[reg.as_array() as usize].len() as f64).into()
+                } else if reg.is_str() {
+                    registers[dest as usize] = (reg.as_str().chars().count() as f64).into()
+                }
             }
             Instr::Sqrt(tgt, dest) => {
-                if let Data::Number(num) = registers[tgt as usize] {
-                    registers[dest as usize] = Data::Number(is_float!(num.sqrt(), num.isqrt()))
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] = registers[tgt as usize].as_num().sqrt().into()
             }
-            Instr::Split(tgt, sep, dest) => match registers[tgt as usize] {
-                Data::String(str) => {
-                    if let Data::String(separator) = registers[sep as usize] {
-                        let id = arrays.insert(
-                            str.split(separator.as_str())
-                                .map(|x| Data::String(Intern::from_ref(x)))
-                                .collect(),
-                        );
-                        registers[dest as usize] = Data::Array(id);
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
-                }
-                Data::Array(array_id) => {
+            Instr::Split(tgt, sep, dest) => {
+                let reg = registers[tgt as usize];
+                if reg.is_str() {
+                    let str = reg.as_str();
+                    let separator = registers[sep as usize].as_str();
+                    let id =
+                        arrays.insert(str.split(separator.as_str()).map(|x| x.into()).collect());
+                    registers[dest as usize] = Data::array(id as u32);
+                } else if reg.is_array() {
                     let base_id = arrays.len() as u16;
                     // get the array and split it
-                    arrays[array_id]
+                    arrays[reg.as_array() as usize]
                         .to_vec()
                         .split(|x| x == &registers[sep as usize])
                         .for_each(|x| {
@@ -793,231 +758,166 @@ pub fn execute(
                         });
                     let id = arrays.insert(
                         (base_id..arrays.len() as u16)
-                            .map(|x| Data::Array(x as usize))
+                            .map(|x| Data::array(x as u32))
                             .collect::<Vec<Data>>(),
                     );
-                    registers[dest as usize] = Data::Array(id);
+                    registers[dest as usize] = Data::array(id as u32);
                 }
-                _ => unreachable!(),
-            },
+            }
             Instr::Remove(array, idx) => {
-                if let Data::Number(idx) = registers[idx as usize] {
-                    arrays.get_mut(array as usize).unwrap().remove(idx as usize);
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                let idx = registers[idx as usize].as_num();
+                arrays.get_mut(array as usize).unwrap().remove(idx as usize);
             }
             // uppercase
             Instr::CallLibFunc(0, tgt, dest) => {
-                if let Data::String(str) = registers[tgt as usize] {
-                    registers[dest as usize] = Data::String(Intern::from(str.to_uppercase()))
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                let str = registers[tgt as usize].as_str();
+                registers[dest as usize] = str.to_uppercase().into();
             }
             // lowercase
             Instr::CallLibFunc(1, tgt, dest) => {
-                if let Data::String(str) = registers[tgt as usize] {
-                    registers[dest as usize] = Data::String(Intern::from(str.to_lowercase()))
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                let str = registers[tgt as usize].as_str();
+                registers[dest as usize] = str.to_lowercase().into();
             }
             // contains
-            Instr::CallLibFunc(2, tgt, dest) => match registers[tgt as usize] {
-                Data::String(str) => {
-                    let arg = args.swap_remove(0);
-                    if let Data::String(arg) = registers[arg as usize] {
-                        registers[dest as usize] = Data::Bool(str.contains(arg.as_str()))
-                    }
-                }
-                Data::Array(x) => {
+            Instr::CallLibFunc(2, tgt, dest) => {
+                let reg = registers[tgt as usize];
+                if reg.is_str() {
+                    let str = reg.as_str();
+                    let arg = registers[args.swap_remove(0) as usize].as_str();
+                    registers[dest as usize] = str.contains(arg.as_str()).into();
+                } else if reg.is_array() {
                     let arg = registers[args.swap_remove(0) as usize];
-                    registers[dest as usize] = Data::Bool(arrays[x].contains(&arg))
+                    registers[dest as usize] =
+                        arrays[reg.as_array() as usize].contains(&arg).into();
                 }
-                _ => unreachable!(),
-            },
+            }
             // trim
             Instr::CallLibFunc(3, tgt, dest) => {
-                if let Data::String(str) = registers[tgt as usize] {
-                    registers[dest as usize] = Data::String(Intern::from(str.trim().to_string()))
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] = registers[tgt as usize].as_str().trim().into();
             }
             // trim_sequence
             Instr::CallLibFunc(4, tgt, dest) => {
-                if let Data::String(str) = registers[tgt as usize] {
-                    let arg = args.swap_remove(0);
-                    if let Data::String(arg) = registers[arg as usize] {
-                        let chars: Vec<char> = arg.chars().collect();
-                        registers[dest as usize] =
-                            Data::String(Intern::from(str.trim_matches(&chars[..]).to_string()));
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                let arg = registers[args.swap_remove(0) as usize].as_str();
+                let chars: Vec<char> = arg.chars().collect();
+                registers[dest as usize] = registers[tgt as usize]
+                    .as_str()
+                    .trim_matches(&chars[..])
+                    .into();
             }
             // index
-            Instr::CallLibFunc(5, tgt, dest) => match registers[tgt as usize] {
-                Data::String(str) => {
-                    let arg = registers[args.swap_remove(0) as usize];
-                    if let Data::String(arg) = arg {
-                        registers[dest as usize] = Data::Number(str.find(arg.as_str()).unwrap_or_else(|| {
+            Instr::CallLibFunc(5, tgt, dest) => {
+                let reg = registers[tgt as usize];
+                if reg.is_str() {
+                    let str = reg.as_str();
+                    let arg = registers[args.swap_remove(0) as usize].as_str();
+                    registers[dest as usize] = (str.find(arg.as_str()).unwrap_or_else(|| {
                             fatal_error!(Instr::CallLibFunc(5, tgt, dest),"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
-                        }) as Num);
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
-                }
-                Data::Array(x) => {
+                        }) as f64).into();
+                } else if reg.is_array() {
+                    let x = reg.as_array();
                     let arg = registers[args.swap_remove(0) as usize];
-                    registers[dest as usize] = Data::Number(arrays[x].iter().position(|x| x == &arg).unwrap_or_else(|| {
-                        fatal_error!(Instr::CallLibFunc(5, tgt, dest), "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
-                    }) as Num);
+                    registers[dest as usize] = (arrays[x as usize].iter().position(|x| x == &arg).unwrap_or_else(|| {
+                        fatal_error!(Instr::CallLibFunc(5, tgt, dest), "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::array(x), Some(arrays),true)));
+                    }) as f64).into();
                 }
-                _ => unreachable!(),
-            },
+            }
             // is_num
             Instr::CallLibFunc(6, tgt, dest) => {
-                if let Data::String(str) = registers[tgt as usize] {
-                    registers[dest as usize] = Data::Bool(str.parse::<f64>().is_ok())
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] = registers[tgt as usize]
+                    .as_str()
+                    .parse::<f64>()
+                    .is_ok()
+                    .into()
             }
             // trim_left
             Instr::CallLibFunc(7, tgt, dest) => {
-                if let Data::String(str) = registers[tgt as usize] {
-                    registers[dest as usize] =
-                        Data::String(Intern::from(str.trim_start().to_string()));
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] = registers[tgt as usize].as_str().trim_start().into();
             }
             // trim_right
             Instr::CallLibFunc(8, tgt, dest) => {
-                if let Data::String(str) = registers[tgt as usize] {
-                    registers[dest as usize] =
-                        Data::String(Intern::from(str.trim_end().to_string()));
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] = registers[tgt as usize].as_str().trim_end().into();
             }
             // trim_sequence_left
             Instr::CallLibFunc(9, tgt, dest) => {
-                if let Data::String(str) = registers[tgt as usize] {
-                    let arg = args.swap_remove(0);
-                    if let Data::String(arg) = registers[arg as usize] {
-                        let chars: Vec<char> = arg.chars().collect();
-                        registers[dest as usize] = Data::String(Intern::from(
-                            str.trim_start_matches(&chars[..]).to_string(),
-                        ));
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                let chars: Vec<char> = registers[args.swap_remove(0) as usize]
+                    .as_str()
+                    .chars()
+                    .collect();
+                registers[dest as usize] = registers[tgt as usize]
+                    .as_str()
+                    .trim_start_matches(&chars[..])
+                    .into();
             }
             // trim_sequence_right
             Instr::CallLibFunc(10, tgt, dest) => {
-                if let Data::String(str) = registers[tgt as usize] {
-                    let arg = registers[args.swap_remove(0) as usize];
-                    if let Data::String(arg) = arg {
-                        let chars: Vec<char> = arg.chars().collect();
-                        registers[dest as usize] = Data::String(Intern::from(
-                            str.trim_end_matches(&chars[..]).to_string(),
-                        ));
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                let chars: Vec<char> = registers[args.swap_remove(0) as usize]
+                    .as_str()
+                    .chars()
+                    .collect();
+                registers[dest as usize] = registers[tgt as usize]
+                    .as_str()
+                    .trim_end_matches(&chars[..])
+                    .to_string()
+                    .into();
             }
             // rindex
-            Instr::CallLibFunc(11, tgt, dest) => match registers[tgt as usize] {
-                Data::String(str) => {
+            Instr::CallLibFunc(11, tgt, dest) => {
+                let reg = registers[tgt as usize];
+                if reg.is_str() {
+                    let str = reg.as_str();
+                    let arg = registers[args.swap_remove(0) as usize].as_str();
+                    registers[dest as usize] = (reg.as_str().rfind(arg.as_str()).unwrap_or_else(|| {
+                        fatal_error!(Instr::CallLibFunc(11, tgt, dest), "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
+                    }) as f64).into();
+                } else if reg.is_array() {
+                    let x = reg.as_array();
                     let arg = registers[args.swap_remove(0) as usize];
-                    if let Data::String(arg) = arg {
-                        registers[dest as usize] = Data::Number(str.rfind(arg.as_str()).unwrap_or_else(|| {
-                            fatal_error!(Instr::CallLibFunc(11, tgt, dest), "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
-                        }) as Num);
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
+                    registers[dest as usize] = (arrays[reg.as_array() as usize].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
+                    fatal_error!(Instr::CallLibFunc(11, tgt, dest),"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::array(x), Some(arrays),true)));
+                    }) as f64).into();
                 }
-                Data::Array(x) => {
-                    let arg = registers[args.swap_remove(0) as usize];
-                    registers[dest as usize] = Data::Number(arrays[x].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
-                        fatal_error!(Instr::CallLibFunc(11, tgt, dest),"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::Array(x), arrays,true)));
-                    }) as Num);
-                }
-                _ => unreachable!(),
-            },
+            }
             // repeat
-            Instr::CallLibFunc(12, tgt, dest) => match registers[tgt as usize] {
-                Data::String(str) => {
-                    let arg = args.swap_remove(0);
-                    if let Data::Number(arg) = registers[arg as usize] {
-                        registers[dest as usize] =
-                            Data::String(Intern::from(str.repeat(arg as usize)))
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
+            Instr::CallLibFunc(12, tgt, dest) => {
+                let reg = registers[tgt as usize];
+                if reg.is_str() {
+                    let str = reg.as_str();
+                    let arg = registers[args.swap_remove(0) as usize].as_num();
+                    registers[dest as usize] = str.repeat(arg as usize).into();
+                } else if reg.is_array() {
+                    let x = reg.as_array();
+                    let arg = registers[args.swap_remove(0) as usize].as_num();
+                    registers[dest as usize] =
+                        Data::array(arrays.insert(arrays[x as usize].repeat(arg as usize)) as u32);
                 }
-                Data::Array(x) => {
-                    let arg = args.swap_remove(0);
-                    if let Data::Number(arg) = registers[arg as usize] {
-                        registers[dest as usize] =
-                            Data::Array(arrays.insert(arrays[x].repeat(arg as usize)));
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
-                }
-                _ => unreachable!(),
-            },
+            }
             // round
             Instr::CallLibFunc(13, tgt, dest) => {
-                if let Data::Number(num) = registers[tgt as usize] {
-                    registers[dest as usize] = Data::Number(is_float!(num.round(), num));
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] = registers[tgt as usize].as_num().round().into();
             }
             // abs
             Instr::CallLibFunc(14, tgt, dest) => {
-                if let Data::Number(num) = registers[tgt as usize] {
-                    registers[dest as usize] = Data::Number(is_float!(num.abs(), num))
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                registers[dest as usize] = registers[tgt as usize].as_num().abs().into();
             }
             // read
             Instr::CallLibFunc(15, tgt, dest) => {
-                if let Data::File(path) = registers[tgt as usize] {
-                    registers[dest as usize] = Data::String(Intern::from(
-                        std::fs::read_to_string(path.as_str()).unwrap_or_else(|_| {
-                            fatal_error!(
-                                Instr::CallLibFunc(15, tgt, dest),
-                                "File does not exist or cannot be read",
-                                &format!("Cannot read file {color_red}{path}{color_reset}")
-                            );
-                        }),
-                    ))
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
+                let path = registers[tgt as usize].as_file();
+                registers[dest as usize] = std::fs::read_to_string(path.as_str())
+                    .unwrap_or_else(|_| {
+                        fatal_error!(
+                            Instr::CallLibFunc(15, tgt, dest),
+                            "File does not exist or cannot be read",
+                            &format!("Cannot read file {color_red}{path}{color_reset}")
+                        );
+                    })
+                    .into();
             }
             // write
             Instr::CallLibFunc(16, tgt, dest) => {
-                if let Data::File(path) = registers[tgt as usize] {
-                    if let Data::String(contents) = registers[args.swap_remove(0) as usize] {
-                        if let Data::Bool(truncate) = registers[args.swap_remove(0) as usize] {
-                            fs::OpenOptions::new()
+                let path = registers[tgt as usize].as_file();
+                let contents = registers[args.swap_remove(0) as usize].as_str();
+                let truncate = registers[args.swap_remove(0) as usize].as_bool();
+                fs::OpenOptions::new()
                                 .write(true)
                                 .truncate(truncate)
                                 .open(path.as_str()).unwrap_or_else(|_| {
@@ -1025,29 +925,20 @@ pub fn execute(
                                 }).write_all(contents.as_bytes()).unwrap_or_else(|_| {
                                     fatal_error!(Instr::CallLibFunc(16, tgt, dest),"File does not exist or cannot be written to",&format!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
                             });
-                        } else {
-                            unsafe { unreachable_unchecked() }
-                        }
-                    } else {
-                        unsafe { unreachable_unchecked() }
-                    }
-                } else {
-                    unsafe { unreachable_unchecked() }
-                }
             }
             // reverse
-            Instr::CallLibFunc(17, tgt, dest) => match registers[tgt as usize] {
-                Data::Array(id) => {
-                    arrays.get_mut(id).unwrap().reverse();
-                    registers[dest as usize] = Data::Array(id)
-                }
-                Data::String(str) => {
+            Instr::CallLibFunc(17, tgt, dest) => {
+                let reg = registers[tgt as usize];
+                if reg.is_str() {
                     registers[dest as usize] =
-                        Data::String(Intern::from(str.chars().rev().collect::<String>()))
+                        reg.as_str().chars().rev().collect::<String>().into();
+                } else if reg.is_array() {
+                    let id = reg.as_array();
+                    arrays.get_mut(id as usize).unwrap().reverse();
+                    registers[dest as usize] = Data::array(id);
                 }
-                _ => unreachable!(),
-            },
-            _ => unreachable!(),
+            }
+            Instr::CallLibFunc(_, _, _) => unreachable!(),
         }
         i += 1;
     }
@@ -1076,7 +967,6 @@ fn main() {
         parse(&contents, filename);
 
     println!("PARSING TIME {:.2?}", now.elapsed());
-
     let now = Instant::now();
     execute(
         &instructions,
@@ -1086,6 +976,105 @@ fn main() {
         (filename, &contents),
         &fn_registers,
     );
-    let end = now.elapsed();
-    println!("EXEC TIME {:.2?}", end);
+    println!(
+        "EXECUTION TIME: {:.3}ms",
+        now.elapsed().as_nanos() / 1000000
+    );
+
+    // benchmark(
+    //     &instructions,
+    //     &mut registers,
+    //     &mut arrays,
+    //     &instr_src,
+    //     (filename, &contents),
+    //     &fn_registers,
+    //     10,
+    //     150,
+    // );
+}
+
+pub fn benchmark(
+    instructions: &[Instr],
+    registers: &mut [Data],
+    arrays: &mut ArrayStorage,
+    instr_src: &[(Instr, usize, usize)],
+    src: (&str, &str),
+    fn_registers: &[Vec<u16>],
+    warmup_runs: usize,
+    samples_count: usize,
+) {
+    let mut times_ns: Vec<u128> = Vec::with_capacity(samples_count);
+
+    for _ in 0..warmup_runs {
+        black_box(execute(
+            black_box(instructions),
+            black_box(registers),
+            black_box(arrays),
+            black_box(instr_src),
+            black_box(src),
+            black_box(fn_registers),
+        ));
+    }
+    for _ in 0..samples_count {
+        let now = Instant::now();
+        black_box(execute(
+            black_box(instructions),
+            black_box(registers),
+            black_box(arrays),
+            black_box(instr_src),
+            black_box(src),
+            black_box(fn_registers),
+        ));
+        times_ns.push(now.elapsed().as_nanos());
+    }
+
+    let mut sorted = times_ns.clone();
+    sorted.sort_unstable();
+
+    let min_ns = sorted[0];
+    let max_ns = *sorted.last().unwrap();
+    let median_ns = if samples_count.is_multiple_of(2) {
+        (sorted[samples_count / 2 - 1] + sorted[samples_count / 2]) / 2
+    } else {
+        sorted[samples_count / 2]
+    };
+
+    let mean_ns = times_ns.iter().sum::<u128>() as f64 / samples_count as f64;
+
+    let variance = times_ns
+        .iter()
+        .map(|&x| (x as f64 - mean_ns).powi(2))
+        .sum::<f64>()
+        / (samples_count as f64);
+    let std_deviation = variance.sqrt();
+
+    let std = std_deviation / (samples_count as f64).sqrt();
+    let confidence_interval_margin = 1.96 * std;
+
+    let lower_confidence_interval = mean_ns - confidence_interval_margin;
+    let upper_confidence_interval = mean_ns + confidence_interval_margin;
+
+    println!(
+        "\nBENCHMARK RESULTS\n---{color_blue}Program{color_reset}---\n{color_blue}{}{color_reset}\n-------------",
+        src.1
+    );
+    println!("Samples          : {}", samples_count);
+    println!("Min              : {:.3} ms", min_ns as f64 / 1000000.0);
+    println!("Max              : {:.3} ms", max_ns as f64 / 1000000.0);
+    println!(
+        "Median           : {:.3} ms",
+        median_ns as f64 / 1_000_000.0
+    );
+    println!("Mean             : {:.3} ms", mean_ns / 1000000.0);
+    println!("Stand. deviation : {:.3} ms", std_deviation / 1000000.0);
+    println!(
+        "95% Confidence interval for mean  : [{:.3} .. {:.3}] ms",
+        lower_confidence_interval / 1000000.0,
+        upper_confidence_interval / 1000000.0
+    );
+    println!(
+        "{bg_red}{color_white}Average exec time: {:.3} ms (±{:.3} ms with 95% confidence){color_reset}{bg_reset}",
+        mean_ns / 1000000.0,
+        confidence_interval_margin / 1000000.0
+    );
 }
