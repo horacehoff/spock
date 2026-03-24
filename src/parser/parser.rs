@@ -156,25 +156,25 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     match matching_elem{
         Instr::Mov(_, y)
         | Instr::CallFunc(_, y)
-        | Instr::Add(_, _, y)
-        | Instr::ArrayAdd(_, _, y)
-        | Instr::StrAdd(_, _, y)
-        | Instr::Mul(_, _, y)
-        | Instr::Sub(_, _, y)
-        | Instr::Div(_, _, y)
-        | Instr::Mod(_, _, y)
-        | Instr::Pow(_, _, y)
+        | Instr::AddFloat(_, _, y)
+        | Instr::AddArray(_, _, y)
+        | Instr::AddStr(_, _, y)
+        | Instr::MulFloat(_, _, y)
+        | Instr::SubFloat(_, _, y)
+        | Instr::DivFloat(_, _, y)
+        | Instr::ModFloat(_, _, y)
+        | Instr::PowFloat(_, _, y)
         | Instr::Eq(_, _, y)
         | Instr::ArrayEq(_, _, y)
         | Instr::NotEq(_, _, y)
         | Instr::ArrayNotEq(_, _, y)
-        | Instr::Sup(_, _, y)
-        | Instr::SupEq(_, _, y)
-        | Instr::Inf(_, _, y)
-        | Instr::InfEq(_, _, y)
+        | Instr::SupFloat(_, _, y)
+        | Instr::SupEqFloat(_, _, y)
+        | Instr::InfFloat(_, _, y)
+        | Instr::InfEqFloat(_, _, y)
         | Instr::BoolAnd(_, _, y)
         | Instr::BoolOr(_, _, y)
-        | Instr::Neg(_, y)
+        | Instr::NegFloat(_, y)
         | Instr::Float(_, y)
         | Instr::Bool(_, y)
         | Instr::CallLibFunc(_, _, y)
@@ -209,25 +209,25 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::CallFunc(_, y)
         | Instr::CallFuncRecursive(_, y)
         | Instr::SaveFrame(_, y, _)
-        | Instr::Add(_, _, y)
-        | Instr::ArrayAdd(_, _, y)
-        | Instr::StrAdd(_, _, y)
-        | Instr::Mul(_, _, y)
-        | Instr::Sub(_, _, y)
-        | Instr::Div(_, _, y)
-        | Instr::Mod(_, _, y)
-        | Instr::Pow(_, _, y)
+        | Instr::AddFloat(_, _, y)
+        | Instr::AddArray(_, _, y)
+        | Instr::AddStr(_, _, y)
+        | Instr::MulFloat(_, _, y)
+        | Instr::SubFloat(_, _, y)
+        | Instr::DivFloat(_, _, y)
+        | Instr::ModFloat(_, _, y)
+        | Instr::PowFloat(_, _, y)
         | Instr::Eq(_, _, y)
         | Instr::ArrayEq(_, _, y)
         | Instr::NotEq(_, _, y)
         | Instr::ArrayNotEq(_, _, y)
-        | Instr::Sup(_, _, y)
-        | Instr::SupEq(_, _, y)
-        | Instr::Inf(_, _, y)
-        | Instr::InfEq(_, _, y)
+        | Instr::SupFloat(_, _, y)
+        | Instr::SupEqFloat(_, _, y)
+        | Instr::InfFloat(_, _, y)
+        | Instr::InfEqFloat(_, _, y)
         | Instr::BoolAnd(_, _, y)
         | Instr::BoolOr(_, _, y)
-        | Instr::Neg(_, y)
+        | Instr::NegFloat(_, y)
         | Instr::Float(_, y)
         | Instr::Bool(_, y)
         | Instr::CallLibFunc(_, _, y)
@@ -402,8 +402,12 @@ pub fn get_id(
             registers.push(Data::array(array_id as u32));
             (registers.len() - 1) as u16
         }
-        Expr::Mul(l, r, start, end) => uniform_op!(Mul, "*", l, r, start, end, DataType::Float),
-        Expr::Div(l, r, start, end) => uniform_op!(Div, "/", l, r, start, end, DataType::Float),
+        Expr::Mul(l, r, start, end) => {
+            uniform_op!(MulFloat, "*", l, r, start, end, DataType::Float)
+        }
+        Expr::Div(l, r, start, end) => {
+            uniform_op!(DivFloat, "/", l, r, start, end, DataType::Float)
+        }
         Expr::Add(l, r, start, end) => {
             let t_l = infer_type(l, var_types, fns, src);
             let t_r = infer_type(r, var_types, fns, src);
@@ -416,17 +420,23 @@ pub fn get_id(
             let id = registers.len() as u16;
             registers.push(Data::NULL);
             if matches!(t_l, DataType::Array(_)) {
-                output.push(Instr::ArrayAdd(id_l, id_r, id));
+                output.push(Instr::AddArray(id_l, id_r, id));
             } else if t_l == DataType::String {
-                output.push(Instr::StrAdd(id_l, id_r, id));
+                output.push(Instr::AddStr(id_l, id_r, id));
             } else if t_l == DataType::Float {
-                output.push(Instr::Add(id_l, id_r, id));
+                output.push(Instr::AddFloat(id_l, id_r, id));
             }
             id
         }
-        Expr::Sub(l, r, start, end) => uniform_op!(Sub, "-", l, r, start, end, DataType::Float),
-        Expr::Mod(l, r, start, end) => uniform_op!(Mod, "%", l, r, start, end, DataType::Float),
-        Expr::Pow(l, r, start, end) => uniform_op!(Pow, "^", l, r, start, end, DataType::Float),
+        Expr::Sub(l, r, start, end) => {
+            uniform_op!(SubFloat, "-", l, r, start, end, DataType::Float)
+        }
+        Expr::Mod(l, r, start, end) => {
+            uniform_op!(ModFloat, "%", l, r, start, end, DataType::Float)
+        }
+        Expr::Pow(l, r, start, end) => {
+            uniform_op!(PowFloat, "^", l, r, start, end, DataType::Float)
+        }
         Expr::Eq(l, r) => {
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -455,13 +465,17 @@ pub fn get_id(
             }
             id
         }
-        Expr::Sup(l, r, start, end) => uniform_op!(Sup, ">", l, r, start, end, DataType::Float),
-        Expr::SupEq(l, r, start, end) => {
-            uniform_op!(SupEq, ">=", l, r, start, end, DataType::Float)
+        Expr::Sup(l, r, start, end) => {
+            uniform_op!(SupFloat, ">", l, r, start, end, DataType::Float)
         }
-        Expr::Inf(l, r, start, end) => uniform_op!(Inf, "<", l, r, start, end, DataType::Float),
+        Expr::SupEq(l, r, start, end) => {
+            uniform_op!(SupEqFloat, ">=", l, r, start, end, DataType::Float)
+        }
+        Expr::Inf(l, r, start, end) => {
+            uniform_op!(InfFloat, "<", l, r, start, end, DataType::Float)
+        }
         Expr::InfEq(l, r, start, end) => {
-            uniform_op!(InfEq, "<=", l, r, start, end, DataType::Float)
+            uniform_op!(InfEqFloat, "<=", l, r, start, end, DataType::Float)
         }
         Expr::BoolAnd(l, r, start, end) => {
             uniform_op!(BoolAnd, "&&", l, r, start, end, DataType::Bool)
@@ -487,7 +501,7 @@ pub fn get_id(
             let id_l = get_id(l, v, parser_data!(), output);
             let id = registers.len() as u16;
             registers.push(Data::NULL);
-            output.push(Instr::Neg(id_l, id));
+            output.push(Instr::NegFloat(id_l, id));
             id
         }
 
@@ -590,10 +604,10 @@ pub fn get_id(
                 };
                 if let Some(
                     Instr::Cmp(_, jump_size)
-                    | Instr::InfCmp(_, _, jump_size)
-                    | Instr::InfEqCmp(_, _, jump_size)
-                    | Instr::SupCmp(_, _, jump_size)
-                    | Instr::SupEqCmp(_, _, jump_size)
+                    | Instr::InfFloatCmp(_, _, jump_size)
+                    | Instr::InfEqFloatCmp(_, _, jump_size)
+                    | Instr::SupFloatCmp(_, _, jump_size)
+                    | Instr::SupEqFloatCmp(_, _, jump_size)
                     | Instr::EqCmp(_, _, jump_size)
                     | Instr::ArrayEqCmp(_, _, jump_size)
                     | Instr::NotEqCmp(_, _, jump_size)
@@ -638,10 +652,10 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
         return output.push(Instr::Cmp(condition_id, *len));
     }
     *output.last_mut().unwrap() = match *output.last().unwrap() {
-        Instr::Inf(o1, o2, o3) if o3 == condition_id => Instr::InfCmp(o1, o2, *len),
-        Instr::InfEq(o1, o2, o3) if o3 == condition_id => Instr::InfEqCmp(o1, o2, *len),
-        Instr::Sup(o1, o2, o3) if o3 == condition_id => Instr::SupCmp(o1, o2, *len),
-        Instr::SupEq(o1, o2, o3) if o3 == condition_id => Instr::SupEqCmp(o1, o2, *len),
+        Instr::InfFloat(o1, o2, o3) if o3 == condition_id => Instr::InfFloatCmp(o1, o2, *len),
+        Instr::InfEqFloat(o1, o2, o3) if o3 == condition_id => Instr::InfEqFloatCmp(o1, o2, *len),
+        Instr::SupFloat(o1, o2, o3) if o3 == condition_id => Instr::SupFloatCmp(o1, o2, *len),
+        Instr::SupEqFloat(o1, o2, o3) if o3 == condition_id => Instr::SupEqFloatCmp(o1, o2, *len),
         Instr::Eq(o1, o2, o3) if o3 == condition_id => Instr::EqCmp(o1, o2, *len),
         Instr::ArrayEq(o1, o2, o3) if o3 == condition_id => Instr::ArrayEqCmp(o1, o2, *len),
         Instr::NotEq(o1, o2, o3) if o3 == condition_id => Instr::NotEqCmp(o1, o2, *len),
@@ -1044,10 +1058,10 @@ pub fn parser_to_instr_set(
                     };
                     if let Some(
                         Instr::Cmp(_, jump_size)
-                        | Instr::InfCmp(_, _, jump_size)
-                        | Instr::InfEqCmp(_, _, jump_size)
-                        | Instr::SupCmp(_, _, jump_size)
-                        | Instr::SupEqCmp(_, _, jump_size)
+                        | Instr::InfFloatCmp(_, _, jump_size)
+                        | Instr::InfEqFloatCmp(_, _, jump_size)
+                        | Instr::SupFloatCmp(_, _, jump_size)
+                        | Instr::SupEqFloatCmp(_, _, jump_size)
                         | Instr::EqCmp(_, _, jump_size)
                         | Instr::NotEqCmp(_, _, jump_size),
                     ) = output.get_mut(*y)
@@ -1105,7 +1119,7 @@ pub fn parser_to_instr_set(
                 // do the 'i < len' condition, set up the condition's id (true/false)
                 registers.push(Data::NULL);
                 let condition_id = (registers.len() - 1) as u16;
-                output.push(Instr::Inf(index_id, array_len_id, condition_id));
+                output.push(Instr::InfFloat(index_id, array_len_id, condition_id));
 
                 // set up the variable for the current element (for current_element_id in ... {}) => current_element_id = array[index]
                 let current_element_id = registers.len() as u16;
@@ -1148,7 +1162,11 @@ pub fn parser_to_instr_set(
                 output.extend(cond_code);
                 // add 1 to the index (i+=1) so that the next loop iteration will have the next element in the array
                 registers.push(1.0.into());
-                output.push(Instr::Add(index_id, (registers.len() - 1) as u16, index_id));
+                output.push(Instr::AddFloat(
+                    index_id,
+                    (registers.len() - 1) as u16,
+                    index_id,
+                ));
 
                 // jump back to the loop if still inside of it
                 output.push(Instr::JmpNeg(len));
@@ -1207,7 +1225,7 @@ pub fn parser_to_instr_set(
                 // Loop logic
                 let end_elem_id = get_id(end_elem, v, parser_data!(), &mut output);
                 // Add an InfCmp first, to check if i < end_elem
-                output.push(Instr::InfCmp(
+                output.push(Instr::InfFloatCmp(
                     elem_id,
                     end_elem_id,
                     compiled_loop_code_len + 3,
@@ -1215,7 +1233,11 @@ pub fn parser_to_instr_set(
                 output.extend(compiled_loop_code);
                 registers.push(1.0.into());
                 // Do i += 1
-                output.push(Instr::Add(elem_id, (registers.len() - 1) as u16, elem_id));
+                output.push(Instr::AddFloat(
+                    elem_id,
+                    (registers.len() - 1) as u16,
+                    elem_id,
+                ));
                 // Jump back to the start of the function
                 output.push(Instr::JmpNeg(2 + compiled_loop_code_len))
             }

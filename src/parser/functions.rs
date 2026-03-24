@@ -139,7 +139,7 @@ pub fn handle_functions(
                 if args.len() == 1 {
                     check_type(0, &[DataType::Float]);
                     let id_x = get_id(&args[0], v, parser_data!(), output);
-                    registers.push(0.0.into());
+                    registers.push(0.into());
                     registers.push(Data::NULL);
                     output.push(Instr::Range(
                         (registers.len() - 2) as u16,
@@ -147,8 +147,8 @@ pub fn handle_functions(
                         (registers.len() - 1) as u16,
                     ));
                 } else {
-                    check_type(0, &[DataType::Float]);
-                    check_type(1, &[DataType::Float]);
+                    check_type(0, &[DataType::Int]);
+                    check_type(1, &[DataType::Int]);
                     let id_x = get_id(&args[0], v, parser_data!(), output);
                     let id_y = get_id(&args[1], v, parser_data!(), output);
                     registers.push(Data::NULL);

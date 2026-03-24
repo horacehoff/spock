@@ -111,12 +111,16 @@ pub fn for_loop_summation(
                     .into(),
                 );
                 registers.push(Data::NULL);
-                output.push(Instr::Mul(
+                output.push(Instr::MulFloat(
                     (registers.len() - 3) as u16,
                     (registers.len() - 2) as u16,
                     (registers.len() - 1) as u16,
                 ));
-                output.push(Instr::Add((registers.len() - 1) as u16, var_id, var_id));
+                output.push(Instr::AddFloat(
+                    (registers.len() - 1) as u16,
+                    var_id,
+                    var_id,
+                ));
                 return true;
             }
         } else if let Expr::Mul(l, reps, _, _) = &**value
@@ -135,12 +139,16 @@ pub fn for_loop_summation(
                 .into(),
             );
             registers.push(Data::NULL);
-            output.push(Instr::Pow(
+            output.push(Instr::PowFloat(
                 (registers.len() - 2) as u16,
                 (registers.len() - 3) as u16,
                 (registers.len() - 1) as u16,
             ));
-            output.push(Instr::Mul((registers.len() - 1) as u16, var_id, var_id));
+            output.push(Instr::MulFloat(
+                (registers.len() - 1) as u16,
+                var_id,
+                var_id,
+            ));
             return true;
         }
     }
