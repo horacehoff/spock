@@ -31,8 +31,6 @@ mod types;
 #[path = "./util/util.rs"]
 mod util;
 
-pub type Num = f64;
-
 // 51 bits of total payload -- 3 bits for data type => 48 bits of actual payload
 const NAN_BASE: u64 =
     0b1111_1111_1111_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000;
@@ -43,6 +41,8 @@ const NAN_TAG_STRING_LARGE: u64 = NAN_BASE | (3 << 48);
 const NAN_TAG_ARRAY: u64 = NAN_BASE | (4 << 48);
 const NAN_TAG_NULL: u64 = NAN_BASE | (5 << 48);
 const NAN_TAG_FILE: u64 = NAN_BASE | (6 << 48);
+const NAN_TAG_INT: u64 = NAN_BASE | (7 << 48);
+const BOOL_TABLE: [Data; 2] = [Data::FALSE, Data::TRUE];
 
 #[derive(Debug, Clone, Copy)]
 pub struct Data(u64);
@@ -62,24 +62,36 @@ impl Data {
     #[inline(always)]
     pub fn as_bool(&self) -> bool {
         debug_assert!(self.is_bool());
-        (self.0 & PAYLOAD_MASK) != 0
+        (self.0 & 1) != 0
     }
     #[inline(always)]
     pub fn is_bool(&self) -> bool {
         (self.0 & !PAYLOAD_MASK) == NAN_TAG_BOOL
     }
     #[inline(always)]
-    pub fn num(n: f64) -> Data {
+    pub fn float(n: f64) -> Data {
         Data(n.to_bits())
     }
     #[inline(always)]
-    pub fn as_num(&self) -> f64 {
-        debug_assert!(self.is_num());
+    pub fn as_float(&self) -> f64 {
+        debug_assert!(self.is_float());
         f64::from_bits(self.0)
     }
     #[inline(always)]
-    pub fn is_num(&self) -> bool {
+    pub fn is_float(&self) -> bool {
         (self.0 & NAN_BASE) != NAN_BASE
+    }
+    #[inline(always)]
+    pub fn int(n: i64) -> Data {
+        Data(NAN_TAG_INT | (n as u64))
+    }
+    #[inline(always)]
+    pub fn as_int(&self) -> i64 {
+        (self.0 & PAYLOAD_MASK) as i64
+    }
+    #[inline(always)]
+    pub fn is_int(&self) -> bool {
+        (self.0 & !PAYLOAD_MASK) == NAN_TAG_INT
     }
     #[inline(always)]
     pub fn array(id: u32) -> Data {
@@ -170,22 +182,38 @@ impl PartialEq for Data {
     }
 }
 
+// f64 <=> DATA
 impl From<f64> for Data {
     #[inline(always)]
     fn from(value: f64) -> Self {
-        Data::num(value)
+        Data::float(value)
     }
 }
 impl From<Data> for f64 {
     #[inline(always)]
     fn from(value: Data) -> Self {
-        value.as_num()
+        value.as_float()
     }
 }
+
+// i64 <=> DATA
+impl From<i64> for Data {
+    #[inline(always)]
+    fn from(value: i64) -> Self {
+        Data::int(value)
+    }
+}
+impl From<Data> for i64 {
+    #[inline(always)]
+    fn from(value: Data) -> Self {
+        value.as_int()
+    }
+}
+
 impl From<bool> for Data {
     #[inline(always)]
     fn from(value: bool) -> Self {
-        if value { Data::TRUE } else { Data::FALSE }
+        BOOL_TABLE[value as usize]
     }
 }
 impl From<Data> for bool {
@@ -264,7 +292,7 @@ pub enum Instr {
 
     // General functions
     // Type(u16, u16),
-    Num(u16, u16),
+    Float(u16, u16),
     Str(u16, u16),
     Bool(u16, u16),
     Input(u16, u16),
@@ -413,7 +441,7 @@ pub fn execute(
             Instr::Mov(tgt, dest) => registers[dest as usize] = registers[tgt as usize],
             Instr::Add(o1, o2, dest) => {
                 registers[dest as usize] =
-                    (registers[o1 as usize].as_num() + registers[o2 as usize].as_num()).into();
+                    (registers[o1 as usize].as_float() + registers[o2 as usize].as_float()).into();
             }
             Instr::StrAdd(o1, o2, dest) => {
                 registers[dest as usize] = concat_string!(
@@ -434,24 +462,24 @@ pub fn execute(
             }
             Instr::Mul(o1, o2, dest) => {
                 registers[dest as usize] =
-                    (registers[o1 as usize].as_num() * registers[o2 as usize].as_num()).into();
+                    (registers[o1 as usize].as_float() * registers[o2 as usize].as_float()).into();
             }
             Instr::Div(o1, o2, dest) => {
                 registers[dest as usize] =
-                    (registers[o1 as usize].as_num() / registers[o2 as usize].as_num()).into();
+                    (registers[o1 as usize].as_float() / registers[o2 as usize].as_float()).into();
             }
             Instr::Sub(o1, o2, dest) => {
                 registers[dest as usize] =
-                    (registers[o1 as usize].as_num() - registers[o2 as usize].as_num()).into();
+                    (registers[o1 as usize].as_float() - registers[o2 as usize].as_float()).into();
             }
             Instr::Mod(o1, o2, dest) => {
                 registers[dest as usize] =
-                    (registers[o1 as usize].as_num() % registers[o2 as usize].as_num()).into();
+                    (registers[o1 as usize].as_float() % registers[o2 as usize].as_float()).into();
             }
             Instr::Pow(o1, o2, dest) => {
                 registers[dest as usize] = (registers[o1 as usize]
-                    .as_num()
-                    .powf(registers[o2 as usize].as_num()))
+                    .as_float()
+                    .powf(registers[o2 as usize].as_float()))
                 .into();
             }
             Instr::Eq(o1, o2, dest) => {
@@ -477,7 +505,6 @@ pub fn execute(
                     continue;
                 }
             }
-
             Instr::NotEq(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize] != registers[o2 as usize]).into();
@@ -503,40 +530,40 @@ pub fn execute(
             }
             Instr::Sup(o1, o2, dest) => {
                 registers[dest as usize] =
-                    (registers[o1 as usize].as_num() > registers[o2 as usize].as_num()).into();
+                    (registers[o1 as usize].as_float() > registers[o2 as usize].as_float()).into();
             }
             Instr::SupCmp(o1, o2, jump_size) => {
-                if registers[o1 as usize].as_num() <= registers[o2 as usize].as_num() {
+                if registers[o1 as usize].as_float() <= registers[o2 as usize].as_float() {
                     i += jump_size as usize;
                     continue;
                 }
             }
             Instr::SupEq(o1, o2, dest) => {
                 registers[dest as usize] =
-                    (registers[o1 as usize].as_num() >= registers[o2 as usize].as_num()).into();
+                    (registers[o1 as usize].as_float() >= registers[o2 as usize].as_float()).into();
             }
             Instr::SupEqCmp(o1, o2, jump_size) => {
-                if registers[o1 as usize].as_num() < registers[o2 as usize].as_num() {
+                if registers[o1 as usize].as_float() < registers[o2 as usize].as_float() {
                     i += jump_size as usize;
                     continue;
                 }
             }
             Instr::Inf(o1, o2, dest) => {
                 registers[dest as usize] =
-                    (registers[o1 as usize].as_num() < registers[o2 as usize].as_num()).into();
+                    (registers[o1 as usize].as_float() < registers[o2 as usize].as_float()).into();
             }
             Instr::InfCmp(o1, o2, jump_size) => {
-                if registers[o1 as usize].as_num() >= registers[o2 as usize].as_num() {
+                if registers[o1 as usize].as_float() >= registers[o2 as usize].as_float() {
                     i += jump_size as usize;
                     continue;
                 }
             }
             Instr::InfEq(o1, o2, dest) => {
                 registers[dest as usize] =
-                    (registers[o1 as usize].as_num() <= registers[o2 as usize].as_num()).into();
+                    (registers[o1 as usize].as_float() <= registers[o2 as usize].as_float()).into();
             }
             Instr::InfEqCmp(o1, o2, jump_size) => {
-                if registers[o1 as usize].as_num() > registers[o2 as usize].as_num() {
+                if registers[o1 as usize].as_float() > registers[o2 as usize].as_float() {
                     i += jump_size as usize;
                     continue;
                 }
@@ -550,21 +577,21 @@ pub fn execute(
                     (registers[o1 as usize].as_bool() || registers[o2 as usize].as_bool()).into();
             }
             Instr::Neg(tgt, dest) => {
-                registers[dest as usize] = (-registers[tgt as usize].as_num()).into();
+                registers[dest as usize] = (-registers[tgt as usize].as_float()).into();
             }
             Instr::Print(target) => {
-                println!(
-                    "{}",
-                    format_data(registers[target as usize], Some(arrays), false)
-                );
+                // println!(
+                //     "{}",
+                //     format_data(registers[target as usize], Some(arrays), false)
+                // );
             }
-            Instr::Num(tgt, dest) => {
+            Instr::Float(tgt, dest) => {
                 let reg = registers[tgt as usize];
                 if reg.is_str() {
                     let str = reg.as_str();
-                    registers[dest as usize] = (str.parse::<Num>().unwrap_or_else(|_| {
+                    registers[dest as usize] = (str.parse::<f64>().unwrap_or_else(|_| {
                     fatal_error!(
-                        Instr::Num(tgt, dest),
+                        Instr::Float(tgt, dest),
                         "Invalid type",
                         &format!(
                             "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Number",
@@ -608,7 +635,7 @@ pub fn execute(
             }
             // takes tgt from registers, idx from registers,
             Instr::ArrayMod(tgt, dest, idx) => {
-                let index = registers[idx as usize].as_num();
+                let index = registers[idx as usize].as_float();
                 let requested_mod = registers[dest as usize];
                 let array_id = registers[tgt as usize].as_array();
                 let array = arrays.get_mut(array_id as usize).unwrap();
@@ -627,7 +654,7 @@ pub fn execute(
                 }
             }
             Instr::StrMod(tgt, dest, idx) => {
-                let index = registers[idx as usize].as_num();
+                let index = registers[idx as usize].as_float();
                 let str = registers[tgt as usize].as_str();
                 let letter = registers[dest as usize].as_str();
                 if likely(str.len() > index as usize) {
@@ -649,7 +676,7 @@ pub fn execute(
             }
             // takes tgt from  registers, index is index, dest is registers index destination
             Instr::ArrayGet(tgt, index, dest) => {
-                let idx = registers[index as usize].as_num();
+                let idx = registers[index as usize].as_float();
                 let x = registers[tgt as usize].as_array();
                 let array = &arrays[x as usize];
                 if likely(array.len() > idx as usize) {
@@ -667,7 +694,7 @@ pub fn execute(
                 }
             }
             Instr::ArrayStrGet(tgt, index, dest) => {
-                let idx = registers[index as usize].as_num();
+                let idx = registers[index as usize].as_float();
                 let str = registers[tgt as usize].as_str();
                 if likely(str.len() > idx as usize) {
                     registers[dest as usize] = str.get(idx as usize..=idx as usize).unwrap().into();
@@ -684,8 +711,8 @@ pub fn execute(
                 }
             }
             Instr::Range(min, max, dest) => {
-                let x = registers[min as usize].as_num();
-                let y = registers[max as usize].as_num();
+                let x = registers[min as usize].as_float();
+                let y = registers[max as usize].as_float();
                 let id = arrays.insert((x as u64..y as u64).map(|x| (x as f64).into()).collect());
                 registers[dest as usize] = Data::array(id as u32);
             }
@@ -713,7 +740,7 @@ pub fn execute(
                 });
             }
             Instr::Floor(tgt, dest) => {
-                registers[dest as usize] = registers[tgt as usize].as_num().floor().into()
+                registers[dest as usize] = registers[tgt as usize].as_float().floor().into()
             }
 
             Instr::TheAnswer(dest) => {
@@ -738,7 +765,7 @@ pub fn execute(
                 }
             }
             Instr::Sqrt(tgt, dest) => {
-                registers[dest as usize] = registers[tgt as usize].as_num().sqrt().into()
+                registers[dest as usize] = registers[tgt as usize].as_float().sqrt().into()
             }
             Instr::Split(tgt, sep, dest) => {
                 let reg = registers[tgt as usize];
@@ -766,7 +793,7 @@ pub fn execute(
                 }
             }
             Instr::Remove(array, idx) => {
-                let idx = registers[idx as usize].as_num();
+                let idx = registers[idx as usize].as_float();
                 arrays.get_mut(array as usize).unwrap().remove(idx as usize);
             }
             // uppercase
@@ -883,22 +910,22 @@ pub fn execute(
                 let reg = registers[tgt as usize];
                 if reg.is_str() {
                     let str = reg.as_str();
-                    let arg = registers[args.swap_remove(0) as usize].as_num();
+                    let arg = registers[args.swap_remove(0) as usize].as_float();
                     registers[dest as usize] = str.repeat(arg as usize).into();
                 } else if reg.is_array() {
                     let x = reg.as_array();
-                    let arg = registers[args.swap_remove(0) as usize].as_num();
+                    let arg = registers[args.swap_remove(0) as usize].as_float();
                     registers[dest as usize] =
                         Data::array(arrays.insert(arrays[x as usize].repeat(arg as usize)) as u32);
                 }
             }
             // round
             Instr::CallLibFunc(13, tgt, dest) => {
-                registers[dest as usize] = registers[tgt as usize].as_num().round().into();
+                registers[dest as usize] = registers[tgt as usize].as_float().round().into();
             }
             // abs
             Instr::CallLibFunc(14, tgt, dest) => {
-                registers[dest as usize] = registers[tgt as usize].as_num().abs().into();
+                registers[dest as usize] = registers[tgt as usize].as_float().abs().into();
             }
             // read
             Instr::CallLibFunc(15, tgt, dest) => {
@@ -968,32 +995,35 @@ fn main() {
         parse(&contents, filename);
 
     println!("PARSING TIME {:.2?}", now.elapsed());
-    if std::env::args().len() > 2 && std::env::args().nth(2).unwrap() == "--bench" {
-        benchmark(
-            &instructions,
-            &mut registers,
-            &mut arrays,
-            &instr_src,
-            (filename, &contents),
-            &fn_registers,
-            10,
-            150,
-        );
-    } else {
-        let now = Instant::now();
-        execute(
-            &instructions,
-            &mut registers,
-            &mut arrays,
-            &instr_src,
-            (filename, &contents),
-            &fn_registers,
-        );
-        println!(
-            "EXECUTION TIME: {:.3}ms",
-            now.elapsed().as_nanos() / 1000000
-        );
-    }
+    // if std::env::args().len() > 2 && std::env::args().nth(2).unwrap() == "--bench" {
+    //     benchmark(
+    //         &instructions,
+    //         &mut registers,
+    //         &mut arrays,
+    //         &instr_src,
+    //         (filename, &contents),
+    //         &fn_registers,
+    //         10,
+    //         150,
+    //     );
+    // } else {
+    //     let now = Instant::now();
+    //     execute(
+    //         &instructions,
+    //         &mut registers,
+    //         &mut arrays,
+    //         &instr_src,
+    //         (filename, &contents),
+    //         &fn_registers,
+    //     );
+    //     println!(
+    //         "EXECUTION TIME: {:.3}ms",
+    //         now.elapsed().as_nanos() / 1000000
+    //     );
+    // }
+    //
+    let test = Data::int(32);
+    dbg!(test.as_int());
 }
 
 #[cold]

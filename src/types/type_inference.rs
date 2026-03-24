@@ -10,7 +10,8 @@ use internment::Intern;
 #[repr(u8)]
 pub enum DataType {
     Array(Box<DataType>),
-    Number,
+    Float,
+    Integer,
     Bool,
     String,
     File,
@@ -206,7 +207,8 @@ pub fn infer_type(
             })
             .1
             .clone(),
-        Expr::Num(_) => DataType::Number,
+        Expr::Float(_) => DataType::Float,
+        Expr::Int(_) => DataType::Integer,
         Expr::String(_) => DataType::String,
         Expr::Bool(_) => DataType::Bool,
         Expr::Array(x, _, _) => DataType::Array(Box::from(infer_type(&x[0], var_types, fns, src))),
@@ -215,7 +217,8 @@ pub fn infer_type(
                 infer_type(x, var_types, fns, src),
                 infer_type(y, var_types, fns, src),
             ) {
-                (DataType::Number, DataType::Number) => DataType::Number,
+                (DataType::Float, DataType::Float) => DataType::Float,
+                (DataType::Integer, DataType::Integer) => DataType::Integer,
                 (DataType::String, DataType::String) => DataType::String,
                 (DataType::Array(type1), DataType::Array(_)) => DataType::Array(type1),
                 (a, b) => {
@@ -232,7 +235,8 @@ pub fn infer_type(
                 infer_type(x, var_types, fns, src),
                 infer_type(y, var_types, fns, src),
             ) {
-                (DataType::Number, DataType::Number) => DataType::Number,
+                (DataType::Float, DataType::Float) => DataType::Float,
+                (DataType::Integer, DataType::Integer) => DataType::Integer,
                 (a, b) => {
                     op_error(src, a, b, symbol_of_expr(x), *start, *end);
                 }
@@ -248,7 +252,8 @@ pub fn infer_type(
                 infer_type(x, var_types, fns, src),
                 infer_type(y, var_types, fns, src),
             ) {
-                (DataType::Number, DataType::Number) => DataType::Bool,
+                (DataType::Float, DataType::Float) => DataType::Bool,
+                (DataType::Integer, DataType::Integer) => DataType::Bool,
                 (a, b) => {
                     op_error(src, a, b, symbol_of_expr(x), *start, *end);
                 }
@@ -266,7 +271,8 @@ pub fn infer_type(
             }
         }
         Expr::Neg(x, _, _) => match infer_type(x, var_types, fns, src) {
-            DataType::Number => DataType::Number,
+            DataType::Float => DataType::Float,
+            DataType::Integer => DataType::Integer,
             _ => todo!("TODO NEG ERR"),
         },
         Expr::GetIndex(array, _, _, _) => match infer_type(array, var_types, fns, src) {
@@ -285,13 +291,13 @@ pub fn infer_type(
             match namespace.last().unwrap().as_str() {
                 "print" => DataType::Null,
                 "type" => DataType::String,
-                "num" => DataType::Number,
+                "float" => DataType::Float,
                 "str" => DataType::String,
                 "bool" => DataType::Bool,
                 "input" => DataType::String,
-                "range" => DataType::Array(Box::from(DataType::Number)),
-                "floor" => DataType::Number,
-                "the_answer" => DataType::Number,
+                "range" => DataType::Array(Box::from(DataType::Integer)),
+                "floor" => DataType::Float,
+                "the_answer" => DataType::Float,
                 function => {
                     let (_, fn_args, fn_code, _, _, _) =
                         fns.iter().find(|(a, _, _, _, _, _)| *a == function).unwrap_or_else(|| {
@@ -348,17 +354,17 @@ pub fn infer_type(
             match namespace.last().unwrap().as_str() {
                 "uppercase" => DataType::String,
                 "lowercase" => DataType::String,
-                "len" => DataType::Number,
+                "len" => DataType::Integer,
                 "contains" => DataType::Bool,
                 "trim" => DataType::String,
                 "trim_sequence" => DataType::String,
-                "index" => DataType::Number,
+                "index" => DataType::Integer,
                 "is_num" => DataType::Bool,
                 "trim_left" => DataType::String,
                 "trim_right" => DataType::String,
                 "trim_sequence_left" => DataType::String,
                 "trim_sequence_right" => DataType::String,
-                "rindex" => DataType::Number,
+                "rindex" => DataType::Integer,
                 "repeat" => {
                     let obj_type = infer_type(obj, var_types, fns, src);
                     if obj_type == DataType::String {
@@ -370,9 +376,9 @@ pub fn infer_type(
                     }
                 }
                 "push" => DataType::Null,
-                "sqrt" => DataType::Number,
-                "round" => DataType::Number,
-                "abs" => DataType::Number,
+                "sqrt" => DataType::Float,
+                "round" => DataType::Float,
+                "abs" => DataType::Float,
                 // io::read => doesn't work
                 "read" => DataType::String,
                 // io::write => doesn't work

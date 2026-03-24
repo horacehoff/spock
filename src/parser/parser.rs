@@ -12,7 +12,7 @@ use crate::type_inference::contains_recursive_call;
 use crate::type_inference::{DataType, infer_type};
 use crate::types::is_indexable;
 use crate::util::compilation_error;
-use crate::{Data, Instr, Num, error};
+use crate::{Data, Instr, error};
 use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
@@ -24,7 +24,8 @@ lalrpop_mod!(pub grammar);
 #[derive(Debug, Clone, PartialEq)]
 #[repr(C)]
 pub enum Expr {
-    Num(Num),
+    Float(f64),
+    Int(i64),
     Bool(bool),
     String(String),
     /// Var(name, start, end)
@@ -174,7 +175,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::BoolAnd(_, _, y)
         | Instr::BoolOr(_, _, y)
         | Instr::Neg(_, y)
-        | Instr::Num(_, y)
+        | Instr::Float(_, y)
         | Instr::Bool(_, y)
         | Instr::CallLibFunc(_, _, y)
         | Instr::Input(_, y)
@@ -227,7 +228,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::BoolAnd(_, _, y)
         | Instr::BoolOr(_, _, y)
         | Instr::Neg(_, y)
-        | Instr::Num(_, y)
+        | Instr::Float(_, y)
         | Instr::Bool(_, y)
         | Instr::CallLibFunc(_, _, y)
         | Instr::Input(_, y)
@@ -318,9 +319,24 @@ pub fn get_id(
             output.push(Instr::$instr(id_l, id_r, id));
             id
         }};
+        ($instr: ident, $instr2:ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type1:expr, $type2:expr) => {{
+            let (t_l, t_r) = (
+                infer_type($l, var_types, fns, src),
+                infer_type($r, var_types, fns, src),
+            );
+            if !((t_l == $type1 && t_r == $type1) || (t_l == $type2 && t_r == $type2)) {
+                op_error(src, t_l, t_r, $symbol, *$start, *$end);
+            }
+            let id_l = get_id($l, v, parser_data!(), output);
+            let id_r = get_id($r, v, parser_data!(), output);
+            let id = registers.len() as u16;
+            registers.push(Data::NULL);
+            output.push(Instr::$instr(id_l, id_r, id));
+            id
+        }};
     }
     match input {
-        Expr::Num(num) => {
+        Expr::Float(num) => {
             registers.push((*num).into());
             (registers.len() - 1) as u16
         }
@@ -386,16 +402,12 @@ pub fn get_id(
             registers.push(Data::array(array_id as u32));
             (registers.len() - 1) as u16
         }
-        Expr::Mul(l, r, start, end) => uniform_op!(Mul, "*", l, r, start, end, DataType::Number),
-        Expr::Div(l, r, start, end) => uniform_op!(Div, "/", l, r, start, end, DataType::Number),
+        Expr::Mul(l, r, start, end) => uniform_op!(Mul, "*", l, r, start, end, DataType::Float),
+        Expr::Div(l, r, start, end) => uniform_op!(Div, "/", l, r, start, end, DataType::Float),
         Expr::Add(l, r, start, end) => {
             let t_l = infer_type(l, var_types, fns, src);
             let t_r = infer_type(r, var_types, fns, src);
-            if t_l != t_r
-                || !matches!(
-                    t_l,
-                    DataType::String | DataType::Array(_) | DataType::Number
-                )
+            if t_l != t_r || !matches!(t_l, DataType::String | DataType::Array(_) | DataType::Float)
             {
                 op_error(src, t_l, t_r, "+", *start, *end);
             }
@@ -407,14 +419,14 @@ pub fn get_id(
                 output.push(Instr::ArrayAdd(id_l, id_r, id));
             } else if t_l == DataType::String {
                 output.push(Instr::StrAdd(id_l, id_r, id));
-            } else if t_l == DataType::Number {
+            } else if t_l == DataType::Float {
                 output.push(Instr::Add(id_l, id_r, id));
             }
             id
         }
-        Expr::Sub(l, r, start, end) => uniform_op!(Sub, "-", l, r, start, end, DataType::Number),
-        Expr::Mod(l, r, start, end) => uniform_op!(Mod, "%", l, r, start, end, DataType::Number),
-        Expr::Pow(l, r, start, end) => uniform_op!(Pow, "^", l, r, start, end, DataType::Number),
+        Expr::Sub(l, r, start, end) => uniform_op!(Sub, "-", l, r, start, end, DataType::Float),
+        Expr::Mod(l, r, start, end) => uniform_op!(Mod, "%", l, r, start, end, DataType::Float),
+        Expr::Pow(l, r, start, end) => uniform_op!(Pow, "^", l, r, start, end, DataType::Float),
         Expr::Eq(l, r) => {
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
@@ -443,13 +455,13 @@ pub fn get_id(
             }
             id
         }
-        Expr::Sup(l, r, start, end) => uniform_op!(Sup, ">", l, r, start, end, DataType::Number),
+        Expr::Sup(l, r, start, end) => uniform_op!(Sup, ">", l, r, start, end, DataType::Float),
         Expr::SupEq(l, r, start, end) => {
-            uniform_op!(SupEq, ">=", l, r, start, end, DataType::Number)
+            uniform_op!(SupEq, ">=", l, r, start, end, DataType::Float)
         }
-        Expr::Inf(l, r, start, end) => uniform_op!(Inf, "<", l, r, start, end, DataType::Number),
+        Expr::Inf(l, r, start, end) => uniform_op!(Inf, "<", l, r, start, end, DataType::Float),
         Expr::InfEq(l, r, start, end) => {
-            uniform_op!(InfEq, "<=", l, r, start, end, DataType::Number)
+            uniform_op!(InfEq, "<=", l, r, start, end, DataType::Float)
         }
         Expr::BoolAnd(l, r, start, end) => {
             uniform_op!(BoolAnd, "&&", l, r, start, end, DataType::Bool)
@@ -459,7 +471,7 @@ pub fn get_id(
         }
         Expr::Neg(l, start, end) => {
             let infered = infer_type(l, var_types, fns, src);
-            if infered != DataType::Number {
+            if infered != DataType::Float {
                 parser_error(
                     src,
                     *start,
@@ -763,7 +775,8 @@ pub fn parser_to_instr_set(
     for x in input {
         match x {
             // if number / bool / str, just push it to the registers, and the caller will grab the last index
-            Expr::Num(num) => registers.push((*num).into()),
+            Expr::Float(num) => registers.push((*num).into()),
+            Expr::Int(num) => registers.push((*num).into()),
             Expr::Bool(bool) => registers.push((*bool).into()),
             Expr::String(str) => registers.push(str.as_str().into()),
             Expr::Var(name, start, end) => {
@@ -845,7 +858,7 @@ pub fn parser_to_instr_set(
                     }
 
                     let index_infered = infer_type(elem, var_types, fns, src);
-                    if index_infered != DataType::Number {
+                    if index_infered != DataType::Float {
                         parser_error(
                             src,
                             *start,
@@ -902,7 +915,7 @@ pub fn parser_to_instr_set(
 
                 for elem in z.iter().rev().skip(1).rev() {
                     let infered = infer_type(elem, var_types, fns, src);
-                    if infered != DataType::Number {
+                    if infered != DataType::Float {
                         parser_error(
                             src,
                             *index_start,
@@ -1147,7 +1160,7 @@ pub fn parser_to_instr_set(
             Expr::IntForLoop(var_name, start_elem, end_elem, code, start1, end1, start2, end2) => {
                 // Check start elem type
                 let t1 = infer_type(start_elem, var_types, fns, src);
-                if t1 != DataType::Number {
+                if t1 != DataType::Float {
                     parser_error(
                         src,
                         *start1,
@@ -1155,7 +1168,7 @@ pub fn parser_to_instr_set(
                         "Invalid type",
                         &format!(
                             "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            DataType::Number,
+                            DataType::Float,
                             t1
                         ),
                         "",
@@ -1163,7 +1176,7 @@ pub fn parser_to_instr_set(
                 }
                 // Check end elem type
                 let t2 = infer_type(end_elem, var_types, fns, src);
-                if t2 != DataType::Number {
+                if t2 != DataType::Float {
                     parser_error(
                         src,
                         *start2,
@@ -1171,7 +1184,7 @@ pub fn parser_to_instr_set(
                         "Invalid type",
                         &format!(
                             "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            DataType::Number,
+                            DataType::Float,
                             t2
                         ),
                         "",
@@ -1180,7 +1193,7 @@ pub fn parser_to_instr_set(
                 let elem_id = get_id(start_elem, v, parser_data!(), &mut output);
                 // Create temporary variable and store its index, so as to delete it later
                 v.push((*var_name, elem_id));
-                var_types.push((*var_name, DataType::Number));
+                var_types.push((*var_name, DataType::Float));
                 let (v_idx, t_idx) = (v.len() - 1, var_types.len() - 1);
 
                 // Compile the code inside the loop
