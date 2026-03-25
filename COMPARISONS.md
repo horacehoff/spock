@@ -102,9 +102,9 @@ print(len(i))</code></pre></td>
  </tr>
  <tr>
     <td><pre><code>fn main() {
-        let x = 0;
+        let x = 0.0;
         for i in 0..10000000 {
-            x += i.sqrt();
+            x += float(i).sqrt();
         }
         print(x);
     }</code></pre></td>
@@ -121,7 +121,7 @@ print(x)</code></pre></td>
 </tr>
 <tr>
 <td>
-0.098s
+0.090s
 </td>
 <td>
 1.4s
@@ -177,7 +177,7 @@ print(result)</code></pre></td>
 </tr>
 <tr>
 <td>
-0.018s
+0.014s
 </td>
 <td>
 0.120s

@@ -143,6 +143,26 @@ loop {
 }
 print("End of the loop!");
 ```
+### Integer loops
+> Loops over a range of integers
+```rs
+let x = 0;
+// Loops from i=0 to i = max-1
+for i in 0..10000000 {
+    x += i;
+}
+print(x);
+}
+```
+```rs
+let x = 0;
+// Defaults to 0
+for i in ..10 {
+    print(i);
+    x += 1;
+}
+print(x);
+```
 ### Match statements
 > Match statements currently don't support binding variables
 ```rs
@@ -251,8 +271,8 @@ print(x > 1 && x < 1);
 - `Array` (`[1, 2, 3, "4", 5.0, true]`)
 - `String`
 #### Converting types
-- `x` to `Integer`=> `num(x)`
 - `x` to `Float`=> `float(x)`
+- `x` to `Integer`=> `int(x)`
 - `x` to `String`=> `str(x)`
 
 ## Built-in functions
@@ -260,14 +280,14 @@ print(x > 1 && x < 1);
 - `print(<object: String>)` - Prints the given String
 - `input(<message: String>) -> String` - Prompt the user for input (with a prompt if given)
 - `type(<object: Any>) -> String` - Returns the type of the given object
-- `<Number>.abs() -> Number` - Returns the absolute value of the given number
-- `<Number>.round() -> Number` - Rounds the given number to the nearest integer (Number type simply returns itself)
-- `<Array/String>.len() -> Number` - Returns the length of the given Array (number of elements) or String (number of
+- `<Float>.abs() -> Float` - Returns the absolute value of the given number
+- `<Float>.round() -> Float` - Rounds the given number to the nearest integer
+- `<Array/String>.len() -> Integer` - Returns the length of the given Array (number of elements) or String (number of
   letters)
-- `<Number>.sqrt() -> Number` - Returns the square root of the given number
-- `the_answer()` - Prints and returns the answer to the Ultimate Question of Life, the Universe, and Everything.
+- `<Float>.sqrt() -> Float` - Returns the square root of the given number
+- `the_answer() -> Integer` - Prints and returns the answer to the Ultimate Question of Life, the Universe, and Everything.
 - `range(<start: Integer>, <end: Integer (OPTIONAL)>) -> Array` - Returns an array of integers:
-  - `[0..<first argument>]` if only one argument was provided
+  - `[0, <first argument>]` if only one argument was provided
   - `[<first argument>..<second argument>]` if two arguments were provided
 - `io::open(<path: String>)` - Checks if the file path exists and returns a File object.
 - `io::delete(<path: String>)` - Deletes the given file path if it exists

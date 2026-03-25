@@ -341,14 +341,14 @@ pub fn handle_method_calls(
             check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
             let arg_infered = infer_type(&args[0], var_types, fns, src);
-            if arg_infered != DataType::Float {
+            if arg_infered != DataType::Int {
                 parser_error(
                     src,
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
                     &format!(
-                        "Expected Number, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                        "Expected Integer, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         arg_infered,
                     ),
                     "",
@@ -389,7 +389,7 @@ pub fn handle_method_calls(
             check!(DataType::Float, "Number", 0);
             let f_id = registers.len() as u16;
             registers.push(Data::NULL);
-            output.push(Instr::Sqrt(id, f_id));
+            output.push(Instr::SqrtFloat(id, f_id));
         }
         "round" => {
             check!(DataType::Float, "Number", 0);
@@ -474,14 +474,14 @@ pub fn handle_method_calls(
             check!(DataType::Array(_), "Array", 1);
 
             let infered = infer_type(&args[0], var_types, fns, src);
-            if infered != DataType::Float {
+            if infered != DataType::Int {
                 parser_error(
                     src,
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
                     &format!(
-                        "Expected Number, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                        "Expected Integer, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         infered
                     ),
                     "",
