@@ -250,7 +250,7 @@ pub enum Instr {
     /// Jumps x instructions forwards
     Jmp(u16),
     /// Jumps x instructions backwards
-    JmpNeg(u16),
+    JmpBack(u16),
     /// Cmp(condition_register_id, jump_size) - jumps if false
     Cmp(u16, u16),
     InfFloatCmp(u16, u16, u16),
@@ -397,7 +397,7 @@ pub fn execute(
                 i += size as usize;
                 continue;
             }
-            Instr::JmpNeg(size) => {
+            Instr::JmpBack(size) => {
                 i -= size as usize;
                 continue;
             }

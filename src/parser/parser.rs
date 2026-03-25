@@ -1229,7 +1229,7 @@ pub fn parser_to_instr_set(
                 add_cmp(condition_id, &mut len, &mut output, true);
                 parse_loop_flow_control(&mut cond_code, loop_id, len, false);
                 output.extend(cond_code);
-                output.push(Instr::JmpNeg(len));
+                output.push(Instr::JmpBack(len));
             }
             Expr::ForLoop(var_name, array_code) => {
                 let real_var = var_name.as_str() != "_";
@@ -1307,7 +1307,7 @@ pub fn parser_to_instr_set(
                 ));
 
                 // jump back to the loop if still inside of it
-                output.push(Instr::JmpNeg(len));
+                output.push(Instr::JmpBack(len));
 
                 // clean up, reset the index variable
                 registers.push(0.into());
@@ -1377,7 +1377,7 @@ pub fn parser_to_instr_set(
                     elem_id,
                 ));
                 // Jump back to the start of the function
-                output.push(Instr::JmpNeg(2 + compiled_loop_code_len))
+                output.push(Instr::JmpBack(2 + compiled_loop_code_len))
             }
             Expr::LoopBlock(code) => {
                 let loop_id = block_id + 1;
@@ -1386,7 +1386,7 @@ pub fn parser_to_instr_set(
                 let code_length = compiled.len() as u16;
                 parse_indef_loop_flow_control(&mut compiled, loop_id, code_length + 1);
                 output.extend(compiled);
-                output.push(Instr::JmpNeg(code_length));
+                output.push(Instr::JmpBack(code_length));
             }
             Expr::VarDeclare(x, y) => {
                 let var_type = type_inference::infer_type(y, var_types, fns, src);

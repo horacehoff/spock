@@ -51,8 +51,8 @@ if (x < 200) {
 becomes...
 
 ```
-1 INF_CMP 0 1 2
-2 PRINT 3
+0: InfIntCmp 0 1 1
+1: Print 3
 ```
 
 ---
@@ -75,13 +75,13 @@ print(c);
 becomes...
 
 ```
-1 INF_CMP 4 0 6
-2 ADD 1 2 3
-3 MOV 2 1
-4 MOV 3 2
-5 ADD 4 9 4
-6 JMP 5 true
-7 PRINT 3
+0: InfIntCmp(4, 0, 6)   ─┐ <─┐
+1: AddInt(1, 2, 3)       │   │
+2: Mov(2, 1)             │   │
+3: Mov(3, 2)             │   │
+4: AddInt(4, 7, 4)       │   │
+5: JmpBack(5)            │  ─┘
+6: Print(3)            <─┘
 ```
 ## Syntax
 ### Blocks
