@@ -292,6 +292,7 @@ pub fn infer_type(
                 "print" => DataType::Null,
                 "type" => DataType::String,
                 "float" => DataType::Float,
+                "int" => DataType::Int,
                 "str" => DataType::String,
                 "bool" => DataType::Bool,
                 "input" => DataType::String,

@@ -157,24 +157,35 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         Instr::Mov(_, y)
         | Instr::CallFunc(_, y)
         | Instr::AddFloat(_, _, y)
+        | Instr::AddInt(_, _, y)
         | Instr::AddArray(_, _, y)
         | Instr::AddStr(_, _, y)
         | Instr::MulFloat(_, _, y)
+        | Instr::MulInt(_, _, y)
         | Instr::SubFloat(_, _, y)
+        | Instr::SubInt(_, _, y)
         | Instr::DivFloat(_, _, y)
+        | Instr::DivInt(_, _, y)
         | Instr::ModFloat(_, _, y)
+        | Instr::ModInt(_, _, y)
         | Instr::PowFloat(_, _, y)
+        | Instr::PowInt(_, _, y)
         | Instr::Eq(_, _, y)
         | Instr::ArrayEq(_, _, y)
         | Instr::NotEq(_, _, y)
         | Instr::ArrayNotEq(_, _, y)
         | Instr::SupFloat(_, _, y)
+        | Instr::SupInt(_, _, y)
         | Instr::SupEqFloat(_, _, y)
+        | Instr::SupEqInt(_, _, y)
         | Instr::InfFloat(_, _, y)
+        | Instr::InfInt(_, _, y)
         | Instr::InfEqFloat(_, _, y)
+        | Instr::InfEqInt(_, _, y)
         | Instr::BoolAnd(_, _, y)
         | Instr::BoolOr(_, _, y)
         | Instr::NegFloat(_, y)
+        | Instr::NegInt(_, y)
         | Instr::Float(_, y)
         | Instr::Bool(_, y)
         | Instr::CallLibFunc(_, _, y)
@@ -187,8 +198,9 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Floor(_, y)
         | Instr::TheAnswer(y)
         | Instr::Len(_, y)
-        | Instr::Sqrt(_, y)
+        | Instr::SqrtFloat(_, y)
         | Instr::Split(_, _, y)
+        | Instr::SaveFrame(_, y, _)
         | Instr::Str(_, y) => *y = tgt_id,
         Instr::CallFuncRecursive(_, y) => {
             *y = tgt_id;
@@ -210,24 +222,35 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::CallFuncRecursive(_, y)
         | Instr::SaveFrame(_, y, _)
         | Instr::AddFloat(_, _, y)
+        | Instr::AddInt(_, _, y)
         | Instr::AddArray(_, _, y)
         | Instr::AddStr(_, _, y)
         | Instr::MulFloat(_, _, y)
+        | Instr::MulInt(_, _, y)
         | Instr::SubFloat(_, _, y)
+        | Instr::SubInt(_, _, y)
         | Instr::DivFloat(_, _, y)
+        | Instr::DivInt(_, _, y)
         | Instr::ModFloat(_, _, y)
+        | Instr::ModInt(_, _, y)
         | Instr::PowFloat(_, _, y)
+        | Instr::PowInt(_, _, y)
         | Instr::Eq(_, _, y)
         | Instr::ArrayEq(_, _, y)
         | Instr::NotEq(_, _, y)
         | Instr::ArrayNotEq(_, _, y)
         | Instr::SupFloat(_, _, y)
+        | Instr::SupInt(_, _, y)
         | Instr::SupEqFloat(_, _, y)
+        | Instr::SupEqInt(_, _, y)
         | Instr::InfFloat(_, _, y)
+        | Instr::InfInt(_, _, y)
         | Instr::InfEqFloat(_, _, y)
+        | Instr::InfEqInt(_, _, y)
         | Instr::BoolAnd(_, _, y)
         | Instr::BoolOr(_, _, y)
         | Instr::NegFloat(_, y)
+        | Instr::NegInt(_, y)
         | Instr::Float(_, y)
         | Instr::Bool(_, y)
         | Instr::CallLibFunc(_, _, y)
@@ -239,7 +262,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::Floor(_, y)
         | Instr::TheAnswer(y)
         | Instr::Len(_, y)
-        | Instr::Sqrt(_, y)
+        | Instr::SqrtFloat(_, y)
         | Instr::Split(_, _, y)
         | Instr::Str(_, y) => Some(y),
         _ => None,
@@ -331,7 +354,11 @@ pub fn get_id(
             let id_r = get_id($r, v, parser_data!(), output);
             let id = registers.len() as u16;
             registers.push(Data::NULL);
-            output.push(Instr::$instr(id_l, id_r, id));
+            output.push(if t_l == $type1 {
+                Instr::$instr(id_l, id_r, id)
+            } else {
+                Instr::$instr2(id_l, id_r, id)
+            });
             id
         }};
     }
@@ -403,15 +430,39 @@ pub fn get_id(
             (registers.len() - 1) as u16
         }
         Expr::Mul(l, r, start, end) => {
-            uniform_op!(MulFloat, "*", l, r, start, end, DataType::Float)
+            uniform_op!(
+                MulFloat,
+                MulInt,
+                "*",
+                l,
+                r,
+                start,
+                end,
+                DataType::Float,
+                DataType::Int
+            )
         }
         Expr::Div(l, r, start, end) => {
-            uniform_op!(DivFloat, "/", l, r, start, end, DataType::Float)
+            uniform_op!(
+                DivFloat,
+                MulInt,
+                "/",
+                l,
+                r,
+                start,
+                end,
+                DataType::Float,
+                DataType::Int
+            )
         }
         Expr::Add(l, r, start, end) => {
             let t_l = infer_type(l, var_types, fns, src);
             let t_r = infer_type(r, var_types, fns, src);
-            if t_l != t_r || !matches!(t_l, DataType::String | DataType::Array(_) | DataType::Float)
+            if t_l != t_r
+                || !matches!(
+                    t_l,
+                    DataType::String | DataType::Array(_) | DataType::Float | DataType::Int
+                )
             {
                 op_error(src, t_l, t_r, "+", *start, *end);
             }
@@ -425,17 +476,49 @@ pub fn get_id(
                 output.push(Instr::AddStr(id_l, id_r, id));
             } else if t_l == DataType::Float {
                 output.push(Instr::AddFloat(id_l, id_r, id));
+            } else if t_l == DataType::Int {
+                output.push(Instr::AddInt(id_l, id_r, id));
             }
             id
         }
         Expr::Sub(l, r, start, end) => {
-            uniform_op!(SubFloat, "-", l, r, start, end, DataType::Float)
+            uniform_op!(
+                SubFloat,
+                SubInt,
+                "-",
+                l,
+                r,
+                start,
+                end,
+                DataType::Float,
+                DataType::Int
+            )
         }
         Expr::Mod(l, r, start, end) => {
-            uniform_op!(ModFloat, "%", l, r, start, end, DataType::Float)
+            uniform_op!(
+                ModFloat,
+                ModInt,
+                "%",
+                l,
+                r,
+                start,
+                end,
+                DataType::Float,
+                DataType::Int
+            )
         }
         Expr::Pow(l, r, start, end) => {
-            uniform_op!(PowFloat, "^", l, r, start, end, DataType::Float)
+            uniform_op!(
+                PowFloat,
+                PowInt,
+                "^",
+                l,
+                r,
+                start,
+                end,
+                DataType::Float,
+                DataType::Int
+            )
         }
         Expr::Eq(l, r) => {
             let id_l = get_id(l, v, parser_data!(), output);
@@ -466,16 +549,56 @@ pub fn get_id(
             id
         }
         Expr::Sup(l, r, start, end) => {
-            uniform_op!(SupFloat, ">", l, r, start, end, DataType::Float)
+            uniform_op!(
+                SupFloat,
+                SupInt,
+                ">",
+                l,
+                r,
+                start,
+                end,
+                DataType::Float,
+                DataType::Int
+            )
         }
         Expr::SupEq(l, r, start, end) => {
-            uniform_op!(SupEqFloat, ">=", l, r, start, end, DataType::Float)
+            uniform_op!(
+                SupEqFloat,
+                SupEqInt,
+                ">=",
+                l,
+                r,
+                start,
+                end,
+                DataType::Float,
+                DataType::Int
+            )
         }
         Expr::Inf(l, r, start, end) => {
-            uniform_op!(InfFloat, "<", l, r, start, end, DataType::Float)
+            uniform_op!(
+                InfFloat,
+                InfInt,
+                "<",
+                l,
+                r,
+                start,
+                end,
+                DataType::Float,
+                DataType::Int
+            )
         }
         Expr::InfEq(l, r, start, end) => {
-            uniform_op!(InfEqFloat, "<=", l, r, start, end, DataType::Float)
+            uniform_op!(
+                InfEqFloat,
+                InfEqInt,
+                "<=",
+                l,
+                r,
+                start,
+                end,
+                DataType::Float,
+                DataType::Int
+            )
         }
         Expr::BoolAnd(l, r, start, end) => {
             uniform_op!(BoolAnd, "&&", l, r, start, end, DataType::Bool)
@@ -485,7 +608,14 @@ pub fn get_id(
         }
         Expr::Neg(l, start, end) => {
             let infered = infer_type(l, var_types, fns, src);
-            if infered != DataType::Float {
+            let id_l = get_id(l, v, parser_data!(), output);
+            let id = registers.len() as u16;
+            registers.push(Data::NULL);
+            if infered == DataType::Float {
+                output.push(Instr::NegFloat(id_l, id))
+            } else if infered == DataType::Int {
+                output.push(Instr::NegInt(id_l, id))
+            } else {
                 parser_error(
                     src,
                     *start,
@@ -498,10 +628,6 @@ pub fn get_id(
                     "",
                 );
             }
-            let id_l = get_id(l, v, parser_data!(), output);
-            let id = registers.len() as u16;
-            registers.push(Data::NULL);
-            output.push(Instr::NegFloat(id_l, id));
             id
         }
 
@@ -605,9 +731,13 @@ pub fn get_id(
                 if let Some(
                     Instr::Cmp(_, jump_size)
                     | Instr::InfFloatCmp(_, _, jump_size)
+                    | Instr::InfIntCmp(_, _, jump_size)
                     | Instr::InfEqFloatCmp(_, _, jump_size)
+                    | Instr::InfEqIntCmp(_, _, jump_size)
                     | Instr::SupFloatCmp(_, _, jump_size)
+                    | Instr::SupIntCmp(_, _, jump_size)
                     | Instr::SupEqFloatCmp(_, _, jump_size)
+                    | Instr::SupEqIntCmp(_, _, jump_size)
                     | Instr::EqCmp(_, _, jump_size)
                     | Instr::ArrayEqCmp(_, _, jump_size)
                     | Instr::NotEqCmp(_, _, jump_size)
@@ -653,9 +783,13 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
     }
     *output.last_mut().unwrap() = match *output.last().unwrap() {
         Instr::InfFloat(o1, o2, o3) if o3 == condition_id => Instr::InfFloatCmp(o1, o2, *len),
+        Instr::InfInt(o1, o2, o3) if o3 == condition_id => Instr::InfIntCmp(o1, o2, *len),
         Instr::InfEqFloat(o1, o2, o3) if o3 == condition_id => Instr::InfEqFloatCmp(o1, o2, *len),
+        Instr::InfEqInt(o1, o2, o3) if o3 == condition_id => Instr::InfEqIntCmp(o1, o2, *len),
         Instr::SupFloat(o1, o2, o3) if o3 == condition_id => Instr::SupFloatCmp(o1, o2, *len),
+        Instr::SupInt(o1, o2, o3) if o3 == condition_id => Instr::SupIntCmp(o1, o2, *len),
         Instr::SupEqFloat(o1, o2, o3) if o3 == condition_id => Instr::SupEqFloatCmp(o1, o2, *len),
+        Instr::SupEqInt(o1, o2, o3) if o3 == condition_id => Instr::SupEqIntCmp(o1, o2, *len),
         Instr::Eq(o1, o2, o3) if o3 == condition_id => Instr::EqCmp(o1, o2, *len),
         Instr::ArrayEq(o1, o2, o3) if o3 == condition_id => Instr::ArrayEqCmp(o1, o2, *len),
         Instr::NotEq(o1, o2, o3) if o3 == condition_id => Instr::NotEqCmp(o1, o2, *len),
@@ -872,7 +1006,7 @@ pub fn parser_to_instr_set(
                     }
 
                     let index_infered = infer_type(elem, var_types, fns, src);
-                    if index_infered != DataType::Float {
+                    if index_infered != DataType::Int {
                         parser_error(
                             src,
                             *start,
@@ -929,7 +1063,7 @@ pub fn parser_to_instr_set(
 
                 for elem in z.iter().rev().skip(1).rev() {
                     let infered = infer_type(elem, var_types, fns, src);
-                    if infered != DataType::Float {
+                    if infered != DataType::Int {
                         parser_error(
                             src,
                             *index_start,
@@ -1059,9 +1193,13 @@ pub fn parser_to_instr_set(
                     if let Some(
                         Instr::Cmp(_, jump_size)
                         | Instr::InfFloatCmp(_, _, jump_size)
+                        | Instr::InfIntCmp(_, _, jump_size)
                         | Instr::InfEqFloatCmp(_, _, jump_size)
+                        | Instr::InfEqIntCmp(_, _, jump_size)
                         | Instr::SupFloatCmp(_, _, jump_size)
+                        | Instr::SupIntCmp(_, _, jump_size)
                         | Instr::SupEqFloatCmp(_, _, jump_size)
+                        | Instr::SupEqIntCmp(_, _, jump_size)
                         | Instr::EqCmp(_, _, jump_size)
                         | Instr::NotEqCmp(_, _, jump_size),
                     ) = output.get_mut(*y)
@@ -1113,13 +1251,13 @@ pub fn parser_to_instr_set(
                 output.push(Instr::Len(array, array_len_id));
 
                 // set up the id of the index variable (0..len)
-                registers.push(0.0.into());
+                registers.push(0.into());
                 let index_id = (registers.len() - 1) as u16;
 
                 // do the 'i < len' condition, set up the condition's id (true/false)
                 registers.push(Data::NULL);
                 let condition_id = (registers.len() - 1) as u16;
-                output.push(Instr::InfFloat(index_id, array_len_id, condition_id));
+                output.push(Instr::InfInt(index_id, array_len_id, condition_id));
 
                 // set up the variable for the current element (for current_element_id in ... {}) => current_element_id = array[index]
                 let current_element_id = registers.len() as u16;
@@ -1161,8 +1299,8 @@ pub fn parser_to_instr_set(
                 // then add the condition code
                 output.extend(cond_code);
                 // add 1 to the index (i+=1) so that the next loop iteration will have the next element in the array
-                registers.push(1.0.into());
-                output.push(Instr::AddFloat(
+                registers.push(1.into());
+                output.push(Instr::AddInt(
                     index_id,
                     (registers.len() - 1) as u16,
                     index_id,
@@ -1172,13 +1310,13 @@ pub fn parser_to_instr_set(
                 output.push(Instr::JmpNeg(len));
 
                 // clean up, reset the index variable
-                registers.push(0.0.into());
+                registers.push(0.into());
                 output.push(Instr::Mov((registers.len() - 1) as u16, index_id));
             }
             Expr::IntForLoop(var_name, start_elem, end_elem, code, start1, end1, start2, end2) => {
                 // Check start elem type
                 let t1 = infer_type(start_elem, var_types, fns, src);
-                if t1 != DataType::Float {
+                if t1 != DataType::Int {
                     parser_error(
                         src,
                         *start1,
@@ -1186,7 +1324,7 @@ pub fn parser_to_instr_set(
                         "Invalid type",
                         &format!(
                             "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            DataType::Float,
+                            DataType::Int,
                             t1
                         ),
                         "",
@@ -1194,7 +1332,7 @@ pub fn parser_to_instr_set(
                 }
                 // Check end elem type
                 let t2 = infer_type(end_elem, var_types, fns, src);
-                if t2 != DataType::Float {
+                if t2 != DataType::Int {
                     parser_error(
                         src,
                         *start2,
@@ -1202,7 +1340,7 @@ pub fn parser_to_instr_set(
                         "Invalid type",
                         &format!(
                             "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            DataType::Float,
+                            DataType::Int,
                             t2
                         ),
                         "",
@@ -1211,7 +1349,7 @@ pub fn parser_to_instr_set(
                 let elem_id = get_id(start_elem, v, parser_data!(), &mut output);
                 // Create temporary variable and store its index, so as to delete it later
                 v.push((*var_name, elem_id));
-                var_types.push((*var_name, DataType::Float));
+                var_types.push((*var_name, DataType::Int));
                 let (v_idx, t_idx) = (v.len() - 1, var_types.len() - 1);
 
                 // Compile the code inside the loop
@@ -1225,15 +1363,15 @@ pub fn parser_to_instr_set(
                 // Loop logic
                 let end_elem_id = get_id(end_elem, v, parser_data!(), &mut output);
                 // Add an InfCmp first, to check if i < end_elem
-                output.push(Instr::InfFloatCmp(
+                output.push(Instr::InfIntCmp(
                     elem_id,
                     end_elem_id,
                     compiled_loop_code_len + 3,
                 ));
                 output.extend(compiled_loop_code);
-                registers.push(1.0.into());
+                registers.push(1.into());
                 // Do i += 1
-                output.push(Instr::AddFloat(
+                output.push(Instr::AddInt(
                     elem_id,
                     (registers.len() - 1) as u16,
                     elem_id,

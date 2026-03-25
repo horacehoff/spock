@@ -254,10 +254,14 @@ pub enum Instr {
     /// Cmp(condition_register_id, jump_size) - jumps if false
     Cmp(u16, u16),
     InfFloatCmp(u16, u16, u16),
+    InfIntCmp(u16, u16, u16),
     InfEqFloatCmp(u16, u16, u16),
+    InfEqIntCmp(u16, u16, u16),
     SupFloatCmp(u16, u16, u16),
+    SupIntCmp(u16, u16, u16),
     /// Cmp(condition_register_id, jump_size) - jumps if false
     SupEqFloatCmp(u16, u16, u16),
+    SupEqIntCmp(u16, u16, u16),
     EqCmp(u16, u16, u16),
     NotEqCmp(u16, u16, u16),
     ArrayEqCmp(u16, u16, u16),
@@ -268,36 +272,48 @@ pub enum Instr {
     // OPS
     /// (3) = (1) + (2)
     AddFloat(u16, u16, u16),
+    AddInt(u16, u16, u16),
     /// (3) = (1) ∪ (2)
     AddArray(u16, u16, u16),
     /// (3) = (1) + (2)
     AddStr(u16, u16, u16),
     /// (3) = (1) * (2)
     MulFloat(u16, u16, u16),
+    MulInt(u16, u16, u16),
     SubFloat(u16, u16, u16),
+    SubInt(u16, u16, u16),
     DivFloat(u16, u16, u16),
+    DivInt(u16, u16, u16),
     ModFloat(u16, u16, u16),
+    ModInt(u16, u16, u16),
     PowFloat(u16, u16, u16),
+    PowInt(u16, u16, u16),
     Eq(u16, u16, u16),
     NotEq(u16, u16, u16),
     ArrayEq(u16, u16, u16),
     ArrayNotEq(u16, u16, u16),
     SupFloat(u16, u16, u16),
+    SupInt(u16, u16, u16),
     SupEqFloat(u16, u16, u16),
+    SupEqInt(u16, u16, u16),
     InfFloat(u16, u16, u16),
+    InfInt(u16, u16, u16),
     InfEqFloat(u16, u16, u16),
+    InfEqInt(u16, u16, u16),
     BoolAnd(u16, u16, u16),
     BoolOr(u16, u16, u16),
     NegFloat(u16, u16),
+    NegInt(u16, u16),
 
     // General functions
     // Type(u16, u16),
     Float(u16, u16),
+    Int(u16, u16),
     Str(u16, u16),
     Bool(u16, u16),
     Input(u16, u16),
     Floor(u16, u16),
-    Sqrt(u16, u16),
+    SqrtFloat(u16, u16),
     /// start,end,dest
     Range(u16, u16, u16),
     // path - dest - create?
@@ -443,6 +459,10 @@ pub fn execute(
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() + registers[o2 as usize].as_float()).into();
             }
+            Instr::AddInt(o1, o2, dest) => {
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_int() + registers[o2 as usize].as_int()).into();
+            }
             Instr::AddStr(o1, o2, dest) => {
                 registers[dest as usize] = concat_string!(
                     registers[o1 as usize].as_str(),
@@ -464,22 +484,44 @@ pub fn execute(
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() * registers[o2 as usize].as_float()).into();
             }
+            Instr::MulInt(o1, o2, dest) => {
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_int() * registers[o2 as usize].as_int()).into();
+            }
             Instr::DivFloat(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() / registers[o2 as usize].as_float()).into();
+            }
+            Instr::DivInt(o1, o2, dest) => {
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_int() / registers[o2 as usize].as_int()).into();
             }
             Instr::SubFloat(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() - registers[o2 as usize].as_float()).into();
             }
+            Instr::SubInt(o1, o2, dest) => {
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_int() - registers[o2 as usize].as_int()).into();
+            }
             Instr::ModFloat(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() % registers[o2 as usize].as_float()).into();
+            }
+            Instr::ModInt(o1, o2, dest) => {
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_int() % registers[o2 as usize].as_int()).into();
             }
             Instr::PowFloat(o1, o2, dest) => {
                 registers[dest as usize] = (registers[o1 as usize]
                     .as_float()
                     .powf(registers[o2 as usize].as_float()))
+                .into();
+            }
+            Instr::PowInt(o1, o2, dest) => {
+                registers[dest as usize] = (registers[o1 as usize]
+                    .as_int()
+                    .pow(registers[o2 as usize].as_int() as u32))
                 .into();
             }
             Instr::Eq(o1, o2, dest) => {
@@ -532,8 +574,18 @@ pub fn execute(
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() > registers[o2 as usize].as_float()).into();
             }
+            Instr::SupInt(o1, o2, dest) => {
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_int() > registers[o2 as usize].as_int()).into();
+            }
             Instr::SupFloatCmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_float() <= registers[o2 as usize].as_float() {
+                    i += jump_size as usize;
+                    continue;
+                }
+            }
+            Instr::SupIntCmp(o1, o2, jump_size) => {
+                if registers[o1 as usize].as_int() <= registers[o2 as usize].as_int() {
                     i += jump_size as usize;
                     continue;
                 }
@@ -542,8 +594,18 @@ pub fn execute(
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() >= registers[o2 as usize].as_float()).into();
             }
+            Instr::SupEqInt(o1, o2, dest) => {
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_int() >= registers[o2 as usize].as_int()).into();
+            }
             Instr::SupEqFloatCmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_float() < registers[o2 as usize].as_float() {
+                    i += jump_size as usize;
+                    continue;
+                }
+            }
+            Instr::SupEqIntCmp(o1, o2, jump_size) => {
+                if registers[o1 as usize].as_int() < registers[o2 as usize].as_int() {
                     i += jump_size as usize;
                     continue;
                 }
@@ -552,8 +614,18 @@ pub fn execute(
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() < registers[o2 as usize].as_float()).into();
             }
+            Instr::InfInt(o1, o2, dest) => {
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_int() < registers[o2 as usize].as_int()).into();
+            }
             Instr::InfFloatCmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_float() >= registers[o2 as usize].as_float() {
+                    i += jump_size as usize;
+                    continue;
+                }
+            }
+            Instr::InfIntCmp(o1, o2, jump_size) => {
+                if registers[o1 as usize].as_int() >= registers[o2 as usize].as_int() {
                     i += jump_size as usize;
                     continue;
                 }
@@ -562,8 +634,18 @@ pub fn execute(
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() <= registers[o2 as usize].as_float()).into();
             }
+            Instr::InfEqInt(o1, o2, dest) => {
+                registers[dest as usize] =
+                    (registers[o1 as usize].as_int() <= registers[o2 as usize].as_int()).into();
+            }
             Instr::InfEqFloatCmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_float() > registers[o2 as usize].as_float() {
+                    i += jump_size as usize;
+                    continue;
+                }
+            }
+            Instr::InfEqIntCmp(o1, o2, jump_size) => {
+                if registers[o1 as usize].as_int() > registers[o2 as usize].as_int() {
                     i += jump_size as usize;
                     continue;
                 }
@@ -579,22 +661,47 @@ pub fn execute(
             Instr::NegFloat(tgt, dest) => {
                 registers[dest as usize] = (-registers[tgt as usize].as_float()).into();
             }
+            Instr::NegInt(tgt, dest) => {
+                registers[dest as usize] = (-registers[tgt as usize].as_int()).into();
+            }
             Instr::Print(target) => {
-                // println!(
-                //     "{}",
-                //     format_data(registers[target as usize], Some(arrays), false)
-                // );
+                println!(
+                    "{}",
+                    format_data(registers[target as usize], Some(arrays), false)
+                );
             }
             Instr::Float(tgt, dest) => {
                 let reg = registers[tgt as usize];
-                if reg.is_str() {
+                if reg.is_int() {
+                    registers[dest as usize] = (reg.as_int() as f64).into();
+                } else if reg.is_str() {
                     let str = reg.as_str();
                     registers[dest as usize] = (str.parse::<f64>().unwrap_or_else(|_| {
                     fatal_error!(
                         Instr::Float(tgt, dest),
                         "Invalid type",
                         &format!(
-                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Number",
+                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Float",
+                            str
+                        )
+                    );
+                    })).into();
+                } else {
+                    unreachable!()
+                }
+            }
+            Instr::Int(tgt, dest) => {
+                let reg = registers[tgt as usize];
+                if reg.is_float() {
+                    registers[dest as usize] = (reg.as_float().round().trunc() as i64).into();
+                } else if reg.is_str() {
+                    let str = reg.as_str();
+                    registers[dest as usize] = (str.parse::<i64>().unwrap_or_else(|_| {
+                    fatal_error!(
+                        Instr::Int(tgt, dest),
+                        "Invalid type",
+                        &format!(
+                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into an Integer",
                             str
                         )
                     );
@@ -635,7 +742,7 @@ pub fn execute(
             }
             // takes tgt from registers, idx from registers,
             Instr::ArrayMod(tgt, dest, idx) => {
-                let index = registers[idx as usize].as_float();
+                let index = registers[idx as usize].as_int();
                 let requested_mod = registers[dest as usize];
                 let array_id = registers[tgt as usize].as_array();
                 let array = arrays.get_mut(array_id as usize).unwrap();
@@ -654,7 +761,7 @@ pub fn execute(
                 }
             }
             Instr::StrMod(tgt, dest, idx) => {
-                let index = registers[idx as usize].as_float();
+                let index = registers[idx as usize].as_int();
                 let str = registers[tgt as usize].as_str();
                 let letter = registers[dest as usize].as_str();
                 if likely(str.len() > index as usize) {
@@ -676,7 +783,7 @@ pub fn execute(
             }
             // takes tgt from  registers, index is index, dest is registers index destination
             Instr::ArrayGet(tgt, index, dest) => {
-                let idx = registers[index as usize].as_float();
+                let idx = registers[index as usize].as_int();
                 let x = registers[tgt as usize].as_array();
                 let array = &arrays[x as usize];
                 if likely(array.len() > idx as usize) {
@@ -747,24 +854,23 @@ pub fn execute(
                 println!(
                     "The answer to the Ultimate Question of Life, the Universe, and Everything is 42."
                 );
-                registers[dest as usize] = 42.0.into();
+                registers[dest as usize] = 42.into();
             }
             Instr::Push(array, element) => {
-                let id = registers[array as usize].as_array();
                 arrays
-                    .get_mut(id as usize)
+                    .get_mut(registers[array as usize].as_array() as usize)
                     .unwrap()
                     .push(registers[element as usize]);
             }
             Instr::Len(tgt, dest) => {
                 let reg = registers[tgt as usize];
                 if reg.is_array() {
-                    registers[dest as usize] = (arrays[reg.as_array() as usize].len() as f64).into()
+                    registers[dest as usize] = (arrays[reg.as_array() as usize].len() as i64).into()
                 } else if reg.is_str() {
-                    registers[dest as usize] = (reg.as_str().chars().count() as f64).into()
+                    registers[dest as usize] = (reg.as_str().chars().count() as i64).into()
                 }
             }
-            Instr::Sqrt(tgt, dest) => {
+            Instr::SqrtFloat(tgt, dest) => {
                 registers[dest as usize] = registers[tgt as usize].as_float().sqrt().into()
             }
             Instr::Split(tgt, sep, dest) => {
@@ -793,8 +899,10 @@ pub fn execute(
                 }
             }
             Instr::Remove(array, idx) => {
-                let idx = registers[idx as usize].as_float();
-                arrays.get_mut(array as usize).unwrap().remove(idx as usize);
+                arrays
+                    .get_mut(array as usize)
+                    .unwrap()
+                    .remove(registers[idx as usize].as_int() as usize);
             }
             // uppercase
             Instr::CallLibFunc(0, tgt, dest) => {
@@ -840,13 +948,13 @@ pub fn execute(
                     let arg = registers[args.swap_remove(0) as usize].as_str();
                     registers[dest as usize] = (str.find(arg.as_str()).unwrap_or_else(|| {
                             fatal_error!(Instr::CallLibFunc(5, tgt, dest),"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
-                        }) as f64).into();
+                        }) as i64).into();
                 } else if reg.is_array() {
                     let x = reg.as_array();
                     let arg = registers[args.swap_remove(0) as usize];
                     registers[dest as usize] = (arrays[x as usize].iter().position(|x| x == &arg).unwrap_or_else(|| {
                         fatal_error!(Instr::CallLibFunc(5, tgt, dest), "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::array(x), Some(arrays),true)));
-                    }) as f64).into();
+                    }) as i64).into();
                 }
             }
             // is_num
@@ -896,13 +1004,13 @@ pub fn execute(
                     let arg = registers[args.swap_remove(0) as usize].as_str();
                     registers[dest as usize] = (reg.as_str().rfind(arg.as_str()).unwrap_or_else(|| {
                         fatal_error!(Instr::CallLibFunc(11, tgt, dest), "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
-                    }) as f64).into();
+                    }) as i64).into();
                 } else if reg.is_array() {
                     let x = reg.as_array();
                     let arg = registers[args.swap_remove(0) as usize];
                     registers[dest as usize] = (arrays[reg.as_array() as usize].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
                     fatal_error!(Instr::CallLibFunc(11, tgt, dest),"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::array(x), Some(arrays),true)));
-                    }) as f64).into();
+                    }) as i64).into();
                 }
             }
             // repeat
@@ -910,11 +1018,11 @@ pub fn execute(
                 let reg = registers[tgt as usize];
                 if reg.is_str() {
                     let str = reg.as_str();
-                    let arg = registers[args.swap_remove(0) as usize].as_float();
+                    let arg = registers[args.swap_remove(0) as usize].as_int();
                     registers[dest as usize] = str.repeat(arg as usize).into();
                 } else if reg.is_array() {
                     let x = reg.as_array();
-                    let arg = registers[args.swap_remove(0) as usize].as_float();
+                    let arg = registers[args.swap_remove(0) as usize].as_int();
                     registers[dest as usize] =
                         Data::array(arrays.insert(arrays[x as usize].repeat(arg as usize)) as u32);
                 }
@@ -995,35 +1103,32 @@ fn main() {
         parse(&contents, filename);
 
     println!("PARSING TIME {:.2?}", now.elapsed());
-    // if std::env::args().len() > 2 && std::env::args().nth(2).unwrap() == "--bench" {
-    //     benchmark(
-    //         &instructions,
-    //         &mut registers,
-    //         &mut arrays,
-    //         &instr_src,
-    //         (filename, &contents),
-    //         &fn_registers,
-    //         10,
-    //         150,
-    //     );
-    // } else {
-    //     let now = Instant::now();
-    //     execute(
-    //         &instructions,
-    //         &mut registers,
-    //         &mut arrays,
-    //         &instr_src,
-    //         (filename, &contents),
-    //         &fn_registers,
-    //     );
-    //     println!(
-    //         "EXECUTION TIME: {:.3}ms",
-    //         now.elapsed().as_nanos() / 1000000
-    //     );
-    // }
-    //
-    let test = Data::int(32);
-    dbg!(test.as_int());
+    if std::env::args().len() > 2 && std::env::args().nth(2).unwrap() == "--bench" {
+        benchmark(
+            &instructions,
+            &mut registers,
+            &mut arrays,
+            &instr_src,
+            (filename, &contents),
+            &fn_registers,
+            10,
+            150,
+        );
+    } else {
+        let now = Instant::now();
+        execute(
+            &instructions,
+            &mut registers,
+            &mut arrays,
+            &instr_src,
+            (filename, &contents),
+            &fn_registers,
+        );
+        println!(
+            "EXECUTION TIME: {:.3}ms",
+            now.elapsed().as_nanos() / 1000000
+        );
+    }
 }
 
 #[cold]

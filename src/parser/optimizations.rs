@@ -47,7 +47,7 @@ pub fn while_loop_summation(
                         if let Expr::Var(add_var, _, _) = *var {
                             // most simple option
                             if add_var == *x {
-                                if *increment == Expr::Float(1.0) {
+                                if *increment == Expr::Float(1.0) || *increment == Expr::Int(1) {
                                     let limit_id = get_id(b, v, parser_data!(), output);
                                     let var_id = get_id(a, v, parser_data!(), output);
                                     output.push(Instr::Mov(limit_id, var_id));
