@@ -82,12 +82,12 @@ impl Data {
         (self.0 & NAN_BASE) != NAN_BASE
     }
     #[inline(always)]
-    pub fn int(n: i64) -> Data {
+    pub fn int(n: i32) -> Data {
         Data(NAN_TAG_INT | (n as u64))
     }
     #[inline(always)]
-    pub fn as_int(&self) -> i64 {
-        (self.0 & PAYLOAD_MASK) as i64
+    pub fn as_int(&self) -> i32 {
+        (self.0 & PAYLOAD_MASK) as i32
     }
     #[inline(always)]
     pub fn is_int(&self) -> bool {
@@ -197,13 +197,13 @@ impl From<Data> for f64 {
 }
 
 // i64 <=> DATA
-impl From<i64> for Data {
+impl From<i32> for Data {
     #[inline(always)]
-    fn from(value: i64) -> Self {
+    fn from(value: i32) -> Self {
         Data::int(value)
     }
 }
-impl From<Data> for i64 {
+impl From<Data> for i32 {
     #[inline(always)]
     fn from(value: Data) -> Self {
         value.as_int()
@@ -693,10 +693,10 @@ pub fn execute(
             Instr::Int(tgt, dest) => {
                 let reg = registers[tgt as usize];
                 if reg.is_float() {
-                    registers[dest as usize] = (reg.as_float().round().trunc() as i64).into();
+                    registers[dest as usize] = (reg.as_float().round() as i32).into();
                 } else if reg.is_str() {
                     let str = reg.as_str();
-                    registers[dest as usize] = (str.parse::<i64>().unwrap_or_else(|_| {
+                    registers[dest as usize] = (str.parse::<i32>().unwrap_or_else(|_| {
                     fatal_error!(
                         Instr::Int(tgt, dest),
                         "Invalid type",
@@ -820,7 +820,7 @@ pub fn execute(
             Instr::Range(min, max, dest) => {
                 let x = registers[min as usize].as_int();
                 let y = registers[max as usize].as_int();
-                let id = arrays.insert((x..y).map(|x| (x as f64).into()).collect());
+                let id = arrays.insert((x..y).map(|x| x.into()).collect());
                 registers[dest as usize] = Data::array(id as u32);
             }
             Instr::IoOpen(path, dest, create) => {
@@ -865,9 +865,9 @@ pub fn execute(
             Instr::Len(tgt, dest) => {
                 let reg = registers[tgt as usize];
                 if reg.is_array() {
-                    registers[dest as usize] = (arrays[reg.as_array() as usize].len() as i64).into()
+                    registers[dest as usize] = (arrays[reg.as_array() as usize].len() as i32).into()
                 } else if reg.is_str() {
-                    registers[dest as usize] = (reg.as_str().chars().count() as i64).into()
+                    registers[dest as usize] = (reg.as_str().chars().count() as i32).into()
                 }
             }
             Instr::SqrtFloat(tgt, dest) => {
@@ -948,13 +948,13 @@ pub fn execute(
                     let arg = registers[args.swap_remove(0) as usize].as_str();
                     registers[dest as usize] = (str.find(arg.as_str()).unwrap_or_else(|| {
                             fatal_error!(Instr::CallLibFunc(5, tgt, dest),"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
-                        }) as i64).into();
+                        }) as i32).into();
                 } else if reg.is_array() {
                     let x = reg.as_array();
                     let arg = registers[args.swap_remove(0) as usize];
                     registers[dest as usize] = (arrays[x as usize].iter().position(|x| x == &arg).unwrap_or_else(|| {
                         fatal_error!(Instr::CallLibFunc(5, tgt, dest), "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::array(x), Some(arrays),true)));
-                    }) as i64).into();
+                    }) as i32).into();
                 }
             }
             // is_num
@@ -1004,13 +1004,13 @@ pub fn execute(
                     let arg = registers[args.swap_remove(0) as usize].as_str();
                     registers[dest as usize] = (reg.as_str().rfind(arg.as_str()).unwrap_or_else(|| {
                         fatal_error!(Instr::CallLibFunc(11, tgt, dest), "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
-                    }) as i64).into();
+                    }) as i32).into();
                 } else if reg.is_array() {
                     let x = reg.as_array();
                     let arg = registers[args.swap_remove(0) as usize];
                     registers[dest as usize] = (arrays[reg.as_array() as usize].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
                     fatal_error!(Instr::CallLibFunc(11, tgt, dest),"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::array(x), Some(arrays),true)));
-                    }) as i64).into();
+                    }) as i32).into();
                 }
             }
             // repeat
