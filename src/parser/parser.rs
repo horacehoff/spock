@@ -294,9 +294,8 @@ fn get_tgt_id_vec(x: &[Instr]) -> Option<u16> {
 
 pub fn get_id(
     input: &Expr,
-    v: &mut Vec<(Intern<String>, u16)>,
+    v: &mut Vec<(Intern<String>, u16, DataType)>,
     (
-        var_types,
         registers,
         fns,
         arrays,
@@ -312,7 +311,6 @@ pub fn get_id(
     macro_rules! parser_data {
         () => {
             (
-                var_types,
                 registers,
                 fns,
                 arrays,
@@ -328,10 +326,7 @@ pub fn get_id(
 
     macro_rules! uniform_op {
         ($instr: ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type:expr) => {{
-            let (t_l, t_r) = (
-                infer_type($l, var_types, fns, src),
-                infer_type($r, var_types, fns, src),
-            );
+            let (t_l, t_r) = (infer_type($l, v, fns, src), infer_type($r, v, fns, src));
             if t_l != $type || t_r != $type {
                 op_error(src, t_l, t_r, $symbol, *$start, *$end);
             }
@@ -343,10 +338,7 @@ pub fn get_id(
             id
         }};
         ($instr: ident, $instr2:ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type1:expr, $type2:expr) => {{
-            let (t_l, t_r) = (
-                infer_type($l, var_types, fns, src),
-                infer_type($r, var_types, fns, src),
-            );
+            let (t_l, t_r) = (infer_type($l, v, fns, src), infer_type($r, v, fns, src));
             if !((t_l == $type1 && t_r == $type1) || (t_l == $type2 && t_r == $type2)) {
                 op_error(src, t_l, t_r, $symbol, *$start, *$end);
             }
@@ -376,7 +368,7 @@ pub fn get_id(
             (registers.len() - 1) as u16
         }
         Expr::Var(name, start, end) => {
-            if let Some((_, id)) = v.iter().find(|(var, _)| *name == *var) {
+            if let Some((_, id, _)) = v.iter().find(|(var, _, _)| *name == *var) {
                 *id
             } else {
                 parser_error(
@@ -392,10 +384,10 @@ pub fn get_id(
             }
         }
         Expr::Array(elems, start, end) => {
-            let first_type = infer_type(&elems[0], var_types, fns, src);
+            let first_type = infer_type(&elems[0], v, fns, src);
             if !elems
                 .iter()
-                .all(|x| infer_type(x, var_types, fns, src) == first_type)
+                .all(|x| infer_type(x, v, fns, src) == first_type)
             {
                 parser_error(
                     src,
@@ -456,8 +448,8 @@ pub fn get_id(
             )
         }
         Expr::Add(l, r, start, end) => {
-            let t_l = infer_type(l, var_types, fns, src);
-            let t_r = infer_type(r, var_types, fns, src);
+            let t_l = infer_type(l, v, fns, src);
+            let t_r = infer_type(r, v, fns, src);
             if t_l != t_r
                 || !matches!(
                     t_l,
@@ -525,8 +517,8 @@ pub fn get_id(
             let id_r = get_id(r, v, parser_data!(), output);
             let id = registers.len() as u16;
             registers.push(Data::NULL);
-            if matches!(infer_type(l, var_types, fns, src), DataType::Array(_))
-                && matches!(infer_type(r, var_types, fns, src), DataType::Array(_))
+            if matches!(infer_type(l, v, fns, src), DataType::Array(_))
+                && matches!(infer_type(r, v, fns, src), DataType::Array(_))
             {
                 output.push(Instr::ArrayEq(id_l, id_r, id));
             } else {
@@ -539,8 +531,8 @@ pub fn get_id(
             let id_r = get_id(r, v, parser_data!(), output);
             let id = registers.len() as u16;
             registers.push(Data::NULL);
-            if matches!(infer_type(l, var_types, fns, src), DataType::Array(_))
-                && matches!(infer_type(r, var_types, fns, src), DataType::Array(_))
+            if matches!(infer_type(l, v, fns, src), DataType::Array(_))
+                && matches!(infer_type(r, v, fns, src), DataType::Array(_))
             {
                 output.push(Instr::ArrayNotEq(id_l, id_r, id));
             } else {
@@ -607,7 +599,7 @@ pub fn get_id(
             uniform_op!(BoolOr, "||", l, r, start, end, DataType::Bool)
         }
         Expr::Neg(l, start, end) => {
-            let infered = infer_type(l, var_types, fns, src);
+            let infered = infer_type(l, v, fns, src);
             let id_l = get_id(l, v, parser_data!(), output);
             let id = registers.len() as u16;
             registers.push(Data::NULL);
@@ -650,6 +642,7 @@ pub fn get_id(
             let condition_id = get_id(main_condition, v, parser_data!(), output);
             add_cmp(condition_id, &mut 0, output, false);
             cmp_markers.push(output.len() - 1);
+
             let mut priv_vars = v.clone();
             // parse the main code block
             let cond_code =
@@ -861,8 +854,6 @@ pub type Function = (
 );
 
 pub type ParserData<'a> = (
-    // var_types
-    &'a mut Vec<(Intern<String>, DataType)>,
     // registers
     &'a mut Vec<Data>,
     // functions
@@ -887,9 +878,8 @@ pub type ParserData<'a> = (
 pub fn parser_to_instr_set(
     input: &[Expr],
     // variables
-    v: &mut Vec<(Intern<String>, u16)>,
+    v: &mut Vec<(Intern<String>, u16, DataType)>,
     (
-        var_types,
         registers,
         fns,
         arrays,
@@ -906,7 +896,6 @@ pub fn parser_to_instr_set(
     macro_rules! parser_data {
         () => {
             (
-                var_types,
                 registers,
                 fns,
                 arrays,
@@ -928,7 +917,7 @@ pub fn parser_to_instr_set(
             Expr::Bool(bool) => registers.push((*bool).into()),
             Expr::String(str) => registers.push(str.as_str().into()),
             Expr::Var(name, start, end) => {
-                if let Some((_, id)) = v.iter().find(|(var, _)| *name == *var) {
+                if let Some((_, id, _)) = v.iter().find(|(var, _, _)| *name == *var) {
                     registers.push(Data::NULL);
                     output.push(Instr::Mov(*id, (registers.len() - 1) as u16));
                 } else {
@@ -945,10 +934,10 @@ pub fn parser_to_instr_set(
                 }
             }
             Expr::Array(elems, start, end) => {
-                let first_type = infer_type(&elems[0], var_types, fns, src);
+                let first_type = infer_type(&elems[0], v, fns, src);
                 if !elems
                     .iter()
-                    .all(|x| infer_type(x, var_types, fns, src) == first_type)
+                    .all(|x| infer_type(x, v, fns, src) == first_type)
                 {
                     parser_error(
                         src,
@@ -986,7 +975,7 @@ pub fn parser_to_instr_set(
             }
             // array[index]
             Expr::GetIndex(target, index, start, end) => {
-                let mut infered = infer_type(target, var_types, fns, src);
+                let mut infered = infer_type(target, v, fns, src);
                 // process the array/string that is being indexed
                 let mut id = get_id(target, v, parser_data!(), &mut output);
                 // for each index operation, process the index, adjust the id variable for the next index operation, push null to registers to use GetIndex to index at runtime
@@ -1005,7 +994,7 @@ pub fn parser_to_instr_set(
                         );
                     }
 
-                    let index_infered = infer_type(elem, var_types, fns, src);
+                    let index_infered = infer_type(elem, v, fns, src);
                     if index_infered != DataType::Int {
                         parser_error(
                             src,
@@ -1044,7 +1033,7 @@ pub fn parser_to_instr_set(
             }
             // x[y]... = z;
             Expr::ArrayModify(x, z, w, index_start, index_end, elem_start, elem_end) => {
-                let infered = infer_type(x, var_types, fns, src);
+                let infered = infer_type(x, v, fns, src);
                 if !is_indexable(&infered) {
                     parser_error(
                         src,
@@ -1062,7 +1051,7 @@ pub fn parser_to_instr_set(
                 let mut id = get_id(x, v, parser_data!(), &mut output);
 
                 for elem in z.iter().rev().skip(1).rev() {
-                    let infered = infer_type(elem, var_types, fns, src);
+                    let infered = infer_type(elem, v, fns, src);
                     if infered != DataType::Int {
                         parser_error(
                             src,
@@ -1086,7 +1075,7 @@ pub fn parser_to_instr_set(
                 // get the
                 let final_id = get_id(z.last().unwrap(), v, parser_data!(), &mut output);
 
-                let elem_type = infer_type(w, var_types, fns, src);
+                let elem_type = infer_type(w, v, fns, src);
                 let elem_id = get_id(w, v, parser_data!(), &mut output);
 
                 if let DataType::Array(array_type) = &infered {
@@ -1237,7 +1226,7 @@ pub fn parser_to_instr_set(
                 // parse the array, get its id (the target array is the first Expr in array_code)
                 let array = array_code.first().unwrap();
                 let code = &array_code[1..];
-                let array_type = infer_type(array, var_types, fns, src);
+                let array_type = infer_type(array, v, fns, src);
                 let array = get_id(array, v, parser_data!(), &mut output);
 
                 // try to optimize it
@@ -1266,22 +1255,22 @@ pub fn parser_to_instr_set(
                 }
 
                 // parse everything, add the current element variable to temp_vars so that the loop code can interact with it
-                v.push((*var_name, current_element_id));
-                var_types.push((
+                v.push((
                     *var_name,
+                    current_element_id,
                     match &array_type {
                         DataType::String => DataType::String,
                         DataType::Array(a_type) => *a_type.clone(),
                         _ => todo!("For loop invalid type"),
                     },
                 ));
-                let (v_idx, t_idx) = (v.len() - 1, var_types.len() - 1);
+                let (v_idx, t_idx) = (v.len() - 1, v.len() - 1);
 
                 let loop_id = block_id + 1;
                 let mut cond_code = parser_to_instr_set(code, v, parser_data!());
                 // Clean up variables
                 v.remove(v_idx);
-                var_types.remove(t_idx);
+                v.remove(t_idx);
 
                 // add the condition ('i < len') jumping logic
                 let mut len = (cond_code.len() + 3) as u16 + if real_var { 1 } else { 0 };
@@ -1315,7 +1304,7 @@ pub fn parser_to_instr_set(
             }
             Expr::IntForLoop(var_name, start_elem, end_elem, code, start1, end1, start2, end2) => {
                 // Check start elem type
-                let t1 = infer_type(start_elem, var_types, fns, src);
+                let t1 = infer_type(start_elem, v, fns, src);
                 if t1 != DataType::Int {
                     parser_error(
                         src,
@@ -1331,7 +1320,7 @@ pub fn parser_to_instr_set(
                     )
                 }
                 // Check end elem type
-                let t2 = infer_type(end_elem, var_types, fns, src);
+                let t2 = infer_type(end_elem, v, fns, src);
                 if t2 != DataType::Int {
                     parser_error(
                         src,
@@ -1348,17 +1337,13 @@ pub fn parser_to_instr_set(
                 }
                 let elem_id = get_id(start_elem, v, parser_data!(), &mut output);
                 // Create temporary variable and store its index, so as to delete it later
-                v.push((*var_name, elem_id));
-                var_types.push((*var_name, DataType::Int));
-                let (v_idx, t_idx) = (v.len() - 1, var_types.len() - 1);
+                let mut v_temp = v.clone();
+                v_temp.push((*var_name, elem_id, DataType::Int));
+                let (v_idx, t_idx) = (v.len() - 1, v.len() - 1);
 
                 // Compile the code inside the loop
                 let compiled_loop_code = parser_to_instr_set(code, v, parser_data!());
                 let compiled_loop_code_len = compiled_loop_code.len() as u16;
-
-                // Clean up variables
-                v.remove(v_idx);
-                var_types.remove(t_idx);
 
                 // Loop logic
                 let end_elem_id = get_id(end_elem, v, parser_data!(), &mut output);
@@ -1389,25 +1374,26 @@ pub fn parser_to_instr_set(
                 output.push(Instr::JmpBack(code_length));
             }
             Expr::VarDeclare(x, y) => {
-                let var_type = type_inference::infer_type(y, var_types, fns, src);
+                let var_type = type_inference::infer_type(y, v, fns, src);
                 let output_len = output.len();
                 let obj_id = get_id(y, v, parser_data!(), &mut output);
-                if output.len() != output_len {
+
+                let var_id = if output.len() != output_len {
                     if can_move(output.last().unwrap()) {
                         registers.push(Data::NULL);
                     }
                     move_to_id(&mut output, (registers.len() - 1) as u16);
-                    v.push((*x, (registers.len() - 1) as u16));
+                    (registers.len() - 1) as u16
                 } else {
-                    v.push((*x, obj_id));
-                }
-                var_types.push((*x, var_type));
+                    obj_id
+                };
+                v.push((*x, var_id, var_type));
             }
             Expr::VarAssign(name, y, start, end) => {
-                let var_type = type_inference::infer_type(y, var_types, fns, src);
+                let var_type = type_inference::infer_type(y, v, fns, src);
                 let id = v
                     .iter()
-                    .find(|(w, _)| w == name)
+                    .find(|(w, _, _)| w == name)
                     .unwrap_or_else(|| {
                         parser_error(
                             src,
@@ -1429,12 +1415,11 @@ pub fn parser_to_instr_set(
                     output.push(Instr::Mov(obj_id, id));
                 }
 
-                var_types
-                    .iter_mut()
-                    .find(|(v_name, _)| v_name == name)
+                v.iter_mut()
+                    .find(|(v_name, _, _)| v_name == name)
                     .unwrap()
-                    .1 = var_type;
-                debug!("NEW VAR TYPES ARE {var_types:?}");
+                    .2 = var_type;
+                debug!("NEW VAR TYPES ARE {v:?}");
             }
 
             Expr::FunctionCall(args, namespace, start, end, args_indexes) => {
@@ -1532,11 +1517,10 @@ pub fn parse(
     println!("LALRPOP TIME {:.2?}", now.elapsed());
     // println!("FUNCS {functions:?}");
 
-    let mut variables: Vec<(Intern<String>, u16)> = Vec::new();
+    let mut variables: Vec<(Intern<String>, u16, DataType)> = Vec::new();
     let mut registers: Vec<Data> = Vec::new();
     let mut arrays: ArrayStorage = Slab::with_capacity(20);
     let mut instr_src = Vec::new();
-    let mut var_types: Vec<(Intern<String>, DataType)> = Vec::new();
     let mut fn_registers: Vec<Vec<u16>> = Vec::new();
     let mut functions: Vec<Function> = functions
         .into_iter()
@@ -1569,7 +1553,6 @@ pub fn parse(
             .as_slice(),
         &mut variables,
         (
-            &mut var_types,
             &mut registers,
             &mut functions,
             &mut arrays,

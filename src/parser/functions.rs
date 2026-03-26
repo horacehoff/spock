@@ -18,9 +18,8 @@ use internment::Intern;
 
 pub fn handle_functions(
     output: &mut Vec<Instr>,
-    v: &mut Vec<(Intern<String>, u16)>,
+    v: &mut Vec<(Intern<String>, u16, DataType)>,
     (
-        var_types,
         registers,
         fns,
         arrays,
@@ -42,7 +41,6 @@ pub fn handle_functions(
     macro_rules! parser_data {
         () => {
             (
-                var_types,
                 registers,
                 fns,
                 arrays,
@@ -57,7 +55,7 @@ pub fn handle_functions(
     }
 
     let mut check_type = |arg: usize, expected: &[DataType]| {
-        let infered = infer_type(&args[arg], var_types, fns, src);
+        let infered = infer_type(&args[arg], v, fns, src);
         if !{
             if let DataType::Poly(polytype) = &infered {
                 polytype.iter().all(|x| expected.contains(x))
@@ -97,7 +95,7 @@ pub fn handle_functions(
             }
             "type" => {
                 check_args!(args, 1, "type", src, start, end);
-                let infered = infer_type(&args[0], var_types, fns, src);
+                let infered = infer_type(&args[0], v, fns, src);
                 registers.push(infered.to_string().into());
             }
             "float" => {
@@ -204,7 +202,7 @@ pub fn handle_functions(
                 // Infer arg types
                 let infered_arg_types = args
                     .iter()
-                    .map(|x| infer_type(x, var_types, fns, src))
+                    .map(|x| infer_type(x, v, fns, src))
                     .collect::<Vec<DataType>>();
 
                 // Try to check if function has already been compiled for these specific arg types
@@ -221,19 +219,21 @@ pub fn handle_functions(
                     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
 
                     // Local vector vars and recorded_types to allow the inner body to type-check correctly
-                    let mut vars: Vec<(Intern<String>, u16)> = Vec::new();
-                    let mut recorded_types: Vec<usize> = Vec::new();
+                    let mut v_temp: Vec<(Intern<String>, u16, DataType)> = Vec::new();
                     for (i, x) in fn_args.iter().enumerate() {
+                        // Infer local type of arg
+                        let infered = infer_type(&args[i], v, fns, src);
+
                         // Allocate a registers slot for each func arg
                         registers.push(Data::NULL);
-                        vars.push((Intern::from(x.clone()), (registers.len() - 1) as u16));
-                        // Infer local type of arg and record it
-                        let infered = infer_type(&args[i], var_types, fns, src);
-                        recorded_types.push(var_types.len());
-                        var_types.push((Intern::from(x.clone()), infered));
+                        v_temp.push((
+                            Intern::from(x.clone()),
+                            (registers.len() - 1) as u16,
+                            infered,
+                        ));
                     }
                     // Get the arg destination ids
-                    let args_loc = vars.iter().map(|(_, x)| *x).collect::<Vec<u16>>();
+                    let args_loc = v_temp.iter().map(|(_, x, _)| *x).collect::<Vec<u16>>();
 
                     // Temporarily jump over function to prevent executing it right now
                     // This is a placeholder that's modified later on
@@ -254,16 +254,15 @@ pub fn handle_functions(
                     // Compile the function into instructions using local vars
                     let parsed = parser_to_instr_set(
                         &fn_code,
-                        &mut vars,
+                        &mut v_temp,
                         (
-                            var_types,
                             registers,
                             fns,
                             arrays,
                             block_id,
                             src,
                             instr_src,
-                            true,
+                            is_recursive,
                             fn_registers,
                             Some(fn_id),
                         ),
@@ -283,13 +282,6 @@ pub fn handle_functions(
                     // Fix the placeholder Jmp(0) to skip over the function body
                     *output.get_mut(jump_idx).unwrap() =
                         Instr::Jmp((output.len() - fn_start + 1) as u16);
-
-                    // Clean up type env by removing the arg types pushed earlier for this function
-                    recorded_types.iter().for_each(|x| {
-                        if *x < var_types.len() {
-                            var_types.remove(*x);
-                        }
-                    });
                 }
 
                 if is_recursive {
