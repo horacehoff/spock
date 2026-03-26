@@ -14,9 +14,8 @@ use internment::Intern;
 
 pub fn handle_method_calls(
     output: &mut Vec<Instr>,
-    v: &mut Vec<(Intern<String>, u16)>,
+    v: &mut Vec<(Intern<String>, u16, DataType)>,
     (
-        var_types,
         registers,
         fns,
         arrays,
@@ -38,7 +37,6 @@ pub fn handle_method_calls(
     macro_rules! parser_data {
         () => {
             (
-                var_types,
                 registers,
                 fns,
                 arrays,
@@ -57,7 +55,7 @@ pub fn handle_method_calls(
     // not in use for now
     // let namespace = &namespace[0..len];
 
-    let infered = infer_type(obj, var_types, fns, src);
+    let infered = infer_type(obj, v, fns, src);
     let id = get_id(obj, v, parser_data!(), output);
 
     macro_rules! add_args {
@@ -142,7 +140,7 @@ pub fn handle_method_calls(
         "contains" => {
             check!(DataType::Array(_) | DataType::String, "Array or String", 1);
 
-            let arg_infered = infer_type(&args[0], var_types, fns, src);
+            let arg_infered = infer_type(&args[0], v, fns, src);
             if infered == DataType::String && arg_infered != DataType::String {
                 parser_error(
                     src,
@@ -173,7 +171,7 @@ pub fn handle_method_calls(
         "trim_sequence" => {
             check!(DataType::String, "String", 1);
 
-            let infered = infer_type(&args[0], var_types, fns, src);
+            let infered = infer_type(&args[0], v, fns, src);
             if infered != DataType::String {
                 parser_error(
                     src,
@@ -196,7 +194,7 @@ pub fn handle_method_calls(
         "index" => {
             check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
-            let arg_infered = infer_type(&args[0], var_types, fns, src);
+            let arg_infered = infer_type(&args[0], v, fns, src);
             if let DataType::Array(array_type) = &infered {
                 if **array_type != arg_infered {
                     parser_error(
@@ -253,7 +251,7 @@ pub fn handle_method_calls(
         "trim_sequence_left" => {
             check!(DataType::String, "String", 1);
 
-            let infered = infer_type(&args[0], var_types, fns, src);
+            let infered = infer_type(&args[0], v, fns, src);
             if infered != DataType::String {
                 parser_error(
                     src,
@@ -277,7 +275,7 @@ pub fn handle_method_calls(
         "trim_sequence_right" => {
             check!(DataType::String, "String", 1);
 
-            let infered = infer_type(&args[0], var_types, fns, src);
+            let infered = infer_type(&args[0], v, fns, src);
             if infered != DataType::String {
                 parser_error(
                     src,
@@ -301,7 +299,7 @@ pub fn handle_method_calls(
         "rindex" => {
             check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
-            let arg_infered = infer_type(&args[0], var_types, fns, src);
+            let arg_infered = infer_type(&args[0], v, fns, src);
             if let DataType::Array(array_type) = &infered {
                 if **array_type != arg_infered {
                     parser_error(
@@ -340,7 +338,7 @@ pub fn handle_method_calls(
         "repeat" => {
             check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
-            let arg_infered = infer_type(&args[0], var_types, fns, src);
+            let arg_infered = infer_type(&args[0], v, fns, src);
             if arg_infered != DataType::Int {
                 parser_error(
                     src,
@@ -365,7 +363,7 @@ pub fn handle_method_calls(
         "push" => {
             check!(DataType::Array(_), "Array", 1);
 
-            let arg_infered = infer_type(&args[0], var_types, fns, src);
+            let arg_infered = infer_type(&args[0], v, fns, src);
             if let DataType::Array(array_type) = &infered {
                 if **array_type != arg_infered {
                     parser_error(
@@ -437,7 +435,7 @@ pub fn handle_method_calls(
         "split" => {
             check!(DataType::Array(_) | DataType::String, "Array or String", 1);
 
-            let arg_infered = infer_type(&args[0], var_types, fns, src);
+            let arg_infered = infer_type(&args[0], v, fns, src);
             if let DataType::Array(array_type) = infered {
                 if *array_type != arg_infered {
                     parser_error(
@@ -473,7 +471,7 @@ pub fn handle_method_calls(
         "remove" => {
             check!(DataType::Array(_), "Array", 1);
 
-            let infered = infer_type(&args[0], var_types, fns, src);
+            let infered = infer_type(&args[0], v, fns, src);
             if infered != DataType::Int {
                 parser_error(
                     src,

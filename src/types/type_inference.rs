@@ -104,7 +104,7 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
 
 fn track_returns(
     content: &[Expr],
-    var_types: &mut Vec<(Intern<String>, DataType)>,
+    v: &mut Vec<(Intern<String>, u16, DataType)>,
     fns: &[Function],
     src: (&str, &str),
     fn_name: &str,
@@ -115,37 +115,25 @@ fn track_returns(
         match content {
             Expr::Condition(_, code, _, _) => {
                 if track_condition {
-                    return_types.extend(track_returns(
-                        code,
-                        var_types,
-                        fns,
-                        src,
-                        fn_name,
-                        track_condition,
-                    ));
+                    return_types.extend(track_returns(code, v, fns, src, fn_name, track_condition));
                 }
             }
             Expr::ElseIfBlock(_, code) | Expr::ElseBlock(code) => {
-                let to_return = track_returns(code, var_types, fns, src, fn_name, track_condition);
+                let to_return = track_returns(code, v, fns, src, fn_name, track_condition);
                 if !to_return.is_empty() || contains_recursive_call(code, fn_name) {
                     return_types.extend(to_return)
                 } else {
                     return_types.push(DataType::Null);
                 }
             }
-            Expr::WhileBlock(_, code) => return_types.extend(track_returns(
-                code,
-                var_types,
-                fns,
-                src,
-                fn_name,
-                track_condition,
-            )),
+            Expr::WhileBlock(_, code) => {
+                return_types.extend(track_returns(code, v, fns, src, fn_name, track_condition))
+            }
             Expr::ReturnVal(return_val) => {
                 if let Some(val) = return_val.as_ref() {
                     let contains_call = contains_recursive_call_expr(val, fn_name);
                     if !contains_call {
-                        let infered = infer_type(val, var_types, fns, src);
+                        let infered = infer_type(val, v, fns, src);
                         if !return_types.contains(&infered) {
                             return_types.push(infered);
                         }
@@ -154,30 +142,15 @@ fn track_returns(
                     return_types.push(DataType::Null);
                 }
             }
-            Expr::ForLoop(_, code) => return_types.extend(track_returns(
-                code,
-                var_types,
-                fns,
-                src,
-                fn_name,
-                track_condition,
-            )),
-            Expr::EvalBlock(code) => return_types.extend(track_returns(
-                code,
-                var_types,
-                fns,
-                src,
-                fn_name,
-                track_condition,
-            )),
-            Expr::LoopBlock(code) => return_types.extend(track_returns(
-                code,
-                var_types,
-                fns,
-                src,
-                fn_name,
-                track_condition,
-            )),
+            Expr::ForLoop(_, code) => {
+                return_types.extend(track_returns(code, v, fns, src, fn_name, track_condition))
+            }
+            Expr::EvalBlock(code) => {
+                return_types.extend(track_returns(code, v, fns, src, fn_name, track_condition))
+            }
+            Expr::LoopBlock(code) => {
+                return_types.extend(track_returns(code, v, fns, src, fn_name, track_condition))
+            }
             _ => continue,
         }
     }
@@ -186,15 +159,14 @@ fn track_returns(
 
 pub fn infer_type(
     x: &Expr,
-    var_types: &mut Vec<(Intern<String>, DataType)>,
+    v: &mut Vec<(Intern<String>, u16, DataType)>,
     fns: &[Function],
     src: (&str, &str),
 ) -> DataType {
     match x {
-        Expr::Var(name, start, end) => var_types
+        Expr::Var(name, start, end) => v
             .iter()
-            .rfind(|(n, _)| n == name)
-            // .unwrap()
+            .rfind(|(n, _, _)| n == name)
             .unwrap_or_else(|| {
                 parser_error(
                     src,
@@ -205,18 +177,15 @@ pub fn infer_type(
                     "",
                 );
             })
-            .1
+            .2
             .clone(),
         Expr::Float(_) => DataType::Float,
         Expr::Int(_) => DataType::Int,
         Expr::String(_) => DataType::String,
         Expr::Bool(_) => DataType::Bool,
-        Expr::Array(x, _, _) => DataType::Array(Box::from(infer_type(&x[0], var_types, fns, src))),
+        Expr::Array(x, _, _) => DataType::Array(Box::from(infer_type(&x[0], v, fns, src))),
         Expr::Add(x, y, start, end) => {
-            match (
-                infer_type(x, var_types, fns, src),
-                infer_type(y, var_types, fns, src),
-            ) {
+            match (infer_type(x, v, fns, src), infer_type(y, v, fns, src)) {
                 (DataType::Float, DataType::Float) => DataType::Float,
                 (DataType::Int, DataType::Int) => DataType::Int,
                 (DataType::String, DataType::String) => DataType::String,
@@ -231,10 +200,7 @@ pub fn infer_type(
         | Expr::Sub(x, y, start, end)
         | Expr::Mod(x, y, start, end)
         | Expr::Pow(x, y, start, end) => {
-            match (
-                infer_type(x, var_types, fns, src),
-                infer_type(y, var_types, fns, src),
-            ) {
+            match (infer_type(x, v, fns, src), infer_type(y, v, fns, src)) {
                 (DataType::Float, DataType::Float) => DataType::Float,
                 (DataType::Int, DataType::Int) => DataType::Int,
                 (a, b) => {
@@ -248,10 +214,7 @@ pub fn infer_type(
         | Expr::SupEq(x, y, start, end)
         | Expr::Inf(x, y, start, end)
         | Expr::InfEq(x, y, start, end) => {
-            match (
-                infer_type(x, var_types, fns, src),
-                infer_type(y, var_types, fns, src),
-            ) {
+            match (infer_type(x, v, fns, src), infer_type(y, v, fns, src)) {
                 (DataType::Float, DataType::Float) => DataType::Bool,
                 (DataType::Int, DataType::Int) => DataType::Bool,
                 (a, b) => {
@@ -260,22 +223,19 @@ pub fn infer_type(
             }
         }
         Expr::BoolAnd(x, y, start, end) | Expr::BoolOr(x, y, start, end) => {
-            match (
-                infer_type(x, var_types, fns, src),
-                infer_type(y, var_types, fns, src),
-            ) {
+            match (infer_type(x, v, fns, src), infer_type(y, v, fns, src)) {
                 (DataType::Bool, DataType::Bool) => DataType::Bool,
                 (a, b) => {
                     op_error(src, a, b, "||", *start, *end);
                 }
             }
         }
-        Expr::Neg(x, _, _) => match infer_type(x, var_types, fns, src) {
+        Expr::Neg(x, _, _) => match infer_type(x, v, fns, src) {
             DataType::Float => DataType::Float,
             DataType::Int => DataType::Int,
             _ => todo!("TODO NEG ERR"),
         },
-        Expr::GetIndex(array, _, _, _) => match infer_type(array, var_types, fns, src) {
+        Expr::GetIndex(array, _, _, _) => match infer_type(array, v, fns, src) {
             DataType::Array(array_type) => *array_type,
             DataType::String => DataType::String,
             _ => todo!(),
@@ -315,9 +275,10 @@ pub fn infer_type(
 
                     let mut arg_types: Vec<usize> = Vec::with_capacity(args.len());
                     args.iter().enumerate().for_each(|(i, x)| {
-                        let infered = infer_type(x, var_types, fns, src);
-                        arg_types.push(var_types.len());
-                        var_types.push((Intern::from_ref(&fn_args[i]), infered))
+                        let infered = infer_type(x, v, fns, src);
+                        arg_types.push(v.len());
+                        // 0 => placeholder id, it's never used
+                        v.push((Intern::from_ref(&fn_args[i]), 0, infered))
                     });
 
                     // ----- MORE COMPLEX SOLUTION (DOES NOT ALLOW NULL OPS) -----
@@ -334,7 +295,7 @@ pub fn infer_type(
                     // dedup(&mut fn_type);
                     // -----
 
-                    let fn_type = track_returns(fn_code, var_types, fns, src, function, true);
+                    let fn_type = track_returns(fn_code, v, fns, src, function, true);
                     let to_return = if !fn_type.is_empty() {
                         // If function returns anything, check if it returns the same thing each time
                         check_poly(DataType::Poly(Box::from(fn_type)))
@@ -344,7 +305,7 @@ pub fn infer_type(
                     };
 
                     arg_types.iter().for_each(|i| {
-                        var_types.remove(*i);
+                        v.remove(*i);
                     });
 
                     to_return
@@ -367,7 +328,7 @@ pub fn infer_type(
                 "trim_sequence_right" => DataType::String,
                 "rindex" => DataType::Int,
                 "repeat" => {
-                    let obj_type = infer_type(obj, var_types, fns, src);
+                    let obj_type = infer_type(obj, v, fns, src);
                     if obj_type == DataType::String {
                         DataType::String
                     } else if let DataType::Array(array_type) = obj_type {
@@ -385,7 +346,7 @@ pub fn infer_type(
                 // io::write => doesn't work
                 "write" => DataType::Null,
                 "reverse" => {
-                    let obj_type = infer_type(obj, var_types, fns, src);
+                    let obj_type = infer_type(obj, v, fns, src);
                     if obj_type == DataType::String {
                         DataType::String
                     } else if let DataType::Array(array_type) = obj_type {
@@ -395,7 +356,7 @@ pub fn infer_type(
                     }
                 }
                 "split" => {
-                    let obj_type = infer_type(obj, var_types, fns, src);
+                    let obj_type = infer_type(obj, v, fns, src);
                     if obj_type == DataType::String {
                         DataType::Array(Box::from(DataType::String))
                     } else if let DataType::Array(array_type) = obj_type {
@@ -410,15 +371,15 @@ pub fn infer_type(
         }
         Expr::Condition(_, code, _, _) => {
             let mut types: Vec<DataType> = Vec::with_capacity(code.len());
-            types.push(infer_type(&code[0], var_types, fns, src));
+            types.push(infer_type(&code[0], v, fns, src));
             for t in &code[0..] {
                 if let Expr::ElseIfBlock(_, code) = t {
-                    let infered = infer_type(&code[0], var_types, fns, src);
+                    let infered = infer_type(&code[0], v, fns, src);
                     if !types.contains(&infered) {
                         types.push(infered);
                     }
                 } else if let Expr::ElseBlock(code) = t {
-                    let infered = infer_type(&code[0], var_types, fns, src);
+                    let infered = infer_type(&code[0], v, fns, src);
                     if !types.contains(&infered) {
                         types.push(infered);
                     }
