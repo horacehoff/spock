@@ -266,7 +266,7 @@ print(x > 1 && x < 1);
 
 ## Types
 - `Boolean` (`true`/`false`)
-- `Integer` (i64)
+- `Integer` (i32)
 - `Float` (f64)
 - `Array` (`[1, 2, 3, "4", 5.0, true]`)
 - `String`

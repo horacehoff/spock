@@ -25,7 +25,7 @@ lalrpop_mod!(pub grammar);
 #[repr(C)]
 pub enum Expr {
     Float(f64),
-    Int(i64),
+    Int(i32),
     Bool(bool),
     String(String),
     /// Var(name, start, end)
