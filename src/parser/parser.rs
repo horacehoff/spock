@@ -153,7 +153,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         .rposition(|w| get_tgt_id(*w).is_some())
         .unwrap_or(x.len() - 1);
     let matching_elem = x.get_mut(matching_elem_index).unwrap();
-    match matching_elem{
+    match matching_elem {
         Instr::Mov(_, y)
         | Instr::CallFunc(_, y)
         | Instr::AddFloat(_, _, y)
@@ -193,7 +193,6 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::ArrayGet(_, _, y)
         | Instr::ArrayStrGet(_, _, y)
         | Instr::Range(_, _, y)
-        // | Instr::Type(_, y)
         | Instr::IoOpen(_, y, _)
         | Instr::Floor(_, y)
         | Instr::TheAnswer(y)
@@ -211,10 +210,15 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
                 }
             }
         }
-        other => compilation_error("parser.rs","move_to_id", format_args!("Tried to move {other:?} to tgt_id={tgt_id}")),
+        other => compilation_error(
+            "parser.rs",
+            "move_to_id",
+            format_args!("Tried to move {other:?} to tgt_id={tgt_id}"),
+        ),
     }
 }
 
+/// Returns the ID of the register that will be modified by the given instruction
 fn get_tgt_id(x: Instr) -> Option<u16> {
     match x {
         Instr::Mov(_, y)
@@ -252,6 +256,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::NegFloat(_, y)
         | Instr::NegInt(_, y)
         | Instr::Float(_, y)
+        | Instr::Int(_, y)
         | Instr::Bool(_, y)
         | Instr::CallLibFunc(_, _, y)
         | Instr::Input(_, y)
@@ -264,11 +269,38 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::Len(_, y)
         | Instr::SqrtFloat(_, y)
         | Instr::Split(_, _, y)
+        | Instr::StrMod(_, _, y)
         | Instr::Str(_, y) => Some(y),
-        _ => None,
+        // ↓ INSTRUCTIONS THAT DON'T MODIFY ANY REGISTER ↓
+        Instr::Print(_)
+        | Instr::Jmp(_)
+        | Instr::JmpBack(_)
+        | Instr::Cmp(_, _)
+        | Instr::EqCmp(_, _, _)
+        | Instr::ArrayEqCmp(_, _, _)
+        | Instr::NotEqCmp(_, _, _)
+        | Instr::ArrayNotEqCmp(_, _, _)
+        | Instr::InfEqFloatCmp(_, _, _)
+        | Instr::InfEqIntCmp(_, _, _)
+        | Instr::InfFloatCmp(_, _, _)
+        | Instr::InfIntCmp(_, _, _)
+        | Instr::SupFloatCmp(_, _, _)
+        | Instr::SupIntCmp(_, _, _)
+        | Instr::SupEqFloatCmp(_, _, _)
+        | Instr::SupEqIntCmp(_, _, _)
+        | Instr::IoDelete(_)
+        | Instr::StoreFuncArg(_)
+        | Instr::ArrayMod(_, _, _)
+        | Instr::ArrayMov(_, _, _)
+        | Instr::Push(_, _)
+        | Instr::Return(_) // Modifies a register, but this function doesn't know which one
+        | Instr::RecursiveReturn(_, _) // Modifies a register, but this function doesn't know which one
+        | Instr::VoidReturn
+        | Instr::Remove(_, _) => None,
     }
 }
 
+/// Returns a list containing the IDs of all the registers which are modified by the given instructions
 pub fn get_tgt_ids(x: &[Instr]) -> Vec<u16> {
     let mut ids: Vec<u16> = x.iter().filter_map(|i| get_tgt_id(*i)).collect();
     ids.sort_unstable();
@@ -276,7 +308,7 @@ pub fn get_tgt_ids(x: &[Instr]) -> Vec<u16> {
     ids
 }
 
-fn get_tgt_id_vec(x: &[Instr]) -> Option<u16> {
+fn get_last_tgt_id(x: &[Instr]) -> Option<u16> {
     debug_assert!(
         !(x.is_empty()
             || matches!(
@@ -294,7 +326,7 @@ fn get_tgt_id_vec(x: &[Instr]) -> Option<u16> {
 
 pub fn get_id(
     input: &Expr,
-    v: &mut Vec<(Intern<String>, u16, DataType)>,
+    v: &mut Vec<Variable>,
     (
         registers,
         fns,
@@ -368,8 +400,13 @@ pub fn get_id(
             (registers.len() - 1) as u16
         }
         Expr::Var(name, start, end) => {
-            if let Some((_, id, _)) = v.iter().find(|(var, _, _)| *name == *var) {
-                *id
+            if let Some(Variable {
+                name: _,
+                register_id,
+                infered_type: _,
+            }) = v.iter().find(|v_temp| *name == v_temp.name)
+            {
+                *register_id
             } else {
                 parser_error(
                     src,
@@ -653,7 +690,7 @@ pub fn get_id(
                 if is_empty {
                     (registers.len() - 1) as u16
                 } else {
-                    get_tgt_id_vec(output).unwrap()
+                    get_last_tgt_id(output).unwrap()
                 },
                 return_id,
             ));
@@ -677,7 +714,7 @@ pub fn get_id(
                         if is_empty {
                             (registers.len() - 1) as u16
                         } else {
-                            get_tgt_id_vec(output).unwrap()
+                            get_last_tgt_id(output).unwrap()
                         },
                         return_id,
                     ));
@@ -694,7 +731,7 @@ pub fn get_id(
                         if is_empty {
                             (registers.len() - 1) as u16
                         } else {
-                            get_tgt_id_vec(output).unwrap()
+                            get_last_tgt_id(output).unwrap()
                         },
                         return_id,
                     ));
@@ -757,7 +794,7 @@ pub fn get_id(
             let output_code = parser_to_instr_set(slice::from_ref(other), v, parser_data!());
             if !output_code.is_empty() {
                 output.extend(output_code);
-                get_tgt_id_vec(output).unwrap_or((registers.len() - 1) as u16)
+                get_last_tgt_id(output).unwrap_or((registers.len() - 1) as u16)
             } else {
                 (registers.len() - 1) as u16
             }
@@ -874,11 +911,18 @@ pub type ParserData<'a> = (
     Option<u16>,
 );
 
+#[derive(Debug, Clone)]
+pub struct Variable {
+    pub name: Intern<String>,
+    pub register_id: u16,
+    pub infered_type: DataType,
+}
+
 #[inline(always)]
 pub fn parser_to_instr_set(
     input: &[Expr],
     // variables
-    v: &mut Vec<(Intern<String>, u16, DataType)>,
+    v: &mut Vec<Variable>,
     (
         registers,
         fns,
@@ -917,9 +961,14 @@ pub fn parser_to_instr_set(
             Expr::Bool(bool) => registers.push((*bool).into()),
             Expr::String(str) => registers.push(str.as_str().into()),
             Expr::Var(name, start, end) => {
-                if let Some((_, id, _)) = v.iter().find(|(var, _, _)| *name == *var) {
+                if let Some(Variable {
+                    name: _,
+                    register_id,
+                    infered_type: _,
+                }) = v.iter().find(|v_temp| *name == v_temp.name)
+                {
                     registers.push(Data::NULL);
-                    output.push(Instr::Mov(*id, (registers.len() - 1) as u16));
+                    output.push(Instr::Mov(*register_id, (registers.len() - 1) as u16));
                 } else {
                     parser_error(
                         src,
@@ -1255,15 +1304,15 @@ pub fn parser_to_instr_set(
                 }
 
                 // parse everything, add the current element variable to temp_vars so that the loop code can interact with it
-                v.push((
-                    *var_name,
-                    current_element_id,
-                    match &array_type {
+                v.push(Variable {
+                    name: *var_name,
+                    register_id: current_element_id,
+                    infered_type: match &array_type {
                         DataType::String => DataType::String,
                         DataType::Array(a_type) => *a_type.clone(),
                         _ => todo!("For loop invalid type"),
                     },
-                ));
+                });
                 let (v_idx, t_idx) = (v.len() - 1, v.len() - 1);
 
                 let loop_id = block_id + 1;
@@ -1338,7 +1387,11 @@ pub fn parser_to_instr_set(
                 let elem_id = get_id(start_elem, v, parser_data!(), &mut output);
                 // Create temporary variable and store its index, so as to delete it later
                 let mut v_temp = v.clone();
-                v_temp.push((*var_name, elem_id, DataType::Int));
+                v_temp.push(Variable {
+                    name: *var_name,
+                    register_id: elem_id,
+                    infered_type: DataType::Int,
+                });
                 let (v_idx, t_idx) = (v.len() - 1, v.len() - 1);
 
                 // Compile the code inside the loop
@@ -1387,13 +1440,17 @@ pub fn parser_to_instr_set(
                 } else {
                     obj_id
                 };
-                v.push((*x, var_id, var_type));
+                v.push(Variable {
+                    name: *x,
+                    register_id: var_id,
+                    infered_type: var_type,
+                });
             }
             Expr::VarAssign(name, y, start, end) => {
                 let var_type = type_inference::infer_type(y, v, fns, src);
                 let id = v
                     .iter()
-                    .find(|(w, _, _)| w == name)
+                    .find(|x| x.name == *name)
                     .unwrap_or_else(|| {
                         parser_error(
                             src,
@@ -1406,7 +1463,7 @@ pub fn parser_to_instr_set(
                             &format!("Declare it with {color_green}let {name} = 0;{color_reset}")
                         )
                     })
-                    .1;
+                    .register_id;
                 let output_len = output.len();
                 let obj_id = get_id(y, v, parser_data!(), &mut output);
                 if output.len() != output_len {
@@ -1415,10 +1472,7 @@ pub fn parser_to_instr_set(
                     output.push(Instr::Mov(obj_id, id));
                 }
 
-                v.iter_mut()
-                    .find(|(v_name, _, _)| v_name == name)
-                    .unwrap()
-                    .2 = var_type;
+                v.iter_mut().find(|x| x.name == *name).unwrap().infered_type = var_type;
                 debug!("NEW VAR TYPES ARE {v:?}");
             }
 
@@ -1517,7 +1571,7 @@ pub fn parse(
     println!("LALRPOP TIME {:.2?}", now.elapsed());
     // println!("FUNCS {functions:?}");
 
-    let mut variables: Vec<(Intern<String>, u16, DataType)> = Vec::new();
+    let mut variables: Vec<Variable> = Vec::new();
     let mut registers: Vec<Data> = Vec::new();
     let mut arrays: ArrayStorage = Slab::with_capacity(20);
     let mut instr_src = Vec::new();

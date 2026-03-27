@@ -8,6 +8,7 @@ use crate::display::parser_error;
 use crate::get_id;
 use crate::parser::Expr;
 use crate::parser::ParserData;
+use crate::parser::Variable;
 use crate::parser::get_tgt_ids;
 use crate::parser::move_to_id;
 use crate::parser::parser_to_instr_set;
@@ -18,7 +19,7 @@ use internment::Intern;
 
 pub fn handle_functions(
     output: &mut Vec<Instr>,
-    v: &mut Vec<(Intern<String>, u16, DataType)>,
+    v: &mut Vec<Variable>,
     (
         registers,
         fns,
@@ -219,21 +220,21 @@ pub fn handle_functions(
                     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
 
                     // Local vector vars and recorded_types to allow the inner body to type-check correctly
-                    let mut v_temp: Vec<(Intern<String>, u16, DataType)> = Vec::new();
+                    let mut v_temp: Vec<Variable> = Vec::new();
                     for (i, x) in fn_args.iter().enumerate() {
                         // Infer local type of arg
-                        let infered = infer_type(&args[i], v, fns, src);
+                        let infered_type = infer_type(&args[i], v, fns, src);
 
                         // Allocate a registers slot for each func arg
                         registers.push(Data::NULL);
-                        v_temp.push((
-                            Intern::from(x.clone()),
-                            (registers.len() - 1) as u16,
-                            infered,
-                        ));
+                        v_temp.push(Variable {
+                            name: Intern::from(x.clone()),
+                            register_id: (registers.len() - 1) as u16,
+                            infered_type,
+                        });
                     }
                     // Get the arg destination ids
-                    let args_loc = v_temp.iter().map(|(_, x, _)| *x).collect::<Vec<u16>>();
+                    let args_loc = v_temp.iter().map(|x| x.register_id).collect::<Vec<u16>>();
 
                     // Temporarily jump over function to prevent executing it right now
                     // This is a placeholder that's modified later on

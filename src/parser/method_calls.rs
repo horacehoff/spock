@@ -1,5 +1,6 @@
 use crate::Data;
 use crate::Instr;
+use crate::Variable;
 use crate::check_args;
 use crate::check_args_range;
 use crate::display::format_expr;
@@ -10,11 +11,10 @@ use crate::parser::ParserData;
 use crate::type_inference::DataType;
 use crate::type_inference::infer_type;
 use inline_colorization::*;
-use internment::Intern;
 
 pub fn handle_method_calls(
     output: &mut Vec<Instr>,
-    v: &mut Vec<(Intern<String>, u16, DataType)>,
+    v: &mut Vec<Variable>,
     (
         registers,
         fns,
