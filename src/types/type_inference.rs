@@ -2,12 +2,13 @@ use crate::display::op_error;
 use crate::display::parser_error;
 use crate::parser::Expr;
 use crate::parser::Function;
+use crate::parser::Variable;
 use crate::parser::symbol_of_expr;
 use inline_colorization::*;
 use internment::Intern;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
-#[repr(u8)]
+#[repr(C)]
 pub enum DataType {
     Array(Box<DataType>),
     Float,
@@ -104,7 +105,7 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
 
 fn track_returns(
     content: &[Expr],
-    v: &mut Vec<(Intern<String>, u16, DataType)>,
+    v: &mut Vec<Variable>,
     fns: &[Function],
     src: (&str, &str),
     fn_name: &str,
@@ -159,14 +160,14 @@ fn track_returns(
 
 pub fn infer_type(
     x: &Expr,
-    v: &mut Vec<(Intern<String>, u16, DataType)>,
+    v: &mut Vec<Variable>,
     fns: &[Function],
     src: (&str, &str),
 ) -> DataType {
     match x {
         Expr::Var(name, start, end) => v
             .iter()
-            .rfind(|(n, _, _)| n == name)
+            .rfind(|x| &x.name == name)
             .unwrap_or_else(|| {
                 parser_error(
                     src,
@@ -177,7 +178,7 @@ pub fn infer_type(
                     "",
                 );
             })
-            .2
+            .infered_type
             .clone(),
         Expr::Float(_) => DataType::Float,
         Expr::Int(_) => DataType::Int,
@@ -275,10 +276,14 @@ pub fn infer_type(
 
                     let mut arg_types: Vec<usize> = Vec::with_capacity(args.len());
                     args.iter().enumerate().for_each(|(i, x)| {
-                        let infered = infer_type(x, v, fns, src);
+                        let infered_type = infer_type(x, v, fns, src);
                         arg_types.push(v.len());
                         // 0 => placeholder id, it's never used
-                        v.push((Intern::from_ref(&fn_args[i]), 0, infered))
+                        v.push(Variable {
+                            name: Intern::from_ref(&fn_args[i]),
+                            register_id: 0,
+                            infered_type,
+                        });
                     });
 
                     // ----- MORE COMPLEX SOLUTION (DOES NOT ALLOW NULL OPS) -----

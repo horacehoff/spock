@@ -1,11 +1,11 @@
-use crate::parser::{Expr, ParserData, get_id};
+use crate::parser::{Expr, ParserData, Variable, get_id};
 use crate::type_inference::DataType;
 use crate::{Data, Instr};
 use internment::Intern;
 
 pub fn while_loop_summation(
     output: &mut Vec<Instr>,
-    v: &mut Vec<(Intern<String>, u16, DataType)>,
+    v: &mut Vec<Variable>,
     (
         registers,
         fns,
@@ -87,7 +87,7 @@ pub fn while_loop_summation(
 pub fn for_loop_summation(
     output: &mut Vec<Instr>,
     registers: &mut Vec<Data>,
-    v: &mut Vec<(Intern<String>, u16, DataType)>,
+    v: &mut Vec<Variable>,
     array: u16,
     code: &[Expr],
 ) -> bool {
@@ -98,7 +98,7 @@ pub fn for_loop_summation(
             if let Expr::Var(v_name, _, _) = **l
                 && &v_name == name
             {
-                let var_id = v.iter().find(|(w, _, _)| w == name).unwrap().1;
+                let var_id = v.iter().find(|x| x.name == *name).unwrap().register_id;
                 registers.push(Data::NULL);
                 output.push(Instr::Len(array, (registers.len() - 1) as u16));
                 registers.push(
@@ -126,7 +126,7 @@ pub fn for_loop_summation(
             && let Expr::Var(v_name, _, _) = **l
             && &v_name == name
         {
-            let var_id = v.iter().find(|(w, _, _)| w == name).unwrap().1;
+            let var_id = v.iter().find(|x| x.name == *name).unwrap().register_id;
             registers.push(Data::NULL);
             output.push(Instr::Len(array, (registers.len() - 1) as u16));
             registers.push(

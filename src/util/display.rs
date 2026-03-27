@@ -49,7 +49,7 @@ impl std::fmt::Display for Data {
     }
 }
 
-fn get_data_type_name(x: Data) -> String {
+pub fn get_type_name(x: Data) -> String {
     String::from(if x.is_array() {
         "Array"
     } else if x.is_bool() {
@@ -249,7 +249,7 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
     }
     println!("{color_green}-- REGISTERS --{color_reset}");
     for (i, data) in registers.iter().enumerate() {
-        println!(" [{i}] {}({data})", get_data_type_name(*data))
+        println!(" [{i}] {}({data})", get_type_name(*data))
     }
     println!("{color_red}-- INSTRUCTIONS --{color_reset}");
     let mut flows: Vec<(usize, usize)> = Vec::new();

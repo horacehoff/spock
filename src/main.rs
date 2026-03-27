@@ -1,4 +1,4 @@
-use crate::display::{format_data, parser_error};
+use crate::display::{format_data, get_type_name, parser_error};
 use crate::parser::parse;
 use crate::util::error;
 use crate::util::likely;
@@ -306,7 +306,6 @@ pub enum Instr {
     NegInt(u16, u16),
 
     // General functions
-    // Type(u16, u16),
     Float(u16, u16),
     Int(u16, u16),
     Str(u16, u16),
