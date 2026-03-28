@@ -16,17 +16,7 @@ use inline_colorization::*;
 pub fn handle_method_calls(
     output: &mut Vec<Instr>,
     v: &mut Vec<Variable>,
-    (
-        registers,
-        fns,
-        arrays,
-        block_id,
-        src,
-        instr_src,
-        is_parsing_recursive,
-        fn_registers,
-        parsing_fn_id,
-    ): ParserData,
+    p: &ParserData,
 
     obj: &Expr,
     args: &[Expr],
@@ -35,21 +25,7 @@ pub fn handle_method_calls(
     end: usize,
     args_indexes: &[(usize, usize)],
 ) {
-    macro_rules! parser_data {
-        () => {
-            (
-                registers,
-                fns,
-                arrays,
-                block_id,
-                src,
-                instr_src,
-                is_parsing_recursive,
-                fn_registers,
-                parsing_fn_id,
-            )
-        };
-    }
+    let (registers, fns, _, instr_src, _, _, src, _, _) = p.destructure();
 
     let len = namespace.len() - 1;
     let name = namespace[len].as_str();
@@ -57,12 +33,12 @@ pub fn handle_method_calls(
     // let namespace = &namespace[0..len];
 
     let infered = infer_type(obj, v, fns, src);
-    let id = get_id(obj, v, parser_data!(), output);
+    let id = get_id(obj, v, p, output);
 
     macro_rules! add_args {
         () => {
             for arg in args {
-                let arg_id = get_id(&arg, v, parser_data!(), output);
+                let arg_id = get_id(&arg, v, p, output);
                 output.push(Instr::StoreFuncArg(arg_id));
             }
         };
@@ -381,7 +357,7 @@ pub fn handle_method_calls(
                 );
             }
 
-            let arg_id = get_id(&args[0], v, parser_data!(), output);
+            let arg_id = get_id(&args[0], v, p, output);
             output.push(Instr::Push(id, arg_id));
         }
         "sqrt" => {
@@ -465,7 +441,7 @@ pub fn handle_method_calls(
                 );
             }
 
-            let arg_id = get_id(&args[0], v, parser_data!(), output);
+            let arg_id = get_id(&args[0], v, p, output);
             registers.push(Data::NULL);
             output.push(Instr::Split(id, arg_id, (registers.len() - 1) as u16));
         }
@@ -487,7 +463,7 @@ pub fn handle_method_calls(
                 );
             }
 
-            let arg_id = get_id(&args[0], v, parser_data!(), output);
+            let arg_id = get_id(&args[0], v, p, output);
             instr_src.push((Instr::Remove(id, arg_id), start, end));
             output.push(Instr::Remove(id, arg_id));
         }
