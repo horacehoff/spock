@@ -9,8 +9,8 @@ use crate::display::parser_error;
 use crate::get_id;
 use crate::parser::Expr;
 use crate::parser::ParserData;
-use crate::types::DataType;
-use crate::types::infer_type;
+use crate::type_system::DataType;
+use crate::type_system::infer_type;
 use inline_colorization::*;
 
 pub fn handle_method_calls(
@@ -365,20 +365,20 @@ pub fn handle_method_calls(
             check!(DataType::Array(_), "Array", 1);
 
             let arg_infered = infer_type(&args[0], v, fns, src);
-            if let DataType::Array(array_type) = &infered {
-                if **array_type != arg_infered {
-                    parser_error(
-                        src,
-                        args_indexes[0].0,
-                        args_indexes[0].1,
-                        "Invalid type",
-                        &format!(
-                            "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            array_type, infered, arg_infered
-                        ),
-                        "",
-                    );
-                }
+            if let DataType::Array(array_type) = &infered
+                && **array_type != arg_infered
+            {
+                parser_error(
+                    src,
+                    args_indexes[0].0,
+                    args_indexes[0].1,
+                    "Invalid type",
+                    &format!(
+                        "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                        array_type, infered, arg_infered
+                    ),
+                    "",
+                );
             }
 
             let arg_id = get_id(&args[0], v, parser_data!(), output);

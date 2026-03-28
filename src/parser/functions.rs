@@ -1,8 +1,8 @@
-use crate::Data;
 use crate::FunctionImpl;
 use crate::Instr;
 use crate::check_args;
 use crate::check_args_range;
+use crate::data::Data;
 use crate::debug;
 use crate::display::format_expr;
 use crate::display::parser_error;
@@ -13,8 +13,8 @@ use crate::parser::Variable;
 use crate::parser::get_tgt_ids;
 use crate::parser::move_to_id;
 use crate::parser::parser_to_instr_set;
-use crate::types::DataType;
-use crate::types::infer_type;
+use crate::type_system::DataType;
+use crate::type_system::infer_type;
 use inline_colorization::*;
 use internment::Intern;
 

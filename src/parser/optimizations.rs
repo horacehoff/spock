@@ -1,7 +1,5 @@
 use crate::parser::{Expr, ParserData, Variable, get_id};
-use crate::types::DataType;
 use crate::{Data, Instr};
-use internment::Intern;
 
 pub fn while_loop_summation(
     output: &mut Vec<Instr>,
