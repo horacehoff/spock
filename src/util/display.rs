@@ -2,7 +2,7 @@ use std::hint::unreachable_unchecked;
 
 use crate::ArrayStorage;
 use crate::parser::Expr;
-use crate::type_inference::DataType;
+use crate::types::DataType;
 use crate::{Data, Instr};
 use ariadne::*;
 use concat_string::concat_string;
@@ -10,6 +10,7 @@ use inline_colorization::*;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
 
+#[inline(always)]
 pub fn format_data(x: Data, arrays: Option<&ArrayStorage>, show_str: bool) -> String {
     if x.is_float() {
         x.as_float().to_string()

@@ -12,8 +12,8 @@ use crate::parser::Variable;
 use crate::parser::get_tgt_ids;
 use crate::parser::move_to_id;
 use crate::parser::parser_to_instr_set;
-use crate::type_inference::DataType;
-use crate::type_inference::infer_type;
+use crate::types::DataType;
+use crate::types::infer_type;
 use inline_colorization::*;
 use internment::Intern;
 
@@ -194,12 +194,11 @@ pub fn handle_functions(
                         );
                     });
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
-                // let (_, fn_args, fn_code, fn_data, is_recursive, fn_id) = &fns[function_id].clone();
                 let fn_id = fns[function_id].5;
                 let is_recursive = fns[function_id].4;
-                let fn_args = fns[function_id].1.clone(); // Box<[String]> — unavoidable
+                let fn_args = &fns[function_id].1; // Box<[String]> — unavoidable
                 let fn_code = fns[function_id].2.clone(); // Box<[Expr]> — unavoidable if needed
-                let fn_data = fns[function_id].3.clone();
+                let fn_data = &fns[function_id].3;
                 // Infer arg types
                 let infered_arg_types = args
                     .iter()

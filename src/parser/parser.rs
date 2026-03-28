@@ -7,10 +7,10 @@ use crate::functions::handle_functions;
 use crate::grammar::Token;
 use crate::method_calls::handle_method_calls;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
-use crate::type_inference;
-use crate::type_inference::contains_recursive_call;
-use crate::type_inference::{DataType, infer_type};
+use crate::types;
+use crate::types::contains_recursive_call;
 use crate::types::is_indexable;
+use crate::types::{DataType, infer_type};
 use crate::util::compilation_error;
 use crate::{Data, Instr, error};
 use inline_colorization::*;
@@ -139,6 +139,7 @@ pub fn symbol_of_expr(expr: &Expr) -> &str {
     }
 }
 
+///
 pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     if x.is_empty()
         || matches!(
@@ -201,11 +202,11 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::Split(_, _, y)
         | Instr::SaveFrame(_, y, _)
         | Instr::Str(_, y) => *y = tgt_id,
-        Instr::CallFuncRecursive(_, y) => {
-            *y = tgt_id;
+        Instr::CallFuncRecursive(_, y_func) => {
+            *y_func = tgt_id;
             for i in 1..x.len() - 1 {
-                if let Some(Instr::SaveFrame(_, y, _)) = x.get_mut(matching_elem_index - i) {
-                    *y = tgt_id;
+                if let Some(Instr::SaveFrame(_, y_frame, _)) = x.get_mut(matching_elem_index - i) {
+                    *y_frame = tgt_id;
                     break;
                 }
             }
@@ -1427,7 +1428,7 @@ pub fn parser_to_instr_set(
                 output.push(Instr::JmpBack(code_length));
             }
             Expr::VarDeclare(x, y) => {
-                let var_type = type_inference::infer_type(y, v, fns, src);
+                let var_type = types::infer_type(y, v, fns, src);
                 let output_len = output.len();
                 let obj_id = get_id(y, v, parser_data!(), &mut output);
 
@@ -1447,7 +1448,7 @@ pub fn parser_to_instr_set(
                 });
             }
             Expr::VarAssign(name, y, start, end) => {
-                let var_type = type_inference::infer_type(y, v, fns, src);
+                let var_type = types::infer_type(y, v, fns, src);
                 let id = v
                     .iter()
                     .find(|x| x.name == *name)
