@@ -21,17 +21,7 @@ use internment::Intern;
 pub fn handle_functions(
     output: &mut Vec<Instr>,
     v: &mut Vec<Variable>,
-    (
-        registers,
-        fns,
-        arrays,
-        block_id,
-        src,
-        instr_src,
-        is_parsing_recursive,
-        fn_registers,
-        parsing_fn_id,
-    ): ParserData,
+    p: &ParserData,
 
     // method call data
     args: &[Expr],
@@ -40,21 +30,7 @@ pub fn handle_functions(
     end: usize,
     args_indexes: &[(usize, usize)],
 ) -> Option<u16> {
-    macro_rules! parser_data {
-        () => {
-            (
-                registers,
-                fns,
-                arrays,
-                block_id,
-                src,
-                instr_src,
-                is_parsing_recursive,
-                fn_registers,
-                parsing_fn_id,
-            )
-        };
-    }
+    let (registers, fns, _, instr_src, fn_registers, _, src, _, _) = p.destructure();
 
     let mut check_type = |arg: usize, expected: &[DataType]| {
         let infered = infer_type(&args[arg], v, fns, src);
@@ -91,7 +67,7 @@ pub fn handle_functions(
         match name {
             "print" => {
                 for arg in args {
-                    let id = get_id(arg, v, parser_data!(), output);
+                    let id = get_id(arg, v, p, output);
                     output.push(Instr::Print(id));
                 }
             }
@@ -103,7 +79,7 @@ pub fn handle_functions(
             "float" => {
                 check_args!(args, 1, "float", src, start, end);
                 check_type(0, &[DataType::String, DataType::Int]);
-                let id = get_id(&args[0], v, parser_data!(), output);
+                let id = get_id(&args[0], v, p, output);
                 registers.push(Data::NULL);
                 instr_src.push((Instr::Float(id, (registers.len() - 1) as u16), start, end));
                 output.push(Instr::Float(id, (registers.len() - 1) as u16));
@@ -111,21 +87,21 @@ pub fn handle_functions(
             "int" => {
                 check_args!(args, 1, "int", src, start, end);
                 check_type(0, &[DataType::String, DataType::Float]);
-                let id = get_id(&args[0], v, parser_data!(), output);
+                let id = get_id(&args[0], v, p, output);
                 registers.push(Data::NULL);
                 instr_src.push((Instr::Int(id, (registers.len() - 1) as u16), start, end));
                 output.push(Instr::Int(id, (registers.len() - 1) as u16));
             }
             "str" => {
                 check_args!(args, 1, "str", src, start, end);
-                let id = get_id(&args[0], v, parser_data!(), output);
+                let id = get_id(&args[0], v, p, output);
                 registers.push(Data::NULL);
                 output.push(Instr::Str(id, (registers.len() - 1) as u16));
             }
             "bool" => {
                 check_args!(args, 1, "bool", src, start, end);
                 check_type(0, &[DataType::String, DataType::Bool]);
-                let id = get_id(&args[0], v, parser_data!(), output);
+                let id = get_id(&args[0], v, p, output);
                 registers.push(Data::NULL);
                 instr_src.push((Instr::Bool(id, (registers.len() - 1) as u16), start, end));
                 output.push(Instr::Bool(id, (registers.len() - 1) as u16));
@@ -137,7 +113,7 @@ pub fn handle_functions(
                     registers.push(String::new().into());
                     (registers.len() - 1) as u16
                 } else {
-                    get_id(&args[0], v, parser_data!(), output)
+                    get_id(&args[0], v, p, output)
                 };
                 registers.push(Data::NULL);
                 output.push(Instr::Input(id, (registers.len() - 1) as u16));
@@ -146,7 +122,7 @@ pub fn handle_functions(
                 check_args_range!(args, 1, 2, "range", src, start, end);
                 if args.len() == 1 {
                     check_type(0, &[DataType::Int]);
-                    let id_x = get_id(&args[0], v, parser_data!(), output);
+                    let id_x = get_id(&args[0], v, p, output);
                     registers.push(0.into());
                     registers.push(Data::NULL);
                     output.push(Instr::Range(
@@ -157,8 +133,8 @@ pub fn handle_functions(
                 } else {
                     check_type(0, &[DataType::Int]);
                     check_type(1, &[DataType::Int]);
-                    let id_x = get_id(&args[0], v, parser_data!(), output);
-                    let id_y = get_id(&args[1], v, parser_data!(), output);
+                    let id_x = get_id(&args[0], v, p, output);
+                    let id_y = get_id(&args[1], v, p, output);
                     registers.push(Data::NULL);
                     output.push(Instr::Range(id_x, id_y, (registers.len() - 1) as u16));
                 }
@@ -166,7 +142,7 @@ pub fn handle_functions(
             "floor" => {
                 check_args!(args, 1, "floor", src, start, end);
                 check_type(0, &[DataType::Float]);
-                let id = get_id(&args[0], v, parser_data!(), output);
+                let id = get_id(&args[0], v, p, output);
                 registers.push(Data::NULL);
                 instr_src.push((Instr::Float(id, (registers.len() - 1) as u16), start, end));
                 output.push(Instr::Float(id, (registers.len() - 1) as u16));
@@ -197,8 +173,8 @@ pub fn handle_functions(
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
                 let fn_id = fns[function_id].id;
                 let is_recursive = fns[function_id].is_recursive;
-                let fn_args = fns[function_id].args.clone();
-                let fn_code = fns[function_id].code.clone();
+                let fn_args = &fns[function_id].args;
+                let fn_code = &fns[function_id].code;
                 let fn_impls = &fns[function_id].impls;
 
                 let args_len = fn_args.len();
@@ -221,14 +197,13 @@ pub fn handle_functions(
                     compile_function(
                         output,
                         v,
-                        parser_data!(),
+                        p,
                         function_id,
                         &fn_args,
                         fn_name,
-                        infered_arg_types,
+                        &infered_arg_types,
                         args,
                         &fn_code,
-                        is_recursive,
                         fn_id,
                     );
                     fns.get(function_id).unwrap().impls.last().unwrap().clone()
@@ -244,7 +219,7 @@ pub fn handle_functions(
                 for (x, tgt_id) in fn_args.iter().enumerate() {
                     let start_len = output.len();
 
-                    let arg_id = get_id(&args[x], v, parser_data!(), output);
+                    let arg_id = get_id(&args[x], v, p, output);
                     debug!("MOVING ARG TO {tgt_id}");
                     // If get_id emitted code, adjust arg dest with move_to_id
                     if output.len() != start_len {
@@ -298,13 +273,13 @@ pub fn handle_functions(
             "open" => {
                 check_args_range!(args, 1, 2, "open", src, start, end);
                 registers.push(Data::NULL);
-                let arg_id = get_id(&args[0], v, parser_data!(), output);
+                let arg_id = get_id(&args[0], v, p, output);
 
                 let second_arg = if args.len() == 1 {
                     registers.push(Data::FALSE);
                     (registers.len() - 1) as u16
                 } else {
-                    get_id(&args[1], v, parser_data!(), output)
+                    get_id(&args[1], v, p, output)
                 };
 
                 instr_src.push((
@@ -320,7 +295,7 @@ pub fn handle_functions(
             }
             "delete" => {
                 check_args!(args, 1, "delete", src, start, end);
-                let arg_id = get_id(&args[0], v, parser_data!(), output);
+                let arg_id = get_id(&args[0], v, p, output);
                 instr_src.push((Instr::IoDelete(arg_id), start, end));
                 output.push(Instr::IoDelete(arg_id));
             }
@@ -365,16 +340,16 @@ pub fn handle_functions(
 fn compile_function(
     output: &mut Vec<Instr>,
     v: &mut Vec<Variable>,
-    (registers, fns, arrays, block_id, src, instr_src, _, fn_registers, _): ParserData,
+    p: &ParserData,
     function_id: usize,
     fn_args: &[String],
     fn_name: &str,
-    infered_arg_types: Vec<DataType>,
+    infered_arg_types: &[DataType],
     args: &[Expr],
     fn_code: &[Expr],
-    is_recursive: bool,
     fn_id: u16,
 ) {
+    let (registers, fns, _, _, fn_registers, _, src, _, _) = p.destructure();
     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
 
     // Local vector vars and recorded_types to allow the inner body to type-check correctly
@@ -411,21 +386,7 @@ fn compile_function(
     });
 
     // Compile the function into instructions using local vars
-    let parsed = parser_to_instr_set(
-        fn_code,
-        &mut v_temp,
-        (
-            registers,
-            fns,
-            arrays,
-            block_id,
-            src,
-            instr_src,
-            is_recursive,
-            fn_registers,
-            Some(fn_id),
-        ),
-    );
+    let parsed = parser_to_instr_set(fn_code, &mut v_temp, p);
     let fn_temp_registers = get_tgt_ids(&parsed);
     fn_registers
         .get_mut(fn_id as usize)

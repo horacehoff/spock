@@ -4,36 +4,10 @@ use crate::{Data, Instr};
 pub fn while_loop_summation(
     output: &mut Vec<Instr>,
     v: &mut Vec<Variable>,
-    (
-        registers,
-        fns,
-        arrays,
-        block_id,
-        src,
-        instr_src,
-        is_parsing_recursive,
-        fn_registers,
-        parsing_fn_id,
-    ): ParserData,
+    p: &ParserData,
     condition: &Expr,
     code: &[Expr],
 ) -> bool {
-    macro_rules! parser_data {
-        () => {
-            (
-                registers,
-                fns,
-                arrays,
-                block_id,
-                src,
-                instr_src,
-                is_parsing_recursive,
-                fn_registers,
-                parsing_fn_id,
-            )
-        };
-    }
-
     if code.len() == 1
         && let Expr::VarAssign(x, increment, _, _) = &code[0]
     {
@@ -45,8 +19,8 @@ pub fn while_loop_summation(
                             // most simple option
                             if add_var == *x {
                                 if *increment == Expr::Float(1.0) || *increment == Expr::Int(1) {
-                                    let limit_id = get_id(b, v, parser_data!(), output);
-                                    let var_id = get_id(a, v, parser_data!(), output);
+                                    let limit_id = get_id(b, v, p, output);
+                                    let var_id = get_id(a, v, p, output);
                                     output.push(Instr::Mov(limit_id, var_id));
                                     return true;
                                 } else if let Expr::Float(increment_num) = *increment {
