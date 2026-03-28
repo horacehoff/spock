@@ -1,6 +1,6 @@
 use std::fmt::Arguments;
 
-use crate::type_inference::DataType;
+use crate::types::DataType;
 use inline_colorization::color_red;
 use inline_colorization::color_reset;
 

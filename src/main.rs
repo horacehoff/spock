@@ -1,4 +1,4 @@
-use crate::display::{format_data, get_type_name, parser_error};
+use crate::display::{format_data, parser_error};
 use crate::parser::parse;
 use crate::util::error;
 use crate::util::likely;
@@ -8,11 +8,11 @@ use inline_colorization::*;
 use parser::*;
 use slab::Slab;
 use std::cmp::PartialEq;
-use std::fs;
 use std::fs::File;
 use std::hint::black_box;
 use std::io::Write;
 use std::time::Instant;
+use std::{fs, i32};
 
 #[path = "./util/display.rs"]
 mod display;
@@ -24,8 +24,6 @@ mod method_calls;
 mod optimizations;
 #[path = "./parser/parser.rs"]
 mod parser;
-#[path = "./types/type_inference.rs"]
-mod type_inference;
 #[path = "./types/types.rs"]
 mod types;
 #[path = "./util/util.rs"]
@@ -87,7 +85,7 @@ impl Data {
     }
     #[inline(always)]
     pub fn as_int(&self) -> i32 {
-        (self.0 & PAYLOAD_MASK) as i32
+        self.0 as i32
     }
     #[inline(always)]
     pub fn is_int(&self) -> bool {
@@ -320,7 +318,7 @@ pub enum Instr {
     IoDelete(u16),
 
     StoreFuncArg(u16),
-    CallLibFunc(u8, u16, u16),
+    CallLibFunc(LibFunc, u16, u16),
 
     ArrayMov(u16, u16, u16),
     // different than ArrayMov => looks into the registers
@@ -351,6 +349,28 @@ pub enum Instr {
     RecursiveReturn(u16, u16),
     /// SaveFrame(function_location, return_register, function_id)
     SaveFrame(u16, u16, u16),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LibFunc {
+    Uppercase = 0,
+    Lowercase = 1,
+    Contains = 2,
+    Trim = 3,
+    TrimSequence = 4,
+    Index = 5,
+    IsNum = 6,
+    TrimLeft = 7,
+    TrimRight = 8,
+    TrimSequenceLeft = 9,
+    TrimSequenceRight = 10,
+    RIndex = 11,
+    Repeat = 12,
+    Round = 13,
+    Abs = 14,
+    ReadFile = 15,
+    WriteFile = 16,
+    Reverse = 17,
 }
 
 pub type ArrayStorage = Slab<Vec<Data>>;
@@ -388,6 +408,9 @@ pub fn execute(
         .count();
     let mut call_frames: Vec<CallFrame> = Vec::with_capacity(call_depth);
     let mut recursion_stack: Vec<Data> = Vec::with_capacity(call_depth * registers.len());
+
+    let stdout = std::io::stdout();
+    let mut handle = stdout.lock();
 
     let len = instructions.len();
     while i < len {
@@ -664,10 +687,33 @@ pub fn execute(
                 registers[dest as usize] = (-registers[tgt as usize].as_int()).into();
             }
             Instr::Print(target) => {
-                println!(
-                    "{}",
-                    format_data(registers[target as usize], Some(arrays), false)
-                );
+                let tgt = registers[target as usize];
+                if tgt.is_str() {
+                    writeln!(handle, "{}", tgt.as_str()).unwrap();
+                } else if tgt.is_int() {
+                    writeln!(handle, "{}", tgt.as_int()).unwrap();
+                } else if tgt.is_float() {
+                    writeln!(handle, "{}", tgt.as_float()).unwrap();
+                } else if tgt.is_bool() {
+                    writeln!(handle, "{}", tgt.as_bool()).unwrap();
+                } else if tgt.is_file() {
+                    writeln!(handle, "{}", tgt.as_file()).unwrap();
+                } else if tgt.is_array() {
+                    writeln!(
+                        handle,
+                        "{}",
+                        concat_string!(
+                            "[",
+                            arrays[tgt.as_array() as usize]
+                                .iter()
+                                .map(|x| format_data(*x, Some(arrays), true))
+                                .collect::<Vec<_>>()
+                                .join(","),
+                            "]"
+                        )
+                    )
+                    .unwrap();
+                }
             }
             Instr::Float(tgt, dest) => {
                 let reg = registers[tgt as usize];
@@ -904,17 +950,17 @@ pub fn execute(
                     .remove(registers[idx as usize].as_int() as usize);
             }
             // uppercase
-            Instr::CallLibFunc(0, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::Uppercase, tgt, dest) => {
                 let str = registers[tgt as usize].as_str();
                 registers[dest as usize] = str.to_uppercase().into();
             }
             // lowercase
-            Instr::CallLibFunc(1, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::Lowercase, tgt, dest) => {
                 let str = registers[tgt as usize].as_str();
                 registers[dest as usize] = str.to_lowercase().into();
             }
             // contains
-            Instr::CallLibFunc(2, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::Contains, tgt, dest) => {
                 let reg = registers[tgt as usize];
                 if reg.is_str() {
                     let str = reg.as_str();
@@ -927,11 +973,11 @@ pub fn execute(
                 }
             }
             // trim
-            Instr::CallLibFunc(3, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::Trim, tgt, dest) => {
                 registers[dest as usize] = registers[tgt as usize].as_str().trim().into();
             }
             // trim_sequence
-            Instr::CallLibFunc(4, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::TrimSequence, tgt, dest) => {
                 let arg = registers[args.swap_remove(0) as usize].as_str();
                 let chars: Vec<char> = arg.chars().collect();
                 registers[dest as usize] = registers[tgt as usize]
@@ -940,24 +986,24 @@ pub fn execute(
                     .into();
             }
             // index
-            Instr::CallLibFunc(5, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::Index, tgt, dest) => {
                 let reg = registers[tgt as usize];
                 if reg.is_str() {
                     let str = reg.as_str();
                     let arg = registers[args.swap_remove(0) as usize].as_str();
                     registers[dest as usize] = (str.find(arg.as_str()).unwrap_or_else(|| {
-                            fatal_error!(Instr::CallLibFunc(5, tgt, dest),"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
+                            fatal_error!(instructions[i],"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
                         }) as i32).into();
                 } else if reg.is_array() {
                     let x = reg.as_array();
                     let arg = registers[args.swap_remove(0) as usize];
                     registers[dest as usize] = (arrays[x as usize].iter().position(|x| x == &arg).unwrap_or_else(|| {
-                        fatal_error!(Instr::CallLibFunc(5, tgt, dest), "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::array(x), Some(arrays),true)));
+                        fatal_error!(instructions[i], "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::array(x), Some(arrays),true)));
                     }) as i32).into();
                 }
             }
             // is_num
-            Instr::CallLibFunc(6, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::IsNum, tgt, dest) => {
                 registers[dest as usize] = registers[tgt as usize]
                     .as_str()
                     .parse::<f64>()
@@ -965,15 +1011,15 @@ pub fn execute(
                     .into()
             }
             // trim_left
-            Instr::CallLibFunc(7, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::TrimLeft, tgt, dest) => {
                 registers[dest as usize] = registers[tgt as usize].as_str().trim_start().into();
             }
             // trim_right
-            Instr::CallLibFunc(8, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::TrimRight, tgt, dest) => {
                 registers[dest as usize] = registers[tgt as usize].as_str().trim_end().into();
             }
             // trim_sequence_left
-            Instr::CallLibFunc(9, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::TrimSequenceLeft, tgt, dest) => {
                 let chars: Vec<char> = registers[args.swap_remove(0) as usize]
                     .as_str()
                     .chars()
@@ -984,7 +1030,7 @@ pub fn execute(
                     .into();
             }
             // trim_sequence_right
-            Instr::CallLibFunc(10, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::TrimSequenceRight, tgt, dest) => {
                 let chars: Vec<char> = registers[args.swap_remove(0) as usize]
                     .as_str()
                     .chars()
@@ -996,24 +1042,24 @@ pub fn execute(
                     .into();
             }
             // rindex
-            Instr::CallLibFunc(11, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::RIndex, tgt, dest) => {
                 let reg = registers[tgt as usize];
                 if reg.is_str() {
                     let str = reg.as_str();
                     let arg = registers[args.swap_remove(0) as usize].as_str();
                     registers[dest as usize] = (reg.as_str().rfind(arg.as_str()).unwrap_or_else(|| {
-                        fatal_error!(Instr::CallLibFunc(11, tgt, dest), "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
+                        fatal_error!(instructions[i], "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
                     }) as i32).into();
                 } else if reg.is_array() {
                     let x = reg.as_array();
                     let arg = registers[args.swap_remove(0) as usize];
                     registers[dest as usize] = (arrays[reg.as_array() as usize].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
-                    fatal_error!(Instr::CallLibFunc(11, tgt, dest),"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::array(x), Some(arrays),true)));
+                    fatal_error!(instructions[i],"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::array(x), Some(arrays),true)));
                     }) as i32).into();
                 }
             }
             // repeat
-            Instr::CallLibFunc(12, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::Repeat, tgt, dest) => {
                 let reg = registers[tgt as usize];
                 if reg.is_str() {
                     let str = reg.as_str();
@@ -1027,20 +1073,20 @@ pub fn execute(
                 }
             }
             // round
-            Instr::CallLibFunc(13, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::Round, tgt, dest) => {
                 registers[dest as usize] = registers[tgt as usize].as_float().round().into();
             }
             // abs
-            Instr::CallLibFunc(14, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::Abs, tgt, dest) => {
                 registers[dest as usize] = registers[tgt as usize].as_float().abs().into();
             }
             // read
-            Instr::CallLibFunc(15, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::ReadFile, tgt, dest) => {
                 let path = registers[tgt as usize].as_file();
                 registers[dest as usize] = std::fs::read_to_string(path.as_str())
                     .unwrap_or_else(|_| {
                         fatal_error!(
-                            Instr::CallLibFunc(15, tgt, dest),
+                            instructions[i],
                             "File does not exist or cannot be read",
                             &format!("Cannot read file {color_red}{path}{color_reset}")
                         );
@@ -1048,7 +1094,7 @@ pub fn execute(
                     .into();
             }
             // write
-            Instr::CallLibFunc(16, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::WriteFile, tgt, dest) => {
                 let path = registers[tgt as usize].as_file();
                 let contents = registers[args.swap_remove(0) as usize].as_str();
                 let truncate = registers[args.swap_remove(0) as usize].as_bool();
@@ -1056,13 +1102,13 @@ pub fn execute(
                                 .write(true)
                                 .truncate(truncate)
                                 .open(path.as_str()).unwrap_or_else(|_| {
-                                    fatal_error!(Instr::CallLibFunc(16, tgt, dest),"File does not exist or cannot be opened",&format!("Cannot open file {color_red}{path}{color_reset}"));
+                                    fatal_error!(instructions[i],"File does not exist or cannot be opened",&format!("Cannot open file {color_red}{path}{color_reset}"));
                                 }).write_all(contents.as_bytes()).unwrap_or_else(|_| {
-                                    fatal_error!(Instr::CallLibFunc(16, tgt, dest),"File does not exist or cannot be written to",&format!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
+                                    fatal_error!(instructions[i],"File does not exist or cannot be written to",&format!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
                             });
             }
             // reverse
-            Instr::CallLibFunc(17, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::Reverse, tgt, dest) => {
                 let reg = registers[tgt as usize];
                 if reg.is_str() {
                     registers[dest as usize] =
@@ -1073,7 +1119,6 @@ pub fn execute(
                     registers[dest as usize] = Data::array(id);
                 }
             }
-            Instr::CallLibFunc(_, _, _) => unreachable!(),
         }
         i += 1;
     }
