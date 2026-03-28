@@ -181,7 +181,7 @@ pub fn handle_functions(
                 // Registry is (fn_name, fn_args, fn_code, fn_data (per implementation: loc, args_loc, arg_types) )
                 let function_id = fns
                     .iter_mut()
-                    .position(|(a, _, _, _, _, _)| *a == fn_name)
+                    .position(|func| func.name == fn_name)
                     .unwrap_or_else(|| {
                         parser_error(
                             src,
@@ -195,11 +195,11 @@ pub fn handle_functions(
                         );
                     });
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
-                let fn_id = fns[function_id].5;
-                let is_recursive = fns[function_id].4;
-                let fn_args = fns[function_id].1.clone(); // Box<[String]> — unavoidable
-                let fn_code = fns[function_id].2.clone(); // Box<[Expr]> — unavoidable if needed
-                let fn_data = &fns[function_id].3;
+                let fn_id = fns[function_id].id;
+                let is_recursive = fns[function_id].is_recursive;
+                let fn_args = fns[function_id].args.clone();
+                let fn_code = fns[function_id].code.clone();
+                let fn_impls = &fns[function_id].impls;
 
                 let args_len = fn_args.len();
                 check_args!(args, args_len, fn_name, src, start, end);
@@ -211,11 +211,11 @@ pub fn handle_functions(
                     .collect::<Vec<DataType>>();
 
                 // Try to check if function has already been compiled for these specific arg types
-                let fn_loc_data = if let Some(idx) = fn_data
+                let fn_loc_data = if let Some(idx) = fn_impls
                     .iter()
-                    .position(|fn_impl| fn_impl.arg_types == infered_arg_types)
+                    .position(|fn_impl| *fn_impl.arg_types == infered_arg_types)
                 {
-                    fn_data[idx].clone()
+                    fn_impls[idx].clone()
                 } else {
                     // If it hasn't, compile it (which adds it to the function's implementation list)
                     compile_function(
@@ -231,7 +231,7 @@ pub fn handle_functions(
                         is_recursive,
                         fn_id,
                     );
-                    fns.get(function_id).unwrap().3.last().unwrap().clone()
+                    fns.get(function_id).unwrap().impls.last().unwrap().clone()
                 };
 
                 if is_recursive {
@@ -404,15 +404,10 @@ fn compile_function(
     let loc = fn_start as u16;
 
     // Add this func specialization to the func's metadata, storing start location, location of args, and infered arg types
-    // fn_loc_data = Some(FunctionImpl {
-    //     loc,
-    //     args_loc: args_loc.clone(),
-    //     arg_types: infered_arg_types.clone(),
-    // });
-    fns.get_mut(function_id).unwrap().3.push(FunctionImpl {
+    fns.get_mut(function_id).unwrap().impls.push(FunctionImpl {
         loc,
-        args_loc: args_loc,
-        arg_types: infered_arg_types,
+        args_loc: Box::from(args_loc),
+        arg_types: Box::from(infered_arg_types),
     });
 
     // Compile the function into instructions using local vars

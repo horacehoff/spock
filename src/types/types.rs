@@ -266,8 +266,8 @@ pub fn infer_type(
                 "floor" => DataType::Float,
                 "the_answer" => DataType::Int,
                 function => {
-                    let (_, fn_args, fn_code, _, _, _) =
-                        fns.iter().find(|(a, _, _, _, _, _)| *a == function).unwrap_or_else(|| {
+                    let Function {name:_, args:fn_args, code:fn_code, impls:_, is_recursive:_, id:_} =
+                        fns.iter().find(|func| func.name == function).unwrap_or_else(|| {
                             parser_error(
                                 src,
                                 *start,

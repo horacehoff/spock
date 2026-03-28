@@ -876,26 +876,35 @@ fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_len
     });
 }
 
-pub type Function = (
-    // name
-    String,
-    // args
-    Box<[String]>,
-    // code
-    Box<[Expr]>,
-    // fn loc, fn args loc, argument types
-    Vec<FunctionImpl>,
-    // is_recursive
-    bool,
-    // id
-    u16,
-);
+// pub type Function = (
+//     // name
+//     String,
+//     // args
+//     Box<[String]>,
+//     // code
+//     Box<[Expr]>,
+//     // fn loc, fn args loc, argument types
+//     Vec<FunctionImpl>,
+//     // is_recursive
+//     bool,
+//     // id
+//     u16,
+// );
+#[derive(Debug, Clone)]
+pub struct Function {
+    pub name: String,
+    pub args: Box<[String]>,
+    pub code: Box<[Expr]>,
+    pub impls: Vec<FunctionImpl>,
+    pub is_recursive: bool,
+    pub id: u16,
+}
 
 #[derive(Debug, Clone)]
 pub struct FunctionImpl {
     pub loc: u16,
-    pub args_loc: Vec<u16>,
-    pub arg_types: Vec<DataType>,
+    pub args_loc: Box<[u16]>,
+    pub arg_types: Box<[DataType]>,
 }
 
 pub type ParserData<'a> = (
@@ -1510,10 +1519,7 @@ pub fn parser_to_instr_set(
                 );
             }
             Expr::FunctionDecl(x, y, start, end) => {
-                if fns
-                    .iter()
-                    .any(|(name, _, _, _, _, _)| **name == *x.first().unwrap())
-                {
+                if fns.iter().any(|func| &func.name == x.first().unwrap()) {
                     parser_error(
                         src,
                         *start,
@@ -1526,14 +1532,14 @@ pub fn parser_to_instr_set(
                         "",
                     );
                 }
-                fns.push((
-                    x.first().unwrap().to_string(),
-                    x.into_iter().skip(1).map(ToString::to_string).collect(),
-                    y.clone(),
-                    Vec::new(),
-                    contains_recursive_call(y, x.first().unwrap()),
-                    fn_registers.len() as u16,
-                ));
+                fns.push(Function {
+                    name: x.first().unwrap().to_string(),
+                    args: x.into_iter().skip(1).map(ToString::to_string).collect(),
+                    code: y.clone(),
+                    impls: Vec::new(),
+                    is_recursive: contains_recursive_call(y, x.first().unwrap()),
+                    id: fn_registers.len() as u16,
+                });
                 fn_registers.push(Vec::new());
             }
             Expr::ReturnVal(val) => {
@@ -1589,14 +1595,14 @@ pub fn parse(
         .map(|w| {
             if let Expr::FunctionDecl(x, y, _, _) = w {
                 fn_registers.push(Vec::new());
-                (
-                    x[0].to_string(),
-                    x[1..].into(),
-                    y.clone(),
-                    Vec::new(),
-                    contains_recursive_call(&y, &x[0]),
-                    (fn_registers.len() - 1) as u16,
-                )
+                Function {
+                    name: x[0].to_string(),
+                    args: x[1..].into(),
+                    code: y.clone(),
+                    impls: Vec::new(),
+                    is_recursive: contains_recursive_call(&y, &x[0]),
+                    id: (fn_registers.len() - 1) as u16,
+                }
             } else {
                 unreachable!()
             }
@@ -1604,15 +1610,14 @@ pub fn parse(
         .collect();
 
     let instructions = parser_to_instr_set(
-        functions
+        &functions
             .iter()
-            .find(|x| x.0 == "main")
+            .find(|func| func.name == "main")
             .unwrap_or_else(|| {
                 error(String::from("Could not find main function"));
             })
-            .2
-            .to_vec()
-            .as_slice(),
+            .code
+            .to_vec(),
         &mut variables,
         (
             &mut registers,
