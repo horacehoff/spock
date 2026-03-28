@@ -1,4 +1,5 @@
 use crate::Data;
+use crate::FunctionImpl;
 use crate::Instr;
 use crate::check_args;
 use crate::check_args_range;
@@ -196,9 +197,13 @@ pub fn handle_functions(
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
                 let fn_id = fns[function_id].5;
                 let is_recursive = fns[function_id].4;
-                let fn_args = &fns[function_id].1; // Box<[String]> — unavoidable
+                let fn_args = fns[function_id].1.clone(); // Box<[String]> — unavoidable
                 let fn_code = fns[function_id].2.clone(); // Box<[Expr]> — unavoidable if needed
                 let fn_data = &fns[function_id].3;
+
+                let args_len = fn_args.len();
+                check_args!(args, args_len, fn_name, src, start, end);
+
                 // Infer arg types
                 let infered_arg_types = args
                     .iter()
@@ -206,105 +211,50 @@ pub fn handle_functions(
                     .collect::<Vec<DataType>>();
 
                 // Try to check if function has already been compiled for these specific arg types
-                let mut fn_loc_data = fn_data
+                let fn_loc_data = if let Some(idx) = fn_data
                     .iter()
-                    .find(|(_, _, t)| t == &infered_arg_types)
-                    .cloned();
-
-                let args_len = fn_args.len();
-                check_args!(args, args_len, fn_name, src, start, end);
-
-                // If the function hasn't already been compiled for these arg types, compile it now
-                if fn_data.is_empty() || fn_loc_data.is_none() {
-                    debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
-
-                    // Local vector vars and recorded_types to allow the inner body to type-check correctly
-                    let mut v_temp: Vec<Variable> = Vec::new();
-                    for (i, x) in fn_args.iter().enumerate() {
-                        // Infer local type of arg
-                        let infered_type = infer_type(&args[i], v, fns, src);
-
-                        // Allocate a registers slot for each func arg
-                        registers.push(Data::NULL);
-                        v_temp.push(Variable {
-                            name: Intern::from(x.clone()),
-                            register_id: (registers.len() - 1) as u16,
-                            infered_type,
-                        });
-                    }
-                    // Get the arg destination ids
-                    let args_loc = v_temp.iter().map(|x| x.register_id).collect::<Vec<u16>>();
-
-                    // Temporarily jump over function to prevent executing it right now
-                    // This is a placeholder that's modified later on
-                    output.push(Instr::Jmp(0));
-                    let jump_idx = output.len() - 1;
-
-                    // Record start location for the compiled func body
-                    let fn_start = output.len();
-                    let loc = fn_start as u16;
-
-                    // Add this func specialization to the func's metadata, storing start location, location of args, and infered arg types
-                    fn_loc_data = Some((loc, args_loc.clone(), infered_arg_types.clone()));
-                    fns.get_mut(function_id)
-                        .unwrap()
-                        .3
-                        .push((loc, args_loc, infered_arg_types));
-
-                    // Compile the function into instructions using local vars
-                    let parsed = parser_to_instr_set(
+                    .position(|fn_impl| fn_impl.arg_types == infered_arg_types)
+                {
+                    fn_data[idx].clone()
+                } else {
+                    // If it hasn't, compile it (which adds it to the function's implementation list)
+                    compile_function(
+                        output,
+                        v,
+                        parser_data!(),
+                        function_id,
+                        &fn_args,
+                        fn_name,
+                        infered_arg_types,
+                        args,
                         &fn_code,
-                        &mut v_temp,
-                        (
-                            registers,
-                            fns,
-                            arrays,
-                            block_id,
-                            src,
-                            instr_src,
-                            is_recursive,
-                            fn_registers,
-                            Some(fn_id),
-                        ),
+                        is_recursive,
+                        fn_id,
                     );
-                    let fn_temp_registers = get_tgt_ids(&parsed);
-                    fn_registers
-                        .get_mut(fn_id as usize)
-                        .unwrap()
-                        .extend(fn_temp_registers);
-                    // fns.get_mut(function_id).unwrap().5.extend(fn_registers);
-
-                    output.extend(parsed);
-
-                    // JmpLoad to return to the call site (which will also return a value if necessary)
-                    output.push(Instr::VoidReturn);
-
-                    // Fix the placeholder Jmp(0) to skip over the function body
-                    *output.get_mut(jump_idx).unwrap() =
-                        Instr::Jmp((output.len() - fn_start + 1) as u16);
-                }
+                    fns.get(function_id).unwrap().3.last().unwrap().clone()
+                };
 
                 if is_recursive {
                     output.push(Instr::SaveFrame(0, 0, 0));
                 }
                 let saveframe_loc = output.len() - 1;
                 // Move evaluated call args into the expected arg slots
-                if let Some(fn_args) = &fn_loc_data {
-                    let fn_args = fn_args.1.to_vec();
-                    for (x, tgt_id) in fn_args.iter().enumerate() {
-                        let start_len = output.len();
+                // if let Some(fn_args) = &fn_loc_data {
+                let fn_args = fn_loc_data.args_loc.to_vec();
+                for (x, tgt_id) in fn_args.iter().enumerate() {
+                    let start_len = output.len();
 
-                        let arg_id = get_id(&args[x], v, parser_data!(), output);
-                        debug!("MOVING ARG TO {tgt_id}");
-                        // If get_id emitted code, adjust arg dest with move_to_id
-                        if output.len() != start_len {
-                            move_to_id(output, *tgt_id);
-                        } else {
-                            // Else just directly move the arg to the expected slot
-                            output.push(Instr::Mov(arg_id, *tgt_id))
-                        }
+                    let arg_id = get_id(&args[x], v, parser_data!(), output);
+                    debug!("MOVING ARG TO {tgt_id}");
+                    // If get_id emitted code, adjust arg dest with move_to_id
+                    if output.len() != start_len {
+                        move_to_id(output, *tgt_id);
+                    } else {
+                        // Else just directly move the arg to the expected slot
+                        output.push(Instr::Mov(arg_id, *tgt_id))
                     }
                 }
+                // }
                 fn_registers
                     .get_mut(fn_id as usize)
                     .unwrap()
@@ -314,7 +264,7 @@ pub fn handle_functions(
                 //     .5
                 //     .extend(get_tgt_ids(&output[saveframe_loc..]));
 
-                let loc = fn_loc_data.unwrap().0;
+                let loc = fn_loc_data.loc;
 
                 debug!("LOC IS {loc:?}");
                 debug!("OUTP LEN IS {}", output.len());
@@ -410,4 +360,89 @@ pub fn handle_functions(
         );
     }
     None
+}
+
+fn compile_function(
+    output: &mut Vec<Instr>,
+    v: &mut Vec<Variable>,
+    (registers, fns, arrays, block_id, src, instr_src, _, fn_registers, _): ParserData,
+    function_id: usize,
+    fn_args: &[String],
+    fn_name: &str,
+    infered_arg_types: Vec<DataType>,
+    args: &[Expr],
+    fn_code: &[Expr],
+    is_recursive: bool,
+    fn_id: u16,
+) {
+    debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
+
+    // Local vector vars and recorded_types to allow the inner body to type-check correctly
+    let mut v_temp: Vec<Variable> = Vec::new();
+    for (i, x) in fn_args.iter().enumerate() {
+        // Infer local type of arg
+        let infered_type = infer_type(&args[i], v, fns, src);
+
+        // Allocate a registers slot for each func arg
+        registers.push(Data::NULL);
+        v_temp.push(Variable {
+            name: Intern::from(x.clone()),
+            register_id: (registers.len() - 1) as u16,
+            infered_type,
+        });
+    }
+    // Get the arg destination ids
+    let args_loc = v_temp.iter().map(|x| x.register_id).collect::<Vec<u16>>();
+
+    // Temporarily jump over function to prevent executing it right now
+    // This is a placeholder that's modified later on
+    output.push(Instr::Jmp(0));
+    let jump_idx = output.len() - 1;
+
+    // Record start location for the compiled func body
+    let fn_start = output.len();
+    let loc = fn_start as u16;
+
+    // Add this func specialization to the func's metadata, storing start location, location of args, and infered arg types
+    // fn_loc_data = Some(FunctionImpl {
+    //     loc,
+    //     args_loc: args_loc.clone(),
+    //     arg_types: infered_arg_types.clone(),
+    // });
+    fns.get_mut(function_id).unwrap().3.push(FunctionImpl {
+        loc,
+        args_loc: args_loc,
+        arg_types: infered_arg_types,
+    });
+
+    // Compile the function into instructions using local vars
+    let parsed = parser_to_instr_set(
+        fn_code,
+        &mut v_temp,
+        (
+            registers,
+            fns,
+            arrays,
+            block_id,
+            src,
+            instr_src,
+            is_recursive,
+            fn_registers,
+            Some(fn_id),
+        ),
+    );
+    let fn_temp_registers = get_tgt_ids(&parsed);
+    fn_registers
+        .get_mut(fn_id as usize)
+        .unwrap()
+        .extend(fn_temp_registers);
+    // fns.get_mut(function_id).unwrap().5.extend(fn_registers);
+
+    output.extend(parsed);
+
+    // JmpLoad to return to the call site (which will also return a value if necessary)
+    output.push(Instr::VoidReturn);
+
+    // Fix the placeholder Jmp(0) to skip over the function body
+    *output.get_mut(jump_idx).unwrap() = Instr::Jmp((output.len() - fn_start + 1) as u16);
 }

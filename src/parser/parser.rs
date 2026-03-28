@@ -884,12 +884,19 @@ pub type Function = (
     // code
     Box<[Expr]>,
     // fn loc, fn args loc, argument types
-    Vec<(u16, Vec<u16>, Vec<DataType>)>,
+    Vec<FunctionImpl>,
     // is_recursive
     bool,
     // id
     u16,
 );
+
+#[derive(Debug, Clone)]
+pub struct FunctionImpl {
+    pub loc: u16,
+    pub args_loc: Vec<u16>,
+    pub arg_types: Vec<DataType>,
+}
 
 pub type ParserData<'a> = (
     // registers
