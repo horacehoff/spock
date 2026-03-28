@@ -191,7 +191,7 @@ pub fn handle_functions(
                     .iter()
                     .position(|fn_impl| *fn_impl.arg_types == infered_arg_types)
                 {
-                    fn_impls[idx].clone()
+                    &fn_impls[idx]
                 } else {
                     // If it hasn't, compile it (which adds it to the function's implementation list)
                     compile_function(
@@ -206,7 +206,7 @@ pub fn handle_functions(
                         &fn_code,
                         fn_id,
                     );
-                    fns.get(function_id).unwrap().impls.last().unwrap().clone()
+                    fns.get(function_id).unwrap().impls.last().unwrap()
                 };
 
                 if is_recursive {
