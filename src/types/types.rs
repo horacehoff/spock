@@ -265,16 +265,16 @@ pub fn infer_type(
                 "range" => DataType::Array(Box::from(DataType::Int)),
                 "floor" => DataType::Float,
                 "the_answer" => DataType::Int,
-                function => {
+                function_name => {
                     let Function {name:_, args:fn_args, code:fn_code, impls:_, is_recursive:_, id:_} =
-                        fns.iter().find(|func| func.name == function).unwrap_or_else(|| {
+                        fns.iter().find(|func| func.name == function_name).unwrap_or_else(|| {
                             parser_error(
                                 src,
                                 *start,
                                 *end,
                                 "Unknown function",
                                 &format!(
-                                    "Function {color_bright_blue}{style_bold}{function}{color_reset}{style_reset} does not exist or has not been declared yet"
+                                    "Function {color_bright_blue}{style_bold}{function_name}{color_reset}{style_reset} does not exist or has not been declared yet"
                                 ),""
                             );
                         });
@@ -305,7 +305,7 @@ pub fn infer_type(
                     // dedup(&mut fn_type);
                     // -----
 
-                    let fn_type = track_returns(fn_code, v, fns, src, function, true);
+                    let fn_type = track_returns(fn_code, v, fns, src, function_name, true);
                     let to_return = if !fn_type.is_empty() {
                         // If function returns anything, check if it returns the same thing each time
                         check_poly(DataType::Poly(Box::from(fn_type)))
