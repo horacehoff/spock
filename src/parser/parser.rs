@@ -7,10 +7,10 @@ use crate::functions::handle_functions;
 use crate::grammar::Token;
 use crate::method_calls::handle_method_calls;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
-use crate::types;
-use crate::types::contains_recursive_call;
-use crate::types::is_indexable;
-use crate::types::{DataType, infer_type};
+use crate::type_system;
+use crate::type_system::contains_recursive_call;
+use crate::type_system::is_indexable;
+use crate::type_system::{DataType, infer_type};
 use crate::util::compilation_error;
 use crate::{Data, Instr, error};
 use inline_colorization::*;
@@ -139,7 +139,6 @@ pub fn symbol_of_expr(expr: &Expr) -> &str {
     }
 }
 
-///
 pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     if x.is_empty()
         || matches!(
@@ -475,7 +474,7 @@ pub fn get_id(
         Expr::Div(l, r, start, end) => {
             uniform_op!(
                 DivFloat,
-                MulInt,
+                DivInt,
                 "/",
                 l,
                 r,
@@ -551,17 +550,17 @@ pub fn get_id(
             )
         }
         Expr::Eq(l, r) => {
+            let is_array = matches!(infer_type(l, v, fns, src), DataType::Array(_))
+                && matches!(infer_type(r, v, fns, src), DataType::Array(_));
             let id_l = get_id(l, v, parser_data!(), output);
             let id_r = get_id(r, v, parser_data!(), output);
             let id = registers.len() as u16;
             registers.push(Data::NULL);
-            if matches!(infer_type(l, v, fns, src), DataType::Array(_))
-                && matches!(infer_type(r, v, fns, src), DataType::Array(_))
-            {
-                output.push(Instr::ArrayEq(id_l, id_r, id));
+            output.push(if is_array {
+                Instr::ArrayEq(id_l, id_r, id)
             } else {
-                output.push(Instr::Eq(id_l, id_r, id));
-            }
+                Instr::Eq(id_l, id_r, id)
+            });
             id
         }
         Expr::NotEq(l, r) => {
@@ -1444,7 +1443,7 @@ pub fn parser_to_instr_set(
                 output.push(Instr::JmpBack(code_length));
             }
             Expr::VarDeclare(x, y) => {
-                let var_type = types::infer_type(y, v, fns, src);
+                let var_type = type_system::infer_type(y, v, fns, src);
                 let output_len = output.len();
                 let obj_id = get_id(y, v, parser_data!(), &mut output);
 
@@ -1464,7 +1463,7 @@ pub fn parser_to_instr_set(
                 });
             }
             Expr::VarAssign(name, y, start, end) => {
-                let var_type = types::infer_type(y, v, fns, src);
+                let var_type = type_system::infer_type(y, v, fns, src);
                 let id = v
                     .iter()
                     .find(|x| x.name == *name)
@@ -1617,7 +1616,7 @@ pub fn parse(
                 error(String::from("Could not find main function"));
             })
             .code
-            .to_vec(),
+            .clone(),
         &mut variables,
         (
             &mut registers,

@@ -2,7 +2,7 @@ use std::hint::unreachable_unchecked;
 
 use crate::ArrayStorage;
 use crate::parser::Expr;
-use crate::types::DataType;
+use crate::type_system::DataType;
 use crate::{Data, Instr};
 use ariadne::*;
 use concat_string::concat_string;
