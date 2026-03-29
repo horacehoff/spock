@@ -50,7 +50,7 @@ impl Data {
     }
     #[inline(always)]
     pub fn int(n: i32) -> Data {
-        Data(NAN_TAG_INT | (n as u64))
+        Data(NAN_TAG_INT | (n as u32 as u64))
     }
     #[inline(always)]
     pub fn as_int(&self) -> i32 {

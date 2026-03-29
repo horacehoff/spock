@@ -62,6 +62,23 @@ pub enum Instr {
     NegFloat(u16, u16),
     NegInt(u16, u16),
 
+    /// CallFunc(n,y) - Jumps to the nth instruction, and adds y as a slot to be set by the Return instruction; VoidReturn/Return will jump back to this location
+    CallFunc(u16, u16),
+    /// CallFuncRecursive(n, register_id) - Jumps to the nth instruction, register_id is only used during parsing.
+    CallFuncRecursive(u16, u16),
+    /// Jumps to the instruction right after the last CallFunc encountered by the interpreter
+    VoidReturn,
+    /// Return(n) => returns the data located in register n
+    Return(u16),
+    /// RecursiveReturn(n,function_id) => returns the data located in register n, and restores the function's register state
+    RecursiveReturn(u16, u16),
+    /// SaveFrame(function_location, return_register, function_id)
+    SaveFrame(u16, u16, u16),
+
+    StoreFuncArg(u16),
+    /// CallLibFunc(function, tgt. register id, dest. register id)
+    CallLibFunc(LibFunc, u16, u16),
+
     // General functions
     Float(u16, u16),
     Int(u16, u16),
@@ -75,10 +92,6 @@ pub enum Instr {
     // path - dest - create?
     IoOpen(u16, u16, u16),
     IoDelete(u16),
-
-    StoreFuncArg(u16),
-    /// CallLibFunc(function, tgt. register id, dest. register id)
-    CallLibFunc(LibFunc, u16, u16),
 
     ArrayMov(u16, u16, u16),
     // different than ArrayMov => looks into the registers
@@ -96,19 +109,6 @@ pub enum Instr {
     Len(u16, u16),
     // tgt - separator - dest
     Split(u16, u16, u16),
-
-    /// CallFunc(n,y) - Jumps to the nth instruction, and adds y as a slot to be set by the Return instruction; VoidReturn/Return will jump back to this location
-    CallFunc(u16, u16),
-    /// CallFuncRecursive(n, register_id) - Jumps to the nth instruction, register_id is only used during parsing.
-    CallFuncRecursive(u16, u16),
-    /// Jumps to the instruction right after the last CallFunc encountered by the interpreter
-    VoidReturn,
-    /// Return(n) => returns the data located in register n
-    Return(u16),
-    /// RecursiveReturn(n,function_id) => returns the data located in register n, and restores the function's register state
-    RecursiveReturn(u16, u16),
-    /// SaveFrame(function_location, return_register, function_id)
-    SaveFrame(u16, u16, u16),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
