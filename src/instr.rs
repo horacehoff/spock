@@ -9,20 +9,20 @@ pub enum Instr {
     /// Jumps x instructions backwards
     JmpBack(u16),
     /// Cmp(condition_register_id, jump_size) - jumps if false
-    Cmp(u16, u16),
-    InfFloatCmp(u16, u16, u16),
-    InfIntCmp(u16, u16, u16),
-    InfEqFloatCmp(u16, u16, u16),
-    InfEqIntCmp(u16, u16, u16),
-    SupFloatCmp(u16, u16, u16),
-    SupIntCmp(u16, u16, u16),
+    ConditionalJmp(u16, u16),
+    InfFloatJmp(u16, u16, u16),
+    InfIntJmp(u16, u16, u16),
+    InfEqFloatJmp(u16, u16, u16),
+    InfEqIntJmp(u16, u16, u16),
+    SupFloatJmp(u16, u16, u16),
+    SupIntJmp(u16, u16, u16),
     /// Cmp(condition_register_id, jump_size) - jumps if false
-    SupEqFloatCmp(u16, u16, u16),
-    SupEqIntCmp(u16, u16, u16),
-    EqCmp(u16, u16, u16),
-    NotEqCmp(u16, u16, u16),
-    ArrayEqCmp(u16, u16, u16),
-    ArrayNotEqCmp(u16, u16, u16),
+    SupEqFloatJmp(u16, u16, u16),
+    SupEqIntJmp(u16, u16, u16),
+    EqJmp(u16, u16, u16),
+    NotEqJmp(u16, u16, u16),
+    ArrayEqJmp(u16, u16, u16),
+    ArrayNotEqJmp(u16, u16, u16),
 
     Mov(u16, u16),
 
