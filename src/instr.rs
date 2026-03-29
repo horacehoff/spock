@@ -77,6 +77,7 @@ pub enum Instr {
     IoDelete(u16),
 
     StoreFuncArg(u16),
+    /// CallLibFunc(function, tgt. register id, dest. register id)
     CallLibFunc(LibFunc, u16, u16),
 
     ArrayMov(u16, u16, u16),
