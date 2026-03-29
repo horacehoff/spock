@@ -54,6 +54,7 @@ impl Data {
     }
     #[inline(always)]
     pub fn as_int(&self) -> i32 {
+        debug_assert!(self.is_int());
         self.0 as i32
     }
     #[inline(always)]
