@@ -275,7 +275,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         Instr::Print(_)
         | Instr::Jmp(_)
         | Instr::JmpBack(_)
-        | Instr::ConditionalJmp(_, _)
+        | Instr::IsFalseJmp(_, _)
         | Instr::EqJmp(_, _, _)
         | Instr::ArrayEqJmp(_, _, _)
         | Instr::NotEqJmp(_, _, _)
@@ -729,7 +729,7 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
                     condition_markers[i] - y
                 };
                 if let Some(
-                    Instr::ConditionalJmp(_, jump_size)
+                    Instr::IsFalseJmp(_, jump_size)
                     | Instr::InfFloatJmp(_, _, jump_size)
                     | Instr::InfIntJmp(_, _, jump_size)
                     | Instr::InfEqFloatJmp(_, _, jump_size)
@@ -772,7 +772,7 @@ fn can_move(x: &Instr) -> bool {
 
 fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwards: bool) {
     if output.is_empty() {
-        return output.push(Instr::ConditionalJmp(condition_id, *len));
+        return output.push(Instr::IsFalseJmp(condition_id, *len));
     }
     *output.last_mut().unwrap() = match *output.last().unwrap() {
         Instr::InfFloat(o1, o2, o3) if o3 == condition_id => Instr::InfFloatJmp(o1, o2, *len),
@@ -788,7 +788,7 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
         Instr::NotEq(o1, o2, o3) if o3 == condition_id => Instr::NotEqJmp(o1, o2, *len),
         Instr::ArrayNotEq(o1, o2, o3) if o3 == condition_id => Instr::ArrayNotEqJmp(o1, o2, *len),
         _ => {
-            output.push(Instr::ConditionalJmp(condition_id, *len));
+            output.push(Instr::IsFalseJmp(condition_id, *len));
             return;
         }
     };
@@ -1192,7 +1192,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         condition_markers[i] - y
                     };
                     if let Some(
-                        Instr::ConditionalJmp(_, jump_size)
+                        Instr::IsFalseJmp(_, jump_size)
                         | Instr::InfFloatJmp(_, _, jump_size)
                         | Instr::InfIntJmp(_, _, jump_size)
                         | Instr::InfEqFloatJmp(_, _, jump_size)

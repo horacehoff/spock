@@ -132,7 +132,7 @@ pub fn execute(
                 i = call_frame.return_addr as usize;
                 registers[call_frame.return_reg as usize] = temp;
             }
-            Instr::ConditionalJmp(cond_id, size) => {
+            Instr::IsFalseJmp(cond_id, size) => {
                 if registers[cond_id as usize] == Data::FALSE {
                     i += size as usize;
                     continue;

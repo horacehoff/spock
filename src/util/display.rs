@@ -257,7 +257,7 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
     for (i, instr) in instructions.iter().enumerate() {
         match instr {
             Instr::Jmp(jump_size)
-            | Instr::ConditionalJmp(_, jump_size)
+            | Instr::IsFalseJmp(_, jump_size)
             | Instr::InfFloatJmp(_, _, jump_size)
             | Instr::InfIntJmp(_, _, jump_size)
             | Instr::InfEqFloatJmp(_, _, jump_size)

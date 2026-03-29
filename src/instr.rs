@@ -9,7 +9,7 @@ pub enum Instr {
     /// Jumps x instructions backwards
     JmpBack(u16),
     /// Cmp(condition_register_id, jump_size) - jumps if false
-    ConditionalJmp(u16, u16),
+    IsFalseJmp(u16, u16),
     InfFloatJmp(u16, u16, u16),
     InfIntJmp(u16, u16, u16),
     InfEqFloatJmp(u16, u16, u16),
