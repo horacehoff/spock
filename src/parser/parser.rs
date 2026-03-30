@@ -651,9 +651,10 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
             add_cmp(condition_id, &mut 0, output, false);
             cmp_markers.push(output.len() - 1);
 
-            let mut priv_vars = v.clone();
+            let v_len = v.len();
             // parse the main code block
-            let cond_code = parser_to_instr_set(&code[0..main_code_limit], &mut priv_vars, p);
+            let cond_code = parser_to_instr_set(&code[0..main_code_limit], v, p);
+            v.truncate(v_len);
             let is_empty = cond_code.is_empty();
             output.extend(cond_code);
             output.push(Instr::Mov(
@@ -676,8 +677,9 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
                     let condition_id = get_id(condition, v, p, output);
                     add_cmp(condition_id, &mut 0, output, false);
                     cmp_markers.push(output.len() - 1);
-                    let mut priv_vars = v.clone();
-                    let cond_code = parser_to_instr_set(code, &mut priv_vars, p);
+                    let v_len = v.len();
+                    let cond_code = parser_to_instr_set(code, v, p);
+                    v.truncate(v_len);
                     let is_empty = cond_code.is_empty();
                     output.extend(cond_code);
                     output.push(Instr::Mov(
@@ -693,8 +695,9 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
                 } else if let Expr::ElseBlock(code) = elem {
                     else_exists = true;
                     condition_markers.push(output.len());
-                    let mut priv_vars = v.clone();
-                    let cond_code = parser_to_instr_set(code, &mut priv_vars, p);
+                    let v_len = v.len();
+                    let cond_code = parser_to_instr_set(code, v, p);
+                    v.truncate(v_len);
                     let is_empty = cond_code.is_empty();
                     output.extend(cond_code);
                     output.push(Instr::Mov(
@@ -1143,21 +1146,24 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     .unwrap_or(code.len());
 
                 let condition_blocks_count = code.len() - main_code_limit;
-                let mut cmp_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
-                let mut jmp_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
+                let mut conditional_jmp_instr_idx: Vec<usize> =
+                    Vec::with_capacity(condition_blocks_count);
+                let mut jmp_instr_idx: Vec<usize> = Vec::with_capacity(condition_blocks_count);
                 let mut condition_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
 
                 // parse the main condition
                 let condition_id = get_id(main_condition, v, p, &mut output);
                 add_cmp(condition_id, &mut 0, &mut output, false);
-                cmp_markers.push(output.len() - 1);
-                let mut priv_vars = v.clone();
+                conditional_jmp_instr_idx.push(output.len() - 1);
+
+                let v_len = v.len();
                 // parse the main code block
-                let cond_code = parser_to_instr_set(&code[0..main_code_limit], &mut priv_vars, p);
+                let cond_code = parser_to_instr_set(&code[0..main_code_limit], v, p);
+                v.truncate(v_len);
                 output.extend(cond_code);
                 if main_code_limit != code.len() {
                     output.push(Instr::Jmp(0));
-                    jmp_markers.push(output.len() - 1);
+                    jmp_instr_idx.push(output.len() - 1);
                 }
 
                 for elem in &code[main_code_limit..] {
@@ -1165,29 +1171,31 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         condition_markers.push(output.len());
                         let condition_id = get_id(condition, v, p, &mut output);
                         add_cmp(condition_id, &mut 0, &mut output, false);
-                        cmp_markers.push(output.len() - 1);
-                        let mut priv_vars = v.clone();
-                        let cond_code = parser_to_instr_set(code, &mut priv_vars, p);
+                        conditional_jmp_instr_idx.push(output.len() - 1);
+                        let v_len = v.len();
+                        let cond_code = parser_to_instr_set(code, v, p);
+                        v.truncate(v_len);
                         debug!("COND CODE IS {cond_code:?}");
                         output.extend(cond_code);
                         output.push(Instr::Jmp(0));
-                        jmp_markers.push(output.len() - 1);
+                        jmp_instr_idx.push(output.len() - 1);
                     } else if let Expr::ElseBlock(code) = elem {
                         condition_markers.push(output.len());
-                        let mut priv_vars = v.clone();
-                        let cond_code = parser_to_instr_set(code, &mut priv_vars, p);
+                        let v_len = v.len();
+                        let cond_code = parser_to_instr_set(code, v, p);
+                        v.truncate(v_len);
                         debug!("COND CODE IS {cond_code:?}");
                         output.extend(cond_code);
                     }
                 }
 
-                for y in jmp_markers {
+                for y in jmp_instr_idx {
                     let diff = output.len() - y;
                     output[y] = Instr::Jmp(diff as u16);
                 }
-                for (i, y) in cmp_markers.iter().enumerate() {
+                for (i, y) in conditional_jmp_instr_idx.iter().enumerate() {
                     let diff = if i >= condition_markers.len() {
-                        output.len() - 1 - y
+                        output.len() - y
                     } else {
                         condition_markers[i] - y
                     };
@@ -1206,7 +1214,6 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     ) = output.get_mut(*y)
                     {
                         *jump_size = diff as u16;
-                        // *jump_size = diff as u16 + 1;
                     }
                 }
             }
@@ -1220,10 +1227,10 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 let condition_id = get_id(condition, v, p, &mut output);
 
                 // parse the code block, clone the vars to avoid overriding anything
-                let mut temp_vars = v.clone();
-
+                let v_len = v.len();
                 let loop_id = block_id + 1;
-                let mut cond_code = parser_to_instr_set(code, &mut temp_vars, p);
+                let mut cond_code = parser_to_instr_set(code, v, p);
+                v.truncate(v_len);
 
                 // get length of the code, then add Cmp/OpCmp (decided by add_cmp), and add the condition logic
                 let mut len = (cond_code.len() + 2) as u16;
@@ -1266,6 +1273,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     registers.push(Data::NULL);
                 }
 
+                let v_len = v.len();
                 // parse everything, add the current element variable to temp_vars so that the loop code can interact with it
                 v.push(Variable {
                     name: *var_name,
@@ -1276,13 +1284,10 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         _ => todo!("For loop invalid type"),
                     },
                 });
-                let (v_idx, t_idx) = (v.len() - 1, v.len() - 1);
-
                 let loop_id = block_id + 1;
                 let mut cond_code = parser_to_instr_set(code, v, p);
                 // Clean up variables
-                v.remove(v_idx);
-                v.remove(t_idx);
+                v.truncate(v_len);
 
                 // add the condition ('i < len') jumping logic
                 let mut len = (cond_code.len() + 3) as u16 + if real_var { 1 } else { 0 };
@@ -1348,15 +1353,13 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     )
                 }
                 let elem_id = get_id(start_elem, v, p, &mut output);
-                // Create temporary variable and store its index, so as to delete it later
-                let mut v_temp = v.clone();
-                v_temp.push(Variable {
+
+                let v_len = v.len();
+                v.push(Variable {
                     name: *var_name,
                     register_id: elem_id,
                     infered_type: DataType::Int,
                 });
-                let (v_idx, t_idx) = (v.len() - 1, v.len() - 1);
-
                 // Compile the code inside the loop
                 let compiled_loop_code = parser_to_instr_set(code, v, p);
                 let compiled_loop_code_len = compiled_loop_code.len() as u16;
@@ -1378,12 +1381,15 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     elem_id,
                 ));
                 // Jump back to the start of the function
-                output.push(Instr::JmpBack(2 + compiled_loop_code_len))
+                output.push(Instr::JmpBack(2 + compiled_loop_code_len));
+
+                v.truncate(v_len);
             }
             Expr::LoopBlock(code) => {
                 let loop_id = block_id + 1;
-                let mut vars = v.clone();
-                let mut compiled = parser_to_instr_set(code, &mut vars, p);
+                let v_len = v.len();
+                let mut compiled = parser_to_instr_set(code, v, p);
+                v.truncate(v_len);
                 let code_length = compiled.len() as u16;
                 parse_indef_loop_flow_control(&mut compiled, loop_id, code_length + 1);
                 output.extend(compiled);
@@ -1503,8 +1509,9 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
             // Break(block_id) = NotEqCmp(block_id, 0, 0)
             Expr::Continue => output.push(Instr::NotEqJmp(block_id, 0, 0)),
             Expr::EvalBlock(code) => {
-                let mut vars = v.clone();
-                output.extend(parser_to_instr_set(code, &mut vars, p))
+                let v_len = v.len();
+                output.extend(parser_to_instr_set(code, v, p));
+                v.truncate(v_len);
             }
             other => {
                 unreachable!("Not implemented {:?}", other);
