@@ -31,6 +31,7 @@ mod optimizations;
 #[path = "./parser/parser.rs"]
 mod parser;
 #[path = "./tests.rs"]
+#[cfg(test)]
 mod tests;
 #[path = "./type_system.rs"]
 mod type_system;

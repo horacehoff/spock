@@ -125,6 +125,7 @@ impl Data {
     }
     #[inline(always)]
     pub fn as_file(&self) -> String {
+        debug_assert!(self.is_file());
         if (self.0 & !PAYLOAD_MASK) == NAN_TAG_FILE {
             let payload = self.0 & PAYLOAD_MASK;
             let len = (payload >> 40) as usize;

@@ -54,7 +54,7 @@ end</code></pre></td>
 0.0014s
 </td>
 <td>
-0.93s
+0.32s
 </td>
 <td>
 0.0059s
@@ -84,10 +84,10 @@ print(len(i))</code></pre></td>
  </tr>
 <tr>
 <td>
-1.04s
+1.65s
 </td>
 <td>
-17.4s
+2.33s
 </td>
 </tr>
 </table>
@@ -121,10 +121,10 @@ print(x)</code></pre></td>
 </tr>
 <tr>
 <td>
-0.090s
+0.13s
 </td>
 <td>
-1.4s
+0.57s
 </td>
 <td>
 0.019s
