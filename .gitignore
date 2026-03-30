@@ -2,3 +2,6 @@
 /.zed
 /.idea
 test.spock
+*.dylib
+*.c
+/lib_testing

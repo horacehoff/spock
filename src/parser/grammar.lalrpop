@@ -13,6 +13,16 @@ match {
     r"//[^\n\r]*[\n\r]*" => { }, // `// comment`
 } else {_}
 
+
+pub File:Vec<Expr> = {
+    <f: FileStatement*> => f,
+}
+
+pub FileStatement:Expr = {
+    <o: Function> => o,
+    <i: Import> ";" => i
+}
+
 Comma<T>: Vec<T> = {
     <mut v:(<T> ",")*> <e:T?> => match e {
         None => v,
@@ -46,9 +56,6 @@ Block<T>: T = {
 }
 
 
-pub File:Vec<Expr> = {
-    <o: Function*> => o,
-}
 
 pub Function:Expr = {
     <start: @L> "fn" <o1:Var> <args: Args<Var>> <o3: Block<Code>> <end: @R> => {

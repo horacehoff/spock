@@ -1,36 +1,42 @@
-Spock
-===
+# Spock
 
 > [!WARNING]
->
-> This language is very experimental, and there may be logic-breaking bugs. Expect breaking changes.
+> This language is very experimental, and there may be logic-breaking bugs.
+Expect breaking changes.
 > Recursion finally works!!
 
-A work-in-progress interpreted programming language written in Rust for the best performance possible, whose syntax takes inspiration from Rust and Python. 
+A work-in-progress interpreted programming language written in Rust for the best performance possible, 
+whose syntax takes inspiration from Rust and Python.
 Its goal is to provide a faster alternative to Python, and one that's closer to low-level languages, while still being accessible to a wide audience.
 
 Key info:
+
 - ~2-10x faster than Python in most cases.
-  Comparisons [here](COMPARISONS.md)
+  [Comparisons](COMPARISONS.md)
 - Inlined functions
 - Constant folding
 - Constant propagation
 - Peephole optimization
 - Basic optimization of conditions
 - Basic loop summation optimization (will get better)
-- Type inference
-
+- Type inference, compile-time type checking
 
 ## Installation
+
 No binaries are provided yet. You need to compile Spock yourself.
+
 1. [Install Rust](https://rustup.rs/)
 2. Clone the repo
+
 ```sh
 git clone https://github.com/horacehoff/spock
 ```
+
 3. Run/Build Spock
+
 ```diff
-+ Using --release is very recommended on x86, as it's much faster and doesn't print Spock debug information
++ Using --release is very recommended on x86, as it's much faster and doesn't print
+Spock debug information
 cargo run --release
 cargo build --release
 ```
@@ -38,7 +44,7 @@ cargo build --release
 ## Instruction Set
 
 Spock uses an instruction set with a size of 8 bytes.
-The available instructions can be seen [here](src/main.rs).
+[Browse the instructions here](src/instr.rs).
 
 ```rs
 let x = 20;
@@ -50,7 +56,7 @@ if (x < 200) {
 
 becomes...
 
-```
+```spock
 0: InfIntCmp 0 1 1
 1: Print 3
 ```
@@ -74,7 +80,7 @@ print(c);
 
 becomes...
 
-```
+```spock
 0: InfIntCmp(4, 0, 6)   ─┐ <─┐
 1: AddInt(1, 2, 3)       │   │
 2: Mov(2, 1)             │   │
@@ -83,8 +89,11 @@ becomes...
 5: JmpBack(5)            │  ─┘
 6: Print(3)            <─┘
 ```
+
 ## Syntax
+
 ### Blocks
+
 ```rs
 print("Beginning of program");
 let y = 20;
@@ -95,7 +104,9 @@ let y = 20;
     print(x);
 }
 ```
+
 ### Conditions
+
 ```rs
 let x = 20;
 if x == 20 {
@@ -106,13 +117,17 @@ if x == 20 {
   print("else!");
 }
 ```
+
 ### Inline conditions
+
 ```rs
 let y = 10;
 print(if y == 10 {"y is: 10"} else {"y is "+str(y)});
 let x = if y == 42 {5} else {10};
 ```
+
 ### While loops
+
 ```rs
 let i = 0;
 while i < 10 {
@@ -120,9 +135,11 @@ while i < 10 {
   i += 1;
 }
 ```
+
 ### For loops
+
 ```rs
-// NOTE: using _ as the variable name in a for loop will discard the value, making the program faster, but restricting access to the element
+// NOTE: using _ as the variable name in a for loop will discard the value, making the program faster, but preventing access to the element
 for x in [0,1,2,3] {
   for y in "abcd" {
     print(x);
@@ -130,8 +147,11 @@ for x in [0,1,2,3] {
   }
 }
 ```
+
 ### Loops
+
 > Loops indefinitely until flow is stopped
+
 ```rs
 let i = 0;
 loop {
@@ -143,8 +163,11 @@ loop {
 }
 print("End of the loop!");
 ```
+
 ### Integer loops
+
 > Loops over a range of integers
+
 ```rs
 let x = 0;
 // Loops from i=0 to i = max-1
@@ -154,6 +177,7 @@ for i in 0..10000000 {
 print(x);
 }
 ```
+
 ```rs
 let x = 0;
 // Defaults to 0
@@ -163,8 +187,11 @@ for i in ..10 {
 }
 print(x);
 ```
+
 ### Match statements
+
 > Match statements currently don't support binding variables
+
 ```rs
 let x = "hello";
 match x {
@@ -179,7 +206,9 @@ match x {
   }
 }
 ```
+
 ### Loop flow control
+
 ```rs
 let i = 0;
 while i < 10 {
@@ -191,6 +220,7 @@ while i < 10 {
   }
 }
 ```
+
 ```rs
 for x in [0,1,2,3] {
   for y in "abcd" {
@@ -203,11 +233,15 @@ for x in [0,1,2,3] {
   }
 }
 ```
+
 ### Imports (WIP)
+
 You can import functions from other `.spock` files by using the `import` keyword like shown below.
 Please note that import statements are directly replaced by the file's contents, and as such error messages will not be
 able to specify which file the error comes from.
+
 - `otherfile.spock`:
+
 ```rs
 fn demo() {
 print("Hello World!");
@@ -215,6 +249,7 @@ print("Hello World!");
 ```
 
 - `main.spock`:
+
 ```rs
 import path/to/otherfile.spock;
 
@@ -222,8 +257,11 @@ fn main() {
 demo();
 }
 ```
+
 ### Arrays
+
 Arrays can only hold one type
+
 ```rs
 let x = [0,1,2,3,4];
 print(x[0]);
@@ -232,7 +270,9 @@ for w in x {
   print(w);
 }
 ```
+
 ### Arithmetic Operations
+
 ```rs
 let x = 0;
 
@@ -265,12 +305,15 @@ print(x > 1 && x < 1);
 ```
 
 ## Types
+
 - `Boolean` (`true`/`false`)
 - `Integer` (i32)
 - `Float` (f64)
 - `Array` (`[1, 2, 3, "4", 5.0, true]`)
 - `String`
-#### Converting types
+
+### Converting types
+
 - `x` to `Float`=> `float(x)`
 - `x` to `Integer`=> `int(x)`
 - `x` to `String`=> `str(x)`
