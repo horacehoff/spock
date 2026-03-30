@@ -385,7 +385,15 @@ fn compile_function(
     });
 
     // Compile the function into instructions using local vars
-    let parsed = parser_to_instr_set(fn_code, &mut v_temp, p);
+    let parsed = parser_to_instr_set(
+        fn_code,
+        &mut v_temp,
+        &ParserData {
+            is_parsing_recursive: true,
+            parsing_fn_id: Some(fn_id),
+            ..*p
+        },
+    );
     let fn_temp_registers = get_tgt_ids(&parsed);
     fn_registers
         .get_mut(fn_id as usize)
