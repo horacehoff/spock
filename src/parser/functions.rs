@@ -30,7 +30,7 @@ pub fn handle_functions(
     end: usize,
     args_indexes: &[(usize, usize)],
 ) -> Option<u16> {
-    let (registers, fns, _, instr_src, fn_registers, _, src, _, _) = p.destructure();
+    let (registers, fns, _, instr_src, fn_registers, _, src, _, _, dyn_libs) = p.destructure();
 
     let mut check_type = |arg: usize, expected: &[DataType]| {
         let infered = infer_type(&args[arg], v, fns, src);
@@ -348,7 +348,7 @@ fn compile_function(
     fn_code: &[Expr],
     fn_id: u16,
 ) {
-    let (registers, fns, _, _, fn_registers, _, src, _, _) = p.destructure();
+    let (registers, fns, _, _, fn_registers, _, src, _, _, dyn_libs) = p.destructure();
     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
 
     // Local vector vars and recorded_types to allow the inner body to type-check correctly

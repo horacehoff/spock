@@ -16,6 +16,7 @@ use crate::{Data, Instr, error};
 use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
+use libloading::Library;
 use slab::Slab;
 use std::slice;
 
@@ -325,7 +326,7 @@ fn get_last_tgt_id(x: &[Instr]) -> Option<u16> {
 }
 
 pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut Vec<Instr>) -> u16 {
-    let (registers, fns, arrays, _, _, block_id, src, _, _) = p.destructure();
+    let (registers, fns, arrays, _, _, block_id, src, _, _, dyn_libs) = p.destructure();
 
     macro_rules! uniform_op {
         ($instr: ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type:expr) => {{
@@ -868,6 +869,7 @@ pub struct ParserData<'a> {
     pub is_parsing_recursive: bool,
     pub fn_registers: *mut Vec<Vec<u16>>,
     pub parsing_fn_id: Option<u16>,
+    pub dyn_libs: *mut Vec<Library>,
 }
 impl ParserData<'_> {
     pub fn destructure(
@@ -882,6 +884,7 @@ impl ParserData<'_> {
         (&str, &str),
         bool,
         Option<u16>,
+        &mut Vec<Library>,
     ) {
         (
             unsafe { &mut *self.registers },
@@ -893,6 +896,7 @@ impl ParserData<'_> {
             self.src,
             self.is_parsing_recursive,
             self.parsing_fn_id,
+            unsafe { &mut *self.dyn_libs },
         )
     }
 }
@@ -918,6 +922,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
         src,
         is_parsing_recursive,
         parsing_fn_id,
+        dyn_libs,
     ) = p.destructure();
 
     for x in input {
@@ -1532,7 +1537,7 @@ pub fn parse(
     Vec<Vec<u16>>,
 ) {
     let now = std::time::Instant::now();
-    let functions: Vec<Expr> = grammar::FileParser::new()
+    let code: Vec<Expr> = grammar::FileParser::new()
         .parse(contents)
         .unwrap_or_else(|x| lalrpop_error::<usize, Token<'_>, &str>(x, contents, filename));
     println!("LALRPOP TIME {:.2?}", now.elapsed());
@@ -1543,24 +1548,26 @@ pub fn parse(
     let mut arrays: ArrayStorage = Slab::with_capacity(20);
     let mut instr_src = Vec::new();
     let mut fn_registers: Vec<Vec<u16>> = Vec::new();
-    let mut functions: Vec<Function> = functions
-        .into_iter()
-        .map(|w| {
-            if let Expr::FunctionDecl(x, y, _, _) = w {
-                fn_registers.push(Vec::new());
-                Function {
-                    name: x[0].to_string(),
-                    args: x[1..].into(),
-                    code: y.clone(),
-                    impls: Vec::new(),
-                    is_recursive: contains_recursive_call(&y, &x[0]),
-                    id: (fn_registers.len() - 1) as u16,
-                }
-            } else {
-                unreachable!()
-            }
-        })
-        .collect();
+    let mut functions: Vec<Function> = Vec::new();
+    for w in &code {
+        if let Expr::FunctionDecl(x, y, _, _) = w {
+            fn_registers.push(Vec::new());
+            functions.push(Function {
+                name: x[0].to_string(),
+                args: x[1..].into(),
+                code: y.clone(),
+                impls: Vec::new(),
+                is_recursive: contains_recursive_call(&y, &x[0]),
+                id: (fn_registers.len() - 1) as u16,
+            });
+        }
+    }
+    let mut dyn_libs: Vec<Library> = Vec::new();
+    for w in code {
+        if let Expr::Import(path) = w {
+            dyn_libs.push(unsafe { libloading::Library::new(path).unwrap() });
+        }
+    }
 
     let instructions = parser_to_instr_set(
         &functions
@@ -1582,6 +1589,7 @@ pub fn parse(
             is_parsing_recursive: false,
             fn_registers: &mut fn_registers,
             parsing_fn_id: None,
+            dyn_libs: &mut dyn_libs,
         },
     );
     for x in fn_registers.iter_mut() {

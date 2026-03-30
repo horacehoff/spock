@@ -25,7 +25,7 @@ pub fn handle_method_calls(
     end: usize,
     args_indexes: &[(usize, usize)],
 ) {
-    let (registers, fns, _, instr_src, _, _, src, _, _) = p.destructure();
+    let (registers, fns, _, instr_src, _, _, src, _, _, dyn_libs) = p.destructure();
 
     let len = namespace.len() - 1;
     let name = namespace[len].as_str();
