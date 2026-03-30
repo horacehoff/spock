@@ -30,6 +30,8 @@ mod method_calls;
 mod optimizations;
 #[path = "./parser/parser.rs"]
 mod parser;
+#[path = "./tests.rs"]
+mod tests;
 #[path = "./type_system.rs"]
 mod type_system;
 #[path = "./util/util.rs"]
