@@ -19,8 +19,8 @@ pub fn while_loop_summation(
                             // most simple option
                             if add_var == *x {
                                 if *increment == Expr::Float(1.0) || *increment == Expr::Int(1) {
-                                    let limit_id = get_id(b, v, p, output);
-                                    let var_id = get_id(a, v, p, output);
+                                    let limit_id = get_id(b, v, p, output, None, false);
+                                    let var_id = get_id(a, v, p, output, None, false);
                                     output.push(Instr::Mov(limit_id, var_id));
                                     return true;
                                 } else if let Expr::Float(increment_num) = *increment {

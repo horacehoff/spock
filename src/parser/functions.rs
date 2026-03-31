@@ -69,7 +69,7 @@ pub fn handle_functions(
         match name {
             "print" => {
                 for arg in args {
-                    let id = get_id(arg, v, p, output);
+                    let id = get_id(arg, v, p, output, None, false);
                     output.push(Instr::Print(id));
                 }
             }
@@ -81,7 +81,7 @@ pub fn handle_functions(
             "float" => {
                 check_args!(args, 1, "float", src, start, end);
                 check_type(0, &[DataType::String, DataType::Int]);
-                let id = get_id(&args[0], v, p, output);
+                let id = get_id(&args[0], v, p, output, None, false);
                 registers.push(Data::NULL);
                 instr_src.push((Instr::Float(id, (registers.len() - 1) as u16), start, end));
                 output.push(Instr::Float(id, (registers.len() - 1) as u16));
@@ -89,21 +89,21 @@ pub fn handle_functions(
             "int" => {
                 check_args!(args, 1, "int", src, start, end);
                 check_type(0, &[DataType::String, DataType::Float]);
-                let id = get_id(&args[0], v, p, output);
+                let id = get_id(&args[0], v, p, output, None, false);
                 registers.push(Data::NULL);
                 instr_src.push((Instr::Int(id, (registers.len() - 1) as u16), start, end));
                 output.push(Instr::Int(id, (registers.len() - 1) as u16));
             }
             "str" => {
                 check_args!(args, 1, "str", src, start, end);
-                let id = get_id(&args[0], v, p, output);
+                let id = get_id(&args[0], v, p, output, None, false);
                 registers.push(Data::NULL);
                 output.push(Instr::Str(id, (registers.len() - 1) as u16));
             }
             "bool" => {
                 check_args!(args, 1, "bool", src, start, end);
                 check_type(0, &[DataType::String, DataType::Bool]);
-                let id = get_id(&args[0], v, p, output);
+                let id = get_id(&args[0], v, p, output, None, false);
                 registers.push(Data::NULL);
                 instr_src.push((Instr::Bool(id, (registers.len() - 1) as u16), start, end));
                 output.push(Instr::Bool(id, (registers.len() - 1) as u16));
@@ -115,7 +115,7 @@ pub fn handle_functions(
                     registers.push(String::new().into());
                     (registers.len() - 1) as u16
                 } else {
-                    get_id(&args[0], v, p, output)
+                    get_id(&args[0], v, p, output, None, false)
                 };
                 registers.push(Data::NULL);
                 output.push(Instr::Input(id, (registers.len() - 1) as u16));
@@ -124,7 +124,7 @@ pub fn handle_functions(
                 check_args_range!(args, 1, 2, "range", src, start, end);
                 if args.len() == 1 {
                     check_type(0, &[DataType::Int]);
-                    let id_x = get_id(&args[0], v, p, output);
+                    let id_x = get_id(&args[0], v, p, output, None, false);
                     registers.push(0.into());
                     registers.push(Data::NULL);
                     output.push(Instr::Range(
@@ -135,8 +135,8 @@ pub fn handle_functions(
                 } else {
                     check_type(0, &[DataType::Int]);
                     check_type(1, &[DataType::Int]);
-                    let id_x = get_id(&args[0], v, p, output);
-                    let id_y = get_id(&args[1], v, p, output);
+                    let id_x = get_id(&args[0], v, p, output, None, false);
+                    let id_y = get_id(&args[1], v, p, output, None, false);
                     registers.push(Data::NULL);
                     output.push(Instr::Range(id_x, id_y, (registers.len() - 1) as u16));
                 }
@@ -144,7 +144,7 @@ pub fn handle_functions(
             "floor" => {
                 check_args!(args, 1, "floor", src, start, end);
                 check_type(0, &[DataType::Float]);
-                let id = get_id(&args[0], v, p, output);
+                let id = get_id(&args[0], v, p, output, None, false);
                 registers.push(Data::NULL);
                 instr_src.push((Instr::Float(id, (registers.len() - 1) as u16), start, end));
                 output.push(Instr::Float(id, (registers.len() - 1) as u16));
@@ -221,7 +221,7 @@ pub fn handle_functions(
                 for (x, tgt_id) in fn_args.iter().enumerate() {
                     let start_len = output.len();
 
-                    let arg_id = get_id(&args[x], v, p, output);
+                    let arg_id = get_id(&args[x], v, p, output, Some(*tgt_id), false);
                     debug!("MOVING ARG TO {tgt_id}");
                     // If get_id emitted code, adjust arg dest with move_to_id
                     if output.len() != start_len {
@@ -275,13 +275,13 @@ pub fn handle_functions(
             "open" => {
                 check_args_range!(args, 1, 2, "open", src, start, end);
                 registers.push(Data::NULL);
-                let arg_id = get_id(&args[0], v, p, output);
+                let arg_id = get_id(&args[0], v, p, output, None, false);
 
                 let second_arg = if args.len() == 1 {
                     registers.push(Data::FALSE);
                     (registers.len() - 1) as u16
                 } else {
-                    get_id(&args[1], v, p, output)
+                    get_id(&args[1], v, p, output, None, false)
                 };
 
                 instr_src.push((
@@ -297,7 +297,7 @@ pub fn handle_functions(
             }
             "delete" => {
                 check_args!(args, 1, "delete", src, start, end);
-                let arg_id = get_id(&args[0], v, p, output);
+                let arg_id = get_id(&args[0], v, p, output, None, false);
                 instr_src.push((Instr::IoDelete(arg_id), start, end));
                 output.push(Instr::IoDelete(arg_id));
             }
@@ -333,7 +333,7 @@ pub fn handle_functions(
             }
 
             for arg in args {
-                let arg_id = get_id(&arg, v, p, output);
+                let arg_id = get_id(&arg, v, p, output, None, false);
                 output.push(Instr::StoreFuncArg(arg_id));
             }
 

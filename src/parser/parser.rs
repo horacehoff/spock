@@ -332,8 +332,15 @@ fn get_last_tgt_id(x: &[Instr]) -> Option<u16> {
     None
 }
 
-pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut Vec<Instr>) -> u16 {
-    let (registers, fns, arrays, _, _, block_id, src, _, _, dyn_libs) = p.destructure();
+pub fn get_id(
+    input: &Expr,
+    v: &mut Vec<Variable>,
+    p: &ParserData,
+    output: &mut Vec<Instr>,
+    tgt_id: Option<u16>,
+    expects_op_cmp: bool,
+) -> u16 {
+    let (registers, fns, arrays, _, _, block_id, src, _, _, _) = p.destructure();
 
     macro_rules! uniform_op {
         ($instr: ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type:expr) => {{
@@ -344,10 +351,16 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
             if t_l != $type || t_r != $type {
                 op_error(src, t_l, t_r, $symbol, *$start, *$end);
             }
-            let id_l = get_id($l, v, p, output);
-            let id_r = get_id($r, v, p, output);
-            let id = registers.len() as u16;
-            registers.push(Data::NULL);
+            let id_l = get_id($l, v, p, output, None, false);
+            let id_r = get_id($r, v, p, output, None, false);
+            let id = if let Some(tgt_register_id) = tgt_id {
+                tgt_register_id
+            } else if expects_op_cmp {
+                0
+            } else {
+                registers.push(Data::NULL);
+                (registers.len() - 1) as u16
+            };
             output.push(Instr::$instr(id_l, id_r, id));
             id
         }};
@@ -359,10 +372,16 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
             if !((t_l == $type1 && t_r == $type1) || (t_l == $type2 && t_r == $type2)) {
                 op_error(src, t_l, t_r, $symbol, *$start, *$end);
             }
-            let id_l = get_id($l, v, p, output);
-            let id_r = get_id($r, v, p, output);
-            let id = registers.len() as u16;
-            registers.push(Data::NULL);
+            let id_l = get_id($l, v, p, output, None, false);
+            let id_r = get_id($r, v, p, output, None, false);
+            let id = if let Some(tgt_register_id) = tgt_id {
+                tgt_register_id
+            } else if expects_op_cmp {
+                0
+            } else {
+                registers.push(Data::NULL);
+                (registers.len() - 1) as u16
+            };
             output.push(if t_l == $type1 {
                 Instr::$instr(id_l, id_r, id)
             } else {
@@ -375,6 +394,10 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
         Expr::Float(num) => {
             registers.push((*num).into());
             (registers.len() - 1) as u16
+        }
+        Expr::Int(num) => {
+            registers.push((*num).into());
+            return (registers.len() - 1) as u16;
         }
         Expr::String(str) => {
             registers.push(str.as_str().into());
@@ -480,10 +503,17 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
             {
                 op_error(src, t_l, t_r, "+", *start, *end);
             }
-            let id_l = get_id(l, v, p, output);
-            let id_r = get_id(r, v, p, output);
-            let id = registers.len() as u16;
-            registers.push(Data::NULL);
+            let id_l = get_id(l, v, p, output, None, false);
+            let id_r = get_id(r, v, p, output, None, false);
+
+            let id = if let Some(tgt_register_id) = tgt_id {
+                tgt_register_id
+            } else if expects_op_cmp {
+                0
+            } else {
+                registers.push(Data::NULL);
+                (registers.len() - 1) as u16
+            };
             if matches!(t_l, DataType::Array(_)) {
                 output.push(Instr::AddArray(id_l, id_r, id));
             } else if t_l == DataType::String {
@@ -537,10 +567,16 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
         Expr::Eq(l, r) => {
             let is_array = matches!(infer_type(l, v, fns, src, p), DataType::Array(_))
                 && matches!(infer_type(r, v, fns, src, p), DataType::Array(_));
-            let id_l = get_id(l, v, p, output);
-            let id_r = get_id(r, v, p, output);
-            let id = registers.len() as u16;
-            registers.push(Data::NULL);
+            let id_l = get_id(l, v, p, output, None, false);
+            let id_r = get_id(r, v, p, output, None, false);
+            let id = if let Some(tgt_register_id) = tgt_id {
+                tgt_register_id
+            } else if expects_op_cmp {
+                0
+            } else {
+                registers.push(Data::NULL);
+                (registers.len() - 1) as u16
+            };
             output.push(if is_array {
                 Instr::ArrayEq(id_l, id_r, id)
             } else {
@@ -549,10 +585,16 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
             id
         }
         Expr::NotEq(l, r) => {
-            let id_l = get_id(l, v, p, output);
-            let id_r = get_id(r, v, p, output);
-            let id = registers.len() as u16;
-            registers.push(Data::NULL);
+            let id_l = get_id(l, v, p, output, None, false);
+            let id_r = get_id(r, v, p, output, None, false);
+            let id = if let Some(tgt_register_id) = tgt_id {
+                tgt_register_id
+            } else if expects_op_cmp {
+                0
+            } else {
+                registers.push(Data::NULL);
+                (registers.len() - 1) as u16
+            };
             if matches!(infer_type(l, v, fns, src, p), DataType::Array(_))
                 && matches!(infer_type(r, v, fns, src, p), DataType::Array(_))
             {
@@ -622,9 +664,15 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
         }
         Expr::Neg(l, start, end) => {
             let infered = infer_type(l, v, fns, src, p);
-            let id_l = get_id(l, v, p, output);
-            let id = registers.len() as u16;
-            registers.push(Data::NULL);
+            let id_l = get_id(l, v, p, output, None, false);
+            let id = if let Some(tgt_register_id) = tgt_id {
+                tgt_register_id
+            } else if expects_op_cmp {
+                0
+            } else {
+                registers.push(Data::NULL);
+                (registers.len() - 1) as u16
+            };
             if infered == DataType::Float {
                 output.push(Instr::NegFloat(id_l, id))
             } else if infered == DataType::Int {
@@ -661,7 +709,7 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
             let mut condition_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
 
             // parse the main condition
-            let condition_id = get_id(main_condition, v, p, output);
+            let condition_id = get_id(main_condition, v, p, output, None, true);
             add_cmp(condition_id, &mut 0, output, false);
             cmp_markers.push(output.len() - 1);
 
@@ -688,7 +736,7 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
             for elem in &code[main_code_limit..] {
                 if let Expr::ElseIfBlock(condition, code) = elem {
                     condition_markers.push(output.len());
-                    let condition_id = get_id(condition, v, p, output);
+                    let condition_id = get_id(condition, v, p, output, None, true);
                     add_cmp(condition_id, &mut 0, output, false);
                     cmp_markers.push(output.len() - 1);
                     let v_len = v.len();
@@ -771,6 +819,7 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
                 .unwrap_or_else(|| (registers.len() - 1) as u16)
         }
         other => {
+            panic!("{other:?}");
             let output_code = parser_to_instr_set(slice::from_ref(other), v, p);
             if !output_code.is_empty() {
                 output.extend(output_code);
@@ -1033,7 +1082,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
             Expr::GetIndex(target, index, start, end) => {
                 let mut infered = infer_type(target, v, fns, src, p);
                 // process the array/string that is being indexed
-                let mut id = get_id(target, v, p, &mut output);
+                let mut id = get_id(target, v, p, &mut output, None, false);
                 // for each index operation, process the index, adjust the id variable for the next index operation, push null to registers to use GetIndex to index at runtime
                 for elem in index {
                     if !is_indexable(&infered) {
@@ -1064,7 +1113,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                             "",
                         );
                     }
-                    let f_id = get_id(elem, v, p, &mut output);
+                    let f_id = get_id(elem, v, p, &mut output, None, false);
                     registers.push(Data::NULL);
                     if infered == DataType::String {
                         instr_src.push((
@@ -1104,7 +1153,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     );
                 }
                 // get the id of the target array
-                let mut id = get_id(x, v, p, &mut output);
+                let mut id = get_id(x, v, p, &mut output, None, false);
 
                 for elem in z.iter().rev().skip(1).rev() {
                     let infered = infer_type(elem, v, fns, src, p);
@@ -1121,7 +1170,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                             "",
                         );
                     }
-                    let f_id = get_id(elem, v, p, &mut output);
+                    let f_id = get_id(elem, v, p, &mut output, None, false);
 
                     registers.push(Data::NULL);
                     output.push(Instr::ArrayGet(id, f_id, (registers.len() - 1) as u16));
@@ -1129,10 +1178,10 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 }
 
                 // get the
-                let final_id = get_id(z.last().unwrap(), v, p, &mut output);
+                let final_id = get_id(z.last().unwrap(), v, p, &mut output, None, false);
 
                 let elem_type = infer_type(w, v, fns, src, p);
-                let elem_id = get_id(w, v, p, &mut output);
+                let elem_id = get_id(w, v, p, &mut output, None, false);
 
                 if let DataType::Array(array_type) = &infered {
                     if **array_type != elem_type {
@@ -1192,7 +1241,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 let mut condition_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
 
                 // parse the main condition
-                let condition_id = get_id(main_condition, v, p, &mut output);
+                let condition_id = get_id(main_condition, v, p, &mut output, None, true);
                 add_cmp(condition_id, &mut 0, &mut output, false);
                 conditional_jmp_instr_idx.push(output.len() - 1);
 
@@ -1209,7 +1258,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 for elem in &code[main_code_limit..] {
                     if let Expr::ElseIfBlock(condition, code) = elem {
                         condition_markers.push(output.len());
-                        let condition_id = get_id(condition, v, p, &mut output);
+                        let condition_id = get_id(condition, v, p, &mut output, None, true);
                         add_cmp(condition_id, &mut 0, &mut output, false);
                         conditional_jmp_instr_idx.push(output.len() - 1);
                         let v_len = v.len();
@@ -1262,9 +1311,8 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 if while_loop_summation(&mut output, v, p, condition, code) {
                     continue;
                 }
-
                 // parse the condition, get its id
-                let condition_id = get_id(condition, v, p, &mut output);
+                let condition_id = get_id(condition, v, p, &mut output, None, true);
 
                 // parse the code block, clone the vars to avoid overriding anything
                 let v_len = v.len();
@@ -1286,7 +1334,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 let array = array_code.first().unwrap();
                 let code = &array_code[1..];
                 let array_type = infer_type(array, v, fns, src, p);
-                let array = get_id(array, v, p, &mut output);
+                let array = get_id(array, v, p, &mut output, None, false);
 
                 // try to optimize it
                 if for_loop_summation(&mut output, registers, v, array, code) {
@@ -1392,7 +1440,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         "",
                     )
                 }
-                let elem_id = get_id(start_elem, v, p, &mut output);
+                let elem_id = get_id(start_elem, v, p, &mut output, None, false);
 
                 let v_len = v.len();
                 v.push(Variable {
@@ -1405,7 +1453,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 let compiled_loop_code_len = compiled_loop_code.len() as u16;
 
                 // Loop logic
-                let end_elem_id = get_id(end_elem, v, p, &mut output);
+                let end_elem_id = get_id(end_elem, v, p, &mut output, None, false);
                 // Add an InfCmp first, to check if i < end_elem
                 output.push(Instr::InfIntJmp(
                     elem_id,
@@ -1438,8 +1486,9 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
             Expr::VarDeclare(x, y) => {
                 let var_type = infer_type(y, v, fns, src, p);
                 let output_len = output.len();
-                let obj_id = get_id(y, v, p, &mut output);
 
+                // let tgt_id = (registers.len() - 1) as u16;
+                // let var_id = get_id(y, v, p, &mut output, Some(tgt_id));
                 let var_id = if output.len() != output_len {
                     if can_move(output.last().unwrap()) {
                         registers.push(Data::NULL);
@@ -1447,7 +1496,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     move_to_id(&mut output, (registers.len() - 1) as u16);
                     (registers.len() - 1) as u16
                 } else {
-                    obj_id
+                    get_id(y, v, p, &mut output, None, false)
                 };
                 v.push(Variable {
                     name: *x,
@@ -1474,7 +1523,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     })
                     .register_id;
                 let output_len = output.len();
-                let obj_id = get_id(y, v, p, &mut output);
+                let obj_id = get_id(y, v, p, &mut output, Some(id), false);
                 if output.len() != output_len {
                     move_to_id(&mut output, id);
                 } else {
@@ -1536,7 +1585,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
             }
             Expr::ReturnVal(val) => {
                 if let Some(x) = &**val {
-                    let id = get_id(x, v, p, &mut output);
+                    let id = get_id(x, v, p, &mut output, None, false);
                     if is_parsing_recursive {
                         output.push(Instr::RecursiveReturn(id, parsing_fn_id.unwrap()));
                     } else {

@@ -33,12 +33,12 @@ pub fn handle_method_calls(
     // let namespace = &namespace[0..len];
 
     let infered = infer_type(obj, v, fns, src, p);
-    let id = get_id(obj, v, p, output);
+    let id = get_id(obj, v, p, output, None, false);
 
     macro_rules! add_args {
         () => {
             for arg in args {
-                let arg_id = get_id(&arg, v, p, output);
+                let arg_id = get_id(&arg, v, p, output, None, false);
                 output.push(Instr::StoreFuncArg(arg_id));
             }
         };
@@ -357,7 +357,7 @@ pub fn handle_method_calls(
                 );
             }
 
-            let arg_id = get_id(&args[0], v, p, output);
+            let arg_id = get_id(&args[0], v, p, output, None, false);
             output.push(Instr::Push(id, arg_id));
         }
         "sqrt" => {
@@ -441,7 +441,7 @@ pub fn handle_method_calls(
                 );
             }
 
-            let arg_id = get_id(&args[0], v, p, output);
+            let arg_id = get_id(&args[0], v, p, output, None, false);
             registers.push(Data::NULL);
             output.push(Instr::Split(id, arg_id, (registers.len() - 1) as u16));
         }
@@ -463,7 +463,7 @@ pub fn handle_method_calls(
                 );
             }
 
-            let arg_id = get_id(&args[0], v, p, output);
+            let arg_id = get_id(&args[0], v, p, output, None, false);
             instr_src.push((Instr::Remove(id, arg_id), start, end));
             output.push(Instr::Remove(id, arg_id));
         }
