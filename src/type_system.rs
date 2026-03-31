@@ -1,3 +1,5 @@
+use crate::FnSignature;
+use crate::ParserData;
 use crate::display::op_error;
 use crate::display::parser_error;
 use crate::parser::Expr;
@@ -7,6 +9,7 @@ use crate::parser::symbol_of_expr;
 use crate::util::compilation_error;
 use inline_colorization::*;
 use internment::Intern;
+use libffi::middle::Type;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[repr(C)]
@@ -115,31 +118,46 @@ fn track_returns(
     src: (&str, &str),
     fn_name: &str,
     track_condition: bool,
+    p: &ParserData,
 ) -> Vec<DataType> {
     let mut return_types: Vec<DataType> = Vec::new();
     for content in content {
         match content {
             Expr::Condition(_, code, _, _) => {
                 if track_condition {
-                    return_types.extend(track_returns(code, v, fns, src, fn_name, track_condition));
+                    return_types.extend(track_returns(
+                        code,
+                        v,
+                        fns,
+                        src,
+                        fn_name,
+                        track_condition,
+                        p,
+                    ));
                 }
             }
             Expr::ElseIfBlock(_, code) | Expr::ElseBlock(code) => {
-                let to_return = track_returns(code, v, fns, src, fn_name, track_condition);
+                let to_return = track_returns(code, v, fns, src, fn_name, track_condition, p);
                 if !to_return.is_empty() || contains_recursive_call(code, fn_name) {
                     return_types.extend(to_return)
                 } else {
                     return_types.push(DataType::Null);
                 }
             }
-            Expr::WhileBlock(_, code) => {
-                return_types.extend(track_returns(code, v, fns, src, fn_name, track_condition))
-            }
+            Expr::WhileBlock(_, code) => return_types.extend(track_returns(
+                code,
+                v,
+                fns,
+                src,
+                fn_name,
+                track_condition,
+                p,
+            )),
             Expr::ReturnVal(return_val) => {
                 if let Some(val) = return_val.as_ref() {
                     let contains_call = contains_recursive_call_expr(val, fn_name);
                     if !contains_call {
-                        let infered = infer_type(val, v, fns, src);
+                        let infered = infer_type(val, v, fns, src, p);
                         if !return_types.contains(&infered) {
                             return_types.push(infered);
                         }
@@ -148,15 +166,33 @@ fn track_returns(
                     return_types.push(DataType::Null);
                 }
             }
-            Expr::ForLoop(_, code) => {
-                return_types.extend(track_returns(code, v, fns, src, fn_name, track_condition))
-            }
-            Expr::EvalBlock(code) => {
-                return_types.extend(track_returns(code, v, fns, src, fn_name, track_condition))
-            }
-            Expr::LoopBlock(code) => {
-                return_types.extend(track_returns(code, v, fns, src, fn_name, track_condition))
-            }
+            Expr::ForLoop(_, code) => return_types.extend(track_returns(
+                code,
+                v,
+                fns,
+                src,
+                fn_name,
+                track_condition,
+                p,
+            )),
+            Expr::EvalBlock(code) => return_types.extend(track_returns(
+                code,
+                v,
+                fns,
+                src,
+                fn_name,
+                track_condition,
+                p,
+            )),
+            Expr::LoopBlock(code) => return_types.extend(track_returns(
+                code,
+                v,
+                fns,
+                src,
+                fn_name,
+                track_condition,
+                p,
+            )),
             _ => continue,
         }
     }
@@ -168,7 +204,9 @@ pub fn infer_type(
     v: &mut Vec<Variable>,
     fns: &[Function],
     src: (&str, &str),
+    p: &ParserData,
 ) -> DataType {
+    let (_, _, _, _, _, _, _, _, _, dyn_libs) = p.destructure();
     match x {
         Expr::Var(name, start, end) => v
             .iter()
@@ -189,9 +227,9 @@ pub fn infer_type(
         Expr::Int(_) => DataType::Int,
         Expr::String(_) => DataType::String,
         Expr::Bool(_) => DataType::Bool,
-        Expr::Array(x, _, _) => DataType::Array(Box::from(infer_type(&x[0], v, fns, src))),
+        Expr::Array(x, _, _) => DataType::Array(Box::from(infer_type(&x[0], v, fns, src, p))),
         Expr::Add(x, y, start, end) => {
-            match (infer_type(x, v, fns, src), infer_type(y, v, fns, src)) {
+            match (infer_type(x, v, fns, src, p), infer_type(y, v, fns, src, p)) {
                 (DataType::Float, DataType::Float) => DataType::Float,
                 (DataType::Int, DataType::Int) => DataType::Int,
                 (DataType::String, DataType::String) => DataType::String,
@@ -206,7 +244,7 @@ pub fn infer_type(
         | Expr::Sub(x, y, start, end)
         | Expr::Mod(x, y, start, end)
         | Expr::Pow(x, y, start, end) => {
-            match (infer_type(x, v, fns, src), infer_type(y, v, fns, src)) {
+            match (infer_type(x, v, fns, src, p), infer_type(y, v, fns, src, p)) {
                 (DataType::Float, DataType::Float) => DataType::Float,
                 (DataType::Int, DataType::Int) => DataType::Int,
                 (a, b) => {
@@ -220,7 +258,7 @@ pub fn infer_type(
         | Expr::SupEq(x, y, start, end)
         | Expr::Inf(x, y, start, end)
         | Expr::InfEq(x, y, start, end) => {
-            match (infer_type(x, v, fns, src), infer_type(y, v, fns, src)) {
+            match (infer_type(x, v, fns, src, p), infer_type(y, v, fns, src, p)) {
                 (DataType::Float, DataType::Float) => DataType::Bool,
                 (DataType::Int, DataType::Int) => DataType::Bool,
                 (a, b) => {
@@ -229,19 +267,19 @@ pub fn infer_type(
             }
         }
         Expr::BoolAnd(x, y, start, end) | Expr::BoolOr(x, y, start, end) => {
-            match (infer_type(x, v, fns, src), infer_type(y, v, fns, src)) {
+            match (infer_type(x, v, fns, src, p), infer_type(y, v, fns, src, p)) {
                 (DataType::Bool, DataType::Bool) => DataType::Bool,
                 (a, b) => {
                     op_error(src, a, b, "||", *start, *end);
                 }
             }
         }
-        Expr::Neg(x, _, _) => match infer_type(x, v, fns, src) {
+        Expr::Neg(x, _, _) => match infer_type(x, v, fns, src, p) {
             DataType::Float => DataType::Float,
             DataType::Int => DataType::Int,
             _ => todo!("TODO NEG ERR"),
         },
-        Expr::GetIndex(array, _, _, _) => match infer_type(array, v, fns, src) {
+        Expr::GetIndex(array, _, _, _) => match infer_type(array, v, fns, src, p) {
             DataType::Array(array_type) => *array_type,
             DataType::String => DataType::String,
             _ => todo!(),
@@ -266,6 +304,18 @@ pub fn infer_type(
                 "floor" => DataType::Float,
                 "the_answer" => DataType::Int,
                 function_name => {
+                    if let Some(lib) = dyn_libs.iter().find(|l| l.name.as_ref() == &namespace[0]) {
+                        if let Some(FnSignature {
+                            name: _,
+                            args: _,
+                            return_type: fn_return_type,
+                            id: _,
+                        }) = lib.fns.iter().find(|x| x.name.as_ref() == function_name)
+                        {
+                            return fn_return_type.clone();
+                        }
+                    }
+
                     let Function {name:_, args:fn_args, code:fn_code, impls:_, is_recursive:_, id:_} =
                         fns.iter().find(|func| func.name == function_name).unwrap_or_else(|| {
                             parser_error(
@@ -281,7 +331,7 @@ pub fn infer_type(
 
                     let mut arg_types: Vec<usize> = Vec::with_capacity(args.len());
                     args.iter().enumerate().for_each(|(i, x)| {
-                        let infered_type = infer_type(x, v, fns, src);
+                        let infered_type = infer_type(x, v, fns, src, p);
                         arg_types.push(v.len());
                         // 0 => placeholder id, it's never used
                         v.push(Variable {
@@ -305,7 +355,7 @@ pub fn infer_type(
                     // dedup(&mut fn_type);
                     // -----
 
-                    let fn_type = track_returns(fn_code, v, fns, src, function_name, true);
+                    let fn_type = track_returns(fn_code, v, fns, src, function_name, true, p);
                     let to_return = if !fn_type.is_empty() {
                         // If function returns anything, check if it returns the same thing each time
                         check_poly(DataType::Poly(Box::from(fn_type)))
@@ -338,7 +388,7 @@ pub fn infer_type(
                 "trim_sequence_right" => DataType::String,
                 "rindex" => DataType::Int,
                 "repeat" => {
-                    let obj_type = infer_type(obj, v, fns, src);
+                    let obj_type = infer_type(obj, v, fns, src, p);
                     if obj_type == DataType::String {
                         DataType::String
                     } else if let DataType::Array(array_type) = obj_type {
@@ -356,7 +406,7 @@ pub fn infer_type(
                 // io::write => doesn't work
                 "write" => DataType::Null,
                 "reverse" => {
-                    let obj_type = infer_type(obj, v, fns, src);
+                    let obj_type = infer_type(obj, v, fns, src, p);
                     if obj_type == DataType::String {
                         DataType::String
                     } else if let DataType::Array(array_type) = obj_type {
@@ -366,7 +416,7 @@ pub fn infer_type(
                     }
                 }
                 "split" => {
-                    let obj_type = infer_type(obj, v, fns, src);
+                    let obj_type = infer_type(obj, v, fns, src, p);
                     if obj_type == DataType::String {
                         DataType::Array(Box::from(DataType::String))
                     } else if let DataType::Array(array_type) = obj_type {
@@ -381,15 +431,15 @@ pub fn infer_type(
         }
         Expr::Condition(_, code, _, _) => {
             let mut types: Vec<DataType> = Vec::with_capacity(code.len());
-            types.push(infer_type(&code[0], v, fns, src));
+            types.push(infer_type(&code[0], v, fns, src, p));
             for t in &code[0..] {
                 if let Expr::ElseIfBlock(_, code) = t {
-                    let infered = infer_type(&code[0], v, fns, src);
+                    let infered = infer_type(&code[0], v, fns, src, p);
                     if !types.contains(&infered) {
                         types.push(infered);
                     }
                 } else if let Expr::ElseBlock(code) = t {
-                    let infered = infer_type(&code[0], v, fns, src);
+                    let infered = infer_type(&code[0], v, fns, src, p);
                     if !types.contains(&infered) {
                         types.push(infered);
                     }
@@ -423,5 +473,15 @@ fn check_poly(data: DataType) -> DataType {
             "check_poly",
             format_args!("Received data : {data} and not data : DataType::Poly"),
         )
+    }
+}
+
+// WIP
+pub fn datatype_to_c_type(x: &DataType) -> Type {
+    match x {
+        DataType::Int => libffi::middle::Type::i32(),
+        DataType::Float => libffi::middle::Type::f64(),
+        DataType::Null => libffi::middle::Type::void(),
+        _ => todo!(),
     }
 }

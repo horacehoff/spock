@@ -14,6 +14,7 @@ inline_colorization = "0.1.6"
 ariadne = "0.6.0"
 slab = "0.4.12"
 libloading = "0.9.0"
+libffi = "5.1.0"
 
 [build-dependencies]
 lalrpop = "0.23.1"
