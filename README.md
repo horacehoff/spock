@@ -35,9 +35,7 @@ git clone https://github.com/horacehoff/spock
 3. Run/Build Spock
 
 ```diff
-+ Using --release is very recommended on x86, as it's much faster and doesn't print
-Spock debug information
-cargo run --release
+cargo run --release -- myfile.spock
 cargo build --release
 ```
 
@@ -235,6 +233,19 @@ for x in [0,1,2,3] {
 ```
 
 ### Imports (WIP)
+
+Dynamic library loading is a WIP.
+The expected syntax is:
+
+```spock
+import test.dylib {
+    int add(int, int);
+}
+
+fn main() {
+print(test::add(1, 1));
+}
+```
 
 ### Arrays
 
