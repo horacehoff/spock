@@ -8,6 +8,7 @@ use crate::util::likely;
 use crate::util::unlikely;
 use concat_string::concat_string;
 use inline_colorization::*;
+use libffi::raw::ffi_prep_cif;
 use parser::*;
 use slab::Slab;
 use std::fs::File;
@@ -53,6 +54,7 @@ pub fn execute(
     instr_src: &[(Instr, usize, usize)],
     src: (&str, &str),
     fn_registers: &[Vec<u16>],
+    dyn_libs: &[DynamicLibFn],
 ) {
     macro_rules! fatal_error {
         ($instr: expr,$err:expr,$msg:expr) => {
@@ -88,6 +90,7 @@ pub fn execute(
                 i -= size as usize;
                 continue;
             }
+            Instr::Mov(tgt, dest) => registers[dest as usize] = registers[tgt as usize],
             Instr::CallFunc(new_loc, return_id) => {
                 call_frames.push(CallFrame {
                     return_addr: i as u32,
@@ -141,7 +144,10 @@ pub fn execute(
                     continue;
                 }
             }
-            Instr::Mov(tgt, dest) => registers[dest as usize] = registers[tgt as usize],
+            Instr::CallDynLibFunc(fn_id, dyn_lib_func) => {
+                let func = &dyn_libs[fn_id as usize];
+                todo!()
+            }
             Instr::AddFloat(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize].as_float() + registers[o2 as usize].as_float()).into();
@@ -808,7 +814,7 @@ fn main() {
 
     let now = Instant::now();
 
-    let (instructions, mut registers, mut arrays, instr_src, fn_registers) =
+    let (instructions, mut registers, mut arrays, instr_src, fn_registers, fn_dyn_libs) =
         parse(&contents, filename);
 
     println!("PARSING TIME {:.2?}", now.elapsed());
@@ -823,6 +829,7 @@ fn main() {
             10,
             150,
             std::env::args().len() > 3 && std::env::args().nth(3).unwrap() == "--verbose",
+            &fn_dyn_libs,
         );
     } else {
         let now = Instant::now();
@@ -833,6 +840,7 @@ fn main() {
             &instr_src,
             (filename, &contents),
             &fn_registers,
+            &fn_dyn_libs,
         );
         println!(
             "EXECUTION TIME: {:.3}ms",
@@ -853,6 +861,7 @@ pub fn benchmark(
     warmup_runs: usize,
     samples_count: usize,
     verbose: bool,
+    fn_dyn_libs: &[DynamicLibFn],
 ) {
     let mut times_ns: Vec<u128> = Vec::with_capacity(samples_count);
 
@@ -864,6 +873,7 @@ pub fn benchmark(
             black_box(instr_src),
             black_box(src),
             black_box(fn_registers),
+            black_box(fn_dyn_libs),
         ));
     }
     for _ in 0..samples_count {
@@ -877,6 +887,7 @@ pub fn benchmark(
             black_box(instr_src),
             black_box(src),
             black_box(fn_registers),
+            black_box(fn_dyn_libs),
         ));
         times_ns.push(now.elapsed().as_nanos());
     }

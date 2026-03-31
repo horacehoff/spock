@@ -1,3 +1,6 @@
+use std::slice;
+
+use crate::FnSignature;
 use crate::FunctionImpl;
 use crate::Instr;
 use crate::check_args;
@@ -33,7 +36,7 @@ pub fn handle_functions(
     let (registers, fns, _, instr_src, fn_registers, _, src, _, _, dyn_libs) = p.destructure();
 
     let mut check_type = |arg: usize, expected: &[DataType]| {
-        let infered = infer_type(&args[arg], v, fns, src);
+        let infered = infer_type(&args[arg], v, fns, src, p);
         if !{
             if let DataType::Poly(polytype) = &infered {
                 polytype.iter().all(|x| expected.contains(x))
@@ -72,7 +75,7 @@ pub fn handle_functions(
             }
             "type" => {
                 check_args!(args, 1, "type", src, start, end);
-                let infered = infer_type(&args[0], v, fns, src);
+                let infered = infer_type(&args[0], v, fns, src, p);
                 registers.push(infered.to_string().into());
             }
             "float" => {
@@ -182,7 +185,7 @@ pub fn handle_functions(
                 // Infer arg types
                 let infered_arg_types = args
                     .iter()
-                    .map(|x| infer_type(x, v, fns, src))
+                    .map(|x| infer_type(x, v, fns, src, p))
                     .collect::<Vec<DataType>>();
 
                 // Try to check if function has already been compiled for these specific arg types
@@ -316,6 +319,32 @@ pub fn handle_functions(
                 );
             }
         }
+    } else if let Some(lib) = dyn_libs.iter().find(|l| l.name.as_ref() == &namespace[0]) {
+        if let Some(FnSignature {
+            name: fn_name,
+            args: fn_args,
+            return_type: fn_return_type,
+            id,
+        }) = lib.fns.iter().find(|x| x.name.as_ref() == name)
+        {
+            check_args!(args, fn_args.len(), fn_name, src, start, end);
+            for (i, a) in fn_args.iter().enumerate() {
+                check_type(i, slice::from_ref(a));
+            }
+
+            for arg in args {
+                let arg_id = get_id(&arg, v, p, output);
+                output.push(Instr::StoreFuncArg(arg_id));
+            }
+
+            let register_id = if fn_return_type == &DataType::Null {
+                0u16
+            } else {
+                registers.push(Data::NULL);
+                (registers.len() - 1) as u16
+            };
+            output.push(Instr::CallDynLibFunc(*id, register_id));
+        }
     } else {
         parser_error(
             src,
@@ -355,7 +384,7 @@ fn compile_function(
     let mut v_temp: Vec<Variable> = Vec::new();
     for (i, x) in fn_args.iter().enumerate() {
         // Infer local type of arg
-        let infered_type = infer_type(&args[i], v, fns, src);
+        let infered_type = infer_type(&args[i], v, fns, src, p);
 
         // Allocate a registers slot for each func arg
         registers.push(Data::NULL);

@@ -4,6 +4,7 @@ use inline_colorization::*;
 use crate::util::error;
 use internment::Intern;
 use concat_string::concat_string;
+use crate::type_system::DataType;
 
 
 grammar;
@@ -20,7 +21,7 @@ pub File:Vec<Expr> = {
 
 pub FileStatement:Expr = {
     <o: Function> => o,
-    <i: Import> ";" => i
+    <i: Import>  => i
 }
 
 Comma<T>: Vec<T> = {
@@ -214,10 +215,15 @@ pub Code: Box<[Expr]> = {
     <s: Statement*> => s.into_boxed_slice()
 }
 
-// TO-DO
+pub FnSignature:(String, Box<[DataType]>, DataType) = {
+    <return_type: ManualType?> <fn_name: Var> <args: Args<ManualType>> ";" => {
+        (fn_name, Box::from(args), if let Some(t) = return_type {t} else {DataType::Null})
+    }
+}
+
 pub Import:Expr = {
-    <path: r"import [a-zA-Z_.\/-]*"> => {
-        Expr::Import(String::from(path.trim_start_matches("import").trim()))
+    <path: r"import [a-zA-Z_.\/-]*"> <b: Block<FnSignature*>> => {
+        Expr::Import(String::from(path.trim_start_matches("import").trim()), Box::from(b))
     }
 }
 
@@ -494,4 +500,11 @@ String: String = {
 
 Var: String = {
     <v: r"[a-zA-Z_]+"> => String::from(v)
+}
+
+ManualType:DataType = {
+    "int" => DataType::Int,
+    "float" => DataType::Float,
+    "bool" => DataType::Bool,
+    "string" => DataType::String,
 }

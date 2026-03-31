@@ -7,8 +7,8 @@ use crate::functions::handle_functions;
 use crate::grammar::Token;
 use crate::method_calls::handle_method_calls;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
-use crate::type_system;
 use crate::type_system::contains_recursive_call;
+use crate::type_system::datatype_to_c_type;
 use crate::type_system::is_indexable;
 use crate::type_system::{DataType, infer_type};
 use crate::util::compilation_error;
@@ -16,8 +16,11 @@ use crate::{Data, Instr, error};
 use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
+use libffi::middle::Type;
 use libloading::Library;
+use libloading::Symbol;
 use slab::Slab;
+use std::os::raw::c_void;
 use std::slice;
 
 lalrpop_mod!(pub grammar);
@@ -88,8 +91,10 @@ pub enum Expr {
         usize,
         usize,
     ),
-    Import(String),
-    // Closure(Box<[String]>, Box<[Expr]>),
+    // --- Dynamic libs ---
+    /// Import(lib_path, [(fn_name, fn_args, fn_return_type)])
+    Import(String, Box<[(String, Box<[DataType]>, DataType)]>),
+    // ---
     Break,
     Continue,
 
@@ -201,6 +206,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::SqrtFloat(_, y)
         | Instr::Split(_, _, y)
         | Instr::SaveFrame(_, y, _)
+        | Instr::CallDynLibFunc(_, y)
         | Instr::Str(_, y) => *y = tgt_id,
         Instr::CallFuncRecursive(_, y_func) => {
             *y_func = tgt_id;
@@ -271,6 +277,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::SqrtFloat(_, y)
         | Instr::Split(_, _, y)
         | Instr::StrMod(_, _, y)
+        | Instr::CallDynLibFunc(_, y)
         | Instr::Str(_, y) => Some(y),
         // ↓ INSTRUCTIONS THAT DON'T MODIFY ANY REGISTER ↓
         Instr::Print(_)
@@ -330,7 +337,10 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
 
     macro_rules! uniform_op {
         ($instr: ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type:expr) => {{
-            let (t_l, t_r) = (infer_type($l, v, fns, src), infer_type($r, v, fns, src));
+            let (t_l, t_r) = (
+                infer_type($l, v, fns, src, p),
+                infer_type($r, v, fns, src, p),
+            );
             if t_l != $type || t_r != $type {
                 op_error(src, t_l, t_r, $symbol, *$start, *$end);
             }
@@ -342,7 +352,10 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
             id
         }};
         ($instr: ident, $instr2:ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type1:expr, $type2:expr) => {{
-            let (t_l, t_r) = (infer_type($l, v, fns, src), infer_type($r, v, fns, src));
+            let (t_l, t_r) = (
+                infer_type($l, v, fns, src, p),
+                infer_type($r, v, fns, src, p),
+            );
             if !((t_l == $type1 && t_r == $type1) || (t_l == $type2 && t_r == $type2)) {
                 op_error(src, t_l, t_r, $symbol, *$start, *$end);
             }
@@ -393,10 +406,10 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
             }
         }
         Expr::Array(elems, start, end) => {
-            let first_type = infer_type(&elems[0], v, fns, src);
+            let first_type = infer_type(&elems[0], v, fns, src, p);
             if !elems
                 .iter()
-                .all(|x| infer_type(x, v, fns, src) == first_type)
+                .all(|x| infer_type(x, v, fns, src, p) == first_type)
             {
                 parser_error(
                     src,
@@ -457,8 +470,8 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
             )
         }
         Expr::Add(l, r, start, end) => {
-            let t_l = infer_type(l, v, fns, src);
-            let t_r = infer_type(r, v, fns, src);
+            let t_l = infer_type(l, v, fns, src, p);
+            let t_r = infer_type(r, v, fns, src, p);
             if t_l != t_r
                 || !matches!(
                     t_l,
@@ -522,8 +535,8 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
             )
         }
         Expr::Eq(l, r) => {
-            let is_array = matches!(infer_type(l, v, fns, src), DataType::Array(_))
-                && matches!(infer_type(r, v, fns, src), DataType::Array(_));
+            let is_array = matches!(infer_type(l, v, fns, src, p), DataType::Array(_))
+                && matches!(infer_type(r, v, fns, src, p), DataType::Array(_));
             let id_l = get_id(l, v, p, output);
             let id_r = get_id(r, v, p, output);
             let id = registers.len() as u16;
@@ -540,8 +553,8 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
             let id_r = get_id(r, v, p, output);
             let id = registers.len() as u16;
             registers.push(Data::NULL);
-            if matches!(infer_type(l, v, fns, src), DataType::Array(_))
-                && matches!(infer_type(r, v, fns, src), DataType::Array(_))
+            if matches!(infer_type(l, v, fns, src, p), DataType::Array(_))
+                && matches!(infer_type(r, v, fns, src, p), DataType::Array(_))
             {
                 output.push(Instr::ArrayNotEq(id_l, id_r, id));
             } else {
@@ -608,7 +621,7 @@ pub fn get_id(input: &Expr, v: &mut Vec<Variable>, p: &ParserData, output: &mut 
             uniform_op!(BoolOr, "||", l, r, start, end, DataType::Bool)
         }
         Expr::Neg(l, start, end) => {
-            let infered = infer_type(l, v, fns, src);
+            let infered = infer_type(l, v, fns, src, p);
             let id_l = get_id(l, v, p, output);
             let id = registers.len() as u16;
             registers.push(Data::NULL);
@@ -859,6 +872,28 @@ pub struct FunctionImpl {
     pub arg_types: Box<[DataType]>,
 }
 
+#[derive(Debug)]
+pub struct FnSignature {
+    pub name: Intern<String>,
+    pub args: Box<[DataType]>,
+    pub return_type: DataType,
+    pub id: u16,
+}
+
+#[derive(Debug)]
+pub struct Dynamiclib {
+    pub lib: Library,
+    pub name: Intern<String>,
+    pub fns: Box<[FnSignature]>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DynamicLibFn {
+    pub arg_types: Box<[Type]>,
+    pub return_type: Type,
+    ptr: *mut c_void,
+}
+
 pub struct ParserData<'a> {
     pub registers: *mut Vec<Data>,
     pub fns: *mut Vec<Function>,
@@ -869,7 +904,7 @@ pub struct ParserData<'a> {
     pub is_parsing_recursive: bool,
     pub fn_registers: *mut Vec<Vec<u16>>,
     pub parsing_fn_id: Option<u16>,
-    pub dyn_libs: *mut Vec<Library>,
+    pub dyn_libs: *mut Vec<Dynamiclib>,
 }
 impl ParserData<'_> {
     pub fn destructure(
@@ -884,7 +919,7 @@ impl ParserData<'_> {
         (&str, &str),
         bool,
         Option<u16>,
-        &mut Vec<Library>,
+        &mut Vec<Dynamiclib>,
     ) {
         (
             unsafe { &mut *self.registers },
@@ -955,10 +990,10 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 }
             }
             Expr::Array(elems, start, end) => {
-                let first_type = infer_type(&elems[0], v, fns, src);
+                let first_type = infer_type(&elems[0], v, fns, src, p);
                 if !elems
                     .iter()
-                    .all(|x| infer_type(x, v, fns, src) == first_type)
+                    .all(|x| infer_type(x, v, fns, src, p) == first_type)
                 {
                     parser_error(
                         src,
@@ -996,7 +1031,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
             }
             // array[index]
             Expr::GetIndex(target, index, start, end) => {
-                let mut infered = infer_type(target, v, fns, src);
+                let mut infered = infer_type(target, v, fns, src, p);
                 // process the array/string that is being indexed
                 let mut id = get_id(target, v, p, &mut output);
                 // for each index operation, process the index, adjust the id variable for the next index operation, push null to registers to use GetIndex to index at runtime
@@ -1015,7 +1050,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         );
                     }
 
-                    let index_infered = infer_type(elem, v, fns, src);
+                    let index_infered = infer_type(elem, v, fns, src, p);
                     if index_infered != DataType::Int {
                         parser_error(
                             src,
@@ -1054,7 +1089,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
             }
             // x[y]... = z;
             Expr::ArrayModify(x, z, w, index_start, index_end, elem_start, elem_end) => {
-                let infered = infer_type(x, v, fns, src);
+                let infered = infer_type(x, v, fns, src, p);
                 if !is_indexable(&infered) {
                     parser_error(
                         src,
@@ -1072,7 +1107,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 let mut id = get_id(x, v, p, &mut output);
 
                 for elem in z.iter().rev().skip(1).rev() {
-                    let infered = infer_type(elem, v, fns, src);
+                    let infered = infer_type(elem, v, fns, src, p);
                     if infered != DataType::Int {
                         parser_error(
                             src,
@@ -1096,7 +1131,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 // get the
                 let final_id = get_id(z.last().unwrap(), v, p, &mut output);
 
-                let elem_type = infer_type(w, v, fns, src);
+                let elem_type = infer_type(w, v, fns, src, p);
                 let elem_id = get_id(w, v, p, &mut output);
 
                 if let DataType::Array(array_type) = &infered {
@@ -1250,7 +1285,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 // parse the array, get its id (the target array is the first Expr in array_code)
                 let array = array_code.first().unwrap();
                 let code = &array_code[1..];
-                let array_type = infer_type(array, v, fns, src);
+                let array_type = infer_type(array, v, fns, src, p);
                 let array = get_id(array, v, p, &mut output);
 
                 // try to optimize it
@@ -1326,7 +1361,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
             }
             Expr::IntForLoop(var_name, start_elem, end_elem, code, start1, end1, start2, end2) => {
                 // Check start elem type
-                let t1 = infer_type(start_elem, v, fns, src);
+                let t1 = infer_type(start_elem, v, fns, src, p);
                 if t1 != DataType::Int {
                     parser_error(
                         src,
@@ -1342,7 +1377,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     )
                 }
                 // Check end elem type
-                let t2 = infer_type(end_elem, v, fns, src);
+                let t2 = infer_type(end_elem, v, fns, src, p);
                 if t2 != DataType::Int {
                     parser_error(
                         src,
@@ -1401,7 +1436,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 output.push(Instr::JmpBack(code_length));
             }
             Expr::VarDeclare(x, y) => {
-                let var_type = type_system::infer_type(y, v, fns, src);
+                let var_type = infer_type(y, v, fns, src, p);
                 let output_len = output.len();
                 let obj_id = get_id(y, v, p, &mut output);
 
@@ -1421,7 +1456,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 });
             }
             Expr::VarAssign(name, y, start, end) => {
-                let var_type = type_system::infer_type(y, v, fns, src);
+                let var_type = infer_type(y, v, fns, src, p);
                 let id = v
                     .iter()
                     .find(|x| x.name == *name)
@@ -1535,6 +1570,7 @@ pub fn parse(
     ArrayStorage,
     Vec<(Instr, usize, usize)>,
     Vec<Vec<u16>>,
+    Vec<DynamicLibFn>,
 ) {
     let now = std::time::Instant::now();
     let code: Vec<Expr> = grammar::FileParser::new()
@@ -1562,10 +1598,45 @@ pub fn parse(
             });
         }
     }
-    let mut dyn_libs: Vec<Library> = Vec::new();
+    let mut dyn_libs: Vec<Dynamiclib> = Vec::new();
+    let mut id = 0;
+    let mut dyn_lib_fns: Vec<DynamicLibFn> = Vec::new();
     for w in code {
-        if let Expr::Import(path) = w {
-            dyn_libs.push(unsafe { libloading::Library::new(path).unwrap() });
+        if let Expr::Import(path, fn_signatures) = w {
+            let lib = unsafe { libloading::Library::new(&path).unwrap() };
+            let fns = fn_signatures
+                .iter()
+                .map(|(fn_name, fn_args, fn_return_type)| {
+                    let return_val = FnSignature {
+                        name: Intern::from_ref(fn_name),
+                        args: fn_args.clone(),
+                        return_type: fn_return_type.clone(),
+                        id,
+                    };
+
+                    dyn_lib_fns.push(DynamicLibFn {
+                        arg_types: fn_args.iter().map(|x| datatype_to_c_type(x)).collect(),
+                        return_type: datatype_to_c_type(fn_return_type),
+                        ptr: unsafe {
+                            let symbol: Symbol<*const ()> = lib.get(fn_name).unwrap();
+                            symbol.try_as_raw_ptr().unwrap()
+                        },
+                    });
+                    id += 1;
+                    return_val
+                })
+                .collect();
+            dyn_libs.push(Dynamiclib {
+                lib: lib,
+                name: Intern::from_ref(
+                    std::path::PathBuf::from(path)
+                        .file_prefix()
+                        .unwrap()
+                        .to_str()
+                        .unwrap(),
+                ),
+                fns,
+            });
         }
     }
 
@@ -1600,5 +1671,12 @@ pub fn parse(
     {
         print_debug(&instructions, &registers, &arrays);
     }
-    (instructions, registers, arrays, instr_src, fn_registers)
+    (
+        instructions,
+        registers,
+        arrays,
+        instr_src,
+        fn_registers,
+        dyn_lib_fns,
+    )
 }

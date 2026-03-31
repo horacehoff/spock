@@ -5,7 +5,7 @@ macro_rules! run_and_check_registers {
     ($contents:expr, $expected:expr) => {
         let contents = $contents;
         let filename = "test.spock";
-        let (instructions, mut registers, mut arrays, instr_src, fn_registers) =
+        let (instructions, mut registers, mut arrays, instr_src, fn_registers, _) =
             parse(contents, filename);
         execute(
             &instructions,
@@ -14,6 +14,7 @@ macro_rules! run_and_check_registers {
             &instr_src,
             (filename, &contents),
             &fn_registers,
+            &[],
         );
         assert!(registers.contains($expected));
     };
