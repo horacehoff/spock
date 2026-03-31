@@ -236,28 +236,6 @@ for x in [0,1,2,3] {
 
 ### Imports (WIP)
 
-You can import functions from other `.spock` files by using the `import` keyword like shown below.
-Please note that import statements are directly replaced by the file's contents, and as such error messages will not be
-able to specify which file the error comes from.
-
-- `otherfile.spock`:
-
-```rs
-fn demo() {
-print("Hello World!");
-}
-```
-
-- `main.spock`:
-
-```rs
-import path/to/otherfile.spock;
-
-fn main() {
-demo();
-}
-```
-
 ### Arrays
 
 Arrays can only hold one type
