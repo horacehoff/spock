@@ -1,5 +1,5 @@
 use crate::parser::{Expr, ParserData, Variable, get_id};
-use crate::{Data, Instr};
+use crate::{Data, Instr, LibFunc};
 
 pub fn while_loop_summation(
     output: &mut Vec<Instr>,
@@ -72,7 +72,11 @@ pub fn for_loop_summation(
             {
                 let var_id = v.iter().find(|x| x.name == *name).unwrap().register_id;
                 registers.push(Data::NULL);
-                output.push(Instr::Len(array, (registers.len() - 1) as u16));
+                output.push(Instr::CallLibFunc(
+                    LibFunc::Len,
+                    array,
+                    (registers.len() - 1) as u16,
+                ));
                 registers.push(
                     if let Expr::Int(x) = **reps {
                         x
@@ -100,7 +104,11 @@ pub fn for_loop_summation(
         {
             let var_id = v.iter().find(|x| x.name == *name).unwrap().register_id;
             registers.push(Data::NULL);
-            output.push(Instr::Len(array, (registers.len() - 1) as u16));
+            output.push(Instr::CallLibFunc(
+                LibFunc::Len,
+                array,
+                (registers.len() - 1) as u16,
+            ));
             registers.push(
                 if let Expr::Int(x) = **reps {
                     x

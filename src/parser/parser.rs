@@ -1,4 +1,5 @@
 use crate::ArrayStorage;
+use crate::LibFunc;
 use crate::debug;
 use crate::display::op_error;
 use crate::display::parser_error;
@@ -192,22 +193,14 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::BoolOr(_, _, y)
         | Instr::NegFloat(_, y)
         | Instr::NegInt(_, y)
-        | Instr::Float(_, y)
-        | Instr::Bool(_, y)
         | Instr::CallLibFunc(_, _, y)
-        | Instr::Input(_, y)
         | Instr::ArrayGet(_, _, y)
         | Instr::ArrayStrGet(_, _, y)
         | Instr::Range(_, _, y)
         | Instr::IoOpen(_, y, _)
-        | Instr::Floor(_, y)
-        | Instr::TheAnswer(y)
-        | Instr::Len(_, y)
-        | Instr::SqrtFloat(_, y)
         | Instr::Split(_, _, y)
         | Instr::SaveFrame(_, y, _)
-        | Instr::CallDynLibFunc(_, y)
-        | Instr::Str(_, y) => *y = tgt_id,
+        | Instr::CallDynLibFunc(_, y) => *y = tgt_id,
         Instr::CallFuncRecursive(_, y_func) => {
             *y_func = tgt_id;
             for i in 1..x.len() - 1 {
@@ -262,23 +255,14 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::BoolOr(_, _, y)
         | Instr::NegFloat(_, y)
         | Instr::NegInt(_, y)
-        | Instr::Float(_, y)
-        | Instr::Int(_, y)
-        | Instr::Bool(_, y)
         | Instr::CallLibFunc(_, _, y)
-        | Instr::Input(_, y)
         | Instr::ArrayGet(_, _, y)
         | Instr::ArrayStrGet(_, _, y)
         | Instr::Range(_, _, y)
         | Instr::IoOpen(_, y, _)
-        | Instr::Floor(_, y)
-        | Instr::TheAnswer(y)
-        | Instr::Len(_, y)
-        | Instr::SqrtFloat(_, y)
         | Instr::Split(_, _, y)
         | Instr::StrMod(_, _, y)
-        | Instr::CallDynLibFunc(_, y)
-        | Instr::Str(_, y) => Some(y),
+        | Instr::CallDynLibFunc(_, y) => Some(y),
         // ↓ INSTRUCTIONS THAT DON'T MODIFY ANY REGISTER ↓
         Instr::Print(_)
         | Instr::Jmp(_)
@@ -1344,7 +1328,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 // add an instruction to get array length (func id 2 = len)
                 registers.push(Data::NULL);
                 let array_len_id = (registers.len() - 1) as u16;
-                output.push(Instr::Len(array, array_len_id));
+                output.push(Instr::CallLibFunc(LibFunc::Len, array, array_len_id));
 
                 // set up the id of the index variable (0..len)
                 registers.push(0.into());

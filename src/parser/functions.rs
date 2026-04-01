@@ -10,6 +10,7 @@ use crate::debug;
 use crate::display::format_expr;
 use crate::display::parser_error;
 use crate::get_id;
+use crate::instr::LibFunc;
 use crate::parser::Expr;
 use crate::parser::ParserData;
 use crate::parser::Variable;
@@ -83,30 +84,58 @@ pub fn handle_functions(
                 check_type(0, &[DataType::String, DataType::Int]);
                 let id = get_id(&args[0], v, p, output, None, false);
                 registers.push(Data::NULL);
-                instr_src.push((Instr::Float(id, (registers.len() - 1) as u16), start, end));
-                output.push(Instr::Float(id, (registers.len() - 1) as u16));
+                instr_src.push((
+                    Instr::CallLibFunc(LibFunc::Float, id, (registers.len() - 1) as u16),
+                    start,
+                    end,
+                ));
+                output.push(Instr::CallLibFunc(
+                    LibFunc::Float,
+                    id,
+                    (registers.len() - 1) as u16,
+                ));
             }
             "int" => {
                 check_args!(args, 1, "int", src, start, end);
                 check_type(0, &[DataType::String, DataType::Float]);
                 let id = get_id(&args[0], v, p, output, None, false);
                 registers.push(Data::NULL);
-                instr_src.push((Instr::Int(id, (registers.len() - 1) as u16), start, end));
-                output.push(Instr::Int(id, (registers.len() - 1) as u16));
+                instr_src.push((
+                    Instr::CallLibFunc(LibFunc::Int, id, (registers.len() - 1) as u16),
+                    start,
+                    end,
+                ));
+                output.push(Instr::CallLibFunc(
+                    LibFunc::Int,
+                    id,
+                    (registers.len() - 1) as u16,
+                ));
             }
             "str" => {
                 check_args!(args, 1, "str", src, start, end);
                 let id = get_id(&args[0], v, p, output, None, false);
                 registers.push(Data::NULL);
-                output.push(Instr::Str(id, (registers.len() - 1) as u16));
+                output.push(Instr::CallLibFunc(
+                    LibFunc::Str,
+                    id,
+                    (registers.len() - 1) as u16,
+                ));
             }
             "bool" => {
                 check_args!(args, 1, "bool", src, start, end);
                 check_type(0, &[DataType::String, DataType::Bool]);
                 let id = get_id(&args[0], v, p, output, None, false);
                 registers.push(Data::NULL);
-                instr_src.push((Instr::Bool(id, (registers.len() - 1) as u16), start, end));
-                output.push(Instr::Bool(id, (registers.len() - 1) as u16));
+                instr_src.push((
+                    Instr::CallLibFunc(LibFunc::Bool, id, (registers.len() - 1) as u16),
+                    start,
+                    end,
+                ));
+                output.push(Instr::CallLibFunc(
+                    LibFunc::Bool,
+                    id,
+                    (registers.len() - 1) as u16,
+                ));
             }
             "input" => {
                 check_args_range!(args, 0, 1, "input", src, start, end);
@@ -118,7 +147,11 @@ pub fn handle_functions(
                     get_id(&args[0], v, p, output, None, false)
                 };
                 registers.push(Data::NULL);
-                output.push(Instr::Input(id, (registers.len() - 1) as u16));
+                output.push(Instr::CallLibFunc(
+                    LibFunc::Input,
+                    id,
+                    (registers.len() - 1) as u16,
+                ));
             }
             "range" => {
                 check_args_range!(args, 1, 2, "range", src, start, end);
@@ -146,13 +179,20 @@ pub fn handle_functions(
                 check_type(0, &[DataType::Float]);
                 let id = get_id(&args[0], v, p, output, None, false);
                 registers.push(Data::NULL);
-                instr_src.push((Instr::Float(id, (registers.len() - 1) as u16), start, end));
-                output.push(Instr::Float(id, (registers.len() - 1) as u16));
+                output.push(Instr::CallLibFunc(
+                    LibFunc::Floor,
+                    id,
+                    (registers.len() - 1) as u16,
+                ));
             }
             "the_answer" => {
                 check_args!(args, 0, "the_answer", src, start, end);
                 registers.push(Data::NULL);
-                output.push(Instr::TheAnswer((registers.len() - 1) as u16));
+                output.push(Instr::CallLibFunc(
+                    LibFunc::TheAnswer,
+                    0,
+                    (registers.len() - 1) as u16,
+                ));
             }
             fn_name => {
                 // Lookup function by name in function registry
