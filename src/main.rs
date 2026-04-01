@@ -226,13 +226,13 @@ pub fn execute(
                     == arrays[registers[o2 as usize].as_array() as usize])
                     .into();
             }
-            Instr::EqJmp(o1, o2, jump_size) => {
+            Instr::NotEqJmp(o1, o2, jump_size) => {
                 if registers[o1 as usize] != registers[o2 as usize] {
                     i += jump_size as usize;
                     continue;
                 }
             }
-            Instr::ArrayEqJmp(o1, o2, jump_size) => {
+            Instr::ArrayNotEqJmp(o1, o2, jump_size) => {
                 if arrays[registers[o1 as usize].as_array() as usize]
                     != arrays[registers[o2 as usize].as_array() as usize]
                 {
@@ -249,13 +249,13 @@ pub fn execute(
                     != arrays[registers[o2 as usize].as_array() as usize])
                     .into();
             }
-            Instr::NotEqJmp(o1, o2, jump_size) => {
+            Instr::EqJmp(o1, o2, jump_size) => {
                 if registers[o1 as usize] == registers[o2 as usize] {
                     i += jump_size as usize;
                     continue;
                 }
             }
-            Instr::ArrayNotEqJmp(o1, o2, jump_size) => {
+            Instr::ArrayEqJmp(o1, o2, jump_size) => {
                 if arrays[registers[o1 as usize].as_array() as usize]
                     == arrays[registers[o2 as usize].as_array() as usize]
                 {
@@ -271,13 +271,13 @@ pub fn execute(
                 registers[dest as usize] =
                     (registers[o1 as usize].as_int() > registers[o2 as usize].as_int()).into();
             }
-            Instr::SupFloatJmp(o1, o2, jump_size) => {
+            Instr::InfEqFloatJmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_float() <= registers[o2 as usize].as_float() {
                     i += jump_size as usize;
                     continue;
                 }
             }
-            Instr::SupIntJmp(o1, o2, jump_size) => {
+            Instr::InfEqIntJmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_int() <= registers[o2 as usize].as_int() {
                     i += jump_size as usize;
                     continue;
@@ -291,13 +291,13 @@ pub fn execute(
                 registers[dest as usize] =
                     (registers[o1 as usize].as_int() >= registers[o2 as usize].as_int()).into();
             }
-            Instr::SupEqFloatJmp(o1, o2, jump_size) => {
+            Instr::InfFloatJmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_float() < registers[o2 as usize].as_float() {
                     i += jump_size as usize;
                     continue;
                 }
             }
-            Instr::SupEqIntJmp(o1, o2, jump_size) => {
+            Instr::InfIntJmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_int() < registers[o2 as usize].as_int() {
                     i += jump_size as usize;
                     continue;
@@ -311,13 +311,13 @@ pub fn execute(
                 registers[dest as usize] =
                     (registers[o1 as usize].as_int() < registers[o2 as usize].as_int()).into();
             }
-            Instr::InfFloatJmp(o1, o2, jump_size) => {
+            Instr::SupEqFloatJmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_float() >= registers[o2 as usize].as_float() {
                     i += jump_size as usize;
                     continue;
                 }
             }
-            Instr::InfIntJmp(o1, o2, jump_size) => {
+            Instr::SupEqIntJmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_int() >= registers[o2 as usize].as_int() {
                     i += jump_size as usize;
                     continue;
@@ -331,13 +331,13 @@ pub fn execute(
                 registers[dest as usize] =
                     (registers[o1 as usize].as_int() <= registers[o2 as usize].as_int()).into();
             }
-            Instr::InfEqFloatJmp(o1, o2, jump_size) => {
+            Instr::SupFloatJmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_float() > registers[o2 as usize].as_float() {
                     i += jump_size as usize;
                     continue;
                 }
             }
-            Instr::InfEqIntJmp(o1, o2, jump_size) => {
+            Instr::SupIntJmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_int() > registers[o2 as usize].as_int() {
                     i += jump_size as usize;
                     continue;

@@ -258,18 +258,18 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
         match instr {
             Instr::Jmp(jump_size)
             | Instr::IsFalseJmp(_, jump_size)
-            | Instr::InfFloatJmp(_, _, jump_size)
-            | Instr::InfIntJmp(_, _, jump_size)
-            | Instr::InfEqFloatJmp(_, _, jump_size)
-            | Instr::InfEqIntJmp(_, _, jump_size)
-            | Instr::SupFloatJmp(_, _, jump_size)
-            | Instr::SupIntJmp(_, _, jump_size)
             | Instr::SupEqFloatJmp(_, _, jump_size)
             | Instr::SupEqIntJmp(_, _, jump_size)
-            | Instr::EqJmp(_, _, jump_size)
-            | Instr::ArrayEqJmp(_, _, jump_size)
+            | Instr::SupFloatJmp(_, _, jump_size)
+            | Instr::SupIntJmp(_, _, jump_size)
+            | Instr::InfEqFloatJmp(_, _, jump_size)
+            | Instr::InfEqIntJmp(_, _, jump_size)
+            | Instr::InfFloatJmp(_, _, jump_size)
+            | Instr::InfIntJmp(_, _, jump_size)
             | Instr::NotEqJmp(_, _, jump_size)
-            | Instr::ArrayNotEqJmp(_, _, jump_size) => flows.push((i, i + *jump_size as usize)),
+            | Instr::ArrayNotEqJmp(_, _, jump_size)
+            | Instr::EqJmp(_, _, jump_size)
+            | Instr::ArrayEqJmp(_, _, jump_size) => flows.push((i, i + *jump_size as usize)),
             Instr::CallLibFunc(jump_size, _, _) => flows.push((i, *jump_size as usize)),
             Instr::JmpBack(jump_size) => flows.push((i, i - *jump_size as usize)),
             Instr::CallFunc(n, _) => flows.push((i, *n as usize)),
