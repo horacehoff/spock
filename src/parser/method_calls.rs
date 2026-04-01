@@ -112,7 +112,7 @@ pub fn handle_method_calls(
             check!(DataType::Array(_) | DataType::String, "Array or String", 0);
             let f_id = registers.len() as u16;
             registers.push(Data::NULL);
-            output.push(Instr::Len(id, f_id));
+            output.push(Instr::CallLibFunc(LibFunc::Len, id, f_id));
         }
         "contains" => {
             check!(DataType::Array(_) | DataType::String, "Array or String", 1);
@@ -364,7 +364,7 @@ pub fn handle_method_calls(
             check!(DataType::Float, "Number", 0);
             let f_id = registers.len() as u16;
             registers.push(Data::NULL);
-            output.push(Instr::SqrtFloat(id, f_id));
+            output.push(Instr::CallLibFunc(LibFunc::SqrtFloat, id, f_id));
         }
         "round" => {
             check!(DataType::Float, "Number", 0);

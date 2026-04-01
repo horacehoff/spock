@@ -386,71 +386,7 @@ pub fn execute(
                     .unwrap();
                 }
             }
-            Instr::Float(tgt, dest) => {
-                let reg = registers[tgt as usize];
-                if reg.is_int() {
-                    registers[dest as usize] = (reg.as_int() as f64).into();
-                } else if reg.is_str() {
-                    let str = reg.as_str();
-                    registers[dest as usize] = (str.parse::<f64>().unwrap_or_else(|_| {
-                    fatal_error!(
-                        Instr::Float(tgt, dest),
-                        "Invalid type",
-                        &format!(
-                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Float",
-                            str
-                        )
-                    );
-                    })).into();
-                } else {
-                    unreachable!()
-                }
-            }
-            Instr::Int(tgt, dest) => {
-                let reg = registers[tgt as usize];
-                if reg.is_float() {
-                    registers[dest as usize] = (reg.as_float().round() as i32).into();
-                } else if reg.is_str() {
-                    let str = reg.as_str();
-                    registers[dest as usize] = (str.parse::<i32>().unwrap_or_else(|_| {
-                    fatal_error!(
-                        Instr::Int(tgt, dest),
-                        "Invalid type",
-                        &format!(
-                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into an Integer",
-                            str
-                        )
-                    );
-                    })).into();
-                } else {
-                    unreachable!()
-                }
-            }
-            Instr::Str(tgt, dest) => {
-                registers[dest as usize] =
-                    format_data(registers[tgt as usize], Some(arrays), false).into();
-            }
-            Instr::Bool(tgt, dest) => {
-                let str = registers[tgt as usize].as_str();
-                registers[dest as usize] = (str.parse::<bool>().unwrap_or_else(|_| {
-                   fatal_error!(
-                        Instr::Bool(tgt, dest),
-                        "Invalid type",
-                        &format!(
-                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Boolean",
-                            str
-                        )
-                    );
-                })).into();
-            }
-            Instr::Input(msg, dest) => {
-                let str = registers[msg as usize].as_str();
-                println!("{str}");
-                std::io::stdout().flush().unwrap();
-                let mut line = String::new();
-                std::io::stdin().read_line(&mut line).unwrap();
-                registers[dest as usize] = (line.trim().to_string()).into();
-            }
+
             Instr::StoreFuncArg(id) => args.push(id),
             // takes tgt from registers, moves it to dest-th array at idx-th index
             Instr::ArrayMov(tgt, dest, idx) => {
@@ -562,32 +498,11 @@ pub fn execute(
                     todo!()
                 });
             }
-            Instr::Floor(tgt, dest) => {
-                registers[dest as usize] = registers[tgt as usize].as_float().floor().into()
-            }
-
-            Instr::TheAnswer(dest) => {
-                println!(
-                    "The answer to the Ultimate Question of Life, the Universe, and Everything is 42."
-                );
-                registers[dest as usize] = 42.into();
-            }
             Instr::Push(array, element) => {
                 arrays
                     .get_mut(registers[array as usize].as_array() as usize)
                     .unwrap()
                     .push(registers[element as usize]);
-            }
-            Instr::Len(tgt, dest) => {
-                let reg = registers[tgt as usize];
-                if reg.is_array() {
-                    registers[dest as usize] = (arrays[reg.as_array() as usize].len() as i32).into()
-                } else if reg.is_str() {
-                    registers[dest as usize] = (reg.as_str().chars().count() as i32).into()
-                }
-            }
-            Instr::SqrtFloat(tgt, dest) => {
-                registers[dest as usize] = registers[tgt as usize].as_float().sqrt().into()
             }
             Instr::Split(tgt, sep, dest) => {
                 let reg = registers[tgt as usize];
@@ -788,6 +703,87 @@ pub fn execute(
                     let id = reg.as_array();
                     arrays.get_mut(id as usize).unwrap().reverse();
                     registers[dest as usize] = Data::array(id);
+                }
+            }
+            Instr::CallLibFunc(LibFunc::SqrtFloat, tgt, dest) => {
+                registers[dest as usize] = registers[tgt as usize].as_float().floor().into()
+            }
+            Instr::CallLibFunc(LibFunc::Float, tgt, dest) => {
+                let reg = registers[tgt as usize];
+                if reg.is_int() {
+                    registers[dest as usize] = (reg.as_int() as f64).into();
+                } else if reg.is_str() {
+                    let str = reg.as_str();
+                    registers[dest as usize] = (str.parse::<f64>().unwrap_or_else(|_| {
+                    fatal_error!(
+                        instructions[i],
+                        "Invalid type",
+                        &format!(
+                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Float",
+                            str
+                        )
+                    );
+                    })).into();
+                }
+            }
+            Instr::CallLibFunc(LibFunc::Int, tgt, dest) => {
+                let reg = registers[tgt as usize];
+                if reg.is_float() {
+                    registers[dest as usize] = (reg.as_float().round() as i32).into();
+                } else if reg.is_str() {
+                    let str = reg.as_str();
+                    registers[dest as usize] = (str.parse::<i32>().unwrap_or_else(|_| {
+                    fatal_error!(
+                        instructions[i],
+                        "Invalid type",
+                        &format!(
+                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into an Integer",
+                            str
+                        )
+                    );
+                    })).into();
+                }
+            }
+            Instr::CallLibFunc(LibFunc::Str, tgt, dest) => {
+                registers[dest as usize] =
+                    format_data(registers[tgt as usize], Some(arrays), false).into();
+            }
+            Instr::CallLibFunc(LibFunc::Bool, tgt, dest) => {
+                let str = registers[tgt as usize].as_str();
+                registers[dest as usize] = (str.parse::<bool>().unwrap_or_else(|_| {
+                   fatal_error!(
+                        instructions[i],
+                        "Invalid type",
+                        &format!(
+                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Boolean",
+                            str
+                        )
+                    );
+                })).into();
+            }
+            Instr::CallLibFunc(LibFunc::Input, tgt, dest) => {
+                let str_msg = registers[tgt as usize].as_str();
+                println!("{str_msg}");
+                std::io::stdout().flush().unwrap();
+                let mut line = String::new();
+                std::io::stdin().read_line(&mut line).unwrap();
+                registers[dest as usize] = (line.trim().to_string()).into();
+            }
+            Instr::CallLibFunc(LibFunc::Floor, tgt, dest) => {
+                registers[dest as usize] = registers[tgt as usize].as_float().floor().into()
+            }
+            Instr::CallLibFunc(LibFunc::TheAnswer, _, dest) => {
+                println!(
+                    "The answer to the Ultimate Question of Life, the Universe, and Everything is 42."
+                );
+                registers[dest as usize] = 42.into();
+            }
+            Instr::CallLibFunc(LibFunc::Len, tgt, dest) => {
+                let reg = registers[tgt as usize];
+                if reg.is_array() {
+                    registers[dest as usize] = (arrays[reg.as_array() as usize].len() as i32).into()
+                } else if reg.is_str() {
+                    registers[dest as usize] = (reg.as_str().chars().count() as i32).into()
                 }
             }
         }

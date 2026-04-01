@@ -79,17 +79,10 @@ pub enum Instr {
     CallDynLibFunc(u16, u16),
 
     StoreFuncArg(u16),
-    /// CallLibFunc(function, tgt. register id, dest. register id)
+    /// CallLibFunc(function, tgt register id, dest register id)
     CallLibFunc(LibFunc, u16, u16),
 
     // General functions
-    Float(u16, u16),
-    Int(u16, u16),
-    Str(u16, u16),
-    Bool(u16, u16),
-    Input(u16, u16),
-    Floor(u16, u16),
-    SqrtFloat(u16, u16),
     /// start,end,dest
     Range(u16, u16, u16),
     // path - dest - create?
@@ -103,13 +96,10 @@ pub enum Instr {
     ArrayGet(u16, u16, u16),
     ArrayStrGet(u16, u16, u16),
 
-    TheAnswer(u16),
     // array - element
     Push(u16, u16),
     // array - index
     Remove(u16, u16),
-    // array/str - dest
-    Len(u16, u16),
     // tgt - separator - dest
     Split(u16, u16, u16),
 }
@@ -134,4 +124,13 @@ pub enum LibFunc {
     ReadFile = 15,
     WriteFile = 16,
     Reverse = 17,
+    SqrtFloat = 18,
+    Float = 19,
+    Int = 20,
+    Str = 21,
+    Bool = 22,
+    Input = 23,
+    Floor = 24,
+    TheAnswer = 25,
+    Len = 26,
 }
