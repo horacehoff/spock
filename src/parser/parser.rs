@@ -268,18 +268,18 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::Jmp(_)
         | Instr::JmpBack(_)
         | Instr::IsFalseJmp(_, _)
-        | Instr::EqJmp(_, _, _)
-        | Instr::ArrayEqJmp(_, _, _)
         | Instr::NotEqJmp(_, _, _)
         | Instr::ArrayNotEqJmp(_, _, _)
-        | Instr::InfEqFloatJmp(_, _, _)
-        | Instr::InfEqIntJmp(_, _, _)
-        | Instr::InfFloatJmp(_, _, _)
-        | Instr::InfIntJmp(_, _, _)
+        | Instr::EqJmp(_, _, _)
+        | Instr::ArrayEqJmp(_, _, _)
         | Instr::SupFloatJmp(_, _, _)
         | Instr::SupIntJmp(_, _, _)
         | Instr::SupEqFloatJmp(_, _, _)
         | Instr::SupEqIntJmp(_, _, _)
+        | Instr::InfEqFloatJmp(_, _, _)
+        | Instr::InfEqIntJmp(_, _, _)
+        | Instr::InfFloatJmp(_, _, _)
+        | Instr::InfIntJmp(_, _, _)
         | Instr::IoDelete(_)
         | Instr::StoreFuncArg(_)
         | Instr::ArrayMod(_, _, _)
@@ -779,18 +779,18 @@ pub fn get_id(
                 };
                 if let Some(
                     Instr::IsFalseJmp(_, jump_size)
-                    | Instr::InfFloatJmp(_, _, jump_size)
-                    | Instr::InfIntJmp(_, _, jump_size)
-                    | Instr::InfEqFloatJmp(_, _, jump_size)
-                    | Instr::InfEqIntJmp(_, _, jump_size)
-                    | Instr::SupFloatJmp(_, _, jump_size)
-                    | Instr::SupIntJmp(_, _, jump_size)
                     | Instr::SupEqFloatJmp(_, _, jump_size)
                     | Instr::SupEqIntJmp(_, _, jump_size)
-                    | Instr::EqJmp(_, _, jump_size)
-                    | Instr::ArrayEqJmp(_, _, jump_size)
+                    | Instr::SupFloatJmp(_, _, jump_size)
+                    | Instr::SupIntJmp(_, _, jump_size)
+                    | Instr::InfEqFloatJmp(_, _, jump_size)
+                    | Instr::InfEqIntJmp(_, _, jump_size)
+                    | Instr::InfFloatJmp(_, _, jump_size)
+                    | Instr::InfIntJmp(_, _, jump_size)
                     | Instr::NotEqJmp(_, _, jump_size)
-                    | Instr::ArrayNotEqJmp(_, _, jump_size),
+                    | Instr::ArrayNotEqJmp(_, _, jump_size)
+                    | Instr::EqJmp(_, _, jump_size)
+                    | Instr::ArrayEqJmp(_, _, jump_size),
                 ) = output.get_mut(*y)
                 {
                     *jump_size = diff as u16;
@@ -825,18 +825,18 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
         return output.push(Instr::IsFalseJmp(condition_id, *len));
     }
     *output.last_mut().unwrap() = match *output.last().unwrap() {
-        Instr::InfFloat(o1, o2, o3) if o3 == condition_id => Instr::InfFloatJmp(o1, o2, *len),
-        Instr::InfInt(o1, o2, o3) if o3 == condition_id => Instr::InfIntJmp(o1, o2, *len),
-        Instr::InfEqFloat(o1, o2, o3) if o3 == condition_id => Instr::InfEqFloatJmp(o1, o2, *len),
-        Instr::InfEqInt(o1, o2, o3) if o3 == condition_id => Instr::InfEqIntJmp(o1, o2, *len),
-        Instr::SupFloat(o1, o2, o3) if o3 == condition_id => Instr::SupFloatJmp(o1, o2, *len),
-        Instr::SupInt(o1, o2, o3) if o3 == condition_id => Instr::SupIntJmp(o1, o2, *len),
-        Instr::SupEqFloat(o1, o2, o3) if o3 == condition_id => Instr::SupEqFloatJmp(o1, o2, *len),
-        Instr::SupEqInt(o1, o2, o3) if o3 == condition_id => Instr::SupEqIntJmp(o1, o2, *len),
-        Instr::Eq(o1, o2, o3) if o3 == condition_id => Instr::EqJmp(o1, o2, *len),
-        Instr::ArrayEq(o1, o2, o3) if o3 == condition_id => Instr::ArrayEqJmp(o1, o2, *len),
-        Instr::NotEq(o1, o2, o3) if o3 == condition_id => Instr::NotEqJmp(o1, o2, *len),
-        Instr::ArrayNotEq(o1, o2, o3) if o3 == condition_id => Instr::ArrayNotEqJmp(o1, o2, *len),
+        Instr::InfFloat(o1, o2, o3) if o3 == condition_id => Instr::SupEqFloatJmp(o1, o2, *len),
+        Instr::InfInt(o1, o2, o3) if o3 == condition_id => Instr::SupEqIntJmp(o1, o2, *len),
+        Instr::InfEqFloat(o1, o2, o3) if o3 == condition_id => Instr::SupFloatJmp(o1, o2, *len),
+        Instr::InfEqInt(o1, o2, o3) if o3 == condition_id => Instr::SupIntJmp(o1, o2, *len),
+        Instr::SupFloat(o1, o2, o3) if o3 == condition_id => Instr::InfEqFloatJmp(o1, o2, *len),
+        Instr::SupInt(o1, o2, o3) if o3 == condition_id => Instr::InfEqIntJmp(o1, o2, *len),
+        Instr::SupEqFloat(o1, o2, o3) if o3 == condition_id => Instr::InfFloatJmp(o1, o2, *len),
+        Instr::SupEqInt(o1, o2, o3) if o3 == condition_id => Instr::InfIntJmp(o1, o2, *len),
+        Instr::Eq(o1, o2, o3) if o3 == condition_id => Instr::NotEqJmp(o1, o2, *len),
+        Instr::ArrayEq(o1, o2, o3) if o3 == condition_id => Instr::ArrayNotEqJmp(o1, o2, *len),
+        Instr::NotEq(o1, o2, o3) if o3 == condition_id => Instr::EqJmp(o1, o2, *len),
+        Instr::ArrayNotEq(o1, o2, o3) if o3 == condition_id => Instr::ArrayEqJmp(o1, o2, *len),
         _ => {
             output.push(Instr::IsFalseJmp(condition_id, *len));
             return;
@@ -854,7 +854,7 @@ fn parse_loop_flow_control(
     for_loop: bool,
 ) {
     loop_code.iter_mut().enumerate().for_each(|x| {
-        if let Instr::EqJmp(break_id, 0, 0) = x.1
+        if let Instr::NotEqJmp(break_id, 0, 0) = x.1
             && *break_id == loop_id
         {
             if for_loop {
@@ -862,7 +862,7 @@ fn parse_loop_flow_control(
             } else {
                 *x.1 = Instr::Jmp(code_length - x.0 as u16);
             }
-        } else if let Instr::NotEqJmp(continue_id, 0, 0) = x.1
+        } else if let Instr::EqJmp(continue_id, 0, 0) = x.1
             && *continue_id == loop_id
         {
             if for_loop {
@@ -876,11 +876,11 @@ fn parse_loop_flow_control(
 
 fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_length: u16) {
     loop_code.iter_mut().enumerate().for_each(|(i, x)| {
-        if let Instr::EqJmp(break_id, 0, 0) = x
+        if let Instr::NotEqJmp(break_id, 0, 0) = x
             && *break_id == loop_id
         {
             *x = Instr::Jmp(code_length - i as u16);
-        } else if let Instr::NotEqJmp(continue_id, 0, 0) = x
+        } else if let Instr::EqJmp(continue_id, 0, 0) = x
             && *continue_id == loop_id
         {
             *x = Instr::Jmp(code_length - i as u16 - 3);
@@ -1274,16 +1274,16 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     };
                     if let Some(
                         Instr::IsFalseJmp(_, jump_size)
-                        | Instr::InfFloatJmp(_, _, jump_size)
-                        | Instr::InfIntJmp(_, _, jump_size)
-                        | Instr::InfEqFloatJmp(_, _, jump_size)
-                        | Instr::InfEqIntJmp(_, _, jump_size)
-                        | Instr::SupFloatJmp(_, _, jump_size)
-                        | Instr::SupIntJmp(_, _, jump_size)
                         | Instr::SupEqFloatJmp(_, _, jump_size)
                         | Instr::SupEqIntJmp(_, _, jump_size)
-                        | Instr::EqJmp(_, _, jump_size)
-                        | Instr::NotEqJmp(_, _, jump_size),
+                        | Instr::SupFloatJmp(_, _, jump_size)
+                        | Instr::SupIntJmp(_, _, jump_size)
+                        | Instr::InfEqFloatJmp(_, _, jump_size)
+                        | Instr::InfEqIntJmp(_, _, jump_size)
+                        | Instr::InfFloatJmp(_, _, jump_size)
+                        | Instr::InfIntJmp(_, _, jump_size)
+                        | Instr::NotEqJmp(_, _, jump_size)
+                        | Instr::EqJmp(_, _, jump_size),
                     ) = output.get_mut(*y)
                     {
                         *jump_size = diff as u16;
@@ -1439,7 +1439,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 // Loop logic
                 let end_elem_id = get_id(end_elem, v, p, &mut output, None, false);
                 // Add an InfCmp first, to check if i < end_elem
-                output.push(Instr::InfIntJmp(
+                output.push(Instr::SupEqIntJmp(
                     elem_id,
                     end_elem_id,
                     compiled_loop_code_len + 3,
@@ -1578,9 +1578,9 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 }
             }
             // Break(block_id) = EqCmp(block_id, 0, 0)
-            Expr::Break => output.push(Instr::EqJmp(block_id, 0, 0)),
+            Expr::Break => output.push(Instr::NotEqJmp(block_id, 0, 0)),
             // Break(block_id) = NotEqCmp(block_id, 0, 0)
-            Expr::Continue => output.push(Instr::NotEqJmp(block_id, 0, 0)),
+            Expr::Continue => output.push(Instr::EqJmp(block_id, 0, 0)),
             Expr::EvalBlock(code) => {
                 let v_len = v.len();
                 output.extend(parser_to_instr_set(code, v, p));
