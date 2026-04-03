@@ -1,3 +1,4 @@
+![Spock logo](assets/spock_logo_horizontal.png)
 # Spock
 
 > [!WARNING]
