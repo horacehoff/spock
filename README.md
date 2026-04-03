@@ -242,7 +242,7 @@ import test.dylib {
     int add(int, int);
 }
 
-fn main() {
+function main() {
 print(test::add(1, 1));
 }
 ```

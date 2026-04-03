@@ -9,7 +9,7 @@
     <td><b style="font-size:20px">LuaJIT (-j off)</b></td>
  </tr>
  <tr>
-    <td><pre><code>fn main() {
+    <td><pre><code>function main() {
 for _ in range(0,200000) {
 let n = 40;
 let a=0;
@@ -70,7 +70,7 @@ end</code></pre></td>
     <td><b style="font-size:20px">Python</b></td>
  </tr>
  <tr>
-    <td><pre><code>fn main() {
+    <td><pre><code>function main() {
     let i = [0,1,2,3];
     for x in i.repeat(30000000) {
         i.push(x);
@@ -101,7 +101,7 @@ print(len(i))</code></pre></td>
     <td><b style="font-size:20px">LuaJIT (-j off)</b></td>
  </tr>
  <tr>
-    <td><pre><code>fn main() {
+    <td><pre><code>function main() {
         let x = 0.0;
         for i in 0..10000000 {
             x += float(i).sqrt();
@@ -141,7 +141,7 @@ print(x)</code></pre></td>
     <td><b style="font-size:20px">LuaJIT (-j off)</b></td>
  </tr>
  <tr>
-    <td><pre><code>fn main() {
+    <td><pre><code>function main() {
 let count = 0;
 let limit = 1000000;
 let result = 1;
@@ -201,7 +201,7 @@ print(result)</code></pre></td>
     <td><b style="font-size:20px">LuaJIT (-j off)</b></td>
  </tr>
  <tr>
-    <td><pre><code>fn main() {
+    <td><pre><code>function main() {
     let i = 0;
     while i < 999999999 {
         i += 1;

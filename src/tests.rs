@@ -1,3 +1,4 @@
+use crate::Instr;
 use crate::execute;
 use crate::parse;
 
@@ -16,7 +17,13 @@ macro_rules! run_and_check_registers {
             &fn_registers,
             &[],
         );
-        assert!(registers.contains($expected));
+        assert!(instructions.iter().any(|x| {
+            if let Instr::Print(tgt) = x {
+                registers[(*tgt) as usize] == $expected
+            } else {
+                false
+            }
+        }));
     };
 }
 
@@ -24,17 +31,17 @@ macro_rules! run_and_check_registers {
 pub fn rec_fib_1() {
     run_and_check_registers!(
         "
-        fn fib(n) {
+        function fib(n) {
             if n <= 1 {return n;}
             else {return fib(n-1)+fib(n-2);}
         }
 
-        fn main() {
+        function main() {
             let x = fib(1);
             print(x);
         }
         ",
-        &1.into()
+        1.into()
     );
 }
 
@@ -42,16 +49,16 @@ pub fn rec_fib_1() {
 pub fn rec_fib_25() {
     run_and_check_registers!(
         "
-        fn fib(n) {
+        function fib(n) {
             if n <= 1 {return n;}
             else {return fib(n-1)+fib(n-2);}
         }
 
-        fn main() {
+        function main() {
             let x = fib(25);
             print(x);
         }
         ",
-        &75025.into()
+        75025.into()
     );
 }
