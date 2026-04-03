@@ -1,14 +1,14 @@
 use crate::Data;
 use crate::Instr;
 use crate::LibFunc;
-use crate::Variable;
 use crate::check_args;
 use crate::check_args_range;
 use crate::display::format_expr;
 use crate::display::parser_error;
 use crate::get_id;
 use crate::parser::Expr;
-use crate::parser::ParserData;
+use crate::parser_data::ParserData;
+use crate::parser_data::Variable;
 use crate::type_system::DataType;
 use crate::type_system::infer_type;
 use inline_colorization::*;

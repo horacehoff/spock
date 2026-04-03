@@ -8,6 +8,8 @@ use crate::functions::handle_functions;
 use crate::grammar::Token;
 use crate::method_calls::handle_method_calls;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
+use crate::parser_data::*;
+use crate::type_system::check_if_returns_void;
 use crate::type_system::contains_recursive_call;
 use crate::type_system::datatype_to_c_type;
 use crate::type_system::is_indexable;
@@ -17,11 +19,8 @@ use crate::{Data, Instr, error};
 use inline_colorization::*;
 use internment::Intern;
 use lalrpop_util::lalrpop_mod;
-use libffi::middle::Type;
-use libloading::Library;
 use libloading::Symbol;
 use slab::Slab;
-use std::os::raw::c_void;
 use std::slice;
 
 lalrpop_mod!(pub grammar);
@@ -803,14 +802,19 @@ pub fn get_id(
                 .unwrap_or_else(|| (registers.len() - 1) as u16)
         }
         other => {
-            panic!("{other:?}");
-            let output_code = parser_to_instr_set(slice::from_ref(other), v, p);
-            if !output_code.is_empty() {
-                output.extend(output_code);
-                get_last_tgt_id(output).unwrap_or((registers.len() - 1) as u16)
-            } else {
-                (registers.len() - 1) as u16
-            }
+            compilation_error(
+                file!(),
+                "get_id",
+                format_args!("Unknown expression: {other:?}"),
+            );
+            // panic!("{other:?}");
+            // let output_code = parser_to_instr_set(slice::from_ref(other), v, p);
+            // if !output_code.is_empty() {
+            //     output.extend(output_code);
+            //     get_last_tgt_id(output).unwrap_or((registers.len() - 1) as u16)
+            // } else {
+            //     (registers.len() - 1) as u16
+            // }
         }
     }
 }
@@ -886,94 +890,6 @@ fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_len
             *x = Instr::Jmp(code_length - i as u16 - 3);
         }
     });
-}
-
-#[derive(Debug, Clone)]
-pub struct Function {
-    pub name: String,
-    pub args: Box<[String]>,
-    pub code: Box<[Expr]>,
-    pub impls: Vec<FunctionImpl>,
-    pub is_recursive: bool,
-    pub id: u16,
-}
-
-#[derive(Debug, Clone)]
-pub struct FunctionImpl {
-    pub loc: u16,
-    pub args_loc: Box<[u16]>,
-    pub arg_types: Box<[DataType]>,
-}
-
-#[derive(Debug)]
-pub struct FnSignature {
-    pub name: Intern<String>,
-    pub args: Box<[DataType]>,
-    pub return_type: DataType,
-    pub id: u16,
-}
-
-#[derive(Debug)]
-pub struct Dynamiclib {
-    pub lib: Library,
-    pub name: Intern<String>,
-    pub fns: Box<[FnSignature]>,
-}
-
-#[derive(Debug, Clone)]
-pub struct DynamicLibFn {
-    pub arg_types: Box<[Type]>,
-    pub return_type: Type,
-    ptr: *mut c_void,
-}
-
-pub struct ParserData<'a> {
-    pub registers: *mut Vec<Data>,
-    pub fns: *mut Vec<Function>,
-    pub arrays: *mut ArrayStorage,
-    pub block_id: u16,
-    pub src: (&'a str, &'a str),
-    pub instr_src: *mut Vec<(Instr, usize, usize)>,
-    pub is_parsing_recursive: bool,
-    pub fn_registers: *mut Vec<Vec<u16>>,
-    pub parsing_fn_id: Option<u16>,
-    pub dyn_libs: *mut Vec<Dynamiclib>,
-}
-impl ParserData<'_> {
-    pub fn destructure(
-        &self,
-    ) -> (
-        &mut Vec<Data>,
-        &mut Vec<Function>,
-        &mut Slab<Vec<Data>>,
-        &mut Vec<(Instr, usize, usize)>,
-        &mut Vec<Vec<u16>>,
-        u16,
-        (&str, &str),
-        bool,
-        Option<u16>,
-        &mut Vec<Dynamiclib>,
-    ) {
-        (
-            unsafe { &mut *self.registers },
-            unsafe { &mut *self.fns },
-            unsafe { &mut *self.arrays },
-            unsafe { &mut *self.instr_src },
-            unsafe { &mut *self.fn_registers },
-            self.block_id,
-            self.src,
-            self.is_parsing_recursive,
-            self.parsing_fn_id,
-            unsafe { &mut *self.dyn_libs },
-        )
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Variable {
-    pub name: Intern<String>,
-    pub register_id: u16,
-    pub infered_type: DataType,
 }
 
 #[inline(always)]
@@ -1564,6 +1480,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     impls: Vec::new(),
                     is_recursive: contains_recursive_call(y, x.first().unwrap()),
                     id: fn_registers.len() as u16,
+                    returns_void: check_if_returns_void(y),
                 });
                 fn_registers.push(Vec::new());
             }
@@ -1626,8 +1543,9 @@ pub fn parse(
                 args: x[1..].into(),
                 code: y.clone(),
                 impls: Vec::new(),
-                is_recursive: contains_recursive_call(&y, &x[0]),
+                is_recursive: contains_recursive_call(y, &x[0]),
                 id: (fn_registers.len() - 1) as u16,
+                returns_void: check_if_returns_void(y),
             });
         }
     }
@@ -1648,7 +1566,7 @@ pub fn parse(
                     };
 
                     dyn_lib_fns.push(DynamicLibFn {
-                        arg_types: fn_args.iter().map(|x| datatype_to_c_type(x)).collect(),
+                        arg_types: fn_args.iter().map(datatype_to_c_type).collect(),
                         return_type: datatype_to_c_type(fn_return_type),
                         ptr: unsafe {
                             let symbol: Symbol<*const ()> = lib.get(fn_name).unwrap();
