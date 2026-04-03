@@ -1,4 +1,6 @@
-use crate::parser::{Expr, ParserData, Variable, get_id};
+use crate::parser::{Expr, get_id};
+use crate::parser_data::ParserData;
+use crate::parser_data::Variable;
 use crate::{Data, Instr, LibFunc};
 
 pub fn while_loop_summation(
@@ -59,7 +61,7 @@ pub fn while_loop_summation(
 pub fn for_loop_summation(
     output: &mut Vec<Instr>,
     registers: &mut Vec<Data>,
-    v: &mut Vec<Variable>,
+    v: &mut [Variable],
     array: u16,
     code: &[Expr],
 ) -> bool {

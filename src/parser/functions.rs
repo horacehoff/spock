@@ -1,7 +1,5 @@
 use std::slice;
 
-use crate::FnSignature;
-use crate::FunctionImpl;
 use crate::Instr;
 use crate::check_args;
 use crate::check_args_range;
@@ -12,11 +10,13 @@ use crate::display::parser_error;
 use crate::get_id;
 use crate::instr::LibFunc;
 use crate::parser::Expr;
-use crate::parser::ParserData;
-use crate::parser::Variable;
 use crate::parser::get_tgt_ids;
 use crate::parser::move_to_id;
 use crate::parser::parser_to_instr_set;
+use crate::parser_data::FnSignature;
+use crate::parser_data::FunctionImpl;
+use crate::parser_data::ParserData;
+use crate::parser_data::Variable;
 use crate::type_system::DataType;
 use crate::type_system::infer_type;
 use inline_colorization::*;
@@ -218,6 +218,7 @@ pub fn handle_functions(
                 let fn_args = &fns[function_id].args;
                 let fn_code = &fns[function_id].code;
                 let fn_impls = &fns[function_id].impls;
+                let fn_returns_void = &fns[function_id].returns_void;
 
                 let args_len = fn_args.len();
                 check_args!(args, args_len, fn_name, src, start, end);
@@ -241,11 +242,11 @@ pub fn handle_functions(
                         v,
                         p,
                         function_id,
-                        &fn_args,
+                        fn_args,
                         fn_name,
                         &infered_arg_types,
                         args,
-                        &fn_code,
+                        fn_code,
                         fn_id,
                     );
                     fns.get(function_id).unwrap().impls.last().unwrap()
@@ -271,29 +272,22 @@ pub fn handle_functions(
                         output.push(Instr::Mov(arg_id, *tgt_id))
                     }
                 }
-                // }
                 fn_registers
                     .get_mut(fn_id as usize)
                     .unwrap()
                     .extend(get_tgt_ids(&output[saveframe_loc..]));
-                // fns.get_mut(function_id)
-                //     .unwrap()
-                //     .5
-                //     .extend(get_tgt_ids(&output[saveframe_loc..]));
-
                 let loc = fn_loc_data.loc;
 
-                debug!("LOC IS {loc:?}");
-                debug!("OUTP LEN IS {}", output.len());
-                debug!("OUTPUT IS {output:?}");
-                // Alocate return slot
-                registers.push(Data::NULL);
-                // JmpSave to the func body start location (loc => )
-                debug!("REGLEN {}", registers.len() - 1);
-                if is_recursive {
-                    output.push(Instr::CallFuncRecursive(loc, (registers.len() - 1) as u16));
+                let return_register_id = if !*fn_returns_void {
+                    registers.push(Data::NULL);
+                    (registers.len() - 1) as u16
                 } else {
-                    output.push(Instr::CallFunc(loc, (registers.len() - 1) as u16));
+                    0
+                };
+                if is_recursive {
+                    output.push(Instr::CallFuncRecursive(loc, return_register_id));
+                } else {
+                    output.push(Instr::CallFunc(loc, return_register_id));
                 }
                 debug!("REGLEN {}", registers.len() - 1);
 
@@ -373,7 +367,7 @@ pub fn handle_functions(
             }
 
             for arg in args {
-                let arg_id = get_id(&arg, v, p, output, None, false);
+                let arg_id = get_id(arg, v, p, output, None, false);
                 output.push(Instr::StoreFuncArg(arg_id));
             }
 
@@ -421,19 +415,22 @@ fn compile_function(
     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
 
     // Local vector vars and recorded_types to allow the inner body to type-check correctly
-    let mut v_temp: Vec<Variable> = Vec::new();
-    for (i, x) in fn_args.iter().enumerate() {
-        // Infer local type of arg
-        let infered_type = infer_type(&args[i], v, fns, src, p);
+    let mut v_temp: Vec<Variable> = fn_args
+        .iter()
+        .enumerate()
+        .map(|(i, x)| {
+            let infered_type = infer_type(&args[i], v, fns, src, p);
 
-        // Allocate a registers slot for each func arg
-        registers.push(Data::NULL);
-        v_temp.push(Variable {
-            name: Intern::from(x.clone()),
-            register_id: (registers.len() - 1) as u16,
-            infered_type,
-        });
-    }
+            // Allocate a registers slot for each func arg
+            registers.push(Data::NULL);
+            Variable {
+                name: Intern::from(x.clone()),
+                register_id: (registers.len() - 1) as u16,
+                infered_type,
+            }
+        })
+        .collect();
+
     // Get the arg destination ids
     let args_loc = v_temp.iter().map(|x| x.register_id).collect::<Vec<u16>>();
 

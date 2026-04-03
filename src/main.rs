@@ -3,19 +3,19 @@ use crate::display::{format_data, parser_error};
 use crate::instr::Instr;
 use crate::instr::LibFunc;
 use crate::parser::parse;
+use crate::parser_data::DynamicLibFn;
 use crate::util::error;
 use crate::util::likely;
 use crate::util::unlikely;
 use concat_string::concat_string;
 use inline_colorization::*;
-use libffi::raw::ffi_prep_cif;
 use parser::*;
 use slab::Slab;
+use std::fs;
 use std::fs::File;
 use std::hint::black_box;
 use std::io::Write;
 use std::time::Instant;
-use std::{fs, i32};
 
 #[path = "./data.rs"]
 mod data;
@@ -31,6 +31,8 @@ mod method_calls;
 mod optimizations;
 #[path = "./parser/parser.rs"]
 mod parser;
+#[path = "./parser/parser_data.rs"]
+mod parser_data;
 #[path = "./tests.rs"]
 #[cfg(test)]
 mod tests;
@@ -105,7 +107,6 @@ pub fn execute(
             }
             Instr::VoidReturn => {
                 i = call_frames.pop().unwrap().return_addr as usize;
-                continue;
             }
             Instr::SaveFrame(relative_func_loc, return_register, fn_id) => {
                 call_frames.push(CallFrame {

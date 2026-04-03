@@ -1,0 +1,99 @@
+use crate::ArrayStorage;
+use crate::Data;
+use crate::Expr;
+use crate::Instr;
+use crate::Slab;
+use crate::type_system::DataType;
+use internment::Intern;
+use libffi::middle::Type;
+use libloading::Library;
+use std::os::raw::c_void;
+
+#[derive(Debug, Clone)]
+pub struct Function {
+    pub name: String,
+    pub args: Box<[String]>,
+    pub code: Box<[Expr]>,
+    pub impls: Vec<FunctionImpl>,
+    pub is_recursive: bool,
+    pub id: u16,
+    pub returns_void: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionImpl {
+    pub loc: u16,
+    pub args_loc: Box<[u16]>,
+    pub arg_types: Box<[DataType]>,
+}
+
+#[derive(Debug)]
+pub struct FnSignature {
+    pub name: Intern<String>,
+    pub args: Box<[DataType]>,
+    pub return_type: DataType,
+    pub id: u16,
+}
+
+#[derive(Debug)]
+pub struct Dynamiclib {
+    pub lib: Library,
+    pub name: Intern<String>,
+    pub fns: Box<[FnSignature]>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DynamicLibFn {
+    pub arg_types: Box<[Type]>,
+    pub return_type: Type,
+    pub ptr: *mut c_void,
+}
+
+pub struct ParserData<'a> {
+    pub registers: *mut Vec<Data>,
+    pub fns: *mut Vec<Function>,
+    pub arrays: *mut ArrayStorage,
+    pub block_id: u16,
+    pub src: (&'a str, &'a str),
+    pub instr_src: *mut Vec<(Instr, usize, usize)>,
+    pub is_parsing_recursive: bool,
+    pub fn_registers: *mut Vec<Vec<u16>>,
+    pub parsing_fn_id: Option<u16>,
+    pub dyn_libs: *mut Vec<Dynamiclib>,
+}
+impl ParserData<'_> {
+    pub fn destructure(
+        &self,
+    ) -> (
+        &mut Vec<Data>,
+        &mut Vec<Function>,
+        &mut Slab<Vec<Data>>,
+        &mut Vec<(Instr, usize, usize)>,
+        &mut Vec<Vec<u16>>,
+        u16,
+        (&str, &str),
+        bool,
+        Option<u16>,
+        &mut Vec<Dynamiclib>,
+    ) {
+        (
+            unsafe { &mut *self.registers },
+            unsafe { &mut *self.fns },
+            unsafe { &mut *self.arrays },
+            unsafe { &mut *self.instr_src },
+            unsafe { &mut *self.fn_registers },
+            self.block_id,
+            self.src,
+            self.is_parsing_recursive,
+            self.parsing_fn_id,
+            unsafe { &mut *self.dyn_libs },
+        )
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Variable {
+    pub name: Intern<String>,
+    pub register_id: u16,
+    pub infered_type: DataType,
+}

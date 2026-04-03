@@ -55,8 +55,8 @@ if (x < 200) {
 becomes...
 
 ```spock
-0: InfIntJmp(0, 1, 2)   ─┐
-1: Print(2)              X
+0: SupEqIntJmp(0, 1, 2)   ─┐
+1: Print(2)                X
 ```
 
 ---
@@ -79,13 +79,13 @@ print(c);
 becomes...
 
 ```spock
-0: InfIntJmp(4, 0, 6)   ─┐ <─┐
-1: AddInt(1, 2, 3)       │   │
-2: Mov(2, 1)             │   │
-3: Mov(3, 2)             │   │
-4: AddInt(4, 5, 4)       │   │
-5: JmpBack(5)            │  ─┘
-6: Print(3)            <─┘
+0: SupEqIntJmp(4, 0, 6)   ─┐ <─┐
+1: AddInt(1, 2, 3)         │   │
+2: Mov(2, 1)               │   │
+3: Mov(3, 2)               │   │
+4: AddInt(4, 5, 4)         │   │
+5: JmpBack(5)              │  ─┘
+6: Print(3)              <─┘
 ```
 
 ## Syntax

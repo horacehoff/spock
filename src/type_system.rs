@@ -1,11 +1,11 @@
-use crate::FnSignature;
-use crate::ParserData;
 use crate::display::op_error;
 use crate::display::parser_error;
 use crate::parser::Expr;
-use crate::parser::Function;
-use crate::parser::Variable;
 use crate::parser::symbol_of_expr;
+use crate::parser_data::FnSignature;
+use crate::parser_data::Function;
+use crate::parser_data::ParserData;
+use crate::parser_data::Variable;
 use crate::util::compilation_error;
 use inline_colorization::*;
 use internment::Intern;
@@ -111,7 +111,33 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
     false
 }
 
-fn track_returns(
+pub fn check_if_returns_void(content: &[Expr]) -> bool {
+    for content in content {
+        match content {
+            Expr::ElseIfBlock(_, code)
+            | Expr::ElseBlock(code)
+            | Expr::Condition(_, code, _, _)
+            | Expr::WhileBlock(_, code)
+            | Expr::ForLoop(_, code)
+            | Expr::EvalBlock(code)
+            | Expr::LoopBlock(code)
+            | Expr::IntForLoop(_, _, _, code, _, _, _, _) => {
+                if !check_if_returns_void(code) {
+                    return false;
+                }
+            }
+            Expr::ReturnVal(return_val) => {
+                if return_val.is_some() {
+                    return false;
+                }
+            }
+            _ => continue,
+        }
+    }
+    true
+}
+
+pub fn track_returns(
     content: &[Expr],
     v: &mut Vec<Variable>,
     fns: &[Function],
@@ -144,7 +170,11 @@ fn track_returns(
                     return_types.push(DataType::Null);
                 }
             }
-            Expr::WhileBlock(_, code) => return_types.extend(track_returns(
+            Expr::WhileBlock(_, code)
+            | Expr::ForLoop(_, code)
+            | Expr::EvalBlock(code)
+            | Expr::LoopBlock(code)
+            | Expr::IntForLoop(_, _, _, code, _, _, _, _) => return_types.extend(track_returns(
                 code,
                 v,
                 fns,
@@ -166,33 +196,6 @@ fn track_returns(
                     return_types.push(DataType::Null);
                 }
             }
-            Expr::ForLoop(_, code) => return_types.extend(track_returns(
-                code,
-                v,
-                fns,
-                src,
-                fn_name,
-                track_condition,
-                p,
-            )),
-            Expr::EvalBlock(code) => return_types.extend(track_returns(
-                code,
-                v,
-                fns,
-                src,
-                fn_name,
-                track_condition,
-                p,
-            )),
-            Expr::LoopBlock(code) => return_types.extend(track_returns(
-                code,
-                v,
-                fns,
-                src,
-                fn_name,
-                track_condition,
-                p,
-            )),
             _ => continue,
         }
     }
@@ -316,7 +319,7 @@ pub fn infer_type(
                         }
                     }
 
-                    let Function {name:_, args:fn_args, code:fn_code, impls:_, is_recursive:_, id:_} =
+                    let Function {name:_, args:fn_args, code:fn_code, impls:_, is_recursive:_, id:_, returns_void: _} =
                         fns.iter().find(|func| func.name == function_name).unwrap_or_else(|| {
                             parser_error(
                                 src,
