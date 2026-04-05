@@ -44,7 +44,6 @@ mod util;
 
 pub type ArrayStorage = Slab<Vec<Data>>;
 
-#[repr(C)]
 struct CallFrame {
     return_addr: u32,
     return_reg: u16,
@@ -129,7 +128,13 @@ pub fn execute(
                 registers[call_frame.return_reg as usize] = registers[tgt as usize];
             }
             Instr::RecursiveReturn(tgt, fn_id) => {
-                let call_frame = call_frames.pop().unwrap();
+                let call_frame = unsafe {
+                    let new_len = call_frames.len() - 1;
+                    let ptr = call_frames.as_mut_ptr().add(new_len);
+                    call_frames.set_len(new_len);
+                    ptr.read()
+                };
+                // let call_frame = call_frames.pop().unwrap();
                 let temp = registers[tgt as usize];
                 let regs = &fn_registers[fn_id as usize];
                 let base = recursion_stack.len() - regs.len();
