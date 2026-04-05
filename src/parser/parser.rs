@@ -906,7 +906,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
         src,
         is_parsing_recursive,
         parsing_fn_id,
-        dyn_libs,
+        _,
     ) = p.destructure();
 
     for x in input {
@@ -1535,7 +1535,10 @@ pub fn parse(
     let mut instr_src = Vec::new();
     let mut fn_registers: Vec<Vec<u16>> = Vec::new();
     let mut functions: Vec<Function> = Vec::new();
-    for w in &code {
+    let mut dyn_libs: Vec<Dynamiclib> = Vec::new();
+    let mut id = 0;
+    let mut dyn_lib_fns: Vec<DynamicLibFn> = Vec::new();
+    for w in code {
         if let Expr::FunctionDecl(x, y, _, _) = w {
             fn_registers.push(Vec::new());
             functions.push(Function {
@@ -1543,18 +1546,11 @@ pub fn parse(
                 args: x[1..].into(),
                 code: y.clone(),
                 impls: Vec::new(),
-                is_recursive: contains_recursive_call(y, &x[0]),
+                is_recursive: contains_recursive_call(&y, &x[0]),
                 id: (fn_registers.len() - 1) as u16,
-                returns_void: check_if_returns_void(y),
+                returns_void: check_if_returns_void(&y),
             });
-        }
-    }
-    let mut dyn_libs: Vec<Dynamiclib> = Vec::new();
-    let mut id = 0;
-    let mut dyn_lib_fns: Vec<DynamicLibFn> = Vec::new();
-    for w in code {
-        if let Expr::Import(path, fn_signatures) = w {
-            let lib = unsafe { libloading::Library::new(&path).unwrap() };
+        } else if let Expr::Import(path, fn_signatures) = w {
             let fns = fn_signatures
                 .iter()
                 .map(|(fn_name, fn_args, fn_return_type)| {
@@ -1565,20 +1561,33 @@ pub fn parse(
                         id,
                     };
 
+                    // Convert arguments and return to libffi types
+                    let arg_types: Vec<_> = fn_args.iter().map(datatype_to_c_type).collect();
+                    let return_type = datatype_to_c_type(fn_return_type);
+                    // Build the CIF (call interface object)
+                    let cif = libffi::middle::Cif::new(arg_types.clone(), return_type.clone());
+                    // Get the function's pointer (lib is stored to avoid freeing the memory)
+                    let lib = unsafe { libloading::Library::new(&path).unwrap() };
+                    let code_ptr = unsafe {
+                        libffi::middle::CodePtr(
+                            lib.get::<*const ()>(fn_name.as_str())
+                                .unwrap()
+                                .try_as_raw_ptr()
+                                .unwrap(),
+                        )
+                    };
                     dyn_lib_fns.push(DynamicLibFn {
-                        arg_types: fn_args.iter().map(datatype_to_c_type).collect(),
-                        return_type: datatype_to_c_type(fn_return_type),
-                        ptr: unsafe {
-                            let symbol: Symbol<*const ()> = lib.get(fn_name).unwrap();
-                            symbol.try_as_raw_ptr().unwrap()
-                        },
+                        arg_types: Box::from(arg_types),
+                        return_type: return_type,
+                        lib: lib,
+                        ptr: code_ptr,
+                        cif: cif,
                     });
                     id += 1;
                     return_val
                 })
                 .collect();
             dyn_libs.push(Dynamiclib {
-                lib: lib,
                 name: Intern::from_ref(
                     std::path::PathBuf::from(path)
                         .file_prefix()
