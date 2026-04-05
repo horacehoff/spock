@@ -87,8 +87,8 @@ pub fn format_expr(x: &Expr) -> String {
     }
 }
 
-fn token_recognition(token: String) -> String {
-    match token.as_str() {
+fn token_recognition(token: &str) -> String {
+    match token {
         "r#\"[a-zA-Z_]+\"#" => String::from("identifier"),
         "r#\"([0-9]*[.])?[0-9]+\"#" => String::from("number"),
         "\"true\"" => String::from("boolean"),
@@ -212,7 +212,7 @@ where
                     } else {
                         Some(format!(
                             "{color_bright_blue}{style_bold}{}{style_reset}{color_reset}",
-                            token_recognition(x)
+                            token_recognition(&x)
                         ))
                     }
                 })
@@ -244,7 +244,7 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
     println!("{color_yellow}---- DEBUG ----{color_reset}");
     if !arrays.is_empty() {
         println!("{color_green}---  ARRAYS  ---{color_reset}");
-        for (i, data) in arrays {
+        for (i, data) in arrays.iter().enumerate() {
             println!(" {i} {data:?}")
         }
     }

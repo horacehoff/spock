@@ -6,8 +6,16 @@ macro_rules! run_and_check_registers {
     ($contents:expr, $expected:expr) => {
         let contents = $contents;
         let filename = "test.spock";
-        let (instructions, mut registers, mut arrays, instr_src, fn_registers, _) =
-            parse(contents, filename);
+        let (
+            instructions,
+            mut registers,
+            mut arrays,
+            instr_src,
+            fn_registers,
+            _,
+            allocated_arg_count,
+            allocated_call_depth,
+        ) = parse(contents, filename);
         execute(
             &instructions,
             &mut registers,
@@ -16,6 +24,8 @@ macro_rules! run_and_check_registers {
             (filename, &contents),
             &fn_registers,
             &[],
+            allocated_arg_count,
+            allocated_call_depth,
         );
         assert!(instructions.iter().any(|x| {
             if let Instr::Print(tgt) = x {

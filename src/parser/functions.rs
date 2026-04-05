@@ -20,7 +20,7 @@ use crate::parser_data::Variable;
 use crate::type_system::DataType;
 use crate::type_system::infer_type;
 use inline_colorization::*;
-use internment::Intern;
+use smol_str::SmolStr;
 
 pub fn handle_functions(
     output: &mut Vec<Instr>,
@@ -29,12 +29,25 @@ pub fn handle_functions(
 
     // method call data
     args: &[Expr],
-    namespace: &[String],
+    namespace: &[SmolStr],
     start: usize,
     end: usize,
     args_indexes: &[(usize, usize)],
 ) -> Option<u16> {
-    let (registers, fns, _, instr_src, fn_registers, _, src, _, _, dyn_libs) = p.destructure();
+    let (
+        registers,
+        fns,
+        _,
+        instr_src,
+        fn_registers,
+        _,
+        src,
+        _,
+        _,
+        dyn_libs,
+        allocated_arg_count,
+        allocated_call_depth,
+    ) = p.destructure();
 
     let mut check_type = |arg: usize, expected: &[DataType]| {
         let infered = infer_type(&args[arg], v, fns, src, p);
@@ -254,6 +267,7 @@ pub fn handle_functions(
 
                 if is_recursive {
                     output.push(Instr::SaveFrame(0, 0, 0));
+                    *allocated_call_depth += 1;
                 }
                 let saveframe_loc = output.len() - 1;
                 // Move evaluated call args into the expected arg slots
@@ -288,6 +302,7 @@ pub fn handle_functions(
                     output.push(Instr::CallFuncRecursive(loc, return_register_id));
                 } else {
                     output.push(Instr::CallFunc(loc, return_register_id));
+                    *allocated_call_depth += 1;
                 }
                 debug!("REGLEN {}", registers.len() - 1);
 
@@ -353,13 +368,13 @@ pub fn handle_functions(
                 );
             }
         }
-    } else if let Some(lib) = dyn_libs.iter().find(|l| l.name.as_ref() == &namespace[0]) {
+    } else if let Some(lib) = dyn_libs.iter().find(|l| l.name == namespace[0]) {
         if let Some(FnSignature {
             name: fn_name,
             args: fn_args,
             return_type: fn_return_type,
             id,
-        }) = lib.fns.iter().find(|x| x.name.as_ref() == name)
+        }) = lib.fns.iter().find(|x| x.name == name)
         {
             check_args!(args, fn_args.len(), fn_name, src, start, end);
             for (i, a) in fn_args.iter().enumerate() {
@@ -369,6 +384,7 @@ pub fn handle_functions(
             for arg in args {
                 let arg_id = get_id(arg, v, p, output, None, false);
                 output.push(Instr::StoreFuncArg(arg_id));
+                *allocated_arg_count += 1;
             }
 
             let register_id = if fn_return_type == &DataType::Null {
@@ -405,14 +421,14 @@ fn compile_function(
     v: &mut Vec<Variable>,
     p: &ParserData,
     function_id: usize,
-    fn_args: &[String],
+    fn_args: &[SmolStr],
     fn_name: &str,
     infered_arg_types: &[DataType],
     args: &[Expr],
     fn_code: &[Expr],
     fn_id: u16,
 ) {
-    let (registers, fns, _, _, fn_registers, _, src, _, _, _) = p.destructure();
+    let (registers, fns, _, _, fn_registers, _, src, _, _, _, _, _) = p.destructure();
     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
 
     // Local vector vars and recorded_types to allow the inner body to type-check correctly
@@ -425,7 +441,7 @@ fn compile_function(
             // Allocate a registers slot for each func arg
             registers.push(Data::NULL);
             Variable {
-                name: Intern::from(x.clone()),
+                name: x.clone(),
                 register_id: (registers.len() - 1) as u16,
                 infered_type,
             }

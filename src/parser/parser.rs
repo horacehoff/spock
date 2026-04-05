@@ -17,10 +17,9 @@ use crate::type_system::{DataType, infer_type};
 use crate::util::compilation_error;
 use crate::{Data, Instr, error};
 use inline_colorization::*;
-use internment::Intern;
 use lalrpop_util::lalrpop_mod;
-use libloading::Symbol;
-use slab::Slab;
+use smol_str::SmolStr;
+use smol_str::ToSmolStr;
 use std::slice;
 
 lalrpop_mod!(pub grammar);
@@ -31,15 +30,15 @@ pub enum Expr {
     Float(f64),
     Int(i32),
     Bool(bool),
-    String(String),
+    String(SmolStr),
     /// Var(name, start, end)
-    Var(Intern<String>, usize, usize),
+    Var(SmolStr, usize, usize),
     /// Array(contents, start, end)
     Array(Box<[Expr]>, usize, usize),
     /// VarDeclare(name, value),
-    VarDeclare(Intern<String>, Box<Expr>),
+    VarDeclare(SmolStr, Box<Expr>),
     /// VarDeclare(name, value, start, end)
-    VarAssign(Intern<String>, Box<Expr>, usize, usize),
+    VarAssign(SmolStr, Box<Expr>, usize, usize),
     /// Condition(condition, code (contains else_if_blocks and potentially else_block), start, end)
     Condition(Box<Expr>, Box<[Expr]>, usize, usize),
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
@@ -49,7 +48,7 @@ pub enum Expr {
     /// FunctionCall(args, (optional namespace + name), start, end, (arg_start,arg_end))
     FunctionCall(
         Box<[Expr]>,
-        Box<[String]>,
+        Box<[SmolStr]>,
         usize,
         usize,
         Box<[(usize, usize)]>,
@@ -57,13 +56,13 @@ pub enum Expr {
     ObjFunctionCall(
         Box<Expr>,
         Box<[Expr]>,
-        Box<[String]>,
+        Box<[SmolStr]>,
         usize,
         usize,
         Box<[(usize, usize)]>,
     ),
     /// FunctionDecl(name+args, code, start, end)
-    FunctionDecl(Box<[String]>, Box<[Expr]>, usize, usize),
+    FunctionDecl(Box<[SmolStr]>, Box<[Expr]>, usize, usize),
 
     ReturnVal(Box<Option<Expr>>),
 
@@ -79,10 +78,10 @@ pub enum Expr {
     ),
 
     /// ForLoop(loop_var_name, loop_array+code)
-    ForLoop(Intern<String>, Box<[Expr]>),
+    ForLoop(SmolStr, Box<[Expr]>),
     /// IntForLoop(loop_var_name, first_elem, final_elem, code)
     IntForLoop(
-        Intern<String>,
+        SmolStr,
         Box<Expr>,
         Box<Expr>,
         Box<[Expr]>,
@@ -93,7 +92,7 @@ pub enum Expr {
     ),
     // --- Dynamic libs ---
     /// Import(lib_path, [(fn_name, fn_args, fn_return_type)])
-    Import(String, Box<[(String, Box<[DataType]>, DataType)]>),
+    Import(SmolStr, Box<[(SmolStr, Box<[DataType]>, DataType)]>),
     // ---
     Break,
     Continue,
@@ -323,7 +322,7 @@ pub fn get_id(
     tgt_id: Option<u16>,
     expects_op_cmp: bool,
 ) -> u16 {
-    let (registers, fns, arrays, _, _, block_id, src, _, _, _) = p.destructure();
+    let (registers, fns, arrays, _, _, block_id, src, _, _, _, _, _) = p.destructure();
 
     macro_rules! uniform_op {
         ($instr: ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type:expr) => {{
@@ -380,7 +379,7 @@ pub fn get_id(
         }
         Expr::Int(num) => {
             registers.push((*num).into());
-            return (registers.len() - 1) as u16;
+            (registers.len() - 1) as u16
         }
         Expr::String(str) => {
             registers.push(str.as_str().into());
@@ -426,7 +425,10 @@ pub fn get_id(
                     "",
                 );
             }
-            let array_id = arrays.insert(Vec::new());
+            let array_id = {
+                arrays.push(Vec::new());
+                arrays.len() - 1
+            };
             for elem in elems {
                 let x = parser_to_instr_set(slice::from_ref(elem), v, p);
                 if !x.is_empty() {
@@ -907,6 +909,8 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
         is_parsing_recursive,
         parsing_fn_id,
         _,
+        _,
+        _,
     ) = p.destructure();
 
     for x in input {
@@ -954,7 +958,10 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     );
                 }
                 // create new blank array with latest id
-                let array_id = arrays.insert(Vec::new());
+                let array_id = {
+                    arrays.push(Vec::new());
+                    arrays.len() - 1
+                };
                 for elem in elems {
                     // process each array element
                     let x = parser_to_instr_set(slice::from_ref(elem), v, p);
@@ -1264,7 +1271,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 let v_len = v.len();
                 // parse everything, add the current element variable to temp_vars so that the loop code can interact with it
                 v.push(Variable {
-                    name: *var_name,
+                    name: var_name.clone(),
                     register_id: current_element_id,
                     infered_type: match &array_type {
                         DataType::String => DataType::String,
@@ -1344,7 +1351,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
 
                 let v_len = v.len();
                 v.push(Variable {
-                    name: *var_name,
+                    name: var_name.clone(),
                     register_id: elem_id,
                     infered_type: DataType::Int,
                 });
@@ -1399,7 +1406,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     get_id(y, v, p, &mut output, None, false)
                 };
                 v.push(Variable {
-                    name: *x,
+                    name: x.clone(),
                     register_id: var_id,
                     infered_type: var_type,
                 });
@@ -1474,8 +1481,8 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     );
                 }
                 fns.push(Function {
-                    name: x.first().unwrap().to_string(),
-                    args: x.into_iter().skip(1).map(ToString::to_string).collect(),
+                    name: x.first().unwrap().clone(),
+                    args: x.into_iter().skip(1).cloned().collect(),
                     code: y.clone(),
                     impls: Vec::new(),
                     is_recursive: contains_recursive_call(y, x.first().unwrap()),
@@ -1521,6 +1528,8 @@ pub fn parse(
     Vec<(Instr, usize, usize)>,
     Vec<Vec<u16>>,
     Vec<DynamicLibFn>,
+    usize,
+    usize,
 ) {
     let now = std::time::Instant::now();
     let code: Vec<Expr> = grammar::FileParser::new()
@@ -1531,18 +1540,20 @@ pub fn parse(
 
     let mut variables: Vec<Variable> = Vec::new();
     let mut registers: Vec<Data> = Vec::new();
-    let mut arrays: ArrayStorage = Slab::with_capacity(20);
+    let mut arrays: ArrayStorage = Vec::with_capacity(20);
     let mut instr_src = Vec::new();
     let mut fn_registers: Vec<Vec<u16>> = Vec::new();
     let mut functions: Vec<Function> = Vec::new();
     let mut dyn_libs: Vec<Dynamiclib> = Vec::new();
     let mut id = 0;
     let mut dyn_lib_fns: Vec<DynamicLibFn> = Vec::new();
+    let mut allocated_arg_count = 0;
+    let mut allocated_call_depth = 0;
     for w in code {
         if let Expr::FunctionDecl(x, y, _, _) = w {
             fn_registers.push(Vec::new());
             functions.push(Function {
-                name: x[0].to_string(),
+                name: x[0].to_smolstr(),
                 args: x[1..].into(),
                 code: y.clone(),
                 impls: Vec::new(),
@@ -1555,7 +1566,7 @@ pub fn parse(
                 .iter()
                 .map(|(fn_name, fn_args, fn_return_type)| {
                     let return_val = FnSignature {
-                        name: Intern::from_ref(fn_name),
+                        name: fn_name.clone(),
                         args: fn_args.clone(),
                         return_type: fn_return_type.clone(),
                         id,
@@ -1567,8 +1578,8 @@ pub fn parse(
                     // Build the CIF (call interface object)
                     let cif = libffi::middle::Cif::new(arg_types.clone(), return_type.clone());
                     // Get the function's pointer (lib is stored to avoid freeing the memory)
-                    let lib = unsafe { libloading::Library::new(&path).unwrap() };
-                    let code_ptr = unsafe {
+                    let lib = unsafe { libloading::Library::new(path.as_str()).unwrap() };
+                    let ptr = unsafe {
                         libffi::middle::CodePtr(
                             lib.get::<*const ()>(fn_name.as_str())
                                 .unwrap()
@@ -1578,23 +1589,23 @@ pub fn parse(
                     };
                     dyn_lib_fns.push(DynamicLibFn {
                         arg_types: Box::from(arg_types),
-                        return_type: return_type,
-                        lib: lib,
-                        ptr: code_ptr,
-                        cif: cif,
+                        return_type,
+                        lib,
+                        ptr,
+                        cif,
                     });
                     id += 1;
                     return_val
                 })
                 .collect();
             dyn_libs.push(Dynamiclib {
-                name: Intern::from_ref(
-                    std::path::PathBuf::from(path)
-                        .file_prefix()
-                        .unwrap()
-                        .to_str()
-                        .unwrap(),
-                ),
+                name: std::path::PathBuf::from(path.as_str())
+                    .file_prefix()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_smolstr(),
+
                 fns,
             });
         }
@@ -1605,7 +1616,7 @@ pub fn parse(
             .iter()
             .find(|func| func.name == "main")
             .unwrap_or_else(|| {
-                error(String::from("Could not find main function"));
+                error("Could not find main function");
             })
             .code
             .clone(),
@@ -1621,6 +1632,8 @@ pub fn parse(
             fn_registers: &mut fn_registers,
             parsing_fn_id: None,
             dyn_libs: &mut dyn_libs,
+            allocated_arg_count: &mut allocated_arg_count,
+            allocated_call_depth: &mut allocated_call_depth,
         },
     );
     for x in fn_registers.iter_mut() {
@@ -1638,5 +1651,7 @@ pub fn parse(
         instr_src,
         fn_registers,
         dyn_lib_fns,
+        allocated_arg_count,
+        allocated_call_depth,
     )
 }
