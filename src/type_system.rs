@@ -8,7 +8,6 @@ use crate::parser_data::ParserData;
 use crate::parser_data::Variable;
 use crate::util::compilation_error;
 use inline_colorization::*;
-use internment::Intern;
 use libffi::middle::Type;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -209,7 +208,7 @@ pub fn infer_type(
     src: (&str, &str),
     p: &ParserData,
 ) -> DataType {
-    let (_, _, _, _, _, _, _, _, _, dyn_libs) = p.destructure();
+    let (_, _, _, _, _, _, _, _, _, dyn_libs, _, _) = p.destructure();
     match x {
         Expr::Var(name, start, end) => v
             .iter()
@@ -307,13 +306,13 @@ pub fn infer_type(
                 "floor" => DataType::Float,
                 "the_answer" => DataType::Int,
                 function_name => {
-                    if let Some(lib) = dyn_libs.iter().find(|l| l.name.as_ref() == &namespace[0]) {
+                    if let Some(lib) = dyn_libs.iter().find(|l| l.name == namespace[0]) {
                         if let Some(FnSignature {
                             name: _,
                             args: _,
                             return_type: fn_return_type,
                             id: _,
-                        }) = lib.fns.iter().find(|x| x.name.as_ref() == function_name)
+                        }) = lib.fns.iter().find(|x| x.name == function_name)
                         {
                             return fn_return_type.clone();
                         }
@@ -338,7 +337,7 @@ pub fn infer_type(
                         arg_types.push(v.len());
                         // 0 => placeholder id, it's never used
                         v.push(Variable {
-                            name: Intern::from_ref(&fn_args[i]),
+                            name: fn_args[i].clone(),
                             register_id: 0,
                             infered_type,
                         });

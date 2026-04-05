@@ -12,6 +12,7 @@ use crate::parser_data::Variable;
 use crate::type_system::DataType;
 use crate::type_system::infer_type;
 use inline_colorization::*;
+use smol_str::SmolStr;
 
 pub fn handle_method_calls(
     output: &mut Vec<Instr>,
@@ -20,12 +21,13 @@ pub fn handle_method_calls(
 
     obj: &Expr,
     args: &[Expr],
-    namespace: &[String],
+    namespace: &[SmolStr],
     start: usize,
     end: usize,
     args_indexes: &[(usize, usize)],
 ) {
-    let (registers, fns, _, instr_src, _, _, src, _, _, dyn_libs) = p.destructure();
+    let (registers, fns, _, instr_src, _, _, src, _, _, dyn_libs, allocated_arg_count, _) =
+        p.destructure();
 
     let len = namespace.len() - 1;
     let name = namespace[len].as_str();
@@ -40,6 +42,7 @@ pub fn handle_method_calls(
             for arg in args {
                 let arg_id = get_id(&arg, v, p, output, None, false);
                 output.push(Instr::StoreFuncArg(arg_id));
+                *allocated_arg_count += 1;
             }
         };
     }
@@ -395,6 +398,7 @@ pub fn handle_method_calls(
             if len == 1 {
                 registers.push(Data::FALSE);
                 output.push(Instr::StoreFuncArg((registers.len() - 1) as u16));
+                *allocated_arg_count += 1;
             }
 
             let f_id = registers.len() as u16;

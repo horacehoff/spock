@@ -2,10 +2,9 @@ use std::str::FromStr;
 use crate::parser::Expr;
 use inline_colorization::*;
 use crate::util::error;
-use internment::Intern;
-use concat_string::concat_string;
 use crate::type_system::DataType;
-
+use smol_str::SmolStr;
+use smol_str::ToSmolStr;
 
 grammar;
 
@@ -60,7 +59,7 @@ Block<T>: T = {
 
 pub Function:Expr = {
     <start: @L> "function" <o1:Var> <args: Args<Var>> <o3: Block<Code>> <end: @R> => {
-        return Expr::FunctionDecl(Box::from([&[o1], args.as_slice()].concat()), o3, start, end);
+        Expr::FunctionDecl(Box::from([&[o1], args.as_slice()].concat()), o3, start, end)
     }
 }
 
@@ -84,7 +83,7 @@ InlineElseBlock:Expr = {
 ConditionalBlock: Expr = {
     <start: @L> "if" <o1: Expression> <o2: Block<Code>> <o3: ElseIfBlock*> <o4: ElseBlock?> <end: @R> => {
         if o1 == Expr::Bool(true) {
-            return Expr::EvalBlock(o2);
+            Expr::EvalBlock(o2)
         } else if o1 == Expr::Bool(false) {
             if o3.is_empty() {
                 if let Some(code) = o4 {
@@ -106,7 +105,7 @@ ConditionalBlock: Expr = {
                     ),start,end)
             } else {unreachable!();}
         } else {
-            return Expr::Condition(
+            Expr::Condition(
                 Box::from(o1),
                 Box::from(
                     [&(*o2),
@@ -116,7 +115,7 @@ ConditionalBlock: Expr = {
                         None => &[],
                     }]
                 .concat()
-            ),start,end);
+            ),start,end)
         }
 
     }
@@ -124,7 +123,7 @@ ConditionalBlock: Expr = {
 InlineConditionalBlock: Expr = {
     <start: @L> "if" <o1: Expression> <o2: Block<Expression>> <o3: InlineElseIfBlock*> <o4: InlineElseBlock?> <end: @R> => {
         if o1 == Expr::Bool(true) {
-            return o2;
+            o2
         } else if o1 == Expr::Bool(false) {
             if o3.is_empty() {
                 if let Some(code) = o4 {
@@ -198,16 +197,16 @@ ForLoop:Expr = {
     "for" <o1:Var> "in" <o2: Expression> <o3: Block<Code>> => {
         let mut output = vec![o2];
         output.extend(o3);
-        Expr::ForLoop(Intern::from(o1),output.into_boxed_slice())
+        Expr::ForLoop(o1,output.into_boxed_slice())
     }
 }
 
 IntForLoop:Expr = {
     "for" <o1:Var> "in" <start1:@L> <o2: Expression> <end1:@R> ".." <start2:@L> <o3: Expression> <end2:@R> <o4: Block<Code>> => {
-        Expr::IntForLoop(Intern::from(o1), Box::from(o2), Box::from(o3), o4, start1, end1, start2, end2)
+        Expr::IntForLoop(o1, Box::from(o2), Box::from(o3), o4, start1, end1, start2, end2)
     },
     "for" <o1:Var> "in" <start1:@L> <end1:@R> ".." <start2:@L> <o2: Expression> <end2:@R> <o3: Block<Code>> => {
-        Expr::IntForLoop(Intern::from(o1), Box::from(Expr::Int(0)), Box::from(o2), o3, start1, end1, start2, end2)
+        Expr::IntForLoop(o1, Box::from(Expr::Int(0)), Box::from(o2), o3, start1, end1, start2, end2)
     },
 }
 
@@ -215,7 +214,7 @@ pub Code: Box<[Expr]> = {
     <s: Statement*> => s.into_boxed_slice()
 }
 
-pub FnSignature:(String, Box<[DataType]>, DataType) = {
+pub FnSignature:(SmolStr, Box<[DataType]>, DataType) = {
     <return_type: ManualType?> <fn_name: Var> <args: Args<ManualType>> ";" => {
         (fn_name, Box::from(args), if let Some(t) = return_type {t} else {DataType::Null})
     }
@@ -223,7 +222,7 @@ pub FnSignature:(String, Box<[DataType]>, DataType) = {
 
 pub Import:Expr = {
     <path: r"import [a-zA-Z_.\/-]*"> <b: Block<FnSignature*>> => {
-        Expr::Import(String::from(path.trim_start_matches("import").trim()), Box::from(b))
+        Expr::Import(path.trim_start_matches("import").trim().to_smolstr(), Box::from(b))
     }
 }
 
@@ -274,48 +273,48 @@ ContinueLoop:Expr = {
 }
 
 VarDeclare: Expr = {
-    "let" <v: Var> "=" <e: Expression> => Expr::VarDeclare(Intern::from(v), Box::from(e)),
+    "let" <v: Var> "=" <e: Expression> => Expr::VarDeclare(v, Box::from(e)),
 }
 
 VarAssign: Expr = {
-    <start: @L> <v: Var> <end: @R> "=" <e: Expression>  => Expr::VarAssign(Intern::from(v), Box::from(e), start, end),
+    <start: @L> <v: Var> <end: @R> "=" <e: Expression>  => Expr::VarAssign(v, Box::from(e), start, end),
     <start: @L> <t: Term> <f: ("[" Expression "]")+> <end: @R> "=" <startb: @L> <e: Expression> <endb: @R> => Expr::ArrayModify(Box::from(t), f.into_iter().map(|(_,x,_)| x).collect::<Vec<Expr>>().into_boxed_slice(), Box::from(e), start, end, startb, endb),
 }
 
 OpVarAssign: Expr = {
-    <start: @L> <v: Var> <end: @R> "+=" <e: Expression> <op_end: @R> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "+=" <e: Expression> <op_end: @R> => Expr::VarAssign(v.clone(), Box::from(
     Expr::Add(
-        Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
+        Box::from(Expr::Var(v, start, end)),
         Box::from(e),
         start,op_end
     )), start, end),
-    <start: @L> <v: Var> <end: @R> "-=" <e: Expression> <op_end: @R> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "-=" <e: Expression> <op_end: @R> => Expr::VarAssign(v.clone(), Box::from(
     Expr::Sub(
-        Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
+        Box::from(Expr::Var(v, start, end)),
         Box::from(e),
         start,op_end
     )), start, end),
-    <start: @L> <v: Var> <end: @R> "*=" <e: Expression> <op_end: @R> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "*=" <e: Expression> <op_end: @R> => Expr::VarAssign(v.clone(), Box::from(
     Expr::Mul(
-        Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
+        Box::from(Expr::Var(v, start, end)),
         Box::from(e),
         start,op_end
     )), start, end),
-    <start: @L> <v: Var> <end: @R> "/=" <e: Expression> <op_end: @R> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "/=" <e: Expression> <op_end: @R> => Expr::VarAssign(v.clone(), Box::from(
     Expr::Div(
-        Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
+        Box::from(Expr::Var(v, start, end)),
         Box::from(e),
         start,op_end
     )), start, end),
-    <start: @L> <v: Var> <end: @R> "%=" <e: Expression> <op_end: @R> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "%=" <e: Expression> <op_end: @R> => Expr::VarAssign(v.clone(), Box::from(
     Expr::Mod(
-        Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
+        Box::from(Expr::Var(v, start, end)),
         Box::from(e),
         start,op_end
     )), start, end),
-    <start: @L> <v: Var> <end: @R> "^=" <e: Expression> <op_end: @R> => Expr::VarAssign(Intern::from_ref(&v), Box::from(
+    <start: @L> <v: Var> <end: @R> "^=" <e: Expression> <op_end: @R> => Expr::VarAssign(v.clone(), Box::from(
     Expr::Pow(
-        Box::from(Expr::Var(Intern::from_ref(&v), start, end)),
+        Box::from(Expr::Var(v, start, end)),
         Box::from(e),
         start,op_end
     )), start, end),
@@ -334,7 +333,7 @@ Expression: Expr = {
     // method call
     <start: @L> <l:Expression> <end: @R> "." <f:FunctionCall> => {
         if let Expr::FunctionCall(x,y,_,_,indexes) = f {
-            return Expr::ObjFunctionCall(Box::from(l),x,y,start,end,indexes);
+            Expr::ObjFunctionCall(Box::from(l),x,y,start,end,indexes)
         } else {
             unreachable!()
         }
@@ -425,7 +424,7 @@ Expression: Expr = {
     <start: @L> <l: Expression> "+" <r: Expression> <end: @R> => match (l, r) {
             (Expr::Float(x), Expr::Float(y)) => Expr::Float(x + y),
             (Expr::Int(x), Expr::Int(y)) => Expr::Int(x + y),
-            (Expr::String(x), Expr::String(y)) => Expr::String(concat_string!(x, y)),
+            (Expr::String(x), Expr::String(y)) => Expr::String(format_args!("{x}{y}").as_str().unwrap().to_smolstr()),
             (Expr::Array(x,start,_), Expr::Array(y,_,end)) => Expr::Array(Box::from([x, y].concat()),start,end),
             (l, r) => Expr::Add(Box::from(l), Box::from(r), start, end),
     },
@@ -448,7 +447,7 @@ Term: Expr = {
     <i: Integer> => Expr::Int(i),
     <t: Float> => Expr::Float(t),
     <b: Bool> => Expr::Bool(b),
-    <start: @L> <v: Var> <end: @R> => Expr::Var(Intern::from(v), start, end),
+    <start: @L> <v: Var> <end: @R> => Expr::Var(v, start, end),
     <s: String> => Expr::String(s),
     <a: Array> => <>,
     <f: FunctionCall> => <>,
@@ -468,7 +467,7 @@ FunctionCall: Expr = {
             if let Some(ns) = namespace {
                 Box::from([ns.as_slice(), &[o1]].concat())
             } else {
-                Box::from(vec![String::from(o1)])
+                Box::from(vec![o1])
             }
         }, start, end, args.into_iter().map(|(x,_,y)| (x,y)).collect::<Vec<(usize,usize)>>().into_boxed_slice())
     }
@@ -479,13 +478,13 @@ Array:Expr = {
 }
 
 Float: f64 = {
-    <n: r"[0-9]*[.][0-9]+"> => f64::from_str(n).unwrap_or_else(|_| {error(format!("Invalid float: '{color_red}{n}{color_reset}'"))})
+    <n: r"[0-9]*[.][0-9]+"> => f64::from_str(n).unwrap_or_else(|_| {error(format_args!("Invalid float: '{color_red}{n}{color_reset}'").as_str().unwrap())})
 }
 
 Integer: i32 = {
     <n: r"[0-9]+"> => i32::from_str(n)
         .unwrap_or_else(|_| {
-            error(format!("Integer too large for i64: '{color_red}{n}{color_reset}'"))
+            error(format_args!("Integer too large for i64: '{color_red}{n}{color_reset}'").as_str().unwrap())
         })
 };
 
@@ -494,12 +493,12 @@ Bool: bool = {
     "false" => false,
 }
 
-String: String = {
-    <s: r#"\"(?:\"\"|[^\"])*\""#> => String::from(s.trim_matches('"'))
+String: SmolStr = {
+    <s: r#"\"(?:\"\"|[^\"])*\""#> => SmolStr::from(s.trim_matches('"'))
 }
 
-Var: String = {
-    <v: r"[a-zA-Z_]+"> => String::from(v)
+Var: SmolStr = {
+    <v: r"[a-zA-Z_]+"> => SmolStr::from(v)
 }
 
 ManualType:DataType = {

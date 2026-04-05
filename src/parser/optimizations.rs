@@ -14,8 +14,8 @@ pub fn while_loop_summation(
         && let Expr::VarAssign(x, increment, _, _) = &code[0]
     {
         if let Expr::Inf(a, b, _, _) = condition {
-            if let Expr::Var(tgt_var, _, _) = **a {
-                if tgt_var == *x {
+            if let Expr::Var(tgt_var, _, _) = a.as_ref() {
+                if tgt_var == x {
                     if let Expr::Add(var, increment, _, _) = *increment.clone() {
                         if let Expr::Var(add_var, _, _) = *var {
                             // most simple option
@@ -69,8 +69,8 @@ pub fn for_loop_summation(
         && let Expr::VarAssign(name, value, _, _) = code.first().unwrap()
     {
         if let Expr::Add(l, reps, _, _) = &**value {
-            if let Expr::Var(v_name, _, _) = **l
-                && &v_name == name
+            if let Expr::Var(v_name, _, _) = l.as_ref()
+                && v_name == name
             {
                 let var_id = v.iter().find(|x| x.name == *name).unwrap().register_id;
                 registers.push(Data::NULL);
@@ -101,8 +101,8 @@ pub fn for_loop_summation(
                 return true;
             }
         } else if let Expr::Mul(l, reps, _, _) = &**value
-            && let Expr::Var(v_name, _, _) = **l
-            && &v_name == name
+            && let Expr::Var(v_name, _, _) = l.as_ref()
+            && v_name == name
         {
             let var_id = v.iter().find(|x| x.name == *name).unwrap().register_id;
             registers.push(Data::NULL);

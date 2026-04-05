@@ -10,7 +10,6 @@ use crate::util::unlikely;
 use concat_string::concat_string;
 use inline_colorization::*;
 use parser::*;
-use slab::Slab;
 use std::any::Any;
 use std::fs;
 use std::fs::File;
@@ -42,7 +41,7 @@ mod type_system;
 #[path = "./util/util.rs"]
 mod util;
 
-pub type ArrayStorage = Slab<Vec<Data>>;
+pub type ArrayStorage = Vec<Vec<Data>>;
 
 struct CallFrame {
     return_addr: u32,
@@ -57,6 +56,8 @@ pub fn execute(
     src: (&str, &str),
     fn_registers: &[Vec<u16>],
     dyn_libs: &[DynamicLibFn],
+    allocated_arg_count: usize,
+    allocated_call_depth: usize,
 ) {
     macro_rules! fatal_error {
         ($instr: expr,$err:expr,$msg:expr) => {
@@ -65,18 +66,9 @@ pub fn execute(
         };
     }
     let mut i: usize = 0;
-    let mut args: Vec<u16> = Vec::with_capacity(
-        instructions
-            .iter()
-            .filter(|x| matches!(x, Instr::StoreFuncArg(_)))
-            .count(),
-    );
-    let call_depth = instructions
-        .iter()
-        .filter(|x| matches!(x, Instr::CallFunc(_, _) | Instr::SaveFrame(_, _, _)))
-        .count();
-    let mut call_frames: Vec<CallFrame> = Vec::with_capacity(call_depth);
-    let mut recursion_stack: Vec<Data> = Vec::with_capacity(call_depth * registers.len());
+    let mut args: Vec<u16> = Vec::with_capacity(allocated_arg_count);
+    let mut call_frames: Vec<CallFrame> = Vec::with_capacity(allocated_call_depth);
+    let mut recursion_stack: Vec<Data> = Vec::with_capacity(allocated_call_depth * registers.len());
 
     let stdout = std::io::stdout();
     let mut handle = stdout.lock();
@@ -107,7 +99,12 @@ pub fn execute(
             }
             Instr::VoidReturn => {
                 // Simply jump back to the callsite, since there's nothing to return
-                i = call_frames.pop().unwrap().return_addr as usize;
+                i = unsafe {
+                    let new_len = call_frames.len() - 1;
+                    let ptr = call_frames.as_mut_ptr().add(new_len);
+                    call_frames.set_len(new_len);
+                    ptr.read().return_addr as usize
+                };
             }
             Instr::SaveFrame(relative_func_loc, return_register, fn_id) => {
                 call_frames.push(CallFrame {
@@ -123,7 +120,12 @@ pub fn execute(
             }
             Instr::Return(tgt) => {
                 // Pop the latest call frame, set the return value and jump back to the callsite
-                let call_frame = call_frames.pop().unwrap();
+                let call_frame = unsafe {
+                    let new_len = call_frames.len() - 1;
+                    let ptr = call_frames.as_mut_ptr().add(new_len);
+                    call_frames.set_len(new_len);
+                    ptr.read()
+                };
                 i = call_frame.return_addr as usize;
                 registers[call_frame.return_reg as usize] = registers[tgt as usize];
             }
@@ -134,7 +136,6 @@ pub fn execute(
                     call_frames.set_len(new_len);
                     ptr.read()
                 };
-                // let call_frame = call_frames.pop().unwrap();
                 let temp = registers[tgt as usize];
                 let regs = &fn_registers[fn_id as usize];
                 let base = recursion_stack.len() - regs.len();
@@ -231,8 +232,9 @@ pub fn execute(
                 let mut combined = Vec::with_capacity(arr_a.len() + arr_b.len());
                 combined.extend_from_slice(arr_a);
                 combined.extend_from_slice(arr_b);
-                let id = arrays.insert(combined);
-                registers[dest as usize] = Data::array(id as u32);
+                let len = arrays.len() as u32;
+                arrays.push(combined);
+                registers[dest as usize] = Data::array(len);
             }
             Instr::MulFloat(o1, o2, dest) => {
                 registers[dest as usize] =
@@ -533,8 +535,9 @@ pub fn execute(
             Instr::Range(min, max, dest) => {
                 let x = registers[min as usize].as_int();
                 let y = registers[max as usize].as_int();
-                let id = arrays.insert((x..y).map(|x| x.into()).collect());
-                registers[dest as usize] = Data::array(id as u32);
+                let id = arrays.len() as u32;
+                arrays.push((x..y).map(|x| x.into()).collect());
+                registers[dest as usize] = Data::array(id);
             }
             Instr::IoOpen(path, dest, create) => {
                 let str = registers[path as usize].as_str();
@@ -570,9 +573,9 @@ pub fn execute(
                 if reg.is_str() {
                     let str = reg.as_str();
                     let separator = registers[sep as usize].as_str();
-                    let id =
-                        arrays.insert(str.split(separator.as_str()).map(|x| x.into()).collect());
-                    registers[dest as usize] = Data::array(id as u32);
+                    let id = arrays.len() as u32;
+                    arrays.push(str.split(separator.as_str()).map(|x| x.into()).collect());
+                    registers[dest as usize] = Data::array(id);
                 } else if reg.is_array() {
                     let base_id = arrays.len() as u16;
                     // get the array and split it
@@ -580,14 +583,15 @@ pub fn execute(
                         .to_vec()
                         .split(|x| x == &registers[sep as usize])
                         .for_each(|x| {
-                            arrays.insert(x.to_vec());
+                            arrays.push(x.to_vec());
                         });
-                    let id = arrays.insert(
+                    let id = arrays.len() as u32;
+                    arrays.push(
                         (base_id..arrays.len() as u16)
                             .map(|x| Data::array(x as u32))
                             .collect::<Vec<Data>>(),
                     );
-                    registers[dest as usize] = Data::array(id as u32);
+                    registers[dest as usize] = Data::array(id);
                 }
             }
             Instr::Remove(array, idx) => {
@@ -715,8 +719,9 @@ pub fn execute(
                 } else if reg.is_array() {
                     let x = reg.as_array();
                     let arg = registers[args.swap_remove(0) as usize].as_int();
-                    registers[dest as usize] =
-                        Data::array(arrays.insert(arrays[x as usize].repeat(arg as usize)) as u32);
+                    let idx = arrays.len() as u32;
+                    arrays.push(arrays[x as usize].repeat(arg as usize));
+                    registers[dest as usize] = Data::array(idx);
                 }
             }
             // round
@@ -762,7 +767,7 @@ pub fn execute(
                         reg.as_str().chars().rev().collect::<String>().into();
                 } else if reg.is_array() {
                     let id = reg.as_array();
-                    arrays.get_mut(id as usize).unwrap().reverse();
+                    arrays[id as usize].reverse();
                     registers[dest as usize] = Data::array(id);
                 }
             }
@@ -864,15 +869,25 @@ fn main() {
     });
 
     let contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-        error(format!(
-            "Unable to read contents of file {color_red}{filename}{color_reset}"
-        ))
+        error(
+            format_args!("Unable to read contents of file {color_red}{filename}{color_reset}")
+                .as_str()
+                .unwrap(),
+        )
     });
 
     let now = Instant::now();
 
-    let (instructions, mut registers, mut arrays, instr_src, fn_registers, fn_dyn_libs) =
-        parse(&contents, filename);
+    let (
+        instructions,
+        mut registers,
+        mut arrays,
+        instr_src,
+        fn_registers,
+        fn_dyn_libs,
+        allocated_arg_count,
+        allocated_call_depth,
+    ) = parse(&contents, filename);
 
     println!("PARSING TIME {:.2?}", now.elapsed());
     if std::env::args().len() > 2 && std::env::args().nth(2).unwrap() == "--bench" {
@@ -887,6 +902,8 @@ fn main() {
             150,
             std::env::args().len() > 3 && std::env::args().nth(3).unwrap() == "--verbose",
             &fn_dyn_libs,
+            allocated_arg_count,
+            allocated_call_depth,
         );
     } else {
         let now = Instant::now();
@@ -898,6 +915,8 @@ fn main() {
             (filename, &contents),
             &fn_registers,
             &fn_dyn_libs,
+            allocated_arg_count,
+            allocated_call_depth,
         );
         println!(
             "EXECUTION TIME: {:.3}ms",
@@ -919,6 +938,8 @@ pub fn benchmark(
     samples_count: usize,
     verbose: bool,
     fn_dyn_libs: &[DynamicLibFn],
+    allocated_arg_count: usize,
+    allocated_call_depth: usize,
 ) {
     let mut times_ns: Vec<u128> = Vec::with_capacity(samples_count);
 
@@ -931,6 +952,8 @@ pub fn benchmark(
             black_box(src),
             black_box(fn_registers),
             black_box(fn_dyn_libs),
+            black_box(allocated_arg_count),
+            black_box(allocated_call_depth),
         ));
     }
     for _ in 0..samples_count {
@@ -945,6 +968,8 @@ pub fn benchmark(
             black_box(src),
             black_box(fn_registers),
             black_box(fn_dyn_libs),
+            black_box(allocated_arg_count),
+            black_box(allocated_call_depth),
         ));
         times_ns.push(now.elapsed().as_nanos());
     }

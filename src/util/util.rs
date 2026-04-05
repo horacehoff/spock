@@ -26,7 +26,7 @@ pub fn unlikely(b: bool) -> bool {
 
 #[cold]
 #[inline(never)]
-pub fn error(message: String) -> ! {
+pub fn error(message: &str) -> ! {
     eprintln!(
         "--------------\n{color_red}SPOCK RUNTIME ERROR:{color_reset}\n{}\n--------------",
         message

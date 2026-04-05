@@ -2,16 +2,15 @@ use crate::ArrayStorage;
 use crate::Data;
 use crate::Expr;
 use crate::Instr;
-use crate::Slab;
 use crate::type_system::DataType;
-use internment::Intern;
 use libffi::middle::Type;
 use libloading::Library;
+use smol_str::SmolStr;
 
 #[derive(Debug, Clone)]
 pub struct Function {
-    pub name: String,
-    pub args: Box<[String]>,
+    pub name: SmolStr,
+    pub args: Box<[SmolStr]>,
     pub code: Box<[Expr]>,
     pub impls: Vec<FunctionImpl>,
     pub is_recursive: bool,
@@ -28,7 +27,7 @@ pub struct FunctionImpl {
 
 #[derive(Debug)]
 pub struct FnSignature {
-    pub name: Intern<String>,
+    pub name: SmolStr,
     pub args: Box<[DataType]>,
     pub return_type: DataType,
     pub id: u16,
@@ -36,7 +35,7 @@ pub struct FnSignature {
 
 #[derive(Debug)]
 pub struct Dynamiclib {
-    pub name: Intern<String>,
+    pub name: SmolStr,
     pub fns: Box<[FnSignature]>,
 }
 
@@ -60,6 +59,8 @@ pub struct ParserData<'a> {
     pub fn_registers: *mut Vec<Vec<u16>>,
     pub parsing_fn_id: Option<u16>,
     pub dyn_libs: *mut Vec<Dynamiclib>,
+    pub allocated_arg_count: *mut usize,
+    pub allocated_call_depth: *mut usize,
 }
 impl ParserData<'_> {
     pub fn destructure(
@@ -67,7 +68,7 @@ impl ParserData<'_> {
     ) -> (
         &mut Vec<Data>,
         &mut Vec<Function>,
-        &mut Slab<Vec<Data>>,
+        &mut Vec<Vec<Data>>,
         &mut Vec<(Instr, usize, usize)>,
         &mut Vec<Vec<u16>>,
         u16,
@@ -75,6 +76,8 @@ impl ParserData<'_> {
         bool,
         Option<u16>,
         &mut Vec<Dynamiclib>,
+        &mut usize,
+        &mut usize,
     ) {
         (
             unsafe { &mut *self.registers },
@@ -87,13 +90,15 @@ impl ParserData<'_> {
             self.is_parsing_recursive,
             self.parsing_fn_id,
             unsafe { &mut *self.dyn_libs },
+            unsafe { &mut *self.allocated_arg_count },
+            unsafe { &mut *self.allocated_call_depth },
         )
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Variable {
-    pub name: Intern<String>,
+    pub name: SmolStr,
     pub register_id: u16,
     pub infered_type: DataType,
 }
