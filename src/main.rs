@@ -11,6 +11,7 @@ use concat_string::concat_string;
 use inline_colorization::*;
 use parser::*;
 use slab::Slab;
+use std::any::Any;
 use std::fs;
 use std::fs::File;
 use std::hint::black_box;
@@ -106,6 +107,7 @@ pub fn execute(
                 continue;
             }
             Instr::VoidReturn => {
+                // Simply jump back to the callsite, since there's nothing to return
                 i = call_frames.pop().unwrap().return_addr as usize;
             }
             Instr::SaveFrame(relative_func_loc, return_register, fn_id) => {
@@ -121,6 +123,7 @@ pub fn execute(
                 );
             }
             Instr::Return(tgt) => {
+                // Pop the latest call frame, set the return value and jump back to the callsite
                 let call_frame = call_frames.pop().unwrap();
                 i = call_frame.return_addr as usize;
                 registers[call_frame.return_reg as usize] = registers[tgt as usize];
@@ -145,9 +148,61 @@ pub fn execute(
                     continue;
                 }
             }
-            Instr::CallDynLibFunc(fn_id, dyn_lib_func) => {
+            Instr::CallDynLibFunc(fn_id, dest) => {
                 let func = &dyn_libs[fn_id as usize];
-                todo!()
+                let args_len = args.len();
+                // Args converted from Data to libffi args are stored here
+                let mut ffi_args: Vec<libffi::middle::Arg> = Vec::with_capacity(args_len);
+                // Pointers are "owned" here
+                let mut arg_storage: Vec<u64> = Vec::with_capacity(args_len);
+
+                for (idx, register_id) in args.drain(..args_len).enumerate() {
+                    let data = registers[register_id as usize];
+                    arg_storage.push({
+                        let t = func.arg_types[idx].type_id();
+                        if t == libffi::middle::Type::i32().type_id() {
+                            data.as_int() as u64
+                        } else if t == libffi::middle::Type::i64().type_id() {
+                            data.as_int() as i64 as u64
+                        } else if t == libffi::middle::Type::f32().type_id() {
+                            (data.as_float() as f32).to_bits() as u64
+                        } else if t == libffi::middle::Type::f64().type_id() {
+                            data.as_float().to_bits()
+                        } else if t == libffi::middle::Type::pointer().type_id() {
+                            data.0
+                        } else {
+                            fatal_error!(
+                                instructions[i],
+                                "Unknown argument type",
+                                &format!("Unknown argument type: {t:?}")
+                            );
+                        }
+                    });
+                }
+                for x in &arg_storage {
+                    ffi_args.push(libffi::middle::Arg::new(x));
+                }
+                // Call the function, and convert the result back into Data
+                registers[dest as usize] = unsafe {
+                    let t = func.return_type.type_id();
+                    if t == libffi::middle::Type::i32().type_id() {
+                        func.cif.call::<i32>(func.ptr, &ffi_args).into()
+                    } else if t == libffi::middle::Type::i64().type_id() {
+                        (func.cif.call::<i64>(func.ptr, &ffi_args) as i32).into()
+                    } else if t == libffi::middle::Type::f32().type_id() {
+                        (func.cif.call::<f32>(func.ptr, &ffi_args) as f64).into()
+                    } else if t == libffi::middle::Type::f64().type_id() {
+                        func.cif.call::<f64>(func.ptr, &ffi_args).into()
+                    } else if t == libffi::middle::Type::void().type_id() {
+                        Data::NULL
+                    } else {
+                        fatal_error!(
+                            instructions[i],
+                            "Unknown return type",
+                            &format!("Unknown return type: {t:?}")
+                        );
+                    }
+                };
             }
             Instr::AddFloat(o1, o2, dest) => {
                 registers[dest as usize] =
@@ -443,7 +498,7 @@ pub fn execute(
                     registers[dest as usize] = array[idx as usize];
                 } else {
                     fatal_error!(
-                        Instr::ArrayGet(tgt, index, dest),
+                        instructions[i],
                         "Invalid index",
                         &format!(
                             "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but Array has {} elements",
@@ -460,7 +515,7 @@ pub fn execute(
                     registers[dest as usize] = str.get(idx as usize..=idx as usize).unwrap().into();
                 } else {
                     fatal_error!(
-                        Instr::ArrayGet(tgt, index, dest),
+                        instructions[i],
                         "Invalid index",
                         &format!(
                             "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but String has {} characters",
@@ -707,7 +762,7 @@ pub fn execute(
                 }
             }
             Instr::CallLibFunc(LibFunc::SqrtFloat, tgt, dest) => {
-                registers[dest as usize] = registers[tgt as usize].as_float().floor().into()
+                registers[dest as usize] = registers[tgt as usize].as_float().sqrt().into()
             }
             Instr::CallLibFunc(LibFunc::Float, tgt, dest) => {
                 let reg = registers[tgt as usize];

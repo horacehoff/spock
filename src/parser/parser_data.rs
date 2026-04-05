@@ -7,7 +7,6 @@ use crate::type_system::DataType;
 use internment::Intern;
 use libffi::middle::Type;
 use libloading::Library;
-use std::os::raw::c_void;
 
 #[derive(Debug, Clone)]
 pub struct Function {
@@ -37,16 +36,17 @@ pub struct FnSignature {
 
 #[derive(Debug)]
 pub struct Dynamiclib {
-    pub lib: Library,
     pub name: Intern<String>,
     pub fns: Box<[FnSignature]>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct DynamicLibFn {
     pub arg_types: Box<[Type]>,
     pub return_type: Type,
-    pub ptr: *mut c_void,
+    pub lib: Library,
+    pub ptr: libffi::middle::CodePtr,
+    pub cif: libffi::middle::Cif,
 }
 
 pub struct ParserData<'a> {

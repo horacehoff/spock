@@ -12,7 +12,7 @@ const NAN_TAG_INT: u64 = NAN_BASE | (7 << 48);
 const BOOL_TABLE: [Data; 2] = [Data::FALSE, Data::TRUE];
 
 #[derive(Debug, Clone, Copy)]
-pub struct Data(u64);
+pub struct Data(pub u64);
 
 impl Data {
     pub const NULL: Data = Data(NAN_TAG_NULL);

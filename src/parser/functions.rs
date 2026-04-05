@@ -378,6 +378,7 @@ pub fn handle_functions(
                 (registers.len() - 1) as u16
             };
             output.push(Instr::CallDynLibFunc(*id, register_id));
+            instr_src.push((Instr::CallDynLibFunc(*id, register_id), start, end));
         }
     } else {
         parser_error(
@@ -411,7 +412,7 @@ fn compile_function(
     fn_code: &[Expr],
     fn_id: u16,
 ) {
-    let (registers, fns, _, _, fn_registers, _, src, _, _, dyn_libs) = p.destructure();
+    let (registers, fns, _, _, fn_registers, _, src, _, _, _) = p.destructure();
     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
 
     // Local vector vars and recorded_types to allow the inner body to type-check correctly

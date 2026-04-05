@@ -235,16 +235,32 @@ for x in [0,1,2,3] {
 
 ### Imports (WIP)
 
-Dynamic library loading is a WIP.
-The expected syntax is:
+You can load functions from dynamic libraries by specifying each function's
+signature, with the following syntax:
+
+```spock
+import lib.extension {
+  function_return_type function_name(function_arg_type_1, function_arg_type_1, ..., function_arg_type_n);
+}
+```
+
+For example:
 
 ```spock
 import test.dylib {
     int add(int, int);
 }
 
+function fib(n) {
+    if n <= 1 {
+        return n;
+    }
+    return fib(test::add(n, -1)) + fib(test::add(n,-2));
+}
+
 function main() {
-print(test::add(1, 1));
+print(test::add(6, 1));
+print(fib(25));
 }
 ```
 
