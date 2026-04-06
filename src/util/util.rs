@@ -1,8 +1,4 @@
-use std::fmt::Arguments;
-
 use crate::type_system::DataType;
-use inline_colorization::color_red;
-use inline_colorization::color_reset;
 
 #[cold]
 #[inline(never)]
@@ -24,30 +20,11 @@ pub fn unlikely(b: bool) -> bool {
     b
 }
 
-#[cold]
-#[inline(never)]
-pub fn error(message: &str) -> ! {
-    eprintln!(
-        "--------------\n{color_red}SPOCK RUNTIME ERROR:{color_reset}\n{}\n--------------",
-        message
-    );
-    std::process::exit(1);
-}
-
-#[cold]
-#[inline(always)]
-pub fn compilation_error(file: &str, function: &str, additional_data: Arguments) -> ! {
-    unreachable!(
-        "--------------\n{color_red}SPOCK COMPILATION ERROR:{color_reset}\nFROM FILE: {}\nFROM FUNCTION: {}\nADDITIONAL DATA: {}\n--------------",
-        file, function, additional_data
-    );
-}
-
 #[macro_export]
 macro_rules! debug {
     ($($x:tt)*) => {
         #[cfg(debug_assertions)]
-        println!("[DEBUG] {}", format!($($x)*))
+        println!("[DEBUG] {}", format_args!($($x)*))
     }
 }
 
@@ -83,22 +60,22 @@ macro_rules! check_args {
                 $start,
                 $end,
                 "Incorrect arguments for function",
-                &format!(
+                format_args!(
                     "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset}{} expects {} argument{}",
                     $fn_name,
                     if $expected_args_len != 0 { " only" } else { "" },
                     $expected_args_len,
                     if $expected_args_len == 1 { "" } else { "s" }
                 ),
-                &format!(
+                Some(format_args!(
                     "Replace with {color_green}{}({}){color_reset}",
                     $fn_name,
                     $args[0..$expected_args_len]
                         .iter()
                         .map(|x| format_expr(x))
-                        .collect::<Vec<String>>()
+                        .collect::<Vec<SmolStr>>()
                         .join(",")
-                )
+                ))
             );
         } else if $args.len() < $expected_args_len {
             parser_error(
@@ -106,13 +83,13 @@ macro_rules! check_args {
                 $start,
                 $end,
                 "Incorrect arguments for function",
-                &format!(
+                format_args!(
                     "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects {} argument{}",
                     $fn_name,
                     $expected_args_len,
                     if $expected_args_len == 1 { "" } else { "s" }
                 ),
-                &format!(
+                Some(format_args!(
                     "Add {} additional argument{}",
                     $expected_args_len - $args.len(),
                     if $expected_args_len - $args.len() > 1 {
@@ -120,7 +97,7 @@ macro_rules! check_args {
                     } else {
                         ""
                     }
-                )
+                ))
             );
         }
     };
@@ -136,13 +113,13 @@ macro_rules! check_args_range {
                         $start,
                         $end,
                         "Incorrect arguments for function",
-                        &format!(
+                        format_args!(
                             "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects at most {} argument{}",
                             $fn_name,
                             $max_args_len,
                             if $max_args_len > 1 { "s" } else { "" }
                         ),
-                        &format!(
+                        Some(format_args!(
                             "Remove {} argument{}",
                             $args.len() - $max_args_len,
                             if $args.len() - $max_args_len > 1 {
@@ -150,7 +127,7 @@ macro_rules! check_args_range {
                             } else {
                                 ""
                             }
-                        )
+                        ))
                     );
                 }
             } else {
@@ -160,13 +137,13 @@ macro_rules! check_args_range {
                         $start,
                         $end,
                         "Incorrect arguments for function",
-                        &format!(
+                        format_args!(
                             "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects at least {} argument{}",
                             $fn_name,
                             $min_args_len,
                             if $min_args_len > 1 { "s" } else { "" }
                         ),
-                        &format!(
+                        Some(format_args!(
                             "Add {} additional argument{}",
                             $min_args_len - $args.len(),
                             if $min_args_len - $args.len() > 1 {
@@ -174,7 +151,7 @@ macro_rules! check_args_range {
                             } else {
                                 ""
                             }
-                        )
+                        ))
                     );
                 } else if $args.len() > $max_args_len {
                     parser_error(
@@ -182,13 +159,13 @@ macro_rules! check_args_range {
                         $start,
                         $end,
                         "Incorrect arguments for function",
-                        &format!(
+                        format_args!(
                             "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects at most {} argument{}",
                             $fn_name,
                             $max_args_len,
                             if $max_args_len > 1 { "s" } else { "" }
                         ),
-                        &format!(
+                        Some(format_args!(
                             "Remove {} argument{}",
                             $args.len() - $max_args_len,
                             if $args.len() - $max_args_len > 1 {
@@ -196,7 +173,7 @@ macro_rules! check_args_range {
                             } else {
                                 ""
                             }
-                        )
+                        ))
                     );
 
             }
@@ -205,7 +182,8 @@ macro_rules! check_args_range {
     };
 }
 
-pub const SPOCK_LOGO: &str = r#"
+pub const SPOCK_LOGO: &str = concat!(
+    r#"
               ++++  #### ++++  ###+ ++++  ###-
              ++++  ####  ++++  ####  ++++  ####
             ++++  ####   ++++  ####   ++++  ####
@@ -218,7 +196,8 @@ pub const SPOCK_LOGO: &str = r#"
       @@@      @@@  @@  @@@    @@@  @@@      @@@#@@
        @@@@@@  @@@@@@@ @@@      @@  @@       @@@@@
            @@  @@@      @@@    @@@  @@@      @@@ @@@
-      @@@@@@@  @@@       @@@@@@@@    @@@@@@  @@@  @@@
-
-      by Horace Hoff.
-"#;
+      @@@@@@@  @@@       @@@@@@@@    @@@@@@  @@@  @@@"#,
+    "  v.",
+    env!("CARGO_PKG_VERSION"),
+    "\n\n      by Horace Hoff."
+);

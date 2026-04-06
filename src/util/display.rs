@@ -1,44 +1,44 @@
-use std::hint::unreachable_unchecked;
-
 use crate::ArrayStorage;
 use crate::parser::Expr;
-use crate::type_system::DataType;
 use crate::{Data, Instr};
-use ariadne::*;
-use concat_string::concat_string;
 use inline_colorization::*;
-use lalrpop_util::ParseError;
-use lalrpop_util::lexer::Token;
+use smol_str::{SmolStr, ToSmolStr};
+use std::hint::unreachable_unchecked;
 
 #[inline(always)]
-pub fn format_data(x: Data, arrays: Option<&ArrayStorage>, show_str: bool) -> String {
+pub fn format_data(x: &Data, arrays: Option<&ArrayStorage>, show_str: bool) -> SmolStr {
     if x.is_float() {
-        x.as_float().to_string()
+        x.as_float().to_smolstr()
     } else if x.is_int() {
-        x.as_int().to_string()
+        x.as_int().to_smolstr()
     } else if x.is_bool() {
-        x.as_bool().to_string()
+        x.as_bool().to_smolstr()
     } else if x.is_str() {
-        let s = x.as_str();
-        if show_str { s } else { format!("\"{s}\"") }
+        if show_str {
+            x.as_str().to_smolstr()
+        } else {
+            format_args!("\"{}\"", x.as_str()).to_smolstr()
+        }
     } else if x.is_array() {
         if let Some(arrays) = arrays {
-            concat_string!(
-                "[",
+            format_args!(
+                "[{}]",
                 arrays[x.as_array() as usize]
                     .iter()
-                    .map(|x| format_data(*x, Some(arrays), true))
+                    .map(|x| format_data(x, Some(arrays), true))
                     .collect::<Vec<_>>()
                     .join(","),
-                "]"
             )
+            .as_str()
+            .unwrap()
+            .to_smolstr()
         } else {
-            format!("ARRAY[{}]", x.as_array())
+            format_args!("ARRAY[{}]", x.as_array()).to_smolstr()
         }
     } else if x.is_file() {
-        format!("FILE({:?})", x.as_file())
+        format_args!("FILE({:?})", x.as_file()).to_smolstr()
     } else if x.is_null() {
-        String::from("NULL")
+        SmolStr::from("NULL")
     } else {
         unsafe { unreachable_unchecked() }
     }
@@ -46,12 +46,12 @@ pub fn format_data(x: Data, arrays: Option<&ArrayStorage>, show_str: bool) -> St
 
 impl std::fmt::Display for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", format_data(*self, None, false))
+        write!(f, "{}", format_data(self, None, false))
     }
 }
 
-pub fn get_type_name(x: Data) -> String {
-    String::from(if x.is_array() {
+pub fn get_type_name(x: &Data) -> SmolStr {
+    SmolStr::from(if x.is_array() {
         "Array"
     } else if x.is_bool() {
         "Boolean"
@@ -70,174 +70,36 @@ pub fn get_type_name(x: Data) -> String {
     })
 }
 
-pub fn format_expr(x: &Expr) -> String {
+pub fn format_expr(x: &Expr) -> SmolStr {
     match x {
-        Expr::Float(num) => num.to_string(),
-        Expr::Bool(bool) => bool.to_string(),
-        Expr::String(str) => {
-            format!("\"{str}\"")
-        }
-        Expr::Array(a, _, _) => concat_string!(
-            "[",
+        Expr::Float(num) => num.to_smolstr(),
+        Expr::Bool(bool) => bool.to_smolstr(),
+        Expr::String(str) => format_args!("\"{str}\"").to_smolstr(),
+        Expr::Array(a, _, _) => format_args!(
+            "[{}]",
             a.iter().map(format_expr).collect::<Vec<_>>().join(","),
-            "]"
-        ),
-        Expr::Var(x, _, _) => x.to_string(),
+        )
+        .as_str()
+        .unwrap()
+        .to_smolstr(),
+        Expr::Var(x, _, _) => x.to_smolstr(),
         _ => unreachable!(),
     }
 }
 
-fn token_recognition(token: &str) -> String {
+pub fn token_recognition(token: &str) -> SmolStr {
     match token {
-        "r#\"[a-zA-Z_]+\"#" => String::from("identifier"),
-        "r#\"([0-9]*[.])?[0-9]+\"#" => String::from("number"),
-        "\"true\"" => String::from("boolean"),
+        "r#\"[a-zA-Z_]+\"#" => SmolStr::from("identifier"),
+        "r#\"([0-9]*[.])?[0-9]+\"#" => SmolStr::from("number"),
+        "\"true\"" => SmolStr::from("boolean"),
         other => {
             if other.contains("|[^") {
-                String::from("string")
+                SmolStr::from("string")
             } else {
-                other.trim_matches('\"').to_string()
+                other.trim_matches('\"').to_smolstr()
             }
         }
     }
-}
-
-#[inline(never)]
-#[cold]
-pub fn op_error(
-    src: (&str, &str),
-    l: DataType,
-    r: DataType,
-    op: &str,
-    start: usize,
-    end: usize,
-) -> ! {
-    parser_error(
-        src,
-        start,
-        end,
-        "Invalid operation",
-        &format!(
-            "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{}{color_bright_blue} {}{color_reset}{style_reset}",
-            l, op, r
-        ),
-        "",
-    )
-}
-
-#[cold]
-#[inline(never)]
-pub fn parser_error(
-    src: (&str, &str),
-    start: usize,
-    end: usize,
-    general_error: &str,
-    msg: &str,
-    note: &str,
-) -> ! {
-    eprintln!("{color_red}SPOCK ERROR{color_reset}");
-    if !note.is_empty() {
-        Report::build(ReportKind::Error, (src.0, start..end))
-            .with_message(general_error)
-            .with_label(
-                Label::new((src.0, start..end))
-                    .with_message(msg)
-                    .with_color(Color::Red),
-            )
-            .with_note(note)
-            .finish()
-            .print((src.0, Source::from(src.1)))
-            .unwrap();
-    } else {
-        Report::build(ReportKind::Error, (src.0, start..end))
-            .with_message(general_error)
-            .with_label(
-                Label::new((src.0, start..end))
-                    .with_message(msg)
-                    .with_color(Color::Red),
-            )
-            .finish()
-            .print((src.0, Source::from(src.1)))
-            .unwrap();
-    }
-    std::process::exit(1);
-}
-
-#[cold]
-#[inline(never)]
-pub fn lalrpop_error<'a, L, T, E>(x: ParseError<usize, T, &str>, file: &str, filename: &str) -> !
-where
-    Token<'a>: From<T>,
-{
-    eprintln!("{color_red}SPOCK ERROR{color_reset}");
-    match x {
-        ParseError::InvalidToken { location } => {
-            Report::build(ReportKind::Error, (filename, location..location + 1))
-                .with_message("Invalid token")
-                .with_label(
-                    Label::new((filename, location..location + 1))
-                        .with_message(format_args!("This token is invalid"))
-                        .with_color(Color::Red),
-                )
-                .finish()
-                .print((filename, Source::from(file)))
-                .unwrap();
-        }
-        ParseError::UnrecognizedEof {
-            location,
-            expected: _,
-        } => {
-            Report::build(ReportKind::Error, (filename, location..location + 1))
-                .with_message("Unrecognized EOF")
-                .with_label(
-                    Label::new((filename, location..location + 1))
-                        .with_message(format_args!(
-                            "Expected one or more {color_bright_blue}{style_bold}}}{style_reset}{color_reset}"
-                        ))
-                        .with_color(Color::Red),
-                )
-                .finish()
-                .print((filename, Source::from(file)))
-                .unwrap();
-        }
-        ParseError::UnrecognizedToken { token, expected } => {
-            let begin = token.0;
-            let end = token.2;
-
-            let expected_tokens = expected
-                .into_iter()
-                .filter_map(|x| {
-                    if x == "\"false\"" {
-                        None
-                    } else {
-                        Some(format!(
-                            "{color_bright_blue}{style_bold}{}{style_reset}{color_reset}",
-                            token_recognition(&x)
-                        ))
-                    }
-                })
-                .collect::<Vec<String>>()
-                .join(" OR ");
-
-            Report::build(ReportKind::Error, (filename, begin..end))
-                .with_message("Unrecognized token")
-                .with_label(
-                    Label::new((filename, begin..end))
-                        .with_message(format_args!("Expected {}", expected_tokens))
-                        .with_color(Color::Red),
-                )
-                .finish()
-                .print((filename, Source::from(file)))
-                .unwrap();
-        }
-        ParseError::ExtraToken { .. } => {
-            unreachable!("ExtraTokenError")
-        }
-        ParseError::User { .. } => {
-            unreachable!("UserError")
-        }
-    }
-    std::process::exit(1);
 }
 
 pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArrayStorage) {
@@ -250,7 +112,7 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
     }
     println!("{color_green}-- REGISTERS --{color_reset}");
     for (i, data) in registers.iter().enumerate() {
-        println!(" [{i}] {}({data})", get_type_name(*data))
+        println!(" [{i}] {}({data})", get_type_name(data))
     }
     println!("{color_red}-- INSTRUCTIONS --{color_reset}");
     let mut flows: Vec<(usize, usize)> = Vec::new();
@@ -279,13 +141,13 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
     let instr_str = instructions
         .iter()
         .enumerate()
-        .map(|(i, instr)| format!(" {i}: {instr:?} "))
-        .collect::<Vec<String>>();
+        .map(|(i, instr)| format_args!(" {i}: {instr:?} ").to_smolstr())
+        .collect::<Vec<SmolStr>>();
     let max_len = instr_str.iter().max_by_key(|x| x.len()).unwrap().len();
     let margins = instr_str
         .iter()
-        .map(|str| " ".repeat(max_len - str.len()))
-        .collect::<Vec<String>>();
+        .map(|str| " ".repeat(max_len - str.len()).to_smolstr())
+        .collect::<Vec<SmolStr>>();
     for (i, instr) in instr_str.iter().enumerate() {
         let mut indicators: String = String::new();
         for x in &flows {

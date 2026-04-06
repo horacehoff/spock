@@ -1,9 +1,12 @@
 use crate::ArrayStorage;
 use crate::LibFunc;
+use crate::data::NULL;
 use crate::debug;
-use crate::display::op_error;
-use crate::display::parser_error;
-use crate::display::{lalrpop_error, print_debug};
+use crate::display::print_debug;
+use crate::errors::compilation_error;
+use crate::errors::lalrpop_error;
+use crate::errors::op_error;
+use crate::errors::parser_error;
 use crate::functions::handle_functions;
 use crate::grammar::Token;
 use crate::method_calls::handle_method_calls;
@@ -14,7 +17,6 @@ use crate::type_system::contains_recursive_call;
 use crate::type_system::datatype_to_c_type;
 use crate::type_system::is_indexable;
 use crate::type_system::{DataType, infer_type};
-use crate::util::compilation_error;
 use crate::{Data, Instr, error};
 use inline_colorization::*;
 use lalrpop_util::lalrpop_mod;
@@ -340,7 +342,7 @@ pub fn get_id(
             } else if expects_op_cmp {
                 0
             } else {
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 (registers.len() - 1) as u16
             };
             output.push(Instr::$instr(id_l, id_r, id));
@@ -361,7 +363,7 @@ pub fn get_id(
             } else if expects_op_cmp {
                 0
             } else {
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 (registers.len() - 1) as u16
             };
             output.push(if t_l == $type1 {
@@ -403,10 +405,12 @@ pub fn get_id(
                     *start,
                     *end,
                     "Unknown variable",
-                    &format!(
+                    format_args!(
                         "Variable {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} has not been declared yet"
                     ),
-                    &format!("Declare it with {color_green}let {name} = 0;{color_reset}"),
+                    Some(format_args!(
+                        "Declare it with {color_green}let {name} = 0;{color_reset}"
+                    )),
                 )
             }
         }
@@ -421,8 +425,8 @@ pub fn get_id(
                     *start,
                     *end,
                     "Array",
-                    "Arrays can only hold one type of value",
-                    "",
+                    format_args!("Arrays can only hold one type of value"),
+                    None,
                 );
             }
             let array_id = {
@@ -433,7 +437,7 @@ pub fn get_id(
                 let x = parser_to_instr_set(slice::from_ref(elem), v, p);
                 if !x.is_empty() {
                     let c_id = get_tgt_id(*x.last().unwrap()).unwrap();
-                    arrays.get_mut(array_id).unwrap().push(Data::NULL);
+                    arrays.get_mut(array_id).unwrap().push(NULL);
 
                     output.extend(x);
                     output.push(Instr::ArrayMov(
@@ -496,7 +500,7 @@ pub fn get_id(
             } else if expects_op_cmp {
                 0
             } else {
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 (registers.len() - 1) as u16
             };
             if matches!(t_l, DataType::Array(_)) {
@@ -559,7 +563,7 @@ pub fn get_id(
             } else if expects_op_cmp {
                 0
             } else {
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 (registers.len() - 1) as u16
             };
             output.push(if is_array {
@@ -577,7 +581,7 @@ pub fn get_id(
             } else if expects_op_cmp {
                 0
             } else {
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 (registers.len() - 1) as u16
             };
             if matches!(infer_type(l, v, fns, src, p), DataType::Array(_))
@@ -655,7 +659,7 @@ pub fn get_id(
             } else if expects_op_cmp {
                 0
             } else {
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 (registers.len() - 1) as u16
             };
             if infered == DataType::Float {
@@ -668,11 +672,11 @@ pub fn get_id(
                     *start,
                     *end,
                     "Invalid operation",
-                    &format!(
+                    format_args!(
                         "Cannot negate {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         infered,
                     ),
-                    "",
+                    None,
                 );
             }
             id
@@ -680,7 +684,7 @@ pub fn get_id(
 
         Expr::Condition(main_condition, code, start, end) => {
             let return_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
 
             // get first code limit (after which there are only else(if) blocks)
             let main_code_limit = code
@@ -763,8 +767,8 @@ pub fn get_id(
                     *start,
                     *end,
                     "Invalid condition",
-                    "Inline conditions need an else statement",
-                    "",
+                    format_args!("Inline conditions need an else statement"),
+                    None,
                 );
             }
 
@@ -804,19 +808,13 @@ pub fn get_id(
                 .unwrap_or_else(|| (registers.len() - 1) as u16)
         }
         other => {
-            compilation_error(
-                file!(),
-                "get_id",
-                format_args!("Unknown expression: {other:?}"),
-            );
-            // panic!("{other:?}");
-            // let output_code = parser_to_instr_set(slice::from_ref(other), v, p);
-            // if !output_code.is_empty() {
-            //     output.extend(output_code);
-            //     get_last_tgt_id(output).unwrap_or((registers.len() - 1) as u16)
-            // } else {
-            //     (registers.len() - 1) as u16
-            // }
+            let output_code = parser_to_instr_set(slice::from_ref(other), v, p);
+            if !output_code.is_empty() {
+                output.extend(output_code);
+                get_last_tgt_id(output).unwrap_or((registers.len() - 1) as u16)
+            } else {
+                (registers.len() - 1) as u16
+            }
         }
     }
 }
@@ -927,7 +925,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     infered_type: _,
                 }) = v.iter().find(|v_temp| *name == v_temp.name)
                 {
-                    registers.push(Data::NULL);
+                    registers.push(NULL);
                     output.push(Instr::Mov(*register_id, (registers.len() - 1) as u16));
                 } else {
                     parser_error(
@@ -935,10 +933,12 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         *start,
                         *end,
                         "Unknown variable",
-                        &format!(
+                        format_args!(
                             "Variable {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} has not been declared yet"
                         ),
-                        &format!("Declare it with {color_green}let {name} = 0;{color_reset}"),
+                        Some(format_args!(
+                            "Declare it with {color_green}let {name} = 0;{color_reset}"
+                        )),
                     );
                 }
             }
@@ -953,8 +953,8 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         *start,
                         *end,
                         "Array",
-                        "Arrays can only hold one type of value",
-                        "",
+                        format_args!("Arrays can only hold one type of value"),
+                        None,
                     );
                 }
                 // create new blank array with latest id
@@ -975,7 +975,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         // if there are instructions, then push everything, add a null to the array, and then add an instruction to move the element to the array at runtime with ArrayMov
                         let c_id = get_tgt_id(*x.last().unwrap()).unwrap();
                         output.extend(x);
-                        arrays.get_mut(array_id).unwrap().push(Data::NULL);
+                        arrays.get_mut(array_id).unwrap().push(NULL);
                         output.push(Instr::ArrayMov(
                             c_id,
                             block_id,
@@ -998,11 +998,11 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                             *start,
                             *end,
                             "Invalid type",
-                            &format!(
+                            format_args!(
                                 "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                                 infered,
                             ),
-                            "",
+                            None,
                         );
                     }
 
@@ -1013,15 +1013,15 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                             *start,
                             *end,
                             "Invalid type",
-                            &format!(
+                            format_args!(
                                 "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a valid index",
                                 index_infered
                             ),
-                            "",
+                            None,
                         );
                     }
                     let f_id = get_id(elem, v, p, &mut output, None, false);
-                    registers.push(Data::NULL);
+                    registers.push(NULL);
                     if infered == DataType::String {
                         instr_src.push((
                             Instr::ArrayStrGet(id, f_id, (registers.len() - 1) as u16),
@@ -1052,11 +1052,11 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         *index_start,
                         *index_end,
                         "Invalid type",
-                        &format!(
+                        format_args!(
                             "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                             infered
                         ),
-                        "",
+                        None,
                     );
                 }
                 // get the id of the target array
@@ -1070,16 +1070,16 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                             *index_start,
                             *index_end,
                             "Invalid type",
-                            &format!(
+                            format_args!(
                                 "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a valid index",
                                 infered,
                             ),
-                            "",
+                            None,
                         );
                     }
                     let f_id = get_id(elem, v, p, &mut output, None, false);
 
-                    registers.push(Data::NULL);
+                    registers.push(NULL);
                     output.push(Instr::ArrayGet(id, f_id, (registers.len() - 1) as u16));
                     id = (registers.len() - 1) as u16;
                 }
@@ -1097,11 +1097,11 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                             *elem_start,
                             *elem_end,
                             "Invalid type",
-                            &format!(
+                            format_args!(
                                 "Cannot insert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} in {}",
                                 elem_type, infered,
                             ),
-                            "",
+                            None,
                         );
                     }
                 } else if infered == DataType::String && elem_type != DataType::String {
@@ -1110,11 +1110,11 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         *elem_start,
                         *elem_end,
                         "Invalid type",
-                        &format!(
+                        format_args!(
                             "Cannot insert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} in String",
                             elem_type,
                         ),
-                        "",
+                        None,
                     );
                 }
 
@@ -1249,7 +1249,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 }
 
                 // add an instruction to get array length (func id 2 = len)
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 let array_len_id = (registers.len() - 1) as u16;
                 output.push(Instr::CallLibFunc(LibFunc::Len, array, array_len_id));
 
@@ -1258,14 +1258,14 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 let index_id = (registers.len() - 1) as u16;
 
                 // do the 'i < len' condition, set up the condition's id (true/false)
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 let condition_id = (registers.len() - 1) as u16;
                 output.push(Instr::InfInt(index_id, array_len_id, condition_id));
 
                 // set up the variable for the current element (for current_element_id in ... {}) => current_element_id = array[index]
                 let current_element_id = registers.len() as u16;
                 if real_var {
-                    registers.push(Data::NULL);
+                    registers.push(NULL);
                 }
 
                 let v_len = v.len();
@@ -1323,12 +1323,12 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         *start1,
                         *end1,
                         "Invalid type",
-                        &format!(
+                        format_args!(
                             "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                             DataType::Int,
                             t1
                         ),
-                        "",
+                        None,
                     )
                 }
                 // Check end elem type
@@ -1339,12 +1339,12 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         *start2,
                         *end2,
                         "Invalid type",
-                        &format!(
+                        format_args!(
                             "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                             DataType::Int,
                             t2
                         ),
-                        "",
+                        None,
                     )
                 }
                 let elem_id = get_id(start_elem, v, p, &mut output, None, false);
@@ -1398,7 +1398,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 // let var_id = get_id(y, v, p, &mut output, Some(tgt_id));
                 let var_id = if output.len() != output_len {
                     if can_move(output.last().unwrap()) {
-                        registers.push(Data::NULL);
+                        registers.push(NULL);
                     }
                     move_to_id(&mut output, (registers.len() - 1) as u16);
                     (registers.len() - 1) as u16
@@ -1422,10 +1422,10 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                             *start,
                             *end,
                             "Unknown variable",
-                            &format!(
+                            format_args!(
                                 "Variable {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} has not been declared yet"
                             ),
-                            &format!("Declare it with {color_green}let {name} = 0;{color_reset}")
+                            Some(format_args!("Declare it with {color_green}let {name} = 0;{color_reset}"))
                         )
                     })
                     .register_id;
@@ -1473,11 +1473,11 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         *start,
                         *end,
                         "Function defined twice",
-                        &format!(
+                        format_args!(
                             "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} is already defined",
                             x[0]
                         ),
-                        "",
+                        None,
                     );
                 }
                 fns.push(Function {

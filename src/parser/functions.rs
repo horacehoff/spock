@@ -1,12 +1,11 @@
-use std::slice;
-
 use crate::Instr;
 use crate::check_args;
 use crate::check_args_range;
-use crate::data::Data;
+use crate::data::FALSE;
+use crate::data::NULL;
 use crate::debug;
 use crate::display::format_expr;
-use crate::display::parser_error;
+use crate::errors::parser_error;
 use crate::get_id;
 use crate::instr::LibFunc;
 use crate::parser::Expr;
@@ -21,6 +20,7 @@ use crate::type_system::DataType;
 use crate::type_system::infer_type;
 use inline_colorization::*;
 use smol_str::SmolStr;
+use std::slice;
 
 pub fn handle_functions(
     output: &mut Vec<Instr>,
@@ -63,7 +63,7 @@ pub fn handle_functions(
                 args_indexes[arg].0,
                 args_indexes[arg].1,
                 "Invalid type",
-                &format!(
+                format_args!(
                     "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                     expected
                         .iter()
@@ -72,7 +72,7 @@ pub fn handle_functions(
                         .join(" or "),
                     infered
                 ),
-                "",
+                None,
             );
         }
     };
@@ -96,7 +96,7 @@ pub fn handle_functions(
                 check_args!(args, 1, "float", src, start, end);
                 check_type(0, &[DataType::String, DataType::Int]);
                 let id = get_id(&args[0], v, p, output, None, false);
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 instr_src.push((
                     Instr::CallLibFunc(LibFunc::Float, id, (registers.len() - 1) as u16),
                     start,
@@ -112,7 +112,7 @@ pub fn handle_functions(
                 check_args!(args, 1, "int", src, start, end);
                 check_type(0, &[DataType::String, DataType::Float]);
                 let id = get_id(&args[0], v, p, output, None, false);
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 instr_src.push((
                     Instr::CallLibFunc(LibFunc::Int, id, (registers.len() - 1) as u16),
                     start,
@@ -127,7 +127,7 @@ pub fn handle_functions(
             "str" => {
                 check_args!(args, 1, "str", src, start, end);
                 let id = get_id(&args[0], v, p, output, None, false);
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Str,
                     id,
@@ -138,7 +138,7 @@ pub fn handle_functions(
                 check_args!(args, 1, "bool", src, start, end);
                 check_type(0, &[DataType::String, DataType::Bool]);
                 let id = get_id(&args[0], v, p, output, None, false);
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 instr_src.push((
                     Instr::CallLibFunc(LibFunc::Bool, id, (registers.len() - 1) as u16),
                     start,
@@ -159,7 +159,7 @@ pub fn handle_functions(
                 } else {
                     get_id(&args[0], v, p, output, None, false)
                 };
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Input,
                     id,
@@ -172,7 +172,7 @@ pub fn handle_functions(
                     check_type(0, &[DataType::Int]);
                     let id_x = get_id(&args[0], v, p, output, None, false);
                     registers.push(0.into());
-                    registers.push(Data::NULL);
+                    registers.push(NULL);
                     output.push(Instr::Range(
                         (registers.len() - 2) as u16,
                         id_x,
@@ -183,7 +183,7 @@ pub fn handle_functions(
                     check_type(1, &[DataType::Int]);
                     let id_x = get_id(&args[0], v, p, output, None, false);
                     let id_y = get_id(&args[1], v, p, output, None, false);
-                    registers.push(Data::NULL);
+                    registers.push(NULL);
                     output.push(Instr::Range(id_x, id_y, (registers.len() - 1) as u16));
                 }
             }
@@ -191,7 +191,7 @@ pub fn handle_functions(
                 check_args!(args, 1, "floor", src, start, end);
                 check_type(0, &[DataType::Float]);
                 let id = get_id(&args[0], v, p, output, None, false);
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Floor,
                     id,
@@ -200,7 +200,7 @@ pub fn handle_functions(
             }
             "the_answer" => {
                 check_args!(args, 0, "the_answer", src, start, end);
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 output.push(Instr::CallLibFunc(
                     LibFunc::TheAnswer,
                     0,
@@ -219,10 +219,10 @@ pub fn handle_functions(
                             start,
                             end,
                             "Unknown function",
-                            &format!(
+                            format_args!(
                                 "Function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} does not exist or has not been declared yet"
                             ),
-                            ""
+                            None
                         );
                     });
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
@@ -293,7 +293,7 @@ pub fn handle_functions(
                 let loc = fn_loc_data.loc;
 
                 let return_register_id = if !*fn_returns_void {
-                    registers.push(Data::NULL);
+                    registers.push(NULL);
                     (registers.len() - 1) as u16
                 } else {
                     0
@@ -323,11 +323,11 @@ pub fn handle_functions(
         match name {
             "open" => {
                 check_args_range!(args, 1, 2, "open", src, start, end);
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 let arg_id = get_id(&args[0], v, p, output, None, false);
 
                 let second_arg = if args.len() == 1 {
-                    registers.push(Data::FALSE);
+                    registers.push(FALSE);
                     (registers.len() - 1) as u16
                 } else {
                     get_id(&args[1], v, p, output, None, false)
@@ -356,7 +356,7 @@ pub fn handle_functions(
                     start,
                     end,
                     "Unknown function in namespace",
-                    &format!(
+                    format_args!(
                         "Namespace {color_bright_blue}{style_bold}{}{color_reset}{style_reset} does not contain function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset}",
                         namespace
                             .iter()
@@ -364,7 +364,7 @@ pub fn handle_functions(
                             .collect::<Vec<String>>()
                             .join("::")
                     ),
-                    "",
+                    None,
                 );
             }
         }
@@ -390,7 +390,7 @@ pub fn handle_functions(
             let register_id = if fn_return_type == &DataType::Null {
                 0u16
             } else {
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 (registers.len() - 1) as u16
             };
             output.push(Instr::CallDynLibFunc(*id, register_id));
@@ -402,7 +402,7 @@ pub fn handle_functions(
             start,
             end,
             "Unknown namespace",
-            &format!(
+            format_args!(
                 "Namespace {color_bright_blue}{style_bold}{}{color_reset}{style_reset} does not exist",
                 namespace
                     .iter()
@@ -410,7 +410,7 @@ pub fn handle_functions(
                     .collect::<Vec<String>>()
                     .join("::")
             ),
-            "",
+            None,
         );
     }
     None
@@ -439,7 +439,7 @@ fn compile_function(
             let infered_type = infer_type(&args[i], v, fns, src, p);
 
             // Allocate a registers slot for each func arg
-            registers.push(Data::NULL);
+            registers.push(NULL);
             Variable {
                 name: x.clone(),
                 register_id: (registers.len() - 1) as u16,

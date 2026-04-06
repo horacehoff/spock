@@ -233,7 +233,7 @@ for x in [0,1,2,3] {
 }
 ```
 
-### Imports (WIP)
+### Imports
 
 You can load functions from dynamic libraries by specifying each function's
 signature, with the following syntax:
@@ -363,3 +363,4 @@ print(x > 1 && x < 1);
 - `<Array/String>.repeat(<n: Number>) -> Array/String` - Returns an Array or a String with the set itself repeated n
   times.
 - `<Array>.push(<object: Any>)` - Appends the given object to the end of the array
+- `<Array>.remove(<object: Any>)` - Appends the given object to the end of the array
