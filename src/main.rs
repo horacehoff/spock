@@ -1,10 +1,13 @@
 use crate::data::Data;
-use crate::display::{format_data, parser_error};
+use crate::data::FALSE;
+use crate::data::NULL;
+use crate::display::format_data;
+use crate::errors::error;
+use crate::errors::parser_error;
 use crate::instr::Instr;
 use crate::instr::LibFunc;
 use crate::parser::parse;
 use crate::parser_data::DynamicLibFn;
-use crate::util::error;
 use crate::util::likely;
 use crate::util::unlikely;
 use concat_string::concat_string;
@@ -21,6 +24,8 @@ use std::time::Instant;
 mod data;
 #[path = "./util/display.rs"]
 mod display;
+#[path = "./util/errors.rs"]
+mod errors;
 #[path = "./parser/functions.rs"]
 mod functions;
 #[path = "./instr.rs"]
@@ -62,7 +67,7 @@ pub fn execute(
     macro_rules! fatal_error {
         ($instr: expr,$err:expr,$msg:expr) => {
             let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == &$instr).unwrap();
-            parser_error(src, *start, *end, $err, $msg, "");
+            parser_error(src, *start, *end, $err, $msg, None);
         };
     }
     let mut i: usize = 0;
@@ -149,7 +154,7 @@ pub fn execute(
                 registers[call_frame.return_reg as usize] = temp;
             }
             Instr::IsFalseJmp(cond_id, size) => {
-                if registers[cond_id as usize] == Data::FALSE {
+                if registers[cond_id as usize] == FALSE {
                     i += size as usize;
                     continue;
                 }
@@ -180,7 +185,7 @@ pub fn execute(
                             fatal_error!(
                                 instructions[i],
                                 "Unknown argument type",
-                                &format!("Unknown argument type: {t:?}")
+                                format_args!("Unknown argument type: {t:?}")
                             );
                         }
                     });
@@ -200,12 +205,12 @@ pub fn execute(
                     } else if t == libffi::middle::Type::f64().type_id() {
                         func.cif.call::<f64>(func.ptr, &ffi_args).into()
                     } else if t == libffi::middle::Type::void().type_id() {
-                        Data::NULL
+                        NULL
                     } else {
                         fatal_error!(
                             instructions[i],
                             "Unknown return type",
-                            &format!("Unknown return type: {t:?}")
+                            format_args!("Unknown return type: {t:?}")
                         );
                     }
                 };
@@ -440,7 +445,7 @@ pub fn execute(
                             "[",
                             arrays[tgt.as_array() as usize]
                                 .iter()
-                                .map(|x| format_data(*x, Some(arrays), true))
+                                .map(|x| format_data(x, Some(arrays), true))
                                 .collect::<Vec<_>>()
                                 .join(","),
                             "]"
@@ -467,7 +472,7 @@ pub fn execute(
                     fatal_error!(
                         Instr::ArrayMod(tgt, dest, idx),
                         "Invalid index",
-                        &format!(
+                        format_args!(
                             "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but array has {} elements",
                             index,
                             array.len()
@@ -488,7 +493,7 @@ pub fn execute(
                     fatal_error!(
                         Instr::StrMod(tgt, dest, idx),
                         "Invalid index",
-                        &format!(
+                        format_args!(
                             "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but string has {} characters",
                             index,
                             str.len()
@@ -507,7 +512,7 @@ pub fn execute(
                     fatal_error!(
                         instructions[i],
                         "Invalid index",
-                        &format!(
+                        format_args!(
                             "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but Array has {} elements",
                             idx,
                             array.len()
@@ -524,7 +529,7 @@ pub fn execute(
                     fatal_error!(
                         instructions[i],
                         "Invalid index",
-                        &format!(
+                        format_args!(
                             "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but String has {} characters",
                             idx,
                             str.len()
@@ -569,17 +574,17 @@ pub fn execute(
                     .push(registers[element as usize]);
             }
             Instr::Split(tgt, sep, dest) => {
-                let reg = registers[tgt as usize];
-                if reg.is_str() {
-                    let str = reg.as_str();
+                let tgt = registers[tgt as usize];
+                if tgt.is_str() {
+                    let str = tgt.as_str();
                     let separator = registers[sep as usize].as_str();
                     let id = arrays.len() as u32;
                     arrays.push(str.split(separator.as_str()).map(|x| x.into()).collect());
                     registers[dest as usize] = Data::array(id);
-                } else if reg.is_array() {
+                } else if tgt.is_array() {
                     let base_id = arrays.len() as u16;
                     // get the array and split it
-                    arrays[reg.as_array() as usize]
+                    arrays[tgt.as_array() as usize]
                         .to_vec()
                         .split(|x| x == &registers[sep as usize])
                         .for_each(|x| {
@@ -595,10 +600,7 @@ pub fn execute(
                 }
             }
             Instr::Remove(array, idx) => {
-                arrays
-                    .get_mut(array as usize)
-                    .unwrap()
-                    .remove(registers[idx as usize].as_int() as usize);
+                arrays[array as usize].remove(registers[idx as usize].as_int() as usize);
             }
             // uppercase
             Instr::CallLibFunc(LibFunc::Uppercase, tgt, dest) => {
@@ -643,13 +645,13 @@ pub fn execute(
                     let str = reg.as_str();
                     let arg = registers[args.swap_remove(0) as usize].as_str();
                     registers[dest as usize] = (str.find(arg.as_str()).unwrap_or_else(|| {
-                            fatal_error!(instructions[i],"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
+                            fatal_error!(instructions[i],"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
                         }) as i32).into();
                 } else if reg.is_array() {
                     let x = reg.as_array();
                     let arg = registers[args.swap_remove(0) as usize];
                     registers[dest as usize] = (arrays[x as usize].iter().position(|x| x == &arg).unwrap_or_else(|| {
-                        fatal_error!(instructions[i], "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::array(x), Some(arrays),true)));
+                        fatal_error!(instructions[i], "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(&Data::array(x), Some(arrays),true)));
                     }) as i32).into();
                 }
             }
@@ -699,13 +701,13 @@ pub fn execute(
                     let str = reg.as_str();
                     let arg = registers[args.swap_remove(0) as usize].as_str();
                     registers[dest as usize] = (reg.as_str().rfind(arg.as_str()).unwrap_or_else(|| {
-                        fatal_error!(instructions[i], "Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
+                        fatal_error!(instructions[i], "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
                     }) as i32).into();
                 } else if reg.is_array() {
                     let x = reg.as_array();
                     let arg = registers[args.swap_remove(0) as usize];
                     registers[dest as usize] = (arrays[reg.as_array() as usize].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
-                    fatal_error!(instructions[i],"Item not found",&format!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(Data::array(x), Some(arrays),true)));
+                    fatal_error!(instructions[i],"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(&Data::array(x), Some(arrays),true)));
                     }) as i32).into();
                 }
             }
@@ -740,7 +742,7 @@ pub fn execute(
                         fatal_error!(
                             instructions[i],
                             "File does not exist or cannot be read",
-                            &format!("Cannot read file {color_red}{path}{color_reset}")
+                            format_args!("Cannot read file {color_red}{path}{color_reset}")
                         );
                     })
                     .into();
@@ -754,9 +756,9 @@ pub fn execute(
                                 .write(true)
                                 .truncate(truncate)
                                 .open(path.as_str()).unwrap_or_else(|_| {
-                                    fatal_error!(instructions[i],"File does not exist or cannot be opened",&format!("Cannot open file {color_red}{path}{color_reset}"));
+                                    fatal_error!(instructions[i],"File does not exist or cannot be opened",format_args!("Cannot open file {color_red}{path}{color_reset}"));
                                 }).write_all(contents.as_bytes()).unwrap_or_else(|_| {
-                                    fatal_error!(instructions[i],"File does not exist or cannot be written to",&format!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
+                                    fatal_error!(instructions[i],"File does not exist or cannot be written to",format_args!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
                             });
             }
             // reverse
@@ -784,7 +786,7 @@ pub fn execute(
                     fatal_error!(
                         instructions[i],
                         "Invalid type",
-                        &format!(
+                        format_args!(
                             "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Float",
                             str
                         )
@@ -802,7 +804,7 @@ pub fn execute(
                     fatal_error!(
                         instructions[i],
                         "Invalid type",
-                        &format!(
+                        format_args!(
                             "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into an Integer",
                             str
                         )
@@ -812,7 +814,7 @@ pub fn execute(
             }
             Instr::CallLibFunc(LibFunc::Str, tgt, dest) => {
                 registers[dest as usize] =
-                    format_data(registers[tgt as usize], Some(arrays), false).into();
+                    format_data(&registers[tgt as usize], Some(arrays), false).into();
             }
             Instr::CallLibFunc(LibFunc::Bool, tgt, dest) => {
                 let str = registers[tgt as usize].as_str();
@@ -820,7 +822,7 @@ pub fn execute(
                    fatal_error!(
                         instructions[i],
                         "Invalid type",
-                        &format!(
+                        format_args!(
                             "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Boolean",
                             str
                         )

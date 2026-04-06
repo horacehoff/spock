@@ -1,3 +1,4 @@
+use crate::data::NULL;
 use crate::parser::{Expr, get_id};
 use crate::parser_data::ParserData;
 use crate::parser_data::Variable;
@@ -32,13 +33,13 @@ pub fn while_loop_summation(
                                     //     id, src, instr_src,
                                     // );
                                     // registers.push(Data::Number(increment_num));
-                                    // registers.push(Data::NULL);
+                                    // registers.push(NULL);
                                     // output.push(Instr::Mod(
                                     //     limit_id,
                                     //     (registers.len() - 2) as u16,
                                     //     (registers.len() - 1) as u16,
                                     // ));
-                                    // registers.push(Data::NULL);
+                                    // registers.push(NULL);
                                     // output.push(Instr::Add(
                                     //     limit_id,
                                     //     (registers.len() - 2) as u16,
@@ -73,7 +74,7 @@ pub fn for_loop_summation(
                 && v_name == name
             {
                 let var_id = v.iter().find(|x| x.name == *name).unwrap().register_id;
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Len,
                     array,
@@ -87,7 +88,7 @@ pub fn for_loop_summation(
                     }
                     .into(),
                 );
-                registers.push(Data::NULL);
+                registers.push(NULL);
                 output.push(Instr::MulFloat(
                     (registers.len() - 3) as u16,
                     (registers.len() - 2) as u16,
@@ -105,7 +106,7 @@ pub fn for_loop_summation(
             && v_name == name
         {
             let var_id = v.iter().find(|x| x.name == *name).unwrap().register_id;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(
                 LibFunc::Len,
                 array,
@@ -119,7 +120,7 @@ pub fn for_loop_summation(
                 }
                 .into(),
             );
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::PowFloat(
                 (registers.len() - 2) as u16,
                 (registers.len() - 3) as u16,

@@ -1,3 +1,5 @@
+use smol_str::SmolStr;
+
 // 51 bits of total payload -- 3 bits for data type => 48 bits of actual payload
 const NAN_BASE: u64 =
     0b1111_1111_1111_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000;
@@ -9,15 +11,15 @@ const NAN_TAG_ARRAY: u64 = NAN_BASE | (4 << 48);
 const NAN_TAG_NULL: u64 = NAN_BASE | (5 << 48);
 const NAN_TAG_FILE: u64 = NAN_BASE | (6 << 48);
 const NAN_TAG_INT: u64 = NAN_BASE | (7 << 48);
-const BOOL_TABLE: [Data; 2] = [Data::FALSE, Data::TRUE];
+const BOOL_TABLE: [Data; 2] = [FALSE, TRUE];
+pub const NULL: Data = Data(NAN_TAG_NULL);
+pub const FALSE: Data = Data(NAN_TAG_BOOL);
+pub const TRUE: Data = Data(NAN_TAG_BOOL | 1);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Data(pub u64);
 
 impl Data {
-    pub const NULL: Data = Data(NAN_TAG_NULL);
-    pub const FALSE: Data = Data(NAN_TAG_BOOL);
-    pub const TRUE: Data = Data(NAN_TAG_BOOL | 1);
     #[inline(always)]
     pub fn is_null(&self) -> bool {
         self.0 == NAN_TAG_NULL
@@ -200,6 +202,12 @@ impl From<&str> for Data {
 impl From<String> for Data {
     #[inline(always)]
     fn from(value: String) -> Self {
+        Data::str(&value)
+    }
+}
+impl From<SmolStr> for Data {
+    #[inline(always)]
+    fn from(value: SmolStr) -> Self {
         Data::str(&value)
     }
 }

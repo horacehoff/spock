@@ -1,12 +1,12 @@
-use crate::display::op_error;
-use crate::display::parser_error;
+use crate::errors::compilation_error;
+use crate::errors::op_error;
+use crate::errors::parser_error;
 use crate::parser::Expr;
 use crate::parser::symbol_of_expr;
 use crate::parser_data::FnSignature;
 use crate::parser_data::Function;
 use crate::parser_data::ParserData;
 use crate::parser_data::Variable;
-use crate::util::compilation_error;
 use inline_colorization::*;
 use libffi::middle::Type;
 
@@ -219,8 +219,8 @@ pub fn infer_type(
                     *start,
                     *end,
                     "Variable type",
-                    "Unable to get variable's type",
-                    "",
+                    format_args!("Unable to get variable's type"),
+                    None,
                 );
             })
             .infered_type
@@ -325,9 +325,9 @@ pub fn infer_type(
                                 *start,
                                 *end,
                                 "Unknown function",
-                                &format!(
+                                format_args!(
                                     "Function {color_bright_blue}{style_bold}{function_name}{color_reset}{style_reset} does not exist or has not been declared yet"
-                                ),""
+                                ),None
                             );
                         });
 

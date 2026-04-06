@@ -1,10 +1,11 @@
-use crate::Data;
 use crate::Instr;
 use crate::LibFunc;
 use crate::check_args;
 use crate::check_args_range;
+use crate::data::FALSE;
+use crate::data::NULL;
 use crate::display::format_expr;
-use crate::display::parser_error;
+use crate::errors::parser_error;
 use crate::get_id;
 use crate::parser::Expr;
 use crate::parser_data::ParserData;
@@ -61,12 +62,12 @@ pub fn handle_method_calls(
                     start,
                     end,
                     "Invalid type",
-                    &format!(
+                    format_args!(
                         "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         $expected_str,
                         infered
                     ),
-                    ""
+                    None,
                 );
             }
         };
@@ -102,19 +103,19 @@ pub fn handle_method_calls(
         "uppercase" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::Uppercase, id, f_id));
         }
         "lowercase" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::Lowercase, id, f_id));
         }
         "len" => {
             check!(DataType::Array(_) | DataType::String, "Array or String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::Len, id, f_id));
         }
         "contains" => {
@@ -127,25 +128,25 @@ pub fn handle_method_calls(
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    &format!(
+                    format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         arg_infered
                     ),
-                    "",
+                    None,
                 );
             }
 
             add_args!();
 
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
 
             output.push(Instr::CallLibFunc(LibFunc::Contains, id, f_id));
         }
         "trim" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::Trim, id, f_id));
         }
         "trim_sequence" => {
@@ -158,17 +159,17 @@ pub fn handle_method_calls(
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    &format!(
+                    format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         infered
                     ),
-                    "",
+                    None,
                 );
             }
             add_args!();
 
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::TrimSequence, id, f_id));
         }
         "index" => {
@@ -182,11 +183,11 @@ pub fn handle_method_calls(
                         args_indexes[0].0,
                         args_indexes[0].1,
                         "Invalid type",
-                        &format!(
+                        format_args!(
                             "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                             array_type, infered, arg_infered
                         ),
-                        "",
+                        None,
                     );
                 }
             } else if arg_infered != infered {
@@ -195,37 +196,37 @@ pub fn handle_method_calls(
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    &format!(
+                    format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         arg_infered
                     ),
-                    "",
+                    None,
                 );
             }
 
             add_args!();
 
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::Index, id, f_id));
             instr_src.push((Instr::CallLibFunc(LibFunc::Index, id, f_id), start, end))
         }
         "is_num" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::IsNum, id, f_id));
         }
         "trim_left" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::TrimLeft, id, f_id));
         }
         "trim_right" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::TrimRight, id, f_id));
         }
         "trim_sequence_left" => {
@@ -238,16 +239,16 @@ pub fn handle_method_calls(
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    &format!(
+                    format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         infered
                     ),
-                    "",
+                    None,
                 );
             }
 
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
 
             add_args!();
             output.push(Instr::CallLibFunc(LibFunc::TrimSequenceLeft, id, f_id));
@@ -262,16 +263,16 @@ pub fn handle_method_calls(
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    &format!(
+                    format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         infered
                     ),
-                    "",
+                    None,
                 );
             }
 
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
 
             add_args!();
             output.push(Instr::CallLibFunc(LibFunc::TrimSequenceRight, id, f_id));
@@ -287,11 +288,11 @@ pub fn handle_method_calls(
                         args_indexes[0].0,
                         args_indexes[0].1,
                         "Invalid type",
-                        &format!(
+                        format_args!(
                             "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                             array_type, infered, arg_infered,
                         ),
-                        "",
+                        None,
                     );
                 }
             } else if arg_infered != infered {
@@ -300,16 +301,16 @@ pub fn handle_method_calls(
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    &format!(
+                    format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         arg_infered,
                     ),
-                    "",
+                    None,
                 );
             }
 
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
 
             add_args!();
             output.push(Instr::CallLibFunc(LibFunc::RIndex, id, f_id));
@@ -325,18 +326,18 @@ pub fn handle_method_calls(
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    &format!(
+                    format_args!(
                         "Expected Integer, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         arg_infered,
                     ),
-                    "",
+                    None,
                 );
             }
 
             add_args!();
 
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
 
             output.push(Instr::CallLibFunc(LibFunc::Repeat, id, f_id));
         }
@@ -352,11 +353,11 @@ pub fn handle_method_calls(
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    &format!(
+                    format_args!(
                         "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         array_type, infered, arg_infered
                     ),
-                    "",
+                    None,
                 );
             }
 
@@ -366,26 +367,26 @@ pub fn handle_method_calls(
         "sqrt" => {
             check!(DataType::Float, "Number", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::SqrtFloat, id, f_id));
         }
         "round" => {
             check!(DataType::Float, "Number", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::Round, id, f_id));
         }
         "abs" => {
             check!(DataType::Float, "Number", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::Abs, id, f_id));
         }
         // io::read
         "read" => {
             check!(DataType::File, "File", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::ReadFile, id, f_id));
             instr_src.push((Instr::CallLibFunc(LibFunc::ReadFile, id, f_id), start, end))
         }
@@ -396,13 +397,13 @@ pub fn handle_method_calls(
             let len = args.len();
             add_args!();
             if len == 1 {
-                registers.push(Data::FALSE);
+                registers.push(FALSE);
                 output.push(Instr::StoreFuncArg((registers.len() - 1) as u16));
                 *allocated_arg_count += 1;
             }
 
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
 
             output.push(Instr::CallLibFunc(LibFunc::WriteFile, id, f_id));
             instr_src.push((Instr::CallLibFunc(LibFunc::WriteFile, id, f_id), start, end))
@@ -410,7 +411,7 @@ pub fn handle_method_calls(
         "reverse" => {
             check!(DataType::Array(_) | DataType::String, "Array or String", 0);
             let f_id = registers.len() as u16;
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::Reverse, id, f_id));
         }
         "split" => {
@@ -424,11 +425,11 @@ pub fn handle_method_calls(
                         args_indexes[0].0,
                         args_indexes[0].1,
                         "Invalid type",
-                        &format!(
+                        format_args!(
                             "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                             array_type, arg_infered
                         ),
-                        "",
+                        None,
                     );
                 }
             } else if infered != arg_infered {
@@ -437,16 +438,16 @@ pub fn handle_method_calls(
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    &format!(
+                    format_args!(
                         "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         arg_infered
                     ),
-                    "",
+                    None,
                 );
             }
 
             let arg_id = get_id(&args[0], v, p, output, None, false);
-            registers.push(Data::NULL);
+            registers.push(NULL);
             output.push(Instr::Split(id, arg_id, (registers.len() - 1) as u16));
         }
         "remove" => {
@@ -459,11 +460,11 @@ pub fn handle_method_calls(
                     args_indexes[0].0,
                     args_indexes[0].1,
                     "Invalid type",
-                    &format!(
+                    format_args!(
                         "Expected Integer, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
                         infered
                     ),
-                    "",
+                    None,
                 );
             }
 
@@ -477,10 +478,10 @@ pub fn handle_method_calls(
                 start,
                 end,
                 "Unknown function",
-                &format!(
+                format_args!(
                     "Function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} does not exist"
                 ),
-                "",
+                None,
             );
         }
     }

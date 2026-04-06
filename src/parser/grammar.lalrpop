@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use crate::parser::Expr;
 use inline_colorization::*;
-use crate::util::error;
+use crate::errors::error;
 use crate::type_system::DataType;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
@@ -424,7 +424,7 @@ Expression: Expr = {
     <start: @L> <l: Expression> "+" <r: Expression> <end: @R> => match (l, r) {
             (Expr::Float(x), Expr::Float(y)) => Expr::Float(x + y),
             (Expr::Int(x), Expr::Int(y)) => Expr::Int(x + y),
-            (Expr::String(x), Expr::String(y)) => Expr::String(format_args!("{x}{y}").as_str().unwrap().to_smolstr()),
+            (Expr::String(x), Expr::String(y)) => Expr::String(format_args!("{x}{y}").to_smolstr()),
             (Expr::Array(x,start,_), Expr::Array(y,_,end)) => Expr::Array(Box::from([x, y].concat()),start,end),
             (l, r) => Expr::Add(Box::from(l), Box::from(r), start, end),
     },
