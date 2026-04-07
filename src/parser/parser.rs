@@ -324,7 +324,8 @@ pub fn get_id(
     tgt_id: Option<u16>,
     expects_op_cmp: bool,
 ) -> u16 {
-    let (registers, fns, arrays, _, _, block_id, src, _, _, _, _, _) = p.destructure();
+    let (registers, fns, arrays, _, _, block_id, src, _, _, _, _, _, const_registers) =
+        p.destructure();
 
     macro_rules! uniform_op {
         ($instr: ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type:expr) => {{
@@ -376,20 +377,52 @@ pub fn get_id(
     }
     match input {
         Expr::Float(num) => {
-            registers.push((*num).into());
-            (registers.len() - 1) as u16
+            if let Some(id) = const_registers
+                .iter()
+                .find(|x| registers[**x as usize] == (*num).into())
+            {
+                *id
+            } else {
+                registers.push((*num).into());
+                const_registers.push(registers.len() as u16);
+                (registers.len() - 1) as u16
+            }
         }
         Expr::Int(num) => {
-            registers.push((*num).into());
-            (registers.len() - 1) as u16
+            if let Some(id) = const_registers
+                .iter()
+                .find(|x| registers[**x as usize] == (*num).into())
+            {
+                *id
+            } else {
+                const_registers.push(registers.len() as u16);
+                registers.push((*num).into());
+                (registers.len() - 1) as u16
+            }
         }
         Expr::String(str) => {
-            registers.push(str.as_str().into());
-            (registers.len() - 1) as u16
+            if let Some(id) = const_registers
+                .iter()
+                .find(|x| registers[**x as usize] == str.as_str().into())
+            {
+                *id
+            } else {
+                const_registers.push(registers.len() as u16);
+                registers.push(str.as_str().into());
+                (registers.len() - 1) as u16
+            }
         }
         Expr::Bool(bool) => {
-            registers.push((*bool).into());
-            (registers.len() - 1) as u16
+            if let Some(id) = const_registers
+                .iter()
+                .find(|x| registers[**x as usize] == (*bool).into())
+            {
+                *id
+            } else {
+                const_registers.push(registers.len() as u16);
+                registers.push((*bool).into());
+                (registers.len() - 1) as u16
+            }
         }
         Expr::Var(name, start, end) => {
             if let Some(Variable {
@@ -907,6 +940,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
         src,
         is_parsing_recursive,
         parsing_fn_id,
+        _,
         _,
         _,
         _,
@@ -1550,6 +1584,7 @@ pub fn parse(
     let mut dyn_lib_fns: Vec<DynamicLibFn> = Vec::new();
     let mut allocated_arg_count = 0;
     let mut allocated_call_depth = 0;
+    let mut const_registers = Vec::new();
     for w in code {
         if let Expr::FunctionDecl(x, y, _, _) = w {
             fn_registers.push(Vec::new());
@@ -1635,6 +1670,7 @@ pub fn parse(
             dyn_libs: &mut dyn_libs,
             allocated_arg_count: &mut allocated_arg_count,
             allocated_call_depth: &mut allocated_call_depth,
+            const_registers: &mut const_registers,
         },
     );
     for x in fn_registers.iter_mut() {

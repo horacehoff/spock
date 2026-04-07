@@ -47,6 +47,7 @@ pub fn handle_functions(
         dyn_libs,
         allocated_arg_count,
         allocated_call_depth,
+        _,
     ) = p.destructure();
 
     let mut check_type = |arg: usize, expected: &[DataType]| {
@@ -428,7 +429,7 @@ fn compile_function(
     fn_code: &[Expr],
     fn_id: u16,
 ) {
-    let (registers, fns, _, _, fn_registers, _, src, _, _, _, _, _) = p.destructure();
+    let (registers, fns, _, _, fn_registers, _, src, _, _, _, _, _, _) = p.destructure();
     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
 
     // Local vector vars and recorded_types to allow the inner body to type-check correctly
