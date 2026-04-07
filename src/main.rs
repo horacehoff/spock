@@ -605,7 +605,8 @@ pub fn execute(
                 }
             }
             Instr::Remove(array, idx) => {
-                arrays[array as usize].remove(registers[idx as usize].as_int() as usize);
+                arrays[registers[array as usize].as_array() as usize]
+                    .remove(registers[idx as usize].as_int() as usize);
             }
             // uppercase
             Instr::CallLibFunc(LibFunc::Uppercase, tgt, dest) => {
