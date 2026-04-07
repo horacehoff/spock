@@ -40,7 +40,7 @@ pub fn handle_method_calls(
 
     macro_rules! add_args {
         () => {
-            for arg in args {
+            for arg in args.iter().rev() {
                 let arg_id = get_id(&arg, v, p, output, None, false);
                 output.push(Instr::StoreFuncArg(arg_id));
                 *allocated_arg_count += 1;
@@ -112,6 +112,27 @@ pub fn handle_method_calls(
             registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::Lowercase, id, f_id));
         }
+        "starts_with" => {
+            check!(DataType::String, "String", 1);
+            add_args!();
+            let f_id = registers.len() as u16;
+            registers.push(NULL);
+            output.push(Instr::CallLibFunc(LibFunc::StartsWith, id, f_id));
+        }
+        "ends_with" => {
+            check!(DataType::String, "String", 1);
+            add_args!();
+            let f_id = registers.len() as u16;
+            registers.push(NULL);
+            output.push(Instr::CallLibFunc(LibFunc::EndsWith, id, f_id));
+        }
+        "replace" => {
+            check!(DataType::String, "String", 2);
+            add_args!();
+            let f_id = registers.len() as u16;
+            registers.push(NULL);
+            output.push(Instr::CallLibFunc(LibFunc::Replace, id, f_id));
+        }
         "len" => {
             check!(DataType::Array(_) | DataType::String, "Array or String", 0);
             let f_id = registers.len() as u16;
@@ -172,7 +193,7 @@ pub fn handle_method_calls(
             registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::TrimSequence, id, f_id));
         }
-        "index" => {
+        "find" => {
             check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
             let arg_infered = infer_type(&args[0], v, fns, src, p);
@@ -208,8 +229,8 @@ pub fn handle_method_calls(
 
             let f_id = registers.len() as u16;
             registers.push(NULL);
-            output.push(Instr::CallLibFunc(LibFunc::Index, id, f_id));
-            instr_src.push((Instr::CallLibFunc(LibFunc::Index, id, f_id), start, end))
+            output.push(Instr::CallLibFunc(LibFunc::Find, id, f_id));
+            instr_src.push((Instr::CallLibFunc(LibFunc::Find, id, f_id), start, end))
         }
         "is_float" => {
             check!(DataType::String, "String", 0);
@@ -418,10 +439,11 @@ pub fn handle_method_calls(
                     None,
                 );
             }
-
-            let arg_id = get_id(&args[0], v, p, output, None, false);
+            add_args!();
+            // let arg_id = get_id(&args[0], v, p, output, None, false);
+            let output_reg_id = registers.len() as u16;
             registers.push(NULL);
-            output.push(Instr::Split(id, arg_id, (registers.len() - 1) as u16));
+            output.push(Instr::CallLibFunc(LibFunc::Split, id, output_reg_id));
         }
         "remove" => {
             check!(DataType::Array(_), "Array", 1);

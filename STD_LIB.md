@@ -26,7 +26,7 @@ Returns the string or float interpreted as an integer. It will crash the program
 
 ## Str
 
-`str(T) -> Int`\
+`str(T) -> String`\
 Returns the given object as a string.
 
 ## Bool
@@ -48,7 +48,7 @@ Returns an array containing the numbers from 0 or `i` to `j`-1.
 ## TheAnswer
 
 `the_answer() -> Int`\
-Prints the answer to the Ultimate Question of Life, the Universe, and Everything, and returns that answer as an integer.
+Prints "The answer to the Ultimate Question of Life, the Universe, and Everything is 42." and returns the integer 42.
 
 ## Uppercase
 
@@ -62,7 +62,7 @@ Returns the given string as lowercase.
 
 ## Len
 
-`<String | Array<T>>.lowercase() -> Int`\
+`<String | Array<T>>.len() -> Int`\
 Returns the length of the given collection.
 
 ## Contains
@@ -101,11 +101,11 @@ Returns the given string, with `s` removed from the start of the string.
 `<String>.trim_sequence_right(s: String) -> String`\
 Returns the given string, with `s` removed from the end of the string.
 
-## Index
+## Find
 
-`<String>.index(e: String) -> Int`\
-`<Array<T>>.index(e: T) -> Int`\
-Returns the index of the `e` in a collection. It will crash the program if the element is not found.
+`<String>.find(e: String) -> Int`\
+`<Array<T>>.find(e: T) -> Int`\
+Returns the index of the `e` in a collection. If the element isn't found, it will return `-1`.
 
 ## Repeat
 
@@ -153,3 +153,30 @@ Returns whether or not a string represents a float.
 
 `<String>.is_int() -> Bool`\
 Returns whether or not a string represents an integer.
+
+## Reverse
+
+`<Array<T>>.reverse() -> Array<T>`\
+`<String>.reverse() -> String`\
+Reverses a collection.
+
+## Split
+
+`<Array<T>>.split(e: T) -> Array<T>`\
+`<String>.split(e: String) -> String`\
+Splits a collection with the given separator `e`.
+
+## StartsWith
+
+`<String>.starts_with(s: String) -> Bool`\
+Returns whether or not the given string starts with `s`.
+
+## EndsWith
+
+`<String>.ends_with(s: String) -> Bool`\
+Returns whether or not the given string ends with `s`.
+
+## Replace
+
+`<String>.replace(a: String, b: String) -> String`\
+Returns the given string with all occurences of `a` replaced with `b`.
