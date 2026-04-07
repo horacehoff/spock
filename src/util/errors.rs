@@ -1,11 +1,9 @@
-use std::fmt::Arguments;
-
 use crate::display::token_recognition;
-use crate::type_system::DataType;
 use ariadne::{Color, Label, Report, ReportKind, Source};
 use inline_colorization::*;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
+use std::fmt::Arguments;
 
 #[cold]
 #[inline(never)]
@@ -26,27 +24,21 @@ pub fn compilation_error(file: &str, function: &str, additional_data: Arguments)
     );
 }
 
-#[inline(never)]
-#[cold]
-pub fn op_error(
-    src: (&str, &str),
-    l: DataType,
-    r: DataType,
-    op: &str,
-    start: usize,
-    end: usize,
-) -> ! {
-    parser_error(
-        src,
-        start,
-        end,
-        "Invalid operation",
-        format_args!(
-            "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{}{color_bright_blue} {}{color_reset}{style_reset}",
-            l, op, r
-        ),
-        None,
-    )
+#[macro_export]
+macro_rules! op_error {
+    ($src: expr, $l: expr, $r: expr, $op: expr, $start:expr, $end:expr) => {
+        parser_error(
+            $src,
+            $start,
+            $end,
+            "Invalid operation",
+            format_args!(
+                "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{}{color_bright_blue} {}{color_reset}{style_reset}",
+                $l, $op, $r
+            ),
+            None,
+        )
+    };
 }
 
 #[cold]

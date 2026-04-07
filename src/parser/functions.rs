@@ -267,7 +267,7 @@ pub fn handle_functions(
 
                 if is_recursive {
                     output.push(Instr::SaveFrame(0, 0, 0));
-                    *allocated_call_depth += 1;
+                    *allocated_call_depth += 2;
                 }
                 let saveframe_loc = output.len() - 1;
                 // Move evaluated call args into the expected arg slots
@@ -302,7 +302,7 @@ pub fn handle_functions(
                     output.push(Instr::CallFuncRecursive(loc, return_register_id));
                 } else {
                     output.push(Instr::CallFunc(loc, return_register_id));
-                    *allocated_call_depth += 1;
+                    *allocated_call_depth += 2;
                 }
                 debug!("REGLEN {}", registers.len() - 1);
 

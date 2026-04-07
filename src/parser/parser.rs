@@ -5,11 +5,11 @@ use crate::debug;
 use crate::display::print_debug;
 use crate::errors::compilation_error;
 use crate::errors::lalrpop_error;
-use crate::errors::op_error;
 use crate::errors::parser_error;
 use crate::functions::handle_functions;
 use crate::grammar::Token;
 use crate::method_calls::handle_method_calls;
+use crate::op_error;
 use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::parser_data::*;
 use crate::type_system::check_if_returns_void;
@@ -333,7 +333,7 @@ pub fn get_id(
                 infer_type($r, v, fns, src, p),
             );
             if t_l != $type || t_r != $type {
-                op_error(src, t_l, t_r, $symbol, *$start, *$end);
+                op_error!(src, t_l, t_r, $symbol, *$start, *$end);
             }
             let id_l = get_id($l, v, p, output, None, false);
             let id_r = get_id($r, v, p, output, None, false);
@@ -354,7 +354,7 @@ pub fn get_id(
                 infer_type($r, v, fns, src, p),
             );
             if !((t_l == $type1 && t_r == $type1) || (t_l == $type2 && t_r == $type2)) {
-                op_error(src, t_l, t_r, $symbol, *$start, *$end);
+                op_error!(src, t_l, t_r, $symbol, *$start, *$end);
             }
             let id_l = get_id($l, v, p, output, None, false);
             let id_r = get_id($r, v, p, output, None, false);
@@ -490,7 +490,7 @@ pub fn get_id(
                     DataType::String | DataType::Array(_) | DataType::Float | DataType::Int
                 )
             {
-                op_error(src, t_l, t_r, "+", *start, *end);
+                op_error!(src, t_l, t_r, "+", *start, *end);
             }
             let id_l = get_id(l, v, p, output, None, false);
             let id_r = get_id(r, v, p, output, None, false);
@@ -808,6 +808,7 @@ pub fn get_id(
                 .unwrap_or_else(|| (registers.len() - 1) as u16)
         }
         other => {
+            dbg!(&other);
             let output_code = parser_to_instr_set(slice::from_ref(other), v, p);
             if !output_code.is_empty() {
                 output.extend(output_code);

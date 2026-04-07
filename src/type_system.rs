@@ -1,6 +1,7 @@
 use crate::errors::compilation_error;
-use crate::errors::op_error;
+// use crate::errors::op_e
 use crate::errors::parser_error;
+use crate::op_error;
 use crate::parser::Expr;
 use crate::parser::symbol_of_expr;
 use crate::parser_data::FnSignature;
@@ -237,7 +238,7 @@ pub fn infer_type(
                 (DataType::String, DataType::String) => DataType::String,
                 (DataType::Array(type1), DataType::Array(_)) => DataType::Array(type1),
                 (a, b) => {
-                    op_error(src, a, b, "+", *start, *end);
+                    op_error!(src, a, b, "+", *start, *end)
                 }
             }
         }
@@ -250,7 +251,7 @@ pub fn infer_type(
                 (DataType::Float, DataType::Float) => DataType::Float,
                 (DataType::Int, DataType::Int) => DataType::Int,
                 (a, b) => {
-                    op_error(src, a, b, symbol_of_expr(x), *start, *end);
+                    op_error!(src, a, b, symbol_of_expr(x), *start, *end);
                 }
             }
         }
@@ -264,7 +265,7 @@ pub fn infer_type(
                 (DataType::Float, DataType::Float) => DataType::Bool,
                 (DataType::Int, DataType::Int) => DataType::Bool,
                 (a, b) => {
-                    op_error(src, a, b, symbol_of_expr(x), *start, *end);
+                    op_error!(src, a, b, symbol_of_expr(x), *start, *end);
                 }
             }
         }
@@ -272,7 +273,7 @@ pub fn infer_type(
             match (infer_type(x, v, fns, src, p), infer_type(y, v, fns, src, p)) {
                 (DataType::Bool, DataType::Bool) => DataType::Bool,
                 (a, b) => {
-                    op_error(src, a, b, "||", *start, *end);
+                    op_error!(src, a, b, "||", *start, *end);
                 }
             }
         }

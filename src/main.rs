@@ -12,6 +12,7 @@ use crate::util::likely;
 use crate::util::unlikely;
 use concat_string::concat_string;
 use inline_colorization::*;
+use mimalloc::MiMalloc;
 use parser::*;
 use std::any::Any;
 use std::fs;
@@ -19,6 +20,9 @@ use std::fs::File;
 use std::hint::black_box;
 use std::io::Write;
 use std::time::Instant;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 #[path = "./data.rs"]
 mod data;
@@ -71,6 +75,7 @@ pub fn execute(
         };
     }
     let mut i: usize = 0;
+
     let mut args: Vec<u16> = Vec::with_capacity(allocated_arg_count);
     let mut call_frames: Vec<CallFrame> = Vec::with_capacity(allocated_call_depth);
     let mut recursion_stack: Vec<Data> = Vec::with_capacity(allocated_call_depth * registers.len());
