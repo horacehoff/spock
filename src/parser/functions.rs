@@ -137,7 +137,7 @@ pub fn handle_functions(
             }
             "bool" => {
                 check_args!(args, 1, "bool", src, start, end);
-                check_type(0, &[DataType::String, DataType::Bool]);
+                check_type(0, &[DataType::String]);
                 let id = get_id(&args[0], v, p, output, None, false);
                 registers.push(NULL);
                 instr_src.push((
@@ -155,7 +155,7 @@ pub fn handle_functions(
                 check_args_range!(args, 0, 1, "input", src, start, end);
                 check_type(0, &[DataType::String]);
                 let id = if args.is_empty() {
-                    registers.push(String::new().into());
+                    registers.push(SmolStr::new_static("").into());
                     (registers.len() - 1) as u16
                 } else {
                     get_id(&args[0], v, p, output, None, false)
@@ -188,17 +188,17 @@ pub fn handle_functions(
                     output.push(Instr::Range(id_x, id_y, (registers.len() - 1) as u16));
                 }
             }
-            "floor" => {
-                check_args!(args, 1, "floor", src, start, end);
-                check_type(0, &[DataType::Float]);
-                let id = get_id(&args[0], v, p, output, None, false);
-                registers.push(NULL);
-                output.push(Instr::CallLibFunc(
-                    LibFunc::Floor,
-                    id,
-                    (registers.len() - 1) as u16,
-                ));
-            }
+            // "floor" => {
+            //     check_args!(args, 1, "floor", src, start, end);
+            //     check_type(0, &[DataType::Float]);
+            //     let id = get_id(&args[0], v, p, output, None, false);
+            //     registers.push(NULL);
+            //     output.push(Instr::CallLibFunc(
+            //         LibFunc::Floor,
+            //         id,
+            //         (registers.len() - 1) as u16,
+            //     ));
+            // }
             "the_answer" => {
                 check_args!(args, 0, "the_answer", src, start, end);
                 registers.push(NULL);

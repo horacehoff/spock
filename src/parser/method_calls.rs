@@ -211,11 +211,17 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(LibFunc::Index, id, f_id));
             instr_src.push((Instr::CallLibFunc(LibFunc::Index, id, f_id), start, end))
         }
+        "is_float" => {
+            check!(DataType::String, "String", 0);
+            let f_id = registers.len() as u16;
+            registers.push(NULL);
+            output.push(Instr::CallLibFunc(LibFunc::IsFloat, id, f_id));
+        }
         "is_num" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
             registers.push(NULL);
-            output.push(Instr::CallLibFunc(LibFunc::IsNum, id, f_id));
+            output.push(Instr::CallLibFunc(LibFunc::IsInt, id, f_id));
         }
         "trim_left" => {
             check!(DataType::String, "String", 0);
@@ -277,45 +283,6 @@ pub fn handle_method_calls(
             add_args!();
             output.push(Instr::CallLibFunc(LibFunc::TrimSequenceRight, id, f_id));
         }
-        "rindex" => {
-            check!(DataType::String | DataType::Array(_), "Array or String", 1);
-
-            let arg_infered = infer_type(&args[0], v, fns, src, p);
-            if let DataType::Array(array_type) = &infered {
-                if **array_type != arg_infered {
-                    parser_error(
-                        src,
-                        args_indexes[0].0,
-                        args_indexes[0].1,
-                        "Invalid type",
-                        format_args!(
-                            "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            array_type, infered, arg_infered,
-                        ),
-                        None,
-                    );
-                }
-            } else if arg_infered != infered {
-                parser_error(
-                    src,
-                    args_indexes[0].0,
-                    args_indexes[0].1,
-                    "Invalid type",
-                    format_args!(
-                        "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        arg_infered,
-                    ),
-                    None,
-                );
-            }
-
-            let f_id = registers.len() as u16;
-            registers.push(NULL);
-
-            add_args!();
-            output.push(Instr::CallLibFunc(LibFunc::RIndex, id, f_id));
-            instr_src.push((Instr::CallLibFunc(LibFunc::RIndex, id, f_id), start, end))
-        }
         "repeat" => {
             check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
@@ -365,19 +332,25 @@ pub fn handle_method_calls(
             output.push(Instr::Push(id, arg_id));
         }
         "sqrt" => {
-            check!(DataType::Float, "Number", 0);
+            check!(DataType::Float, "Float", 0);
             let f_id = registers.len() as u16;
             registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::SqrtFloat, id, f_id));
         }
         "round" => {
-            check!(DataType::Float, "Number", 0);
+            check!(DataType::Float, "Float", 0);
             let f_id = registers.len() as u16;
             registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::Round, id, f_id));
         }
+        "floor" => {
+            check!(DataType::Float, "Float", 0);
+            let f_id = registers.len() as u16;
+            registers.push(NULL);
+            output.push(Instr::CallLibFunc(LibFunc::Floor, id, f_id));
+        }
         "abs" => {
-            check!(DataType::Float, "Number", 0);
+            check!(DataType::Float | DataType::Int, "Int or Float", 0);
             let f_id = registers.len() as u16;
             registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::Abs, id, f_id));

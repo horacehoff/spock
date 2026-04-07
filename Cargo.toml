@@ -3,9 +3,6 @@ name = "spock"
 version = "0.1.0"
 edition = "2024"
 
-[features]
-int = []
-
 [dependencies]
 concat-string = "1.0.1"
 lalrpop-util = { version = "0.23.1", features = ["lexer"] }

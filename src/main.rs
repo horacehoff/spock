@@ -14,6 +14,7 @@ use concat_string::concat_string;
 use inline_colorization::*;
 use mimalloc::MiMalloc;
 use parser::*;
+use smol_str::ToSmolStr;
 use std::any::Any;
 use std::fs;
 use std::fs::File;
@@ -661,11 +662,17 @@ pub fn execute(
                     }) as i32).into();
                 }
             }
-            // is_num
-            Instr::CallLibFunc(LibFunc::IsNum, tgt, dest) => {
+            Instr::CallLibFunc(LibFunc::IsFloat, tgt, dest) => {
                 registers[dest as usize] = registers[tgt as usize]
                     .as_str()
                     .parse::<f64>()
+                    .is_ok()
+                    .into()
+            }
+            Instr::CallLibFunc(LibFunc::IsInt, tgt, dest) => {
+                registers[dest as usize] = registers[tgt as usize]
+                    .as_str()
+                    .parse::<i64>()
                     .is_ok()
                     .into()
             }
@@ -700,23 +707,6 @@ pub fn execute(
                     .to_string()
                     .into();
             }
-            // rindex
-            Instr::CallLibFunc(LibFunc::RIndex, tgt, dest) => {
-                let reg = registers[tgt as usize];
-                if reg.is_str() {
-                    let str = reg.as_str();
-                    let arg = registers[args.swap_remove(0) as usize].as_str();
-                    registers[dest as usize] = (reg.as_str().rfind(arg.as_str()).unwrap_or_else(|| {
-                        fatal_error!(instructions[i], "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
-                    }) as i32).into();
-                } else if reg.is_array() {
-                    let x = reg.as_array();
-                    let arg = registers[args.swap_remove(0) as usize];
-                    registers[dest as usize] = (arrays[reg.as_array() as usize].iter().rposition(|x| x == &arg).unwrap_or_else(|| {
-                    fatal_error!(instructions[i],"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(&Data::array(x), Some(arrays),true)));
-                    }) as i32).into();
-                }
-            }
             // repeat
             Instr::CallLibFunc(LibFunc::Repeat, tgt, dest) => {
                 let reg = registers[tgt as usize];
@@ -738,7 +728,12 @@ pub fn execute(
             }
             // abs
             Instr::CallLibFunc(LibFunc::Abs, tgt, dest) => {
-                registers[dest as usize] = registers[tgt as usize].as_float().abs().into();
+                let tgt = registers[tgt as usize];
+                if tgt.is_float() {
+                    registers[dest as usize] = tgt.as_float().abs().into();
+                } else {
+                    registers[dest as usize] = tgt.as_int().abs().into();
+                }
             }
             // read
             Instr::CallLibFunc(LibFunc::ReadFile, tgt, dest) => {
@@ -841,7 +836,7 @@ pub fn execute(
                 std::io::stdout().flush().unwrap();
                 let mut line = String::new();
                 std::io::stdin().read_line(&mut line).unwrap();
-                registers[dest as usize] = (line.trim().to_string()).into();
+                registers[dest as usize] = (line.trim().to_smolstr()).into();
             }
             Instr::CallLibFunc(LibFunc::Floor, tgt, dest) => {
                 registers[dest as usize] = registers[tgt as usize].as_float().floor().into()
