@@ -543,13 +543,13 @@ pub fn execute(
                     );
                 }
             }
-            Instr::Range(min, max, dest) => {
-                let x = registers[min as usize].as_int();
-                let y = registers[max as usize].as_int();
-                let id = arrays.len() as u32;
-                arrays.push((x..y).map(|x| x.into()).collect());
-                registers[dest as usize] = Data::array(id);
-            }
+            // Instr::Range(min, max, dest) => {
+            //     let x = registers[min as usize].as_int();
+            //     let y = registers[max as usize].as_int();
+            //     let id = arrays.len() as u32;
+            //     arrays.push((x..y).map(|x| x.into()).collect());
+            //     registers[dest as usize] = Data::array(id);
+            // }
             Instr::IoOpen(path, dest, create) => {
                 let str = registers[path as usize].as_str();
                 let create = registers[create as usize].as_bool();
@@ -579,32 +579,37 @@ pub fn execute(
                     .unwrap()
                     .push(registers[element as usize]);
             }
-            Instr::Split(tgt, sep, dest) => {
-                let tgt = registers[tgt as usize];
-                if tgt.is_str() {
-                    let str = tgt.as_str();
-                    let separator = registers[sep as usize].as_str();
-                    let id = arrays.len() as u32;
-                    arrays.push(str.split(separator.as_str()).map(|x| x.into()).collect());
-                    registers[dest as usize] = Data::array(id);
-                } else if tgt.is_array() {
-                    let base_id = arrays.len() as u16;
-                    // get the array and split it
-                    arrays[tgt.as_array() as usize]
-                        .to_vec()
-                        .split(|x| x == &registers[sep as usize])
-                        .for_each(|x| {
-                            arrays.push(x.to_vec());
-                        });
-                    let id = arrays.len() as u32;
-                    arrays.push(
-                        (base_id..arrays.len() as u16)
-                            .map(|x| Data::array(x as u32))
-                            .collect::<Vec<Data>>(),
-                    );
-                    registers[dest as usize] = Data::array(id);
-                }
-            }
+            // Instr::Split(tgt, sep, dest) => {
+            //     let tgt = registers[tgt as usize];
+            //     if tgt.is_str() {
+            //         let source_string = tgt.as_str();
+            //         let separator = registers[sep as usize].as_str();
+            //         let output_str_register_id = arrays.len() as u32;
+            //         arrays.push(
+            //             source_string
+            //                 .split(separator.as_str())
+            //                 .map(|x| x.into())
+            //                 .collect(),
+            //         );
+            //         registers[dest as usize] = Data::array(output_str_register_id);
+            //     } else if tgt.is_array() {
+            //         let base_id = arrays.len() as u16;
+            //         // get the array and split it
+            //         arrays[tgt.as_array() as usize]
+            //             .to_vec()
+            //             .split(|x| x == &registers[sep as usize])
+            //             .for_each(|x| {
+            //                 arrays.push(x.to_vec());
+            //             });
+            //         let id = arrays.len() as u32;
+            //         arrays.push(
+            //             (base_id..arrays.len() as u16)
+            //                 .map(|x| Data::array(x as u32))
+            //                 .collect::<Vec<Data>>(),
+            //         );
+            //         registers[dest as usize] = Data::array(id);
+            //     }
+            // }
             Instr::Remove(array, idx) => {
                 arrays[registers[array as usize].as_array() as usize]
                     .remove(registers[idx as usize].as_int() as usize);
@@ -624,10 +629,10 @@ pub fn execute(
                 let reg = registers[tgt as usize];
                 if reg.is_str() {
                     let str = reg.as_str();
-                    let arg = registers[args.swap_remove(0) as usize].as_str();
+                    let arg = registers[args.pop().unwrap() as usize].as_str();
                     registers[dest as usize] = str.contains(arg.as_str()).into();
                 } else if reg.is_array() {
-                    let arg = registers[args.swap_remove(0) as usize];
+                    let arg = registers[args.pop().unwrap() as usize];
                     registers[dest as usize] =
                         arrays[reg.as_array() as usize].contains(&arg).into();
                 }
@@ -638,28 +643,36 @@ pub fn execute(
             }
             // trim_sequence
             Instr::CallLibFunc(LibFunc::TrimSequence, tgt, dest) => {
-                let arg = registers[args.swap_remove(0) as usize].as_str();
+                let arg = registers[args.pop().unwrap() as usize].as_str();
                 let chars: Vec<char> = arg.chars().collect();
                 registers[dest as usize] = registers[tgt as usize]
                     .as_str()
                     .trim_matches(&chars[..])
                     .into();
             }
-            // index
-            Instr::CallLibFunc(LibFunc::Index, tgt, dest) => {
+            // find
+            Instr::CallLibFunc(LibFunc::Find, tgt, dest) => {
                 let reg = registers[tgt as usize];
                 if reg.is_str() {
                     let str = reg.as_str();
-                    let arg = registers[args.swap_remove(0) as usize].as_str();
-                    registers[dest as usize] = (str.find(arg.as_str()).unwrap_or_else(|| {
-                            fatal_error!(instructions[i],"Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}\"{}\"{color_reset}", arg, str));
-                        }) as i32).into();
+                    let element = registers[args.pop().unwrap() as usize].as_str();
+                    registers[dest as usize] = if let Some(idx) = str.find(element.as_str()) {
+                        idx as i32
+                    } else {
+                        -1 as i32
+                    }
+                    .into();
                 } else if reg.is_array() {
-                    let x = reg.as_array();
-                    let arg = registers[args.swap_remove(0) as usize];
-                    registers[dest as usize] = (arrays[x as usize].iter().position(|x| x == &arg).unwrap_or_else(|| {
-                        fatal_error!(instructions[i], "Item not found",format_args!("Cannot get index of {color_red}{:?}{color_reset} in {color_blue}{}{color_reset}", arg, format_data(&Data::array(x), Some(arrays),true)));
-                    }) as i32).into();
+                    let arr_id = reg.as_array();
+                    let element = registers[args.pop().unwrap() as usize];
+                    registers[dest as usize] = if let Some(idx) =
+                        arrays[arr_id as usize].iter().position(|x| x == &element)
+                    {
+                        idx as i32
+                    } else {
+                        -1 as i32
+                    }
+                    .into()
                 }
             }
             Instr::CallLibFunc(LibFunc::IsFloat, tgt, dest) => {
@@ -686,7 +699,7 @@ pub fn execute(
             }
             // trim_sequence_left
             Instr::CallLibFunc(LibFunc::TrimSequenceLeft, tgt, dest) => {
-                let chars: Vec<char> = registers[args.swap_remove(0) as usize]
+                let chars: Vec<char> = registers[args.pop().unwrap() as usize]
                     .as_str()
                     .chars()
                     .collect();
@@ -697,7 +710,7 @@ pub fn execute(
             }
             // trim_sequence_right
             Instr::CallLibFunc(LibFunc::TrimSequenceRight, tgt, dest) => {
-                let chars: Vec<char> = registers[args.swap_remove(0) as usize]
+                let chars: Vec<char> = registers[args.pop().unwrap() as usize]
                     .as_str()
                     .chars()
                     .collect();
@@ -712,11 +725,11 @@ pub fn execute(
                 let reg = registers[tgt as usize];
                 if reg.is_str() {
                     let str = reg.as_str();
-                    let arg = registers[args.swap_remove(0) as usize].as_int();
+                    let arg = registers[args.pop().unwrap() as usize].as_int();
                     registers[dest as usize] = str.repeat(arg as usize).into();
                 } else if reg.is_array() {
                     let x = reg.as_array();
-                    let arg = registers[args.swap_remove(0) as usize].as_int();
+                    let arg = registers[args.pop().unwrap() as usize].as_int();
                     let idx = arrays.len() as u32;
                     arrays.push(arrays[x as usize].repeat(arg as usize));
                     registers[dest as usize] = Data::array(idx);
@@ -751,8 +764,8 @@ pub fn execute(
             // write
             Instr::CallLibFunc(LibFunc::WriteFile, tgt, dest) => {
                 let path = registers[tgt as usize].as_file();
-                let contents = registers[args.swap_remove(0) as usize].as_str();
-                let truncate = registers[args.swap_remove(0) as usize].as_bool();
+                let contents = registers[args.pop().unwrap() as usize].as_str();
+                let truncate = registers[args.pop().unwrap() as usize].as_bool();
                 fs::OpenOptions::new()
                                 .write(true)
                                 .truncate(truncate)
@@ -854,6 +867,70 @@ pub fn execute(
                 } else if reg.is_str() {
                     registers[dest as usize] = (reg.as_str().chars().count() as i32).into()
                 }
+            }
+            Instr::CallLibFunc(LibFunc::StartsWith, source_register, dest_register) => {
+                registers[dest_register as usize] = registers[source_register as usize]
+                    .as_str()
+                    .starts_with(&registers[args.pop().unwrap() as usize].as_str())
+                    .into();
+            }
+            Instr::CallLibFunc(LibFunc::EndsWith, source_register, dest_register) => {
+                registers[dest_register as usize] = registers[source_register as usize]
+                    .as_str()
+                    .ends_with(&registers[args.pop().unwrap() as usize].as_str())
+                    .into();
+            }
+            Instr::CallLibFunc(LibFunc::Replace, source_register, dest_register) => {
+                registers[dest_register as usize] = registers[source_register as usize]
+                    .as_str()
+                    .replace(
+                        &registers[args.pop().unwrap() as usize].as_str(),
+                        &registers[args.pop().unwrap() as usize].as_str(),
+                    )
+                    .into()
+            }
+            Instr::CallLibFunc(LibFunc::Split, source_register, dest_register) => {
+                let tgt = registers[source_register as usize];
+                let sep = args.pop().unwrap();
+                if tgt.is_str() {
+                    let source_string = tgt.as_str();
+                    let separator = registers[sep as usize].as_str();
+                    let output_str_register_id = arrays.len() as u32;
+                    arrays.push(
+                        source_string
+                            .split(separator.as_str())
+                            .map(|x| x.into())
+                            .collect(),
+                    );
+                    registers[dest_register as usize] = Data::array(output_str_register_id);
+                } else if tgt.is_array() {
+                    let base_id = arrays.len() as u16;
+                    // get the array and split it
+                    arrays[tgt.as_array() as usize]
+                        .to_vec()
+                        .split(|x| x == &registers[sep as usize])
+                        .for_each(|x| {
+                            arrays.push(x.to_vec());
+                        });
+                    let id = arrays.len() as u32;
+                    arrays.push(
+                        (base_id..arrays.len() as u16)
+                            .map(|x| Data::array(x as u32))
+                            .collect::<Vec<Data>>(),
+                    );
+                    registers[dest_register as usize] = Data::array(id);
+                }
+            }
+            Instr::CallLibFunc(LibFunc::Range, max, dest) => {
+                let min = if let Some(reg_id) = args.pop() {
+                    registers[reg_id as usize].as_int()
+                } else {
+                    0
+                };
+                let max = registers[max as usize].as_int();
+                let output_array_id = arrays.len() as u32;
+                arrays.push((min..max).map(|x| x.into()).collect());
+                registers[dest as usize] = Data::array(output_array_id);
             }
         }
         i += 1;

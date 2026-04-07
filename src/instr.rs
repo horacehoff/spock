@@ -82,7 +82,7 @@ pub enum Instr {
 
     // General functions
     /// start,end,dest
-    Range(u16, u16, u16),
+    // Range(std::ops::Range<u16>, u16),
     // path - dest - create?
     IoOpen(u16, u16, u16),
     IoDelete(u16),
@@ -94,12 +94,10 @@ pub enum Instr {
     ArrayGet(u16, u16, u16),
     ArrayStrGet(u16, u16, u16),
 
-    // array - element
+    // array id - element register id
     Push(u16, u16),
-    // array - index
+    // array id - element index
     Remove(u16, u16),
-    // tgt - separator - dest
-    Split(u16, u16, u16),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -109,7 +107,7 @@ pub enum LibFunc {
     Contains = 2,
     Trim = 3,
     TrimSequence = 4,
-    Index = 5,
+    Find = 5,
     IsFloat = 6,
     IsInt = 7,
     TrimLeft = 8,
@@ -131,4 +129,9 @@ pub enum LibFunc {
     Floor = 24,
     TheAnswer = 25,
     Len = 26,
+    StartsWith = 27,
+    EndsWith = 28,
+    Replace = 29,
+    Split = 30,
+    Range = 31,
 }

@@ -196,9 +196,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::CallLibFunc(_, _, y)
         | Instr::ArrayGet(_, _, y)
         | Instr::ArrayStrGet(_, _, y)
-        | Instr::Range(_, _, y)
         | Instr::IoOpen(_, y, _)
-        | Instr::Split(_, _, y)
         | Instr::SaveFrame(_, y, _)
         | Instr::CallDynLibFunc(_, y) => *y = tgt_id,
         Instr::CallFuncRecursive(_, y_func) => {
@@ -258,9 +256,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::CallLibFunc(_, _, y)
         | Instr::ArrayGet(_, _, y)
         | Instr::ArrayStrGet(_, _, y)
-        | Instr::Range(_, _, y)
         | Instr::IoOpen(_, y, _)
-        | Instr::Split(_, _, y)
         | Instr::StrMod(_, _, y)
         | Instr::CallDynLibFunc(_, y) => Some(y),
         // ↓ INSTRUCTIONS THAT DON'T MODIFY ANY REGISTER ↓
