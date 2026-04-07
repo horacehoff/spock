@@ -1,14 +1,20 @@
 ![Spock logo](assets/spock_logo_horizontal.png)
+
 # Spock
 
 > [!WARNING]
-> This language is very experimental, and there may be logic-breaking bugs.
+> This language is experimental, and there may be logic-breaking bugs.
 Expect breaking changes.
-> Recursion finally works!!
 
-A work-in-progress interpreted programming language written in Rust for the best performance possible, 
-whose syntax takes inspiration from Rust and Python.
-Its goal is to provide a faster alternative to Python, and one that's closer to low-level languages, while still being accessible to a wide audience.
+Spock is a WIP interpreted programming language written in Rust.
+Its main goals are:
+
+- Performance
+- Ease-of-use and readabilty
+- Syntax similarity with low-level languages
+
+Its goal is to provide a faster alternative to Python, and one that's closer to
+low-level languages, while still being accessible to a wide audience.
 
 Key info:
 
@@ -20,7 +26,8 @@ Key info:
 - Peephole optimization
 - Basic optimization of conditions
 - Basic loop summation optimization (will get better)
-- Type inference, compile-time type checking
+- Type inference, static type checking, supports polymorphism
+- Monomorphization
 
 ## Installation
 
