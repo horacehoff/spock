@@ -1,9 +1,23 @@
+use crate::Instr;
 use crate::display::token_recognition;
 use ariadne::{Color, Label, Report, ReportKind, Source};
 use inline_colorization::*;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
 use std::fmt::Arguments;
+
+#[cold]
+#[inline(never)]
+pub fn runtime_error(
+    instr_src: &[(Instr, usize, usize)],
+    src: (&str, &str),
+    instr: &Instr,
+    error: &str,
+    message: Arguments,
+) -> ! {
+    let (_, start, end) = instr_src.iter().find(|(x, _, _)| x == instr).unwrap();
+    parser_error(src, *start, *end, error, message, None);
+}
 
 #[cold]
 #[inline(never)]
