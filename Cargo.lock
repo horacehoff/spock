@@ -534,6 +534,7 @@ dependencies = [
  "ariadne",
  "concat-string",
  "inline_colorization",
+ "itertools",
  "lalrpop",
  "lalrpop-util",
  "libffi",

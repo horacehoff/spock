@@ -70,18 +70,20 @@ bool("42"); // Crashes
 
 ## Input
 
-`input([OPTIONAl]p: String) -> String`\
+`input() -> String`\
+`input(p: String) -> String`\
 Asks the user for input.
 If provided, it will print `p` prompt before asking.
 
 ## Range
 
-`range([OPTIONAL]i: Int, j: Int) -> Array<Int>`\
+`range(j: Int) -> Array<Int>`\
+`range(i: Int, j: Int) -> Array<Int>`\
 Returns an array containing the numbers from 0 or `i` to `j`-1.
 Example:
 ```
 range(5); // Returns [0,1,2,3,4]
-bool(1,5); // Returns [1,2,3,4]
+range(1,5); // Returns [1,2,3,4]
 ```
 
 ## TheAnswer
@@ -312,13 +314,20 @@ print("Hello".reverse()); // Prints "olleH"
 
 ## Split
 
-`<Array<T>>.split(e: T) -> Array<T>`\
-`<String>.split(e: String) -> String`\
-Splits a collection with the given separator `e`.
+`<String>.split(separator: String) -> Array<String>`\
+Splits a string with the given separator `separator`.
 Example:
 ```
-"a;b;c".split(";") // Returns "[a,b,c]"
-[1,2,3,0,4,5,6].split(0) // Returns "[[1,2,3],[4,5,6]]"
+"a;b;c".split(";") // Returns ["a", "b", "c"]
+```
+
+## Partition
+
+`<Array<T>>.partition(separator: T) -> Array<Array<T>>`\
+Partitions a collection with the given separator `separator`.
+Example:
+```
+[1,2,3,0,4,5,6].partition(0) // Returns [[1,2,3],[4,5,6]]
 ```
 
 ## StartsWith
@@ -344,9 +353,21 @@ Example:
 ## Replace
 
 `<String>.replace(a: String, b: String) -> String`\
-Returns the given string with all occurences of `a` replaced with `b`.
+Returns the given string with all occurrences of `a` replaced with `b`.
 Example:
 ```
 "1;2;3".replace(";", "_") // Returns "1_2_3"
 "BBBB".replace("BB", "AB") // Returns "ABAB"
+```
+
+## Join
+
+`<Array<String>>.join() -> String`\
+`<Array<String>>.join(separator: String) -> String`\
+Joins all elements of the array into a single string, with `separator` or `""` inserted between each element.
+Example:
+```
+["a","b","c"].join() // Returns "abc"
+["a","b","c"].join(",") // Returns "a,b,c"
+["1","2"].join("--") // Returns "1--2"
 ```

@@ -151,7 +151,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     if x.is_empty()
         || matches!(
             x.last().unwrap(),
-            Instr::ArrayMov(_, _, _) | Instr::IoDelete(_)
+            Instr::ArrayMov(_, _, _) // | Instr::IoDelete(_)
         )
     {
         return;
@@ -197,7 +197,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::CallLibFunc(_, _, y)
         | Instr::GetIndexArray(_, _, y)
         | Instr::GetIndexString(_, _, y)
-        | Instr::IoOpen(_, y, _)
+        // | Instr::IoOpen(_, y, _)
         | Instr::SaveFrame(_, y, _)
         | Instr::CallDynamicLibFunc(_, y) => *y = tgt_id,
         Instr::CallFuncRecursive(_, y_func) => {
@@ -257,7 +257,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::CallLibFunc(_, _, y)
         | Instr::GetIndexArray(_, _, y)
         | Instr::GetIndexString(_, _, y)
-        | Instr::IoOpen(_, y, _)
+        // | Instr::IoOpen(_, y, _)
         | Instr::SetElementString(_, _, y)
         | Instr::CallDynamicLibFunc(_, y) => Some(y),
         // ↓ INSTRUCTIONS THAT DON'T MODIFY ANY REGISTER ↓
@@ -277,7 +277,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::InfEqIntJmp(_, _, _)
         | Instr::InfFloatJmp(_, _, _)
         | Instr::InfIntJmp(_, _, _)
-        | Instr::IoDelete(_)
+        // | Instr::IoDelete(_)
         | Instr::StoreFuncArg(_)
         | Instr::SetElementArray(_, _, _)
         | Instr::ArrayMov(_, _, _)
@@ -302,7 +302,7 @@ fn get_last_tgt_id(x: &[Instr]) -> Option<u16> {
         !(x.is_empty()
             || matches!(
                 x.last().unwrap(),
-                Instr::ArrayMov(_, _, _) | Instr::IoDelete(_)
+                Instr::ArrayMov(_, _, _) // | Instr::IoDelete(_)
             ))
     );
     for y in x.iter().rev() {

@@ -547,29 +547,6 @@ pub fn execute(
                     );
                 }
             }
-            Instr::IoOpen(path, dest, create) => {
-                let str = registers[path as usize].as_str();
-                let create = registers[create as usize].as_bool();
-                if likely(create) {
-                    File::create(str.as_str()).unwrap_or_else(|_| {
-                        // error_b!(format_args!("Cannot create file {color_red}{str}{color_reset}"));
-                        todo!()
-                    });
-                } else if unlikely(!fs::exists(str.as_str()).unwrap_or_else(|_| {
-                    todo!()
-                    // error_b!(format_args!("Cannot check existence of file {color_red}{str}{color_reset}"));
-                })) {
-                    // error_b!(format_args!("File {color_red}{str}{color_reset} does not exist"));
-                }
-                registers[dest as usize] = Data::file(&str);
-            }
-            Instr::IoDelete(path) => {
-                let str = registers[path as usize].as_str();
-                fs::remove_file(str.as_str()).unwrap_or_else(|_| {
-                    // error_b!(format_args!("Cannot remove file {color_red}{str}{color_reset}"));
-                    todo!()
-                });
-            }
             Instr::Push(array, element) => {
                 arrays
                     .get_mut(registers[array as usize].as_array() as usize)
@@ -878,6 +855,21 @@ pub fn execute(
                 let output_array_id = arrays.len() as u32;
                 arrays.push((min..max).map(|x| x.into()).collect());
                 registers[dest as usize] = Data::array(output_array_id);
+            }
+            Instr::CallLibFunc(LibFunc::JoinStringArray, tgt, dest) => {
+                let separator = if let Some(arg) = args.pop() {
+                    registers[arg as usize].as_str()
+                } else {
+                    String::new()
+                };
+                registers[dest as usize] = itertools::intersperse(
+                    arrays[registers[tgt as usize].as_array() as usize]
+                        .iter()
+                        .map(|x| x.as_str()),
+                    separator,
+                )
+                .collect::<String>()
+                .into();
             }
         }
         i += 1;

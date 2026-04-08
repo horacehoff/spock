@@ -312,55 +312,6 @@ pub fn handle_functions(
                 return Some((registers.len() - 1) as u16);
             }
         }
-    } else if *namespace == ["io"] {
-        match name {
-            "open" => {
-                check_args_range!(args, 1, 2, "open", src, start, end);
-                registers.push(NULL);
-                let arg_id = get_id(&args[0], v, p, output, None, false);
-
-                let second_arg = if args.len() == 1 {
-                    registers.push(FALSE);
-                    (registers.len() - 1) as u16
-                } else {
-                    get_id(&args[1], v, p, output, None, false)
-                };
-
-                instr_src.push((
-                    Instr::IoOpen(arg_id, (registers.len() - 1) as u16, second_arg),
-                    start,
-                    end,
-                ));
-                output.push(Instr::IoOpen(
-                    arg_id,
-                    (registers.len() - 1) as u16,
-                    second_arg,
-                ));
-            }
-            "delete" => {
-                check_args!(args, 1, "delete", src, start, end);
-                let arg_id = get_id(&args[0], v, p, output, None, false);
-                instr_src.push((Instr::IoDelete(arg_id), start, end));
-                output.push(Instr::IoDelete(arg_id));
-            }
-            _ => {
-                parser_error(
-                    src,
-                    start,
-                    end,
-                    "Unknown function in namespace",
-                    format_args!(
-                        "Namespace {color_bright_blue}{style_bold}{}{color_reset}{style_reset} does not contain function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset}",
-                        namespace
-                            .iter()
-                            .map(|x| (*x).to_string())
-                            .collect::<Vec<String>>()
-                            .join("::")
-                    ),
-                    None,
-                );
-            }
-        }
     } else if let Some(lib) = dyn_libs.iter().find(|l| l.name == namespace[0]) {
         if let Some(FnSignature {
             name: fn_name,

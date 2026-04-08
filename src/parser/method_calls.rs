@@ -413,24 +413,10 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(LibFunc::Reverse, id, f_id));
         }
         "split" => {
-            check!(DataType::Array(_) | DataType::String, "Array or String", 1);
+            check!(DataType::String, "Array or String", 1);
 
             let arg_infered = infer_type(&args[0], v, fns, src, p);
-            if let DataType::Array(array_type) = infered {
-                if *array_type != arg_infered {
-                    parser_error(
-                        src,
-                        args_indexes[0].0,
-                        args_indexes[0].1,
-                        "Invalid type",
-                        format_args!(
-                            "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            array_type, arg_infered
-                        ),
-                        None,
-                    );
-                }
-            } else if infered != arg_infered {
+            if infered != arg_infered {
                 parser_error(
                     src,
                     args_indexes[0].0,
@@ -444,10 +430,80 @@ pub fn handle_method_calls(
                 );
             }
             add_args!();
-            // let arg_id = get_id(&args[0], v, p, output, None, false);
             let output_reg_id = registers.len() as u16;
             registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::Split, id, output_reg_id));
+        }
+        "partition" => {
+            check!(DataType::Array(_), "Array", 1);
+
+            let arg_infered = infer_type(&args[0], v, fns, src, p);
+            if let DataType::Array(array_type) = infered
+                && *array_type != arg_infered
+            {
+                parser_error(
+                    src,
+                    args_indexes[0].0,
+                    args_indexes[0].1,
+                    "Invalid type",
+                    format_args!(
+                        "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                        array_type, arg_infered
+                    ),
+                    None,
+                );
+            }
+            add_args!();
+            let output_reg_id = registers.len() as u16;
+            registers.push(NULL);
+            output.push(Instr::CallLibFunc(LibFunc::Split, id, output_reg_id));
+        }
+        "join" => {
+            let expected = DataType::Array(Box::from(DataType::String));
+            if !{
+                if let DataType::Poly(polytype) = &infered {
+                    polytype.iter().all(|x| x == &expected)
+                } else {
+                    infered == expected
+                }
+            } {
+                parser_error(
+                    src,
+                    start,
+                    end,
+                    "Invalid type",
+                    format_args!(
+                        "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                        expected, infered
+                    ),
+                    None,
+                );
+            }
+            check_args_range!(args, 0, 1, "join", src, start, end);
+            if args.len() > 0 {
+                let arg_infered = infer_type(&args[0], v, fns, src, p);
+                if arg_infered != DataType::String {
+                    parser_error(
+                        src,
+                        args_indexes[0].0,
+                        args_indexes[0].1,
+                        "Invalid type",
+                        format_args!(
+                            "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                            arg_infered
+                        ),
+                        None,
+                    );
+                }
+                add_args!();
+            }
+            let output_reg_id = registers.len() as u16;
+            registers.push(NULL);
+            output.push(Instr::CallLibFunc(
+                LibFunc::JoinStringArray,
+                id,
+                output_reg_id,
+            ));
         }
         "remove" => {
             check!(DataType::Array(_), "Array", 1);
