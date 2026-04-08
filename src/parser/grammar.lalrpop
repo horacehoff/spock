@@ -214,6 +214,14 @@ pub Code: Box<[Expr]> = {
     <s: Statement*> => s.into_boxed_slice()
 }
 
+
+ManualType:DataType = {
+    "int" => DataType::Int,
+    "float" => DataType::Float,
+    "bool" => DataType::Bool,
+    "string" => DataType::String,
+}
+
 pub FnSignature:(SmolStr, Box<[DataType]>, DataType) = {
     <return_type: ManualType?> <fn_name: Var> <args: Args<ManualType>> ";" => {
         (fn_name, Box::from(args), if let Some(t) = return_type {t} else {DataType::Null})
@@ -499,11 +507,4 @@ String: SmolStr = {
 
 Var: SmolStr = {
     <v: r"[a-zA-Z_]+"> => SmolStr::from(v)
-}
-
-ManualType:DataType = {
-    "int" => DataType::Int,
-    "float" => DataType::Float,
-    "bool" => DataType::Bool,
-    "string" => DataType::String,
 }

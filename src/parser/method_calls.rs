@@ -238,7 +238,7 @@ pub fn handle_method_calls(
             registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::IsFloat, id, f_id));
         }
-        "is_num" => {
+        "is_int" => {
             check!(DataType::String, "String", 0);
             let f_id = registers.len() as u16;
             registers.push(NULL);
@@ -404,8 +404,12 @@ pub fn handle_method_calls(
         }
         "reverse" => {
             check!(DataType::Array(_) | DataType::String, "Array or String", 0);
-            let f_id = registers.len() as u16;
-            registers.push(NULL);
+            let f_id = if infered == DataType::String {
+                registers.push(NULL);
+                (registers.len() - 1) as u16
+            } else {
+                0
+            };
             output.push(Instr::CallLibFunc(LibFunc::Reverse, id, f_id));
         }
         "split" => {

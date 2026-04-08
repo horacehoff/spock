@@ -29,8 +29,6 @@ pub fn format_data(x: &Data, arrays: Option<&ArrayStorage>, show_str: bool) -> S
                     .collect::<Vec<_>>()
                     .join(","),
             )
-            .as_str()
-            .unwrap()
             .to_smolstr()
         } else {
             format_args!("ARRAY[{}]", x.as_array()).to_smolstr()

@@ -640,11 +640,10 @@ pub fn execute(
                 }
             }
             Instr::CallLibFunc(LibFunc::IsFloat, tgt, dest) => {
-                registers[dest as usize] = registers[tgt as usize]
-                    .as_str()
-                    .parse::<f64>()
-                    .is_ok()
-                    .into()
+                registers[dest as usize] =
+                    (registers[tgt as usize].as_str().parse::<f64>().is_ok()
+                        && !registers[tgt as usize].as_str().parse::<i64>().is_ok())
+                    .into();
             }
             Instr::CallLibFunc(LibFunc::IsInt, tgt, dest) => {
                 registers[dest as usize] = registers[tgt as usize]
@@ -743,7 +742,7 @@ pub fn execute(
                 } else if reg.is_array() {
                     let id = reg.as_array();
                     arrays[id as usize].reverse();
-                    registers[dest as usize] = Data::array(id);
+                    // registers[dest as usize] = Data::array(id);
                 }
             }
             Instr::CallLibFunc(LibFunc::SqrtFloat, tgt, dest) => {
@@ -854,21 +853,19 @@ pub fn execute(
                     );
                     registers[dest_register as usize] = Data::array(output_str_register_id);
                 } else if source.is_array() {
-                    let base_id = arrays.len() as u16;
+                    let base_id = arrays.len() as u32;
                     // get the array and split it
                     arrays[source.as_array() as usize]
                         .to_vec()
                         .split(|x| x == &registers[separator as usize])
-                        .for_each(|x| {
-                            arrays.push(x.to_vec());
-                        });
-                    let id = arrays.len() as u32;
+                        .for_each(|x| arrays.push(x.to_vec()));
+                    let final_id = arrays.len() as u32;
                     arrays.push(
-                        (base_id..arrays.len() as u16)
-                            .map(|x| Data::array(x as u32))
+                        (base_id..final_id)
+                            .map(|x| Data::array(x))
                             .collect::<Vec<Data>>(),
                     );
-                    registers[dest_register as usize] = Data::array(id);
+                    registers[dest_register as usize] = Data::array(final_id);
                 }
             }
             Instr::CallLibFunc(LibFunc::Range, max, dest) => {
