@@ -8,31 +8,65 @@
 
 `print(T)`\
 Used to print anything.
+Example:
+```
+print("Hello, World!");
+print([42]);
+```
+
 
 ## Type
 
 `type(T) -> String`\
-Returns the type of the object as a string
+Returns the type of the object as a string.
+Example:
+```
+type("Hello, World!"); // Returns "String"
+type([42]); // Returns "Array<Integer>"
+```
 
 ## Float
 
 `float(String | Int) -> Float`\
 Returns the string or integer interpreted as a float. It will crash the program at runtime if the given string cannot be converted into a float.
+Example:
+```
+float(42); // Returns 42.0
+float("42"); // Returns 42.0
+float("Hello, World!"); // Crashes
+```
 
 ## Int
 
 `int(String | Float) -> Int`\
 Returns the string or float interpreted as an integer. It will crash the program at runtime if the given string cannot be converted into an integer.
+Example:
+```
+int(42.0); // Returns 42
+int("42"); // Returns 42
+int("Hello, World!"); // Crashes
+```
 
 ## Str
 
 `str(T) -> String`\
 Returns the given object as a string.
+Example:
+```
+str(42); // Returns "42"
+str([0,1,2,3]); // Returns "[0,1,2,3]"
+```
+
 
 ## Bool
 
 `bool(s: String) -> Bool`\
 Returns `s` interpreted as a boolean. It will crash the program at runtime if `s` cannot be converted into a boolean.
+Example:
+```
+bool("true"); // Returns true
+bool("42"); // Crashes
+```
 
 ## Input
 
@@ -44,6 +78,11 @@ If provided, it will print `p` prompt before asking.
 
 `range([OPTIONAL]i: Int, j: Int) -> Array<Int>`\
 Returns an array containing the numbers from 0 or `i` to `j`-1.
+Example:
+```
+range(5); // Returns [0,1,2,3,4]
+bool(1,5); // Returns [1,2,3,4]
+```
 
 ## TheAnswer
 
