@@ -93,129 +93,260 @@ Prints "The answer to the Ultimate Question of Life, the Universe, and Everythin
 
 `<String>.uppercase() -> String`\
 Returns the given string as uppercase.
+Example:
+```
+"Hello, World!".uppercase() // Returns "HELLO, WORLD!"
+```
 
 ## Lowercase
 
 `<String>.lowercase() -> String`\
 Returns the given string as lowercase.
+Example:
+```
+"Hello, World!".lowercase() // Returns "hello, world!"
+```
 
 ## Len
 
 `<String | Array<T>>.len() -> Int`\
 Returns the length of the given collection.
+Example:
+```
+"Hello".len() // Returns 5
+[1,2,3].len() // Returns 3
+```
 
 ## Contains
 
 `<String>.contains(e: String) -> Bool`\
 `<Array<T>>.contains(e: T) -> Bool`\
 Returns a bool depicting whether or not the collection contains `e`.
+Example:
+```
+"Hello".contains("H") // Returns true
+[1,2,3].contains(0) // Returns false
+```
 
 ## Trim
 
 `<String>.trim() -> String`\
 Returns the given string, trimmed (leading and trailing whitespace removed).
+Example:
+```
+" Hello ".trim() // Returns "Hello"
+```
 
 ## TrimLeft
 
 `<String>.trim_left() -> String`\
 Returns the given string, with the left trimmed (leading whitespace removed).
+Example:
+```
+" Hello ".trim_left() // Returns "Hello "
+```
 
 ## TrimRight
 
 `<String>.trim_right() -> String`\
 Returns the given string, with the right trimmed (trailing whitespace removed).
+Example:
+```
+" Hello ".trim_right() // Returns " Hello"
+```
 
 ## TrimSequence
 
 `<String>.trim_sequence(s: String) -> String`\
 Returns the given string, with `s` removed from the start and end of the string.
+Example:
+```
+"-Hi!-".trim_sequence("-") // Returns "Hi!"
+```
 
 ## TrimSequenceLeft
 
 `<String>.trim_sequence_left(s: String) -> String`\
 Returns the given string, with `s` removed from the start of the string.
+Example:
+```
+"-Hi!-".trim_sequence_left("-") // Returns "Hi!-"
+```
 
 ## TrimSequenceRight
 
 `<String>.trim_sequence_right(s: String) -> String`\
 Returns the given string, with `s` removed from the end of the string.
+Example:
+```
+"-Hi!-".trim_sequence_right("-") // Returns "-Hi!"
+```
 
 ## Find
 
 `<String>.find(e: String) -> Int`\
 `<Array<T>>.find(e: T) -> Int`\
-Returns the index of the `e` in a collection. If the element isn't found, it will return `-1`.
+Returns the index of `e` in the collection. If the element isn't found, it will return `-1`.
+Example:
+```
+[1,2,3,4].find(2) // Returns 1
+"Hello".find("l") // Returns 2
+"Hello".find("el") // Returns 1
+[1,2,3,4].find(5) // Returns -1
+```
 
 ## Repeat
 
 `<String>.repeat(n: Int) -> String`\
 `<Array<T>>.repeat(n: Int) -> Array<T>`\
 Returns a collection repeated n times.
+Example:
+```
+"AB".repeat(2) // Returns "ABAB"
+[0,1,2].repeat(2) // Returns [0,1,2,0,1,2]
+```
 
 ## Push
 
 `<Array<T>>.push(e: T)`\
 Adds `e` to the end of an array.
+Example:
+```
+let my_array = [1,2];
+my_array.push(3);
+print(my_array); // Prints "[1,2,3]"
+```
 
 ## Remove
 
 `<Array<T>>.remove(n: Int)`\
 Removes the n-th element from an array.
+Example:
+```
+let my_array = [1,2];
+my_array.remove(1);
+print(my_array); // Prints "[1]"
+```
 
 ## Sqrt
 
 `<Float>.sqrt() -> Float`\
 Returns the square root of a float.
+Example:
+```
+36.0.sqrt() // Returns 6.0
+42.0.sqrt() // Returns 6.48074069840786
+```
 
 ## Round
 
 `<Float>.round() -> Float`\
 Rounds a float to the nearest integer
+Example:
+```
+36.4.round() // Returns 36.0
+6.7.round() // Returns 7.0
+```
 
 ## Floor
 
 `<Float>.floor() -> Float`\
 Floors a float.
+Example:
+```
+36.4.floor() // Returns 36.0
+6.7.floor() // Returns 6.0
+6.9.floor() // Returns 6.0
+```
 
 ## Abs
 
 `<Float>.abs() -> Float`\
 `<Int>.abs() -> Int`\
 Returns the absolute value of a number.
+Example:
+```
+6.abs() // Returns 6
+-6.abs() // Returns -6
+(-6).abs() // Returns 6
+(-42.0).abs() // Returns 42.0
+```
 
 ## IsFloat
 
 `<String>.is_float() -> Bool`\
 Returns whether or not a string represents a float.
+Example:
+```
+"6".is_float() // Returns false
+"Hello, World!".is_float() // Returns false
+"42.0".is_float() // Returns true
+"6.7".is_float() // Returns true
+```
 
 ## IsInt
 
 `<String>.is_int() -> Bool`\
 Returns whether or not a string represents an integer.
+Example:
+```
+"6".is_int() // Returns true
+"Hello, World!".is_int() // Returns true
+"42.0".is_int() // Returns false
+"6.7".is_int() // Returns false
+```
 
 ## Reverse
 
-`<Array<T>>.reverse() -> Array<T>`\
+`<Array<T>>.reverse()`\
 `<String>.reverse() -> String`\
 Reverses a collection.
+Example:
+```
+let x = [1,2,3];
+x.reverse();
+print(x); // Prints "[3,2,1]"
+
+print("Hello".reverse()); // Prints "olleH"
+```
 
 ## Split
 
 `<Array<T>>.split(e: T) -> Array<T>`\
 `<String>.split(e: String) -> String`\
 Splits a collection with the given separator `e`.
+Example:
+```
+"a;b;c".split(";") // Returns "[a,b,c]"
+[1,2,3,0,4,5,6].split(0) // Returns "[[1,2,3],[4,5,6]]"
+```
 
 ## StartsWith
 
 `<String>.starts_with(s: String) -> Bool`\
 Returns whether or not the given string starts with `s`.
+Example:
+```
+"Hello".starts_with("He") // Returns true
+"Hello".starts_with("l") // Returns false
+```
 
 ## EndsWith
 
 `<String>.ends_with(s: String) -> Bool`\
 Returns whether or not the given string ends with `s`.
+Example:
+```
+"Hello".ends_with("lo") // Returns true
+"Hello".ends_with("H") // Returns false
+```
 
 ## Replace
 
 `<String>.replace(a: String, b: String) -> String`\
 Returns the given string with all occurences of `a` replaced with `b`.
+Example:
+```
+"1;2;3".replace(";", "_") // Returns "1_2_3"
+"BBBB".replace("BB", "AB") // Returns "ABAB"
+```
