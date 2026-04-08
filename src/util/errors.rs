@@ -17,7 +17,7 @@ pub fn error(message: &str) -> ! {
 
 #[cold]
 #[inline(always)]
-pub fn compilation_error(file: &str, function: &str, additional_data: Arguments) -> ! {
+pub fn dev_error(file: &str, function: &str, additional_data: Arguments) -> ! {
     unreachable!(
         "\n--------------\n{color_red}SPOCK COMPILATION ERROR:{color_reset}\nFROM FILE: {}\nFROM FUNCTION: {}\nADDITIONAL DATA: {}\n--------------",
         file, function, additional_data

@@ -3,7 +3,7 @@ use crate::LibFunc;
 use crate::data::NULL;
 use crate::debug;
 use crate::display::print_debug;
-use crate::errors::compilation_error;
+use crate::errors::dev_error;
 use crate::errors::lalrpop_error;
 use crate::errors::parser_error;
 use crate::functions::handle_functions;
@@ -138,7 +138,7 @@ pub fn symbol_of_expr(expr: &Expr) -> &str {
         Expr::BoolAnd(_, _, _, _) => "&&",
         Expr::BoolOr(_, _, _, _) => "||",
         Expr::Neg(_, _, _) => "-",
-        other => compilation_error(
+        other => dev_error(
             "parser.rs",
             "symbol_of_expr",
             format_args!("Tried to get symbol of {other:?}"),
@@ -194,8 +194,8 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::NegFloat(_, y)
         | Instr::NegInt(_, y)
         | Instr::CallLibFunc(_, _, y)
-        | Instr::ArrayGet(_, _, y)
-        | Instr::ArrayStrGet(_, _, y)
+        | Instr::GetIndexArray(_, _, y)
+        | Instr::GetIndexString(_, _, y)
         | Instr::IoOpen(_, y, _)
         | Instr::SaveFrame(_, y, _)
         | Instr::CallDynLibFunc(_, y) => *y = tgt_id,
@@ -208,7 +208,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
                 }
             }
         }
-        other => compilation_error(
+        other => dev_error(
             "parser.rs",
             "move_to_id",
             format_args!("Tried to move {other:?} to tgt_id={tgt_id}"),
@@ -254,10 +254,10 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::NegFloat(_, y)
         | Instr::NegInt(_, y)
         | Instr::CallLibFunc(_, _, y)
-        | Instr::ArrayGet(_, _, y)
-        | Instr::ArrayStrGet(_, _, y)
+        | Instr::GetIndexArray(_, _, y)
+        | Instr::GetIndexString(_, _, y)
         | Instr::IoOpen(_, y, _)
-        | Instr::StrMod(_, _, y)
+        | Instr::SetElementString(_, _, y)
         | Instr::CallDynLibFunc(_, y) => Some(y),
         // ↓ INSTRUCTIONS THAT DON'T MODIFY ANY REGISTER ↓
         Instr::Print(_)
@@ -278,7 +278,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::InfIntJmp(_, _, _)
         | Instr::IoDelete(_)
         | Instr::StoreFuncArg(_)
-        | Instr::ArrayMod(_, _, _)
+        | Instr::SetElementArray(_, _, _)
         | Instr::ArrayMov(_, _, _)
         | Instr::Push(_, _)
         | Instr::Return(_) // Modifies a register, but this function doesn't know which one
@@ -837,7 +837,7 @@ pub fn get_id(
                 .unwrap_or_else(|| (registers.len() - 1) as u16)
         }
         other => {
-            dbg!(&other);
+            // dbg!(&other);
             let output_code = parser_to_instr_set(slice::from_ref(other), v, p);
             if !output_code.is_empty() {
                 output.extend(output_code);
@@ -1017,11 +1017,11 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 registers.push(Data::array(array_id as u32));
             }
             // array[index]
-            Expr::GetIndex(target, index, start, end) => {
-                let mut infered = infer_type(target, v, fns, src, p);
+            Expr::GetIndex(array, index, start, end) => {
+                let mut infered = infer_type(array, v, fns, src, p);
                 // process the array/string that is being indexed
-                let mut id = get_id(target, v, p, &mut output, None, false);
-                // for each index operation, process the index, adjust the id variable for the next index operation, push null to registers to use GetIndex to index at runtime
+                let mut id = get_id(array, v, p, &mut output, None, false);
+                // for each indexing operation, process the index, adjust the id variable for the next index operation, push null to registers to use GetIndex to index at runtime
                 for elem in index {
                     if !is_indexable(&infered) {
                         parser_error(
@@ -1055,18 +1055,22 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     registers.push(NULL);
                     if infered == DataType::String {
                         instr_src.push((
-                            Instr::ArrayStrGet(id, f_id, (registers.len() - 1) as u16),
+                            Instr::GetIndexString(id, f_id, (registers.len() - 1) as u16),
                             *start,
                             *end,
                         ));
-                        output.push(Instr::ArrayStrGet(id, f_id, (registers.len() - 1) as u16));
+                        output.push(Instr::GetIndexString(
+                            id,
+                            f_id,
+                            (registers.len() - 1) as u16,
+                        ));
                     } else {
                         instr_src.push((
-                            Instr::ArrayGet(id, f_id, (registers.len() - 1) as u16),
+                            Instr::GetIndexArray(id, f_id, (registers.len() - 1) as u16),
                             *start,
                             *end,
                         ));
-                        output.push(Instr::ArrayGet(id, f_id, (registers.len() - 1) as u16));
+                        output.push(Instr::GetIndexArray(id, f_id, (registers.len() - 1) as u16));
                     }
                     id = (registers.len() - 1) as u16;
                     if let DataType::Array(array_type) = infered {
@@ -1075,8 +1079,8 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 }
             }
             // x[y]... = z;
-            Expr::ArrayModify(x, z, w, index_start, index_end, elem_start, elem_end) => {
-                let infered = infer_type(x, v, fns, src, p);
+            Expr::ArrayModify(array, z, w, index_start, index_end, elem_start, elem_end) => {
+                let infered = infer_type(array, v, fns, src, p);
                 if !is_indexable(&infered) {
                     parser_error(
                         src,
@@ -1090,8 +1094,8 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         None,
                     );
                 }
-                // get the id of the target array
-                let mut id = get_id(x, v, p, &mut output, None, false);
+                // Get the id of the source array
+                let mut id = get_id(array, v, p, &mut output, None, false);
 
                 for elem in z.iter().rev().skip(1).rev() {
                     let infered = infer_type(elem, v, fns, src, p);
@@ -1111,7 +1115,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     let f_id = get_id(elem, v, p, &mut output, None, false);
 
                     registers.push(NULL);
-                    output.push(Instr::ArrayGet(id, f_id, (registers.len() - 1) as u16));
+                    output.push(Instr::GetIndexArray(id, f_id, (registers.len() - 1) as u16));
                     id = (registers.len() - 1) as u16;
                 }
 
@@ -1151,18 +1155,18 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
 
                 if infered == DataType::String {
                     instr_src.push((
-                        Instr::StrMod(id, elem_id, final_id),
+                        Instr::SetElementString(id, elem_id, final_id),
                         *index_start,
                         *index_end,
                     ));
-                    output.push(Instr::StrMod(id, elem_id, final_id));
+                    output.push(Instr::SetElementString(id, elem_id, final_id));
                 } else {
                     instr_src.push((
-                        Instr::ArrayMod(id, elem_id, final_id),
+                        Instr::SetElementArray(id, elem_id, final_id),
                         *index_start,
                         *index_end,
                     ));
-                    output.push(Instr::ArrayMod(id, elem_id, final_id));
+                    output.push(Instr::SetElementArray(id, elem_id, final_id));
                 }
             }
             Expr::Condition(main_condition, code, _, _) => {
@@ -1322,9 +1326,9 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 // instruction to make current_element actually hold the array index's value
                 if real_var {
                     if array_type == DataType::String {
-                        output.push(Instr::ArrayStrGet(array, index_id, current_element_id));
+                        output.push(Instr::GetIndexString(array, index_id, current_element_id));
                     } else {
-                        output.push(Instr::ArrayGet(array, index_id, current_element_id));
+                        output.push(Instr::GetIndexArray(array, index_id, current_element_id));
                     }
                 }
                 parse_loop_flow_control(&mut cond_code, loop_id, len, true);

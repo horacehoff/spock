@@ -60,15 +60,20 @@ pub enum Instr {
     NegFloat(u16, u16),
     NegInt(u16, u16),
 
-    /// CallFunc(n,y) - Jumps to the nth instruction, and adds y as a slot to be set by the Return instruction; VoidReturn/Return will jump back to this location
+    /// CallFunc(n,y)\
+    /// Jumps to the nth instruction, and adds y as a slot to be set by the Return instruction\
+    /// VoidReturn/Return will jump back to this location
     CallFunc(u16, u16),
-    /// CallFuncRecursive(n, register_id) - Jumps to the nth instruction, register_id is only used during parsing.
+    /// CallFuncRecursive(n, register_id)\
+    /// Jumps to the nth instruction, register_id is only used during parsing.
     CallFuncRecursive(u16, u16),
     /// Jumps to the instruction right after the last CallFunc encountered by the interpreter
     VoidReturn,
-    /// Return(n) => returns the data located in register n
+    /// Return(n)\
+    /// Returns the data located in register n
     Return(u16),
-    /// RecursiveReturn(n,function_id) => returns the data located in register n, and restores the function's register state
+    /// RecursiveReturn(n,function_id)\
+    /// Returns the data located in register n, and restores the function's register state
     RecursiveReturn(u16, u16),
     /// SaveFrame(function_location, return_register, function_id)
     SaveFrame(u16, u16, u16),
@@ -80,23 +85,33 @@ pub enum Instr {
     /// CallLibFunc(function, tgt register id, dest register id)
     CallLibFunc(LibFunc, u16, u16),
 
-    // General functions
-    /// start,end,dest
-    // Range(std::ops::Range<u16>, u16),
+    // --- WIP ---
     // path - dest - create?
     IoOpen(u16, u16, u16),
     IoDelete(u16),
-
+    // -----------
+    /// ArrayMov(new_elem_reg_id, array_id, idx)\
+    /// Replaces the idx-th element in the array (with the id array_id) with the element located in new_elem_reg_id
     ArrayMov(u16, u16, u16),
-    // different than ArrayMov => looks into the registers
-    ArrayMod(u16, u16, u16),
-    StrMod(u16, u16, u16),
-    ArrayGet(u16, u16, u16),
-    ArrayStrGet(u16, u16, u16),
 
-    // array id - element register id
+    /// SetElementArray(array_reg_id, new_elem_reg_id, idx)\
+    /// Replaces the idx-th element in the array located in array_reg_id with the element located in new_elem_reg_id
+    SetElementArray(u16, u16, u16),
+
+    /// SetElementString(string_reg_id, new_str_reg_id, idx)\
+    /// Replaces the idx-th char in the string located in string_reg_id with the string located in new_str_reg_id
+    SetElementString(u16, u16, u16),
+
+    /// GetIndexArray(array_reg_id, index_reg_id, output_reg_id)
+    GetIndexArray(u16, u16, u16),
+
+    /// GetIndexString(str_reg_id, index_reg_id, output_reg_id)
+    GetIndexString(u16, u16, u16),
+
+    /// Push(array_reg_id, elem_reg_id)
     Push(u16, u16),
-    // array id - element index
+
+    /// Remove(array_reg_id, elem_index_reg_id)
     Remove(u16, u16),
 }
 
