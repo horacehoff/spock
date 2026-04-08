@@ -462,21 +462,20 @@ pub fn execute(
             }
 
             Instr::StoreFuncArg(id) => args.push(id),
-            // takes tgt from registers, moves it to dest-th array at idx-th index
-            Instr::ArrayMov(tgt, dest, idx) => {
-                arrays.get_mut(dest as usize).unwrap()[idx as usize] = registers[tgt as usize];
+            Instr::ArrayMov(new_elem_reg_id, array_id, idx) => {
+                arrays.get_mut(array_id as usize).unwrap()[idx as usize] =
+                    registers[new_elem_reg_id as usize];
             }
-            // takes tgt from registers, idx from registers,
-            Instr::ArrayMod(tgt, dest, idx) => {
-                let index = registers[idx as usize].as_int();
-                let requested_mod = registers[dest as usize];
-                let array_id = registers[tgt as usize].as_array();
-                let array = arrays.get_mut(array_id as usize).unwrap();
-                if likely(array.len() > index as usize) {
-                    array[index as usize] = requested_mod;
+            Instr::SetElementArray(array_reg_id, new_elem_reg_id, idx) => {
+                let array = arrays
+                    .get_mut(registers[array_reg_id as usize].as_array() as usize)
+                    .unwrap();
+                let index = registers[idx as usize].as_int() as usize;
+                if likely(array.len() > index) {
+                    array[index] = registers[new_elem_reg_id as usize];
                 } else {
                     fatal_error!(
-                        Instr::ArrayMod(tgt, dest, idx),
+                        instructions[i],
                         "Invalid index",
                         format_args!(
                             "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but array has {} elements",
@@ -486,32 +485,30 @@ pub fn execute(
                     );
                 }
             }
-            Instr::StrMod(tgt, dest, idx) => {
+            Instr::SetElementString(string_reg_id, new_str_reg_id, idx) => {
                 let index = registers[idx as usize].as_int();
-                let str = registers[tgt as usize].as_str();
-                let letter = registers[dest as usize].as_str();
-                if likely(str.len() > index as usize) {
-                    let mut temp = str.to_string();
+                let source_string = registers[string_reg_id as usize].as_str();
+                if likely(source_string.len() > index as usize) {
+                    let mut temp = source_string.to_string();
                     temp.remove(index as usize);
-                    temp.insert_str(index as usize, &letter);
-                    registers[tgt as usize] = temp.into();
+                    temp.insert_str(index as usize, &registers[new_str_reg_id as usize].as_str());
+                    registers[string_reg_id as usize] = temp.into();
                 } else {
                     fatal_error!(
-                        Instr::StrMod(tgt, dest, idx),
+                        instructions[i],
                         "Invalid index",
                         format_args!(
                             "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but string has {} characters",
                             index,
-                            str.len()
+                            source_string.len()
                         )
                     );
                 }
             }
             // takes tgt from  registers, index is index, dest is registers index destination
-            Instr::ArrayGet(tgt, index, dest) => {
+            Instr::GetIndexArray(array_reg_id, index, dest) => {
                 let idx = registers[index as usize].as_int();
-                let x = registers[tgt as usize].as_array();
-                let array = &arrays[x as usize];
+                let array = &arrays[registers[array_reg_id as usize].as_array() as usize];
                 if likely(array.len() > idx as usize) {
                     registers[dest as usize] = array[idx as usize];
                 } else {
@@ -526,7 +523,7 @@ pub fn execute(
                     );
                 }
             }
-            Instr::ArrayStrGet(tgt, index, dest) => {
+            Instr::GetIndexString(tgt, index, dest) => {
                 let idx = registers[index as usize].as_int();
                 let str = registers[tgt as usize].as_str();
                 if likely(str.len() > idx as usize) {
@@ -543,13 +540,6 @@ pub fn execute(
                     );
                 }
             }
-            // Instr::Range(min, max, dest) => {
-            //     let x = registers[min as usize].as_int();
-            //     let y = registers[max as usize].as_int();
-            //     let id = arrays.len() as u32;
-            //     arrays.push((x..y).map(|x| x.into()).collect());
-            //     registers[dest as usize] = Data::array(id);
-            // }
             Instr::IoOpen(path, dest, create) => {
                 let str = registers[path as usize].as_str();
                 let create = registers[create as usize].as_bool();

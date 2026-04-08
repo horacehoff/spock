@@ -1,4 +1,4 @@
-use crate::errors::compilation_error;
+use crate::errors::dev_error;
 // use crate::errors::op_e
 use crate::errors::parser_error;
 use crate::op_error;
@@ -464,14 +464,14 @@ fn check_poly(data: DataType) -> DataType {
                 data
             }
         } else {
-            compilation_error(
+            dev_error(
                 "type_inference.rs",
                 "check_poly",
                 format_args!("DataType::Poly is empty"),
             )
         }
     } else {
-        compilation_error(
+        dev_error(
             "type_inference.rs",
             "check_poly",
             format_args!("Received data : {data} and not data : DataType::Poly"),
