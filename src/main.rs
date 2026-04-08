@@ -9,7 +9,6 @@ use crate::instr::LibFunc;
 use crate::parser::parse;
 use crate::parser_data::DynamicLibFn;
 use crate::util::likely;
-use crate::util::unlikely;
 use concat_string::concat_string;
 use inline_colorization::*;
 use mimalloc::MiMalloc;
@@ -17,7 +16,6 @@ use parser::*;
 use smol_str::ToSmolStr;
 use std::any::Any;
 use std::fs;
-use std::fs::File;
 use std::hint::black_box;
 use std::io::Write;
 use std::time::Instant;
@@ -440,8 +438,6 @@ pub fn execute(
                     writeln!(handle, "{}", tgt.as_float()).unwrap();
                 } else if tgt.is_bool() {
                     writeln!(handle, "{}", tgt.as_bool()).unwrap();
-                } else if tgt.is_file() {
-                    writeln!(handle, "{}", tgt.as_file()).unwrap();
                 } else if tgt.is_array() {
                     writeln!(
                         handle,
@@ -600,7 +596,7 @@ pub fn execute(
                     registers[dest as usize] = if let Some(idx) = str.find(element.as_str()) {
                         idx as i32
                     } else {
-                        -1 as i32
+                        -1
                     }
                     .into();
                 } else if reg.is_array() {
@@ -611,7 +607,7 @@ pub fn execute(
                     {
                         idx as i32
                     } else {
-                        -1 as i32
+                        -1
                     }
                     .into()
                 }
@@ -619,7 +615,7 @@ pub fn execute(
             Instr::CallLibFunc(LibFunc::IsFloat, tgt, dest) => {
                 registers[dest as usize] =
                     (registers[tgt as usize].as_str().parse::<f64>().is_ok()
-                        && !registers[tgt as usize].as_str().parse::<i64>().is_ok())
+                        && registers[tgt as usize].as_str().parse::<i64>().is_err())
                     .into();
             }
             Instr::CallLibFunc(LibFunc::IsInt, tgt, dest) => {
@@ -680,37 +676,37 @@ pub fn execute(
                     tgt.as_int().abs().into()
                 }
             }
-            Instr::CallLibFunc(LibFunc::ReadFile, tgt, dest) => {
-                let path = registers[tgt as usize].as_file();
-                registers[dest as usize] = std::fs::read_to_string(path.as_str())
-                    .unwrap_or_else(|_| {
-                        runtime_error(
-                            instr_src,
-                            src,
-                            &instructions[i],
-                            "File does not exist or cannot be read",
-                            format_args!("Cannot read file {color_red}{path}{color_reset}"),
-                        );
-                    })
-                    .into();
-            }
-            Instr::CallLibFunc(LibFunc::WriteFile, tgt, dest) => {
-                let path = registers[tgt as usize].as_file();
-                let contents = registers[args.pop().unwrap() as usize].as_str();
-                let truncate = registers[args.pop().unwrap() as usize].as_bool();
-                fs::OpenOptions::new()
-                                .write(true)
-                                .truncate(truncate)
-                                .open(path.as_str()).unwrap_or_else(|_| {
-                                    runtime_error(instr_src,
-                                    src,
-                                    &instructions[i],"File does not exist or cannot be opened",format_args!("Cannot open file {color_red}{path}{color_reset}"));
-                                }).write_all(contents.as_bytes()).unwrap_or_else(|_| {
-                                    runtime_error(instr_src,
-                                    src,
-                                    &instructions[i],"File does not exist or cannot be written to",format_args!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
-                            });
-            }
+            // Instr::CallLibFunc(LibFunc::ReadFile, tgt, dest) => {
+            //     let path = registers[tgt as usize].as_file();
+            //     registers[dest as usize] = std::fs::read_to_string(path.as_str())
+            //         .unwrap_or_else(|_| {
+            //             runtime_error(
+            //                 instr_src,
+            //                 src,
+            //                 &instructions[i],
+            //                 "File does not exist or cannot be read",
+            //                 format_args!("Cannot read file {color_red}{path}{color_reset}"),
+            //             );
+            //         })
+            //         .into();
+            // }
+            // Instr::CallLibFunc(LibFunc::WriteFile, tgt, dest) => {
+            //     let path = registers[tgt as usize].as_file();
+            //     let contents = registers[args.pop().unwrap() as usize].as_str();
+            //     let truncate = registers[args.pop().unwrap() as usize].as_bool();
+            //     fs::OpenOptions::new()
+            //                     .write(true)
+            //                     .truncate(truncate)
+            //                     .open(path.as_str()).unwrap_or_else(|_| {
+            //                         runtime_error(instr_src,
+            //                         src,
+            //                         &instructions[i],"File does not exist or cannot be opened",format_args!("Cannot open file {color_red}{path}{color_reset}"));
+            //                     }).write_all(contents.as_bytes()).unwrap_or_else(|_| {
+            //                         runtime_error(instr_src,
+            //                         src,
+            //                         &instructions[i],"File does not exist or cannot be written to",format_args!("Cannot write {color_red}{path}{color_reset} to file {color_blue}{path}{color_reset}"));
+            //                 });
+            // }
             Instr::CallLibFunc(LibFunc::Reverse, tgt, dest) => {
                 let reg = registers[tgt as usize];
                 if reg.is_str() {
@@ -837,11 +833,7 @@ pub fn execute(
                         .split(|x| x == &registers[separator as usize])
                         .for_each(|x| arrays.push(x.to_vec()));
                     let final_id = arrays.len() as u32;
-                    arrays.push(
-                        (base_id..final_id)
-                            .map(|x| Data::array(x))
-                            .collect::<Vec<Data>>(),
-                    );
+                    arrays.push((base_id..final_id).map(Data::array).collect::<Vec<Data>>());
                     registers[dest_register as usize] = Data::array(final_id);
                 }
             }

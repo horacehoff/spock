@@ -27,7 +27,7 @@ pub fn handle_method_calls(
     end: usize,
     args_indexes: &[(usize, usize)],
 ) {
-    let (registers, fns, _, instr_src, _, _, src, _, _, dyn_libs, allocated_arg_count, _, _) =
+    let (registers, fns, _, instr_src, _, _, src, _, _, _, allocated_arg_count, _, _) =
         p.destructure();
 
     let len = namespace.len() - 1;
@@ -376,32 +376,6 @@ pub fn handle_method_calls(
             registers.push(NULL);
             output.push(Instr::CallLibFunc(LibFunc::Abs, id, f_id));
         }
-        // io::read
-        "read" => {
-            check!(DataType::File, "File", 0);
-            let f_id = registers.len() as u16;
-            registers.push(NULL);
-            output.push(Instr::CallLibFunc(LibFunc::ReadFile, id, f_id));
-            instr_src.push((Instr::CallLibFunc(LibFunc::ReadFile, id, f_id), start, end))
-        }
-        // io::write
-        "write" => {
-            check!(DataType::File, "File", 1, 2);
-
-            let len = args.len();
-            add_args!();
-            if len == 1 {
-                registers.push(FALSE);
-                output.push(Instr::StoreFuncArg((registers.len() - 1) as u16));
-                *allocated_arg_count += 1;
-            }
-
-            let f_id = registers.len() as u16;
-            registers.push(NULL);
-
-            output.push(Instr::CallLibFunc(LibFunc::WriteFile, id, f_id));
-            instr_src.push((Instr::CallLibFunc(LibFunc::WriteFile, id, f_id), start, end))
-        }
         "reverse" => {
             check!(DataType::Array(_) | DataType::String, "Array or String", 0);
             let f_id = if infered == DataType::String {
@@ -480,7 +454,7 @@ pub fn handle_method_calls(
                 );
             }
             check_args_range!(args, 0, 1, "join", src, start, end);
-            if args.len() > 0 {
+            if !args.is_empty() {
                 let arg_infered = infer_type(&args[0], v, fns, src, p);
                 if arg_infered != DataType::String {
                     parser_error(

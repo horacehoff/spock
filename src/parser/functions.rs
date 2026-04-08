@@ -1,7 +1,6 @@
 use crate::Instr;
 use crate::check_args;
 use crate::check_args_range;
-use crate::data::FALSE;
 use crate::data::NULL;
 use crate::debug;
 use crate::display::format_expr;

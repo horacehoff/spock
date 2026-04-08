@@ -9,8 +9,7 @@ const NAN_TAG_STRING_SMALL: u64 = NAN_BASE | (2 << 48);
 const NAN_TAG_STRING_LARGE: u64 = NAN_BASE | (3 << 48);
 const NAN_TAG_ARRAY: u64 = NAN_BASE | (4 << 48);
 const NAN_TAG_NULL: u64 = NAN_BASE | (5 << 48);
-const NAN_TAG_FILE: u64 = NAN_BASE | (6 << 48);
-const NAN_TAG_INT: u64 = NAN_BASE | (7 << 48);
+const NAN_TAG_INT: u64 = NAN_BASE | (6 << 48);
 const BOOL_TABLE: [Data; 2] = [FALSE, TRUE];
 pub const NULL: Data = Data(NAN_TAG_NULL);
 pub const FALSE: Data = Data(NAN_TAG_BOOL);
@@ -110,39 +109,6 @@ impl Data {
     pub fn is_str(&self) -> bool {
         (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_SMALL
             || (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_LARGE
-    }
-    #[inline(always)]
-    pub fn file(s: &str) -> Data {
-        if s.len() <= 5 {
-            // Store it directly
-            let mut payload: u64 = 0;
-            for (i, &byte) in s.as_bytes().iter().enumerate() {
-                payload |= (byte as u64) << (i * 8);
-            }
-            payload |= (s.len() as u64) << 40;
-            Data(NAN_TAG_FILE | payload)
-        } else {
-            panic!()
-        }
-    }
-    #[inline(always)]
-    pub fn as_file(&self) -> String {
-        debug_assert!(self.is_file());
-        if (self.0 & !PAYLOAD_MASK) == NAN_TAG_FILE {
-            let payload = self.0 & PAYLOAD_MASK;
-            let len = (payload >> 40) as usize;
-            let mut bytes = [0u8; 5];
-            for (i, b) in bytes.iter_mut().enumerate().take(len) {
-                *b = ((payload >> (i * 8)) & 0xFF) as u8;
-            }
-            str::from_utf8(&bytes[..len]).unwrap().to_string()
-        } else {
-            unreachable!("NOT A FILE");
-        }
-    }
-    #[inline(always)]
-    pub fn is_file(&self) -> bool {
-        (self.0 & !PAYLOAD_MASK) == NAN_TAG_FILE
     }
 }
 

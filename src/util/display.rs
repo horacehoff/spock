@@ -33,8 +33,6 @@ pub fn format_data(x: &Data, arrays: Option<&ArrayStorage>, show_str: bool) -> S
         } else {
             format_args!("ARRAY[{}]", x.as_array()).to_smolstr()
         }
-    } else if x.is_file() {
-        format_args!("FILE({:?})", x.as_file()).to_smolstr()
     } else if x.is_null() {
         SmolStr::from("NULL")
     } else {
@@ -55,8 +53,6 @@ pub fn get_type_name(x: &Data) -> SmolStr {
         "Boolean"
     } else if x.is_str() {
         "String"
-    } else if x.is_file() {
-        "File"
     } else if x.is_float() {
         "Float"
     } else if x.is_int() {
