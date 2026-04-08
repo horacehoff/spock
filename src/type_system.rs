@@ -397,13 +397,22 @@ pub fn infer_type(
                     } else if let DataType::Array(array_type) = obj_type {
                         DataType::Array(array_type)
                     } else {
-                        todo!()
+                        unreachable!()
                     }
                 }
                 "push" => DataType::Null,
                 "sqrt" => DataType::Float,
                 "round" => DataType::Float,
-                "abs" => DataType::Float,
+                "abs" => {
+                    let obj_type = infer_type(obj, v, fns, src, p);
+                    if obj_type == DataType::Float {
+                        DataType::Float
+                    } else if obj_type == DataType::Int {
+                        DataType::Int
+                    } else {
+                        unreachable!()
+                    }
+                }
                 // io::read => doesn't work
                 "read" => DataType::String,
                 // io::write => doesn't work
@@ -476,6 +485,16 @@ fn check_poly(data: DataType) -> DataType {
             "check_poly",
             format_args!("Received data : {data} and not data : DataType::Poly"),
         )
+    }
+}
+
+pub fn is_array_with_incompatible_type(t: &DataType, array_elem_type: &DataType) -> bool {
+    if let DataType::Array(array_type) = t
+        && array_type.as_ref() != array_elem_type
+    {
+        true
+    } else {
+        false
     }
 }
 

@@ -15,6 +15,7 @@ use crate::parser_data::*;
 use crate::type_system::check_if_returns_void;
 use crate::type_system::contains_recursive_call;
 use crate::type_system::datatype_to_c_type;
+use crate::type_system::is_array_with_incompatible_type;
 use crate::type_system::is_indexable;
 use crate::type_system::{DataType, infer_type};
 use crate::{Data, Instr, error};
@@ -198,7 +199,7 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::GetIndexString(_, _, y)
         | Instr::IoOpen(_, y, _)
         | Instr::SaveFrame(_, y, _)
-        | Instr::CallDynLibFunc(_, y) => *y = tgt_id,
+        | Instr::CallDynamicLibFunc(_, y) => *y = tgt_id,
         Instr::CallFuncRecursive(_, y_func) => {
             *y_func = tgt_id;
             for i in 1..x.len() - 1 {
@@ -258,7 +259,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::GetIndexString(_, _, y)
         | Instr::IoOpen(_, y, _)
         | Instr::SetElementString(_, _, y)
-        | Instr::CallDynLibFunc(_, y) => Some(y),
+        | Instr::CallDynamicLibFunc(_, y) => Some(y),
         // ↓ INSTRUCTIONS THAT DON'T MODIFY ANY REGISTER ↓
         Instr::Print(_)
         | Instr::Jmp(_)
@@ -1052,26 +1053,18 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         );
                     }
                     let f_id = get_id(elem, v, p, &mut output, None, false);
+
+                    let dest_reg_id = registers.len() as u16;
                     registers.push(NULL);
-                    if infered == DataType::String {
-                        instr_src.push((
-                            Instr::GetIndexString(id, f_id, (registers.len() - 1) as u16),
-                            *start,
-                            *end,
-                        ));
-                        output.push(Instr::GetIndexString(
-                            id,
-                            f_id,
-                            (registers.len() - 1) as u16,
-                        ));
+
+                    let to_push = if infered == DataType::String {
+                        Instr::GetIndexString(id, f_id, dest_reg_id)
                     } else {
-                        instr_src.push((
-                            Instr::GetIndexArray(id, f_id, (registers.len() - 1) as u16),
-                            *start,
-                            *end,
-                        ));
-                        output.push(Instr::GetIndexArray(id, f_id, (registers.len() - 1) as u16));
-                    }
+                        Instr::GetIndexArray(id, f_id, dest_reg_id)
+                    };
+                    instr_src.push((to_push, *start, *end));
+                    output.push(to_push);
+
                     id = (registers.len() - 1) as u16;
                     if let DataType::Array(array_type) = infered {
                         infered = *array_type;
@@ -1098,8 +1091,8 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 let mut id = get_id(array, v, p, &mut output, None, false);
 
                 for elem in z.iter().rev().skip(1).rev() {
-                    let infered = infer_type(elem, v, fns, src, p);
-                    if infered != DataType::Int {
+                    // Check if the index is an integer
+                    if infer_type(elem, v, fns, src, p) != DataType::Int {
                         parser_error(
                             src,
                             *index_start,
@@ -1114,9 +1107,11 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     }
                     let f_id = get_id(elem, v, p, &mut output, None, false);
 
+                    let dest_reg_id = registers.len() as u16;
                     registers.push(NULL);
-                    output.push(Instr::GetIndexArray(id, f_id, (registers.len() - 1) as u16));
-                    id = (registers.len() - 1) as u16;
+                    let instr_id = registers.len() as u16;
+                    output.push(Instr::GetIndexArray(id, f_id, dest_reg_id));
+                    id = instr_id;
                 }
 
                 // get the
@@ -1125,49 +1120,29 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 let elem_type = infer_type(w, v, fns, src, p);
                 let elem_id = get_id(w, v, p, &mut output, None, false);
 
-                if let DataType::Array(array_type) = &infered {
-                    if **array_type != elem_type {
-                        parser_error(
-                            src,
-                            *elem_start,
-                            *elem_end,
-                            "Invalid type",
-                            format_args!(
-                                "Cannot insert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} in {}",
-                                elem_type, infered,
-                            ),
-                            None,
-                        );
-                    }
-                } else if infered == DataType::String && elem_type != DataType::String {
+                if is_array_with_incompatible_type(&infered, &elem_type)
+                    || (infered == DataType::String && elem_type != DataType::String)
+                {
                     parser_error(
                         src,
                         *elem_start,
                         *elem_end,
                         "Invalid type",
                         format_args!(
-                            "Cannot insert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} in String",
-                            elem_type,
+                            "Cannot insert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} in {}",
+                            elem_type, infered,
                         ),
                         None,
                     );
                 }
 
-                if infered == DataType::String {
-                    instr_src.push((
-                        Instr::SetElementString(id, elem_id, final_id),
-                        *index_start,
-                        *index_end,
-                    ));
-                    output.push(Instr::SetElementString(id, elem_id, final_id));
+                let to_push = if infered == DataType::String {
+                    Instr::SetElementString(id, elem_id, final_id)
                 } else {
-                    instr_src.push((
-                        Instr::SetElementArray(id, elem_id, final_id),
-                        *index_start,
-                        *index_end,
-                    ));
-                    output.push(Instr::SetElementArray(id, elem_id, final_id));
-                }
+                    Instr::SetElementArray(id, elem_id, final_id)
+                };
+                instr_src.push((to_push, *index_start, *index_end));
+                output.push(to_push);
             }
             Expr::Condition(main_condition, code, _, _) => {
                 // get first code limit (after which there are only else(if) blocks)

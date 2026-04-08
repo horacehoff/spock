@@ -386,8 +386,8 @@ pub fn handle_functions(
                 registers.push(NULL);
                 (registers.len() - 1) as u16
             };
-            output.push(Instr::CallDynLibFunc(*id, register_id));
-            instr_src.push((Instr::CallDynLibFunc(*id, register_id), start, end));
+            output.push(Instr::CallDynamicLibFunc(*id, register_id));
+            instr_src.push((Instr::CallDynamicLibFunc(*id, register_id), start, end));
         }
     } else {
         parser_error(
