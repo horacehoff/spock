@@ -13,7 +13,6 @@ use concat_string::concat_string;
 use inline_colorization::*;
 use mimalloc::MiMalloc;
 use parser::*;
-use smol_str::ToSmolStr;
 use std::any::Any;
 use std::fs;
 use std::hint::black_box;
@@ -570,7 +569,7 @@ pub fn execute(
                 if reg.is_str() {
                     let str = reg.as_str();
                     let arg = registers[args.pop().unwrap() as usize].as_str();
-                    registers[dest as usize] = str.contains(arg.as_str()).into();
+                    registers[dest as usize] = str.contains(arg).into();
                 } else if reg.is_array() {
                     let arg = registers[args.pop().unwrap() as usize];
                     registers[dest as usize] =
@@ -593,7 +592,7 @@ pub fn execute(
                 if reg.is_str() {
                     let str = reg.as_str();
                     let element = registers[args.pop().unwrap() as usize].as_str();
-                    registers[dest as usize] = if let Some(idx) = str.find(element.as_str()) {
+                    registers[dest as usize] = if let Some(idx) = str.find(element) {
                         idx as i32
                     } else {
                         -1
@@ -774,7 +773,7 @@ pub fn execute(
                 std::io::stdout().flush().unwrap();
                 let mut line = String::new();
                 std::io::stdin().read_line(&mut line).unwrap();
-                registers[dest as usize] = (line.trim().to_smolstr()).into();
+                registers[dest as usize] = (line.trim()).into();
             }
             Instr::CallLibFunc(LibFunc::Floor, tgt, dest) => {
                 registers[dest as usize] = registers[tgt as usize].as_float().floor().into()
@@ -794,21 +793,21 @@ pub fn execute(
             Instr::CallLibFunc(LibFunc::StartsWith, source_register, dest_register) => {
                 registers[dest_register as usize] = registers[source_register as usize]
                     .as_str()
-                    .starts_with(&registers[args.pop().unwrap() as usize].as_str())
+                    .starts_with(registers[args.pop().unwrap() as usize].as_str())
                     .into();
             }
             Instr::CallLibFunc(LibFunc::EndsWith, source_register, dest_register) => {
                 registers[dest_register as usize] = registers[source_register as usize]
                     .as_str()
-                    .ends_with(&registers[args.pop().unwrap() as usize].as_str())
+                    .ends_with(registers[args.pop().unwrap() as usize].as_str())
                     .into();
             }
             Instr::CallLibFunc(LibFunc::Replace, source_register, dest_register) => {
                 registers[dest_register as usize] = registers[source_register as usize]
                     .as_str()
                     .replace(
-                        &registers[args.pop().unwrap() as usize].as_str(),
-                        &registers[args.pop().unwrap() as usize].as_str(),
+                        registers[args.pop().unwrap() as usize].as_str(),
+                        registers[args.pop().unwrap() as usize].as_str(),
                     )
                     .into()
             }
@@ -820,7 +819,7 @@ pub fn execute(
                     arrays.push(
                         source
                             .as_str()
-                            .split(&registers[separator as usize].as_str())
+                            .split(registers[separator as usize].as_str())
                             .map(|x| x.into())
                             .collect(),
                     );
@@ -850,14 +849,14 @@ pub fn execute(
             }
             Instr::CallLibFunc(LibFunc::JoinStringArray, tgt, dest) => {
                 let separator = if let Some(arg) = args.pop() {
-                    registers[arg as usize].as_str()
+                    registers[arg as usize].as_str().to_string()
                 } else {
                     String::new()
                 };
                 registers[dest as usize] = itertools::intersperse(
                     arrays[registers[tgt as usize].as_array() as usize]
                         .iter()
-                        .map(|x| x.as_str()),
+                        .map(|x| x.as_str().to_string()),
                     separator,
                 )
                 .collect::<String>()
