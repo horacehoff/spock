@@ -1,6 +1,8 @@
 use smol_str::SmolStr;
 
 // 51 bits of total payload -- 3 bits for data type => 48 bits of actual payload
+// 1111_1111_1111_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000
+// |    NAN TAG   |                    TYPE TAG + PAYLOAD                        |
 const NAN_BASE: u64 =
     0b1111_1111_1111_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000;
 const PAYLOAD_MASK: u64 = 0b1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111;
@@ -77,31 +79,33 @@ impl Data {
     }
     #[inline(always)]
     pub fn str(s: &str) -> Data {
-        if s.len() <= 5 {
-            // Store it directly
+        let len = s.len();
+        if len <= 6 {
+            let bytes = s.as_bytes();
             let mut payload: u64 = 0;
-            for (i, &byte) in s.as_bytes().iter().enumerate() {
-                payload |= (byte as u64) << (i * 8);
+            // Packs 6 bytes into the payload, filling up the 48 payload bits
+            for i in 0..len {
+                payload |= (bytes[i] as u64) << (i * 8);
             }
-            payload |= (s.len() as u64) << 40;
-            Data(NAN_TAG_STRING_SMALL | payload)
+            Data(NAN_TAG_STRING_SMALL | (len as u64) << 51 | (payload & PAYLOAD_MASK))
         } else {
             panic!()
         }
     }
     #[inline(always)]
-    pub fn as_str(&self) -> String {
+    pub fn as_str(&self) -> &str {
         debug_assert!(self.is_str());
         if (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_SMALL {
-            let payload = self.0 & PAYLOAD_MASK;
-            let len = (payload >> 40) as usize;
-            let mut bytes = [0u8; 5];
-            for (i, b) in bytes.iter_mut().enumerate().take(len) {
-                *b = ((payload >> (i * 8)) & 0xFF) as u8;
+            let len = ((self.0 >> 50u8) & 0b111) as usize;
+            // Get ptr to the start of the u64
+            let ptr = self as *const Data as *const u8;
+            unsafe {
+                // For some reason, len itself is one byte too long
+                let slice = std::slice::from_raw_parts(ptr, len);
+                std::str::from_utf8_unchecked(slice)
             }
-            str::from_utf8(&bytes[..len]).unwrap().to_string()
         } else {
-            // LARGE STRING
+            // Will be implemented via a string pool or hashset
             unreachable!("NOT A STRING");
         }
     }
@@ -177,9 +181,9 @@ impl From<SmolStr> for Data {
         Data::str(&value)
     }
 }
-impl From<Data> for String {
-    #[inline(always)]
-    fn from(value: Data) -> Self {
-        value.as_str()
-    }
-}
+// impl From<Data> for SmolStr {
+//     #[inline(always)]
+//     fn from(value: Data) -> Self {
+//         value.as_str()
+//     }
+// }
