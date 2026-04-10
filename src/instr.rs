@@ -108,6 +108,7 @@ pub enum Instr {
 
     /// Remove(array_reg_id, elem_index_reg_id)
     Remove(u16, u16),
+    FreeArray(u16),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

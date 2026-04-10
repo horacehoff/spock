@@ -62,6 +62,7 @@ pub struct ParserData<'a> {
     pub allocated_arg_count: *mut usize,
     pub allocated_call_depth: *mut usize,
     pub const_registers: *mut Vec<u16>,
+    pub free_registers: *mut Vec<u16>,
 }
 impl ParserData<'_> {
     pub fn destructure(
@@ -80,6 +81,7 @@ impl ParserData<'_> {
         &mut usize,
         &mut usize,
         &mut Vec<u16>,
+        &mut Vec<u16>,
     ) {
         (
             unsafe { &mut *self.registers },
@@ -95,6 +97,7 @@ impl ParserData<'_> {
             unsafe { &mut *self.allocated_arg_count },
             unsafe { &mut *self.allocated_call_depth },
             unsafe { &mut *self.const_registers },
+            unsafe { &mut *self.free_registers },
         )
     }
 }

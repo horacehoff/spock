@@ -209,7 +209,7 @@ pub fn infer_type(
     src: (&str, &str),
     p: &ParserData,
 ) -> DataType {
-    let (_, _, _, _, _, _, _, _, _, dyn_libs, _, _, _) = p.destructure();
+    let (_, _, _, _, _, _, _, _, _, dyn_libs, _, _, _, free_registers) = p.destructure();
     match x {
         Expr::Var(name, start, end) => v
             .iter()

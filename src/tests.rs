@@ -16,6 +16,7 @@ macro_rules! run_and_check_registers {
             allocated_arg_count,
             allocated_call_depth,
         ) = parse(contents, filename);
+        println!("{contents}");
         execute(
             &instructions,
             &mut registers,
@@ -70,5 +71,50 @@ pub fn rec_fib_25() {
         }
         ",
         75025.into()
+    );
+}
+
+#[test]
+pub fn while_and_condition() {
+    run_and_check_registers!(
+        "
+        function main() {
+        let count = 0;
+        let limit = 1000000;
+        let result = 1;
+        while count < limit {
+            result *= 2;
+            if result > 1000000 {
+                result %= 1000000;
+            }
+            count += 1;
+        }
+        print(result);
+        }
+        ",
+        109376.into()
+    );
+}
+
+#[test]
+pub fn iter_fib_40() {
+    run_and_check_registers!(
+        "
+        function main() {
+        let n = 40;
+        let a=0;
+        let b=1;
+        let c=0;
+        let i=0;
+        while i < (n-1) {
+           c = a+b;
+           a = b;
+           b = c;
+           i = i+1;
+        }
+        print(c);
+        }
+        ",
+        102334155.into()
     );
 }
