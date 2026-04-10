@@ -8,6 +8,8 @@ use crate::errors::parser_error;
 use crate::get_id;
 use crate::instr::LibFunc;
 use crate::parser::Expr;
+use crate::parser::alloc_register;
+use crate::parser::free_register;
 use crate::parser::get_tgt_ids;
 use crate::parser::move_to_id;
 use crate::parser::parser_to_instr_set;
@@ -46,7 +48,8 @@ pub fn handle_functions(
         dyn_libs,
         allocated_arg_count,
         allocated_call_depth,
-        _,
+        const_registers,
+        free_registers,
     ) = p.destructure();
 
     let mut check_type = |arg: usize, expected: &[DataType]| {
@@ -83,8 +86,9 @@ pub fn handle_functions(
         match name {
             "print" => {
                 for arg in args {
-                    let id = get_id(arg, v, p, output, None, false);
+                    let id = get_id(arg, v, p, output, None, false, false);
                     output.push(Instr::Print(id));
+                    free_register(id, free_registers, v, const_registers);
                 }
             }
             "type" => {
@@ -95,60 +99,48 @@ pub fn handle_functions(
             "float" => {
                 check_args!(args, 1, "float", src, start, end);
                 check_type(0, &[DataType::String, DataType::Int]);
-                let id = get_id(&args[0], v, p, output, None, false);
-                registers.push(NULL);
-                instr_src.push((
-                    Instr::CallLibFunc(LibFunc::Float, id, (registers.len() - 1) as u16),
-                    start,
-                    end,
-                ));
+                let id = get_id(&args[0], v, p, output, None, false, false);
+                free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Float,
                     id,
-                    (registers.len() - 1) as u16,
+                    alloc_register(registers, free_registers),
                 ));
+                instr_src.push((*output.last().unwrap(), start, end));
             }
             "int" => {
                 check_args!(args, 1, "int", src, start, end);
                 check_type(0, &[DataType::String, DataType::Float]);
-                let id = get_id(&args[0], v, p, output, None, false);
-                registers.push(NULL);
-                instr_src.push((
-                    Instr::CallLibFunc(LibFunc::Int, id, (registers.len() - 1) as u16),
-                    start,
-                    end,
-                ));
+                let id = get_id(&args[0], v, p, output, None, false, false);
+                free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Int,
                     id,
-                    (registers.len() - 1) as u16,
+                    alloc_register(registers, free_registers),
                 ));
+                instr_src.push((*output.last().unwrap(), start, end));
             }
             "str" => {
                 check_args!(args, 1, "str", src, start, end);
-                let id = get_id(&args[0], v, p, output, None, false);
-                registers.push(NULL);
+                let id = get_id(&args[0], v, p, output, None, false, false);
+                free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Str,
                     id,
-                    (registers.len() - 1) as u16,
+                    alloc_register(registers, free_registers),
                 ));
             }
             "bool" => {
                 check_args!(args, 1, "bool", src, start, end);
                 check_type(0, &[DataType::String]);
-                let id = get_id(&args[0], v, p, output, None, false);
-                registers.push(NULL);
-                instr_src.push((
-                    Instr::CallLibFunc(LibFunc::Bool, id, (registers.len() - 1) as u16),
-                    start,
-                    end,
-                ));
+                let id = get_id(&args[0], v, p, output, None, false, false);
+                free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Bool,
                     id,
-                    (registers.len() - 1) as u16,
+                    alloc_register(registers, free_registers),
                 ));
+                instr_src.push((*output.last().unwrap(), start, end));
             }
             "input" => {
                 check_args_range!(args, 0, 1, "input", src, start, end);
@@ -157,13 +149,13 @@ pub fn handle_functions(
                     registers.push(SmolStr::new_static("").into());
                     (registers.len() - 1) as u16
                 } else {
-                    get_id(&args[0], v, p, output, None, false)
+                    get_id(&args[0], v, p, output, None, false, false)
                 };
-                registers.push(NULL);
+                free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Input,
                     id,
-                    (registers.len() - 1) as u16,
+                    alloc_register(registers, free_registers),
                 ));
             }
             "range" => {
@@ -173,30 +165,29 @@ pub fn handle_functions(
                     check_type(1, &[DataType::Int]);
                 }
 
-                let id_first_arg = get_id(&args[0], v, p, output, None, false);
+                let id_first_arg = get_id(&args[0], v, p, output, None, false, false);
                 let source_reg_id = if args.len() == 1 {
                     id_first_arg
                 } else {
-                    let id_second_arg = get_id(&args[1], v, p, output, None, false);
+                    let id_second_arg = get_id(&args[1], v, p, output, None, false, false);
                     output.push(Instr::StoreFuncArg(id_first_arg));
                     *allocated_arg_count += 1;
                     id_second_arg
                 };
-                let output_reg_id = registers.len() as u16;
-                registers.push(NULL);
+                free_register(id_first_arg, free_registers, v, const_registers);
+                free_register(source_reg_id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Range,
                     source_reg_id,
-                    output_reg_id,
+                    alloc_register(registers, free_registers),
                 ));
             }
             "the_answer" => {
                 check_args!(args, 0, "the_answer", src, start, end);
-                registers.push(NULL);
                 output.push(Instr::CallLibFunc(
                     LibFunc::TheAnswer,
                     0,
-                    (registers.len() - 1) as u16,
+                    alloc_register(registers, free_registers),
                 ));
             }
             fn_name => {
@@ -268,7 +259,7 @@ pub fn handle_functions(
                 for (x, tgt_id) in fn_args.iter().enumerate() {
                     let start_len = output.len();
 
-                    let arg_id = get_id(&args[x], v, p, output, Some(*tgt_id), false);
+                    let arg_id = get_id(&args[x], v, p, output, Some(*tgt_id), false, false);
                     debug!("MOVING ARG TO {tgt_id}");
                     // If get_id emitted code, adjust arg dest with move_to_id
                     if output.len() != start_len {
@@ -325,8 +316,10 @@ pub fn handle_functions(
             }
 
             for arg in args {
-                let arg_id = get_id(arg, v, p, output, None, false);
+                let arg_id = get_id(arg, v, p, output, None, false, false);
                 output.push(Instr::StoreFuncArg(arg_id));
+                // This may break stuff
+                free_register(arg_id, free_registers, v, const_registers);
                 *allocated_arg_count += 1;
             }
 
@@ -371,7 +364,8 @@ fn compile_function(
     fn_code: &[Expr],
     fn_id: u16,
 ) {
-    let (registers, fns, _, _, fn_registers, _, src, _, _, _, _, _, _) = p.destructure();
+    let (registers, fns, _, _, fn_registers, _, src, _, _, _, _, _, _, free_registers) =
+        p.destructure();
     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
 
     // Local vector vars and recorded_types to allow the inner body to type-check correctly

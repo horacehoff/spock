@@ -75,6 +75,8 @@ pub fn execute(
     let stdout = std::io::stdout();
     let mut handle = stdout.lock();
 
+    let mut free_arrays: Vec<u16> = Vec::new();
+
     let len = instructions.len();
     while i < len {
         // dbg!(&instructions[i]);
@@ -151,6 +153,7 @@ pub fn execute(
                 i = call_frame.return_addr as usize;
                 registers[call_frame.return_reg as usize] = temp;
             }
+            Instr::FreeArray(id) => free_arrays.push(id),
             Instr::IsFalseJmp(cond_id, size) => {
                 if registers[cond_id as usize] == FALSE {
                     i += size as usize;
