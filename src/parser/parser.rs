@@ -1001,6 +1001,85 @@ fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_len
     });
 }
 
+pub fn for_each_read_reg(instr: Instr, mut f: impl FnMut(u16)) {
+    match instr {
+        Instr::AddFloat(a, b, _)
+        | Instr::AddInt(a, b, _)
+        | Instr::AddArray(a, b, _)
+        | Instr::AddStr(a, b, _)
+        | Instr::MulFloat(a, b, _)
+        | Instr::MulInt(a, b, _)
+        | Instr::SubFloat(a, b, _)
+        | Instr::SubInt(a, b, _)
+        | Instr::DivFloat(a, b, _)
+        | Instr::DivInt(a, b, _)
+        | Instr::ModFloat(a, b, _)
+        | Instr::ModInt(a, b, _)
+        | Instr::PowFloat(a, b, _)
+        | Instr::PowInt(a, b, _)
+        | Instr::Eq(a, b, _)
+        | Instr::NotEq(a, b, _)
+        | Instr::ArrayEq(a, b, _)
+        | Instr::ArrayNotEq(a, b, _)
+        | Instr::SupFloat(a, b, _)
+        | Instr::SupInt(a, b, _)
+        | Instr::SupEqFloat(a, b, _)
+        | Instr::SupEqInt(a, b, _)
+        | Instr::InfFloat(a, b, _)
+        | Instr::InfInt(a, b, _)
+        | Instr::InfEqFloat(a, b, _)
+        | Instr::InfEqInt(a, b, _)
+        | Instr::BoolAnd(a, b, _)
+        | Instr::BoolOr(a, b, _)
+        | Instr::GetIndexArray(a, b, _)
+        | Instr::GetIndexString(a, b, _)
+        | Instr::NotEqJmp(a, b, _)
+        | Instr::EqJmp(a, b, _)
+        | Instr::ArrayNotEqJmp(a, b, _)
+        | Instr::ArrayEqJmp(a, b, _)
+        | Instr::SupFloatJmp(a, b, _)
+        | Instr::SupIntJmp(a, b, _)
+        | Instr::SupEqFloatJmp(a, b, _)
+        | Instr::SupEqIntJmp(a, b, _)
+        | Instr::InfFloatJmp(a, b, _)
+        | Instr::InfIntJmp(a, b, _)
+        | Instr::InfEqFloatJmp(a, b, _)
+        | Instr::InfEqIntJmp(a, b, _)
+        | Instr::Push(a, b)
+        | Instr::Remove(a, b) => {
+            f(a);
+            f(b);
+        }
+
+        Instr::SetElementArray(a, b, c) | Instr::SetElementString(a, b, c) => {
+            f(a);
+            f(b);
+            f(c);
+        }
+
+        Instr::Mov(a, _)
+        | Instr::NegFloat(a, _)
+        | Instr::NegInt(a, _)
+        | Instr::CallLibFunc(_, a, _)
+        | Instr::Print(a)
+        | Instr::StoreFuncArg(a)
+        | Instr::Return(a)
+        | Instr::RecursiveReturn(a, _)
+        | Instr::IsFalseJmp(a, _) => f(a),
+
+        Instr::ArrayMov(a, _, _) => f(a),
+
+        Instr::Jmp(_)
+        | Instr::JmpBack(_)
+        | Instr::VoidReturn
+        | Instr::CallFunc(_, _)
+        | Instr::CallFuncRecursive(_, _)
+        | Instr::SaveFrame(_, _, _)
+        | Instr::CallDynamicLibFunc(_, _)
+        | Instr::FreeArray(_) => {}
+    }
+}
+
 #[inline(always)]
 pub fn compile_expr(
     input: &[Expr],

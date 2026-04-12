@@ -10,6 +10,7 @@ use crate::instr::LibFunc;
 use crate::parser::Expr;
 use crate::parser::alloc_register;
 use crate::parser::compile_expr;
+use crate::parser::for_each_read_reg;
 use crate::parser::free_register;
 use crate::parser::get_tgt_ids;
 use crate::parser::move_to_id;
@@ -21,6 +22,7 @@ use crate::type_system::DataType;
 use crate::type_system::infer_type;
 use inline_colorization::*;
 use smol_str::SmolStr;
+use std::collections::HashSet;
 use std::slice;
 
 pub fn handle_functions(
@@ -422,11 +424,38 @@ fn compile_function(
         },
         output.len() as u16,
     );
-    let fn_temp_registers = get_tgt_ids(&parsed);
-    fn_registers
-        .get_mut(fn_id as usize)
-        .unwrap()
-        .extend(fn_temp_registers);
+
+    if is_recursive {
+        // Build the full set of registers the function writes to
+        let mut fn_reg_set: Vec<u16> = fn_registers[fn_id as usize].clone();
+        fn_reg_set.extend(get_tgt_ids(&parsed));
+        fn_reg_set.sort_unstable();
+        fn_reg_set.dedup();
+
+        // Only save registers that are actually read after a recursive call.
+        let mut live_regs: Vec<u16> = Vec::new();
+        for (i, instr) in parsed.iter().enumerate() {
+            if matches!(instr, Instr::CallFuncRecursive(_, _)) {
+                for after_instr in &parsed[(i + 1)..] {
+                    for_each_read_reg(*after_instr, |reg| {
+                        if fn_reg_set.contains(&reg) {
+                            live_regs.push(reg);
+                        }
+                    });
+                }
+            }
+        }
+
+        live_regs.sort_unstable();
+        live_regs.dedup();
+        *fn_registers.get_mut(fn_id as usize).unwrap() = live_regs;
+    } else {
+        // Store the full set of registers the function writes to
+        fn_registers
+            .get_mut(fn_id as usize)
+            .unwrap()
+            .extend(get_tgt_ids(&parsed));
+    }
     // fns.get_mut(function_id).unwrap().5.extend(fn_registers);
 
     output.extend(parsed);
