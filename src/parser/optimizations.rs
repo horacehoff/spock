@@ -89,16 +89,12 @@ pub fn for_loop_summation(
                     .into(),
                 );
                 registers.push(NULL);
-                output.push(Instr::MulFloat(
+                output.push(Instr::MulInt(
                     (registers.len() - 3) as u16,
                     (registers.len() - 2) as u16,
                     (registers.len() - 1) as u16,
                 ));
-                output.push(Instr::AddFloat(
-                    (registers.len() - 1) as u16,
-                    var_id,
-                    var_id,
-                ));
+                output.push(Instr::AddInt((registers.len() - 1) as u16, var_id, var_id));
                 return true;
             }
         } else if let Expr::Mul(l, reps, _, _) = &**value

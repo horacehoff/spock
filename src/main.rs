@@ -86,6 +86,8 @@ pub fn execute(
 
     let mut free_arrays: Vec<u16> = Vec::with_capacity(array_pool.len());
 
+    let mut arg_storage: Vec<u64> = Vec::new();
+
     let len = instructions.len();
     while i < len {
         // dbg!(&instructions[i]);
@@ -172,10 +174,8 @@ pub fn execute(
             Instr::CallDynamicLibFunc(fn_id, dest) => {
                 let func = &dyn_libs[fn_id as usize];
                 let args_len = args.len();
-                // Args converted from Data to libffi args are stored here
-                let mut ffi_args: Vec<libffi::middle::Arg> = Vec::with_capacity(args_len);
-                // Pointers are "owned" here
-                let mut arg_storage: Vec<u64> = Vec::with_capacity(args_len);
+                // Pointers are "owned" in arg_storage
+                arg_storage.clear();
 
                 for (idx, register_id) in args.drain(..args_len).enumerate() {
                     let data = registers[register_id as usize];
@@ -202,9 +202,13 @@ pub fn execute(
                         }
                     });
                 }
+
+                // Args converted from Data to libffi args are stored here
+                let mut ffi_args: Vec<libffi::middle::Arg> = Vec::with_capacity(args_len);
                 for x in &arg_storage {
                     ffi_args.push(libffi::middle::Arg::new(x));
                 }
+
                 // Call the function, and convert the result back into Data
                 registers[dest as usize] = unsafe {
                     let t = func.return_type.type_id();
@@ -625,10 +629,9 @@ pub fn execute(
                 }
             }
             Instr::CallLibFunc(LibFunc::IsFloat, tgt, dest) => {
+                let num = registers[tgt as usize].as_str();
                 registers[dest as usize] =
-                    (registers[tgt as usize].as_str().parse::<f64>().is_ok()
-                        && registers[tgt as usize].as_str().parse::<i64>().is_err())
-                    .into();
+                    (num.parse::<f64>().is_ok() && num.parse::<i64>().is_err()).into();
             }
             Instr::CallLibFunc(LibFunc::IsInt, tgt, dest) => {
                 registers[dest as usize] = registers[tgt as usize]
@@ -672,9 +675,9 @@ pub fn execute(
                     registers[dest as usize] = str.repeat(repeat_count as usize).into();
                 } else if reg.is_array() {
                     let repeat_count = registers[args.pop().unwrap() as usize].as_int();
-                    let array_id = array_pool.len() as u32;
-                    array_pool
-                        .push(array_pool[reg.as_array() as usize].repeat(repeat_count as usize));
+                    let array_id = alloc_array(array_pool, &mut free_arrays);
+                    array_pool[array_id as usize] =
+                        array_pool[reg.as_array() as usize].repeat(repeat_count as usize);
                     registers[dest as usize] = Data::array(array_id);
                 }
             }
@@ -840,16 +843,22 @@ pub fn execute(
                     );
                     registers[dest_register as usize] = Data::array(output_str_register_id);
                 } else if source.is_array() {
-                    let base_id = array_pool.len() as u32;
                     // get the array and split it
+                    let mut sub_array_ids: Vec<u32> = Vec::with_capacity(10);
                     array_pool[source.as_array() as usize]
                         .to_vec()
                         .split(|x| x == &registers[separator as usize])
-                        .for_each(|x| array_pool.push(x.to_vec()));
-                    let final_id = array_pool.len() as u32;
+                        .for_each(|x| {
+                            let array_id = alloc_array(array_pool, &mut free_arrays);
+                            array_pool[array_id as usize] = x.to_vec();
+                            sub_array_ids.push(array_id);
+                        });
+
                     let array_id = alloc_array(array_pool, &mut free_arrays);
-                    array_pool[array_id as usize] =
-                        (base_id..final_id).map(Data::array).collect::<Vec<Data>>();
+                    array_pool[array_id as usize] = sub_array_ids
+                        .iter()
+                        .map(|id| Data::array(*id))
+                        .collect::<Vec<Data>>();
 
                     registers[dest_register as usize] = Data::array(array_id);
                 }
@@ -867,18 +876,23 @@ pub fn execute(
             }
             Instr::CallLibFunc(LibFunc::JoinStringArray, tgt, dest) => {
                 let separator = if let Some(arg) = args.pop() {
-                    registers[arg as usize].as_str().to_string()
+                    registers[arg as usize].as_str()
                 } else {
-                    String::new()
+                    ""
                 };
-                registers[dest as usize] = itertools::intersperse(
-                    array_pool[registers[tgt as usize].as_array() as usize]
-                        .iter()
-                        .map(|x| x.as_str().to_string()),
-                    separator,
-                )
-                .collect::<String>()
-                .into();
+                let array = &array_pool[registers[tgt as usize].as_array() as usize];
+                let total_len: usize = array.iter().map(|x| x.as_str().len()).sum::<usize>()
+                    + separator
+                        .len()
+                        .saturating_mul(array.len().saturating_sub(1));
+                let mut output = String::with_capacity(total_len);
+                for (i, x) in array.iter().enumerate() {
+                    if i > 0 {
+                        output.push_str(separator);
+                    }
+                    output.push_str(x.as_str());
+                }
+                registers[dest as usize] = output.into();
             }
         }
         i += 1;

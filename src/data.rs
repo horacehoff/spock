@@ -87,26 +87,29 @@ impl Data {
             for i in 0..len {
                 payload |= (bytes[i] as u64) << (i * 8);
             }
-            Data(NAN_TAG_STRING_SMALL | (len as u64) << 51 | (payload & PAYLOAD_MASK))
+            Data(NAN_TAG_STRING_SMALL | (payload & PAYLOAD_MASK))
         } else {
-            panic!()
+            panic!("String too big!")
         }
     }
     #[inline(always)]
     pub fn as_str(&self) -> &str {
         debug_assert!(self.is_str());
         if (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_SMALL {
-            let len = ((self.0 >> 50u8) & 0b111) as usize;
-            // Get ptr to the start of the u64
+            let payload = self.0 & PAYLOAD_MASK;
+            let len = payload
+                .to_le_bytes()
+                .iter()
+                .position(|&b| b == 0)
+                .unwrap_or(6);
             let ptr = self as *const Data as *const u8;
             unsafe {
-                // For some reason, len itself is one byte too long
                 let slice = std::slice::from_raw_parts(ptr, len);
                 std::str::from_utf8_unchecked(slice)
             }
         } else {
             // Will be implemented via a string pool or hashset
-            unreachable!("NOT A STRING");
+            unreachable!("huh");
         }
     }
     #[inline(always)]
