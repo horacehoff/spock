@@ -350,6 +350,7 @@ pub fn get_id(
     tgt_id: Option<u16>,
     expects_op_cmp: bool,
     var_assignment: bool,
+    offset: u16,
 ) -> u16 {
     let (
         registers,
@@ -377,8 +378,8 @@ pub fn get_id(
             if t_l != $type || t_r != $type {
                 op_error!(src, t_l, t_r, $symbol, *$start, *$end);
             }
-            let id_l = get_id($l, v, p, output, None, false, false);
-            let id_r = get_id($r, v, p, output, None, false, false);
+            let id_l = get_id($l, v, p, output, None, false, false, offset);
+            let id_r = get_id($r, v, p, output, None, false, false, offset);
             free_register(id_l, free_registers, v, const_registers);
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
@@ -399,8 +400,8 @@ pub fn get_id(
             if !((t_l == $type1 && t_r == $type1) || (t_l == $type2 && t_r == $type2)) {
                 op_error!(src, t_l, t_r, $symbol, *$start, *$end);
             }
-            let id_l = get_id($l, v, p, output, None, false, false);
-            let id_r = get_id($r, v, p, output, None, false, false);
+            let id_l = get_id($l, v, p, output, None, false, false, offset);
+            let id_r = get_id($r, v, p, output, None, false, false, offset);
             free_register(id_l, free_registers, v, const_registers);
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
@@ -526,7 +527,7 @@ pub fn get_id(
                 arrays.len() - 1
             };
             for elem in elems {
-                let x = parser_to_instr_set(slice::from_ref(elem), v, p);
+                let x = compile_expr(slice::from_ref(elem), v, p, 0);
                 if !x.is_empty() {
                     let c_id = get_tgt_id(*x.last().unwrap()).unwrap();
                     arrays.get_mut(array_id).unwrap().push(NULL);
@@ -584,8 +585,8 @@ pub fn get_id(
             {
                 op_error!(src, t_l, t_r, "+", *start, *end);
             }
-            let id_l = get_id(l, v, p, output, None, false, false);
-            let id_r = get_id(r, v, p, output, None, false, false);
+            let id_l = get_id(l, v, p, output, None, false, false, offset);
+            let id_r = get_id(r, v, p, output, None, false, false, offset);
             free_register(id_l, free_registers, v, const_registers);
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
@@ -648,8 +649,8 @@ pub fn get_id(
         Expr::Eq(l, r) => {
             let is_array = matches!(infer_type(l, v, fns, src, p), DataType::Array(_))
                 && matches!(infer_type(r, v, fns, src, p), DataType::Array(_));
-            let id_l = get_id(l, v, p, output, None, false, false);
-            let id_r = get_id(r, v, p, output, None, false, false);
+            let id_l = get_id(l, v, p, output, None, false, false, offset);
+            let id_r = get_id(r, v, p, output, None, false, false, offset);
             free_register(id_l, free_registers, v, const_registers);
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
@@ -667,8 +668,10 @@ pub fn get_id(
             id
         }
         Expr::NotEq(l, r) => {
-            let id_l = get_id(l, v, p, output, None, false, false);
-            let id_r = get_id(r, v, p, output, None, false, false);
+            let id_l = get_id(l, v, p, output, None, false, false, offset);
+            let id_r = get_id(r, v, p, output, None, false, false, offset);
+            free_register(id_l, free_registers, v, const_registers);
+            free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
                 tgt_register_id
             } else if expects_op_cmp {
@@ -745,7 +748,7 @@ pub fn get_id(
         }
         Expr::Neg(l, start, end) => {
             let infered = infer_type(l, v, fns, src, p);
-            let id_l = get_id(l, v, p, output, None, false, false);
+            let id_l = get_id(l, v, p, output, None, false, false, offset);
             free_register(id_l, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
                 tgt_register_id
@@ -791,13 +794,13 @@ pub fn get_id(
             let mut condition_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
 
             // parse the main condition
-            let condition_id = get_id(main_condition, v, p, output, None, true, false);
+            let condition_id = get_id(main_condition, v, p, output, None, true, false, offset);
             add_cmp(condition_id, &mut 0, output, false);
             cmp_markers.push(output.len() - 1);
 
             let v_len = v.len();
             // parse the main code block
-            let cond_code = parser_to_instr_set(&code[0..main_code_limit], v, p);
+            let cond_code = compile_expr(&code[0..main_code_limit], v, p, output.len() as u16);
             v.truncate(v_len);
             let is_empty = cond_code.is_empty();
             output.extend(cond_code);
@@ -818,12 +821,12 @@ pub fn get_id(
             for elem in &code[main_code_limit..] {
                 if let Expr::ElseIfBlock(condition, code) = elem {
                     condition_markers.push(output.len());
-                    let condition_id = get_id(condition, v, p, output, None, true, false);
+                    let condition_id = get_id(condition, v, p, output, None, true, false, offset);
                     add_cmp(condition_id, &mut 0, output, false);
                     free_register(condition_id, free_registers, v, const_registers);
                     cmp_markers.push(output.len() - 1);
                     let v_len = v.len();
-                    let cond_code = parser_to_instr_set(code, v, p);
+                    let cond_code = compile_expr(code, v, p, output.len() as u16);
                     v.truncate(v_len);
                     let is_empty = cond_code.is_empty();
                     output.extend(cond_code);
@@ -841,7 +844,7 @@ pub fn get_id(
                     else_exists = true;
                     condition_markers.push(output.len());
                     let v_len = v.len();
-                    let cond_code = parser_to_instr_set(code, v, p);
+                    let cond_code = compile_expr(code, v, p, output.len() as u16);
                     v.truncate(v_len);
                     let is_empty = cond_code.is_empty();
                     output.extend(cond_code);
@@ -898,15 +901,23 @@ pub fn get_id(
             free_register(condition_id, free_registers, v, const_registers);
             return_id
         }
-        Expr::FunctionCall(args, namespace, start, end, args_indexes) => {
-            handle_functions(output, v, p, args, namespace, *start, *end, args_indexes)
-                .unwrap_or_else(|| {
-                    get_last_tgt_id(&output).unwrap_or_else(|| (registers.len() - 1) as u16)
-                })
-        }
+        Expr::FunctionCall(args, namespace, start, end, args_indexes) => handle_functions(
+            output,
+            v,
+            p,
+            args,
+            namespace,
+            *start,
+            *end,
+            args_indexes,
+            offset + output.len() as u16,
+        )
+        .unwrap_or_else(|| {
+            get_last_tgt_id(&output).unwrap_or_else(|| (registers.len() - 1) as u16)
+        }),
         other => {
             // dbg!(&other);
-            let output_code = parser_to_instr_set(slice::from_ref(other), v, p);
+            let output_code = compile_expr(slice::from_ref(other), v, p, 0);
             if !output_code.is_empty() {
                 output.extend(output_code);
                 get_last_tgt_id(output).unwrap_or((registers.len() - 1) as u16)
@@ -990,8 +1001,37 @@ fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_len
     });
 }
 
+macro_rules! apply_offset_to_absolute_instr {
+    ($instructions: expr, $offset:expr) => {
+        $instructions.into_iter().map(|instr| match instr {
+            Instr::CallFunc(loc, ret) => Instr::CallFunc(loc + $offset, ret),
+            Instr::CallFuncRecursive(loc, ret) => Instr::CallFuncRecursive(loc + $offset, ret),
+            other => other,
+        })
+    };
+}
+
+// #[inline(always)]
+// pub fn apply_offset(instructions: Vec<Instr>, offset: u16) {
+//     instructions
+//         .iter()
+//         .map(|instr| {
+//             |instr| match instr {
+//                 Instr::CallFunc(loc, ret) => Instr::CallFunc(loc + offset, ret),
+//                 Instr::CallFuncRecursive(loc, ret) => Instr::CallFuncRecursive(loc + offset, ret),
+//                 other => other,
+//             }
+//         })
+//         .into_iter()
+// }
+
 #[inline(always)]
-pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData) -> Vec<Instr> {
+pub fn compile_expr(
+    input: &[Expr],
+    v: &mut Vec<Variable>,
+    p: &ParserData,
+    offset: u16,
+) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::with_capacity(input.len());
 
     let (
@@ -1066,7 +1106,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 };
                 for elem in elems {
                     // process each array element
-                    let x = parser_to_instr_set(slice::from_ref(elem), v, p);
+                    let x = compile_expr(slice::from_ref(elem), v, p, 0);
                     // if there are no instructions, then that means the element has been pushed to the registers, so pop it and push it directly to the array
                     if x.is_empty() {
                         arrays
@@ -1091,7 +1131,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
             Expr::GetIndex(array, index, start, end) => {
                 let mut infered = infer_type(array, v, fns, src, p);
                 // process the array/string that is being indexed
-                let mut id = get_id(array, v, p, &mut output, None, false, false);
+                let mut id = get_id(array, v, p, &mut output, None, false, false, offset);
                 // for each indexing operation, process the index, adjust the id variable for the next index operation, push null to registers to use GetIndex to index at runtime
                 for elem in index {
                     if !is_indexable(&infered) {
@@ -1122,7 +1162,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                             None,
                         );
                     }
-                    let f_id = get_id(elem, v, p, &mut output, None, false, false);
+                    let f_id = get_id(elem, v, p, &mut output, None, false, false, offset);
                     free_register(f_id, free_registers, v, const_registers);
                     let dest_reg_id = alloc_register(registers, free_registers);
 
@@ -1158,7 +1198,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     );
                 }
                 // Get the id of the source array
-                let mut id = get_id(array, v, p, &mut output, None, false, false);
+                let mut id = get_id(array, v, p, &mut output, None, false, false, offset);
 
                 for elem in z.iter().rev().skip(1).rev() {
                     // Check if the index is an integer
@@ -1175,7 +1215,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                             None,
                         );
                     }
-                    let f_id = get_id(elem, v, p, &mut output, None, false, false);
+                    let f_id = get_id(elem, v, p, &mut output, None, false, false, offset);
 
                     let dest_reg_id = alloc_register(registers, free_registers);
 
@@ -1189,10 +1229,19 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 }
 
                 // get the
-                let final_id = get_id(z.last().unwrap(), v, p, &mut output, None, false, false);
+                let final_id = get_id(
+                    z.last().unwrap(),
+                    v,
+                    p,
+                    &mut output,
+                    None,
+                    false,
+                    false,
+                    offset,
+                );
 
                 let elem_type = infer_type(w, v, fns, src, p);
-                let elem_id = get_id(w, v, p, &mut output, None, false, false);
+                let elem_id = get_id(w, v, p, &mut output, None, false, false, offset);
                 free_register(elem_id, free_registers, v, const_registers);
                 if is_array_with_incompatible_type(&infered, &elem_type)
                     || (infered == DataType::String && elem_type != DataType::String)
@@ -1233,13 +1282,15 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 let mut condition_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
 
                 // parse the main condition
-                let condition_id = get_id(main_condition, v, p, &mut output, None, true, false);
+                let condition_id =
+                    get_id(main_condition, v, p, &mut output, None, true, false, offset);
                 add_cmp(condition_id, &mut 0, &mut output, false);
+                free_register(condition_id, free_registers, v, const_registers);
                 conditional_jmp_instr_idx.push(output.len() - 1);
 
                 let v_len = v.len();
                 // parse the main code block
-                let cond_code = parser_to_instr_set(&code[0..main_code_limit], v, p);
+                let cond_code = compile_expr(&code[0..main_code_limit], v, p, output.len() as u16);
                 v.truncate(v_len);
                 output.extend(cond_code);
                 if main_code_limit != code.len() {
@@ -1250,12 +1301,13 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 for elem in &code[main_code_limit..] {
                     if let Expr::ElseIfBlock(condition, code) = elem {
                         condition_markers.push(output.len());
-                        let condition_id = get_id(condition, v, p, &mut output, None, true, false);
+                        let condition_id =
+                            get_id(condition, v, p, &mut output, None, true, false, offset);
                         free_register(condition_id, free_registers, v, const_registers);
                         add_cmp(condition_id, &mut 0, &mut output, false);
                         conditional_jmp_instr_idx.push(output.len() - 1);
                         let v_len = v.len();
-                        let cond_code = parser_to_instr_set(code, v, p);
+                        let cond_code = compile_expr(code, v, p, output.len() as u16);
                         v.truncate(v_len);
                         debug!("COND CODE IS {cond_code:?}");
                         output.extend(cond_code);
@@ -1264,9 +1316,10 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     } else if let Expr::ElseBlock(code) = elem {
                         condition_markers.push(output.len());
                         let v_len = v.len();
-                        let cond_code = parser_to_instr_set(code, v, p);
+                        let cond_code = compile_expr(code, v, p, output.len() as u16);
                         v.truncate(v_len);
                         debug!("COND CODE IS {cond_code:?}");
+                        // let offset = output.len() as u16;
                         output.extend(cond_code);
                     }
                 }
@@ -1305,19 +1358,20 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     continue;
                 }
                 // parse the condition, get its id
-                let condition_id = get_id(condition, v, p, &mut output, None, true, false);
+                let condition_id = get_id(condition, v, p, &mut output, None, true, false, offset);
 
                 // parse the code block, clone the vars to avoid overriding anything
                 let v_len = v.len();
                 let loop_id = block_id + 1;
-                let mut cond_code = parser_to_instr_set(code, v, p);
+                let mut cond_code = compile_expr(code, v, p, 0);
                 v.truncate(v_len);
 
                 // get length of the code, then add Cmp/OpCmp (decided by add_cmp), and add the condition logic
                 let mut len = (cond_code.len() + 2) as u16;
                 add_cmp(condition_id, &mut len, &mut output, true);
                 parse_loop_flow_control(&mut cond_code, loop_id, len, false);
-                output.extend(cond_code);
+                let offset = output.len() as u16;
+                output.extend(apply_offset_to_absolute_instr!(cond_code, offset));
                 output.push(Instr::JmpBack(len));
             }
             Expr::ForLoop(var_name, array_code) => {
@@ -1327,7 +1381,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 let array = array_code.first().unwrap();
                 let code = &array_code[1..];
                 let array_type = infer_type(array, v, fns, src, p);
-                let array = get_id(array, v, p, &mut output, None, false, false);
+                let array = get_id(array, v, p, &mut output, None, false, false, offset);
 
                 // try to optimize it
                 if for_loop_summation(&mut output, registers, v, array, code) {
@@ -1376,7 +1430,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     },
                 });
                 let loop_id = block_id + 1;
-                let mut cond_code = parser_to_instr_set(code, v, p);
+                let mut cond_code = compile_expr(code, v, p, output.len() as u16);
                 // Clean up variables
                 v.truncate(v_len);
 
@@ -1451,7 +1505,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         None,
                     )
                 }
-                let elem_id = get_id(start_elem, v, p, &mut output, None, false, false);
+                let elem_id = get_id(start_elem, v, p, &mut output, None, false, false, offset);
 
                 let v_len = v.len();
                 v.push(Variable {
@@ -1460,37 +1514,39 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     infered_type: DataType::Int,
                 });
                 // Compile the code inside the loop
-                let compiled_loop_code = parser_to_instr_set(code, v, p);
+                let compiled_loop_code = compile_expr(code, v, p, 0);
                 let compiled_loop_code_len = compiled_loop_code.len() as u16;
 
                 // Loop logic
-                let end_elem_id = get_id(end_elem, v, p, &mut output, None, false, false);
+                let end_elem_id = get_id(end_elem, v, p, &mut output, None, false, false, offset);
                 // Add an InfCmp first, to check if i < end_elem
                 output.push(Instr::SupEqIntJmp(
                     elem_id,
                     end_elem_id,
                     compiled_loop_code_len + 3,
                 ));
-                output.extend(compiled_loop_code);
-                registers.push(1.into());
+
+                let offset = output.len() as u16;
+                output.extend(apply_offset_to_absolute_instr!(compiled_loop_code, offset));
+                let len1 = output.len() as u16;
+                let one_cst_id =
+                    get_id(&Expr::Int(1), v, p, &mut output, None, false, false, offset);
+                let len2 = output.len() as u16;
                 // Do i += 1
-                output.push(Instr::AddInt(
-                    elem_id,
-                    (registers.len() - 1) as u16,
-                    elem_id,
-                ));
+                output.push(Instr::AddInt(elem_id, one_cst_id, elem_id));
                 // Jump back to the start of the function
-                output.push(Instr::JmpBack(2 + compiled_loop_code_len));
+                output.push(Instr::JmpBack(2 + (len2 - len1) + compiled_loop_code_len));
 
                 v.truncate(v_len);
 
                 free_register(end_elem_id, free_registers, v, const_registers);
                 free_register(elem_id, free_registers, v, const_registers);
+                free_register(one_cst_id, free_registers, v, const_registers);
             }
             Expr::LoopBlock(code) => {
                 let loop_id = block_id + 1;
                 let v_len = v.len();
-                let mut compiled = parser_to_instr_set(code, v, p);
+                let mut compiled = compile_expr(code, v, p, output.len() as u16);
                 v.truncate(v_len);
                 let code_length = compiled.len() as u16;
                 parse_indef_loop_flow_control(&mut compiled, loop_id, code_length + 1);
@@ -1511,7 +1567,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                         (registers.len() - 1) as u16
                     }
                 } else {
-                    get_id(y, v, p, &mut output, None, false, true)
+                    get_id(y, v, p, &mut output, None, false, true, offset)
                     // let id = get_id(y, v, p, &mut output, None, false, false);
                     // if const_registers.contains(&id) {
                     //     registers.push(registers[id as usize]);
@@ -1552,7 +1608,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                 // }
 
                 let output_len = output.len();
-                let obj_id = get_id(y, v, p, &mut output, Some(id), false, false);
+                let obj_id = get_id(y, v, p, &mut output, Some(id), false, false, offset);
                 if output.len() != output_len {
                     move_to_id(&mut output, id);
                 } else {
@@ -1575,6 +1631,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     *start,
                     *end,
                     args_indexes,
+                    offset,
                 );
                 if let Some(id) = output_id {
                     free_register(id, free_registers, v, const_registers);
@@ -1591,6 +1648,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
                     *start,
                     *end,
                     args_indexes,
+                    offset,
                 );
             }
             Expr::FunctionDecl(x, y, start, end) => {
@@ -1620,7 +1678,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
             }
             Expr::ReturnVal(val) => {
                 if let Some(x) = &**val {
-                    let id = get_id(x, v, p, &mut output, None, false, false);
+                    let id = get_id(x, v, p, &mut output, None, false, false, offset);
                     if is_parsing_recursive {
                         output.push(Instr::RecursiveReturn(id, parsing_fn_id.unwrap()));
                     } else {
@@ -1634,7 +1692,7 @@ pub fn parser_to_instr_set(input: &[Expr], v: &mut Vec<Variable>, p: &ParserData
             Expr::Continue => output.push(Instr::EqJmp(block_id, 0, 0)),
             Expr::EvalBlock(code) => {
                 let v_len = v.len();
-                output.extend(parser_to_instr_set(code, v, p));
+                output.extend(compile_expr(code, v, p, output.len() as u16));
                 v.truncate(v_len);
             }
             other => {
@@ -1741,7 +1799,7 @@ pub fn parse(
         }
     }
 
-    let instructions = parser_to_instr_set(
+    let instructions = compile_expr(
         &functions
             .iter()
             .find(|func| func.name == "main")
@@ -1767,6 +1825,7 @@ pub fn parse(
             const_registers: &mut const_registers,
             free_registers: &mut free_registers,
         },
+        0,
     );
     for x in fn_registers.iter_mut() {
         x.sort();
