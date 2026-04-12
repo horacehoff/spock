@@ -50,6 +50,15 @@ mod util;
 
 pub type ArrayStorage = Vec<Vec<Data>>;
 
+fn alloc_array(array_pool: &mut ArrayStorage, free_arrays: &mut Vec<u16>) -> u32 {
+    if let Some(id) = free_arrays.pop() {
+        id as u32
+    } else {
+        array_pool.push(Vec::with_capacity(1));
+        (array_pool.len() - 1) as u32
+    }
+}
+
 struct CallFrame {
     return_addr: u32,
     return_reg: u16,
@@ -58,7 +67,7 @@ struct CallFrame {
 pub fn execute(
     instructions: &[Instr],
     registers: &mut [Data],
-    arrays: &mut ArrayStorage,
+    array_pool: &mut ArrayStorage,
     instr_src: &[(Instr, usize, usize)],
     src: (&str, &str),
     fn_registers: &[Vec<u16>],
@@ -75,7 +84,7 @@ pub fn execute(
     let stdout = std::io::stdout();
     let mut handle = stdout.lock();
 
-    let mut free_arrays: Vec<u16> = Vec::new();
+    let mut free_arrays: Vec<u16> = Vec::with_capacity(array_pool.len());
 
     let len = instructions.len();
     while i < len {
@@ -236,15 +245,15 @@ pub fn execute(
                 .into();
             }
             Instr::AddArray(o1, o2, dest) => {
-                let arr_a = &arrays[registers[o1 as usize].as_array() as usize];
-                let arr_b = &arrays[registers[o2 as usize].as_array() as usize];
+                let arr_a = &array_pool[registers[o1 as usize].as_array() as usize];
+                let arr_b = &array_pool[registers[o2 as usize].as_array() as usize];
 
                 let mut combined = Vec::with_capacity(arr_a.len() + arr_b.len());
                 combined.extend_from_slice(arr_a);
                 combined.extend_from_slice(arr_b);
-                let len = arrays.len() as u32;
-                arrays.push(combined);
-                registers[dest as usize] = Data::array(len);
+                let array_id = alloc_array(array_pool, &mut free_arrays);
+                array_pool[array_id as usize] = combined;
+                registers[dest as usize] = Data::array(array_id);
             }
             Instr::MulFloat(o1, o2, dest) => {
                 registers[dest as usize] =
@@ -295,8 +304,8 @@ pub fn execute(
                     (registers[o1 as usize] == registers[o2 as usize]).into();
             }
             Instr::ArrayEq(o1, o2, dest) => {
-                registers[dest as usize] = (arrays[registers[o1 as usize].as_array() as usize]
-                    == arrays[registers[o2 as usize].as_array() as usize])
+                registers[dest as usize] = (array_pool[registers[o1 as usize].as_array() as usize]
+                    == array_pool[registers[o2 as usize].as_array() as usize])
                     .into();
             }
             Instr::NotEqJmp(o1, o2, jump_size) => {
@@ -306,8 +315,8 @@ pub fn execute(
                 }
             }
             Instr::ArrayNotEqJmp(o1, o2, jump_size) => {
-                if arrays[registers[o1 as usize].as_array() as usize]
-                    != arrays[registers[o2 as usize].as_array() as usize]
+                if array_pool[registers[o1 as usize].as_array() as usize]
+                    != array_pool[registers[o2 as usize].as_array() as usize]
                 {
                     i += jump_size as usize;
                     continue;
@@ -318,8 +327,8 @@ pub fn execute(
                     (registers[o1 as usize] != registers[o2 as usize]).into();
             }
             Instr::ArrayNotEq(o1, o2, dest) => {
-                registers[dest as usize] = (arrays[registers[o1 as usize].as_array() as usize]
-                    != arrays[registers[o2 as usize].as_array() as usize])
+                registers[dest as usize] = (array_pool[registers[o1 as usize].as_array() as usize]
+                    != array_pool[registers[o2 as usize].as_array() as usize])
                     .into();
             }
             Instr::EqJmp(o1, o2, jump_size) => {
@@ -329,8 +338,8 @@ pub fn execute(
                 }
             }
             Instr::ArrayEqJmp(o1, o2, jump_size) => {
-                if arrays[registers[o1 as usize].as_array() as usize]
-                    == arrays[registers[o2 as usize].as_array() as usize]
+                if array_pool[registers[o1 as usize].as_array() as usize]
+                    == array_pool[registers[o2 as usize].as_array() as usize]
                 {
                     i += jump_size as usize;
                     continue;
@@ -446,9 +455,9 @@ pub fn execute(
                         "{}",
                         concat_string!(
                             "[",
-                            arrays[tgt.as_array() as usize]
+                            array_pool[tgt.as_array() as usize]
                                 .iter()
-                                .map(|x| format_data(x, Some(arrays), true))
+                                .map(|x| format_data(x, Some(array_pool), false))
                                 .collect::<Vec<_>>()
                                 .join(","),
                             "]"
@@ -460,11 +469,11 @@ pub fn execute(
 
             Instr::StoreFuncArg(id) => args.push(id),
             Instr::ArrayMov(new_elem_reg_id, array_id, idx) => {
-                arrays.get_mut(array_id as usize).unwrap()[idx as usize] =
+                array_pool.get_mut(array_id as usize).unwrap()[idx as usize] =
                     registers[new_elem_reg_id as usize];
             }
             Instr::SetElementArray(array_reg_id, new_elem_reg_id, idx) => {
-                let array = arrays
+                let array = array_pool
                     .get_mut(registers[array_reg_id as usize].as_array() as usize)
                     .unwrap();
                 let index = registers[idx as usize].as_int() as usize;
@@ -509,7 +518,7 @@ pub fn execute(
             // takes tgt from  registers, index is index, dest is registers index destination
             Instr::GetIndexArray(array_reg_id, index, dest) => {
                 let idx = registers[index as usize].as_int();
-                let array = &arrays[registers[array_reg_id as usize].as_array() as usize];
+                let array = &array_pool[registers[array_reg_id as usize].as_array() as usize];
                 if likely(array.len() > idx as usize) {
                     registers[dest as usize] = array[idx as usize];
                 } else {
@@ -546,13 +555,13 @@ pub fn execute(
                 }
             }
             Instr::Push(array, element) => {
-                arrays
+                array_pool
                     .get_mut(registers[array as usize].as_array() as usize)
                     .unwrap()
                     .push(registers[element as usize]);
             }
             Instr::Remove(array, idx) => {
-                arrays[registers[array as usize].as_array() as usize]
+                array_pool[registers[array as usize].as_array() as usize]
                     .remove(registers[idx as usize].as_int() as usize);
             }
             Instr::CallLibFunc(LibFunc::Uppercase, source_string_reg_id, dest_reg_id) => {
@@ -576,7 +585,7 @@ pub fn execute(
                 } else if reg.is_array() {
                     let arg = registers[args.pop().unwrap() as usize];
                     registers[dest as usize] =
-                        arrays[reg.as_array() as usize].contains(&arg).into();
+                        array_pool[reg.as_array() as usize].contains(&arg).into();
                 }
             }
             Instr::CallLibFunc(LibFunc::Trim, tgt, dest) => {
@@ -604,8 +613,9 @@ pub fn execute(
                 } else if reg.is_array() {
                     let arr_id = reg.as_array();
                     let element = registers[args.pop().unwrap() as usize];
-                    registers[dest as usize] = if let Some(idx) =
-                        arrays[arr_id as usize].iter().position(|x| x == &element)
+                    registers[dest as usize] = if let Some(idx) = array_pool[arr_id as usize]
+                        .iter()
+                        .position(|x| x == &element)
                     {
                         idx as i32
                     } else {
@@ -662,8 +672,9 @@ pub fn execute(
                     registers[dest as usize] = str.repeat(repeat_count as usize).into();
                 } else if reg.is_array() {
                     let repeat_count = registers[args.pop().unwrap() as usize].as_int();
-                    let array_id = arrays.len() as u32;
-                    arrays.push(arrays[reg.as_array() as usize].repeat(repeat_count as usize));
+                    let array_id = array_pool.len() as u32;
+                    array_pool
+                        .push(array_pool[reg.as_array() as usize].repeat(repeat_count as usize));
                     registers[dest as usize] = Data::array(array_id);
                 }
             }
@@ -716,7 +727,7 @@ pub fn execute(
                         reg.as_str().chars().rev().collect::<String>().into();
                 } else if reg.is_array() {
                     let id = reg.as_array();
-                    arrays[id as usize].reverse();
+                    array_pool[id as usize].reverse();
                     // registers[dest as usize] = Data::array(id);
                 }
             }
@@ -759,7 +770,7 @@ pub fn execute(
             }
             Instr::CallLibFunc(LibFunc::Str, tgt, dest) => {
                 registers[dest as usize] =
-                    format_data(&registers[tgt as usize], Some(arrays), false).into();
+                    format_data(&registers[tgt as usize], Some(array_pool), false).into();
             }
             Instr::CallLibFunc(LibFunc::Bool, tgt, dest) => {
                 let str = registers[tgt as usize].as_str();
@@ -788,7 +799,8 @@ pub fn execute(
             Instr::CallLibFunc(LibFunc::Len, tgt, dest) => {
                 let reg = registers[tgt as usize];
                 if reg.is_array() {
-                    registers[dest as usize] = (arrays[reg.as_array() as usize].len() as i32).into()
+                    registers[dest as usize] =
+                        (array_pool[reg.as_array() as usize].len() as i32).into()
                 } else if reg.is_str() {
                     registers[dest as usize] = (reg.as_str().chars().count() as i32).into()
                 }
@@ -818,8 +830,8 @@ pub fn execute(
                 let source = registers[source_register as usize];
                 let separator = args.pop().unwrap();
                 if source.is_str() {
-                    let output_str_register_id = arrays.len() as u32;
-                    arrays.push(
+                    let output_str_register_id = array_pool.len() as u32;
+                    array_pool.push(
                         source
                             .as_str()
                             .split(registers[separator as usize].as_str())
@@ -828,15 +840,18 @@ pub fn execute(
                     );
                     registers[dest_register as usize] = Data::array(output_str_register_id);
                 } else if source.is_array() {
-                    let base_id = arrays.len() as u32;
+                    let base_id = array_pool.len() as u32;
                     // get the array and split it
-                    arrays[source.as_array() as usize]
+                    array_pool[source.as_array() as usize]
                         .to_vec()
                         .split(|x| x == &registers[separator as usize])
-                        .for_each(|x| arrays.push(x.to_vec()));
-                    let final_id = arrays.len() as u32;
-                    arrays.push((base_id..final_id).map(Data::array).collect::<Vec<Data>>());
-                    registers[dest_register as usize] = Data::array(final_id);
+                        .for_each(|x| array_pool.push(x.to_vec()));
+                    let final_id = array_pool.len() as u32;
+                    let array_id = alloc_array(array_pool, &mut free_arrays);
+                    array_pool[array_id as usize] =
+                        (base_id..final_id).map(Data::array).collect::<Vec<Data>>();
+
+                    registers[dest_register as usize] = Data::array(array_id);
                 }
             }
             Instr::CallLibFunc(LibFunc::Range, max, dest) => {
@@ -846,8 +861,8 @@ pub fn execute(
                     0
                 };
                 let max = registers[max as usize].as_int();
-                let output_array_id = arrays.len() as u32;
-                arrays.push((min..max).map(|x| x.into()).collect());
+                let output_array_id = array_pool.len() as u32;
+                array_pool.push((min..max).map(|x| x.into()).collect());
                 registers[dest as usize] = Data::array(output_array_id);
             }
             Instr::CallLibFunc(LibFunc::JoinStringArray, tgt, dest) => {
@@ -857,7 +872,7 @@ pub fn execute(
                     String::new()
                 };
                 registers[dest as usize] = itertools::intersperse(
-                    arrays[registers[tgt as usize].as_array() as usize]
+                    array_pool[registers[tgt as usize].as_array() as usize]
                         .iter()
                         .map(|x| x.as_str().to_string()),
                     separator,

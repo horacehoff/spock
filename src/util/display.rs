@@ -108,6 +108,9 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
     for (i, data) in registers.iter().enumerate() {
         println!(" [{i}] {}({data})", get_type_name(data))
     }
+    if instructions.is_empty() {
+        return;
+    }
     println!("{color_red}-- INSTRUCTIONS --{color_reset}");
     let mut flows: Vec<(usize, usize)> = Vec::new();
     for (i, instr) in instructions.iter().enumerate() {
@@ -127,7 +130,7 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArraySto
             | Instr::EqJmp(_, _, jump_size)
             | Instr::ArrayEqJmp(_, _, jump_size) => flows.push((i, i + *jump_size as usize)),
             Instr::CallLibFunc(jump_size, _, _) => flows.push((i, *jump_size as usize)),
-            Instr::JmpBack(jump_size) => flows.push((i, i - *jump_size as usize)),
+            Instr::JmpBack(jump_size) => flows.push((i, i.saturating_sub(*jump_size as usize))),
             Instr::CallFunc(n, _) => flows.push((i, *n as usize)),
             _ => continue,
         }
