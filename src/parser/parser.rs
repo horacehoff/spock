@@ -489,7 +489,7 @@ pub fn get_id(
                 name: _,
                 register_id,
                 infered_type: _,
-            }) = v.iter().find(|v_temp| *name == v_temp.name)
+            }) = v.iter().rfind(|v_temp| *name == v_temp.name)
             {
                 *register_id
             } else {
@@ -1319,7 +1319,6 @@ pub fn compile_expr(
                         let cond_code = compile_expr(code, v, p, output.len() as u16);
                         v.truncate(v_len);
                         debug!("COND CODE IS {cond_code:?}");
-                        // let offset = output.len() as u16;
                         output.extend(cond_code);
                     }
                 }
@@ -1359,19 +1358,20 @@ pub fn compile_expr(
                 }
                 // parse the condition, get its id
                 let condition_id = get_id(condition, v, p, &mut output, None, true, false, offset);
+                free_register(condition_id, free_registers, v, const_registers);
 
                 // parse the code block, clone the vars to avoid overriding anything
                 let v_len = v.len();
                 let loop_id = block_id + 1;
-                let mut cond_code = compile_expr(code, v, p, 0);
+
+                let mut cond_code = compile_expr(code, v, p, offset + output.len() as u16);
                 v.truncate(v_len);
 
                 // get length of the code, then add Cmp/OpCmp (decided by add_cmp), and add the condition logic
                 let mut len = (cond_code.len() + 2) as u16;
                 add_cmp(condition_id, &mut len, &mut output, true);
                 parse_loop_flow_control(&mut cond_code, loop_id, len, false);
-                let offset = output.len() as u16;
-                output.extend(apply_offset_to_absolute_instr!(cond_code, offset));
+                output.extend(cond_code);
                 output.push(Instr::JmpBack(len));
             }
             Expr::ForLoop(var_name, array_code) => {
@@ -1506,6 +1506,7 @@ pub fn compile_expr(
                     )
                 }
                 let elem_id = get_id(start_elem, v, p, &mut output, None, false, false, offset);
+                let end_elem_id = get_id(end_elem, v, p, &mut output, None, false, false, offset);
 
                 let v_len = v.len();
                 v.push(Variable {
@@ -1514,20 +1515,15 @@ pub fn compile_expr(
                     infered_type: DataType::Int,
                 });
                 // Compile the code inside the loop
-                let compiled_loop_code = compile_expr(code, v, p, 0);
+                let compiled_loop_code = compile_expr(code, v, p, offset + output.len() as u16);
                 let compiled_loop_code_len = compiled_loop_code.len() as u16;
 
                 // Loop logic
-                let end_elem_id = get_id(end_elem, v, p, &mut output, None, false, false, offset);
                 // Add an InfCmp first, to check if i < end_elem
-                output.push(Instr::SupEqIntJmp(
-                    elem_id,
-                    end_elem_id,
-                    compiled_loop_code_len + 3,
-                ));
+                let jmp_idx = output.len();
+                output.push(Instr::SupEqIntJmp(elem_id, end_elem_id, 0));
 
-                let offset = output.len() as u16;
-                output.extend(apply_offset_to_absolute_instr!(compiled_loop_code, offset));
+                output.extend(compiled_loop_code);
                 let len1 = output.len() as u16;
                 let one_cst_id =
                     get_id(&Expr::Int(1), v, p, &mut output, None, false, false, offset);
@@ -1537,6 +1533,8 @@ pub fn compile_expr(
                 // Jump back to the start of the function
                 output.push(Instr::JmpBack(2 + (len2 - len1) + compiled_loop_code_len));
 
+                let exit_size = (output.len() - jmp_idx) as u16;
+                output[jmp_idx] = Instr::SupEqIntJmp(elem_id, end_elem_id, exit_size);
                 v.truncate(v_len);
 
                 free_register(end_elem_id, free_registers, v, const_registers);
@@ -1586,7 +1584,7 @@ pub fn compile_expr(
                 let var_type = infer_type(y, v, fns, src, p);
                 let id = v
                     .iter()
-                    .find(|x| x.name == *name)
+                    .rfind(|x| x.name == *name)
                     .unwrap_or_else(|| {
                         parser_error(
                             src,
