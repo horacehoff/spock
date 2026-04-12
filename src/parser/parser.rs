@@ -1001,30 +1001,6 @@ fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_len
     });
 }
 
-macro_rules! apply_offset_to_absolute_instr {
-    ($instructions: expr, $offset:expr) => {
-        $instructions.into_iter().map(|instr| match instr {
-            Instr::CallFunc(loc, ret) => Instr::CallFunc(loc + $offset, ret),
-            Instr::CallFuncRecursive(loc, ret) => Instr::CallFuncRecursive(loc + $offset, ret),
-            other => other,
-        })
-    };
-}
-
-// #[inline(always)]
-// pub fn apply_offset(instructions: Vec<Instr>, offset: u16) {
-//     instructions
-//         .iter()
-//         .map(|instr| {
-//             |instr| match instr {
-//                 Instr::CallFunc(loc, ret) => Instr::CallFunc(loc + offset, ret),
-//                 Instr::CallFuncRecursive(loc, ret) => Instr::CallFuncRecursive(loc + offset, ret),
-//                 other => other,
-//             }
-//         })
-//         .into_iter()
-// }
-
 #[inline(always)]
 pub fn compile_expr(
     input: &[Expr],
@@ -1353,9 +1329,9 @@ pub fn compile_expr(
             }
             Expr::WhileBlock(condition, code) => {
                 // try to optimize it (if it's a summation loop)
-                if while_loop_summation(&mut output, v, p, condition, code) {
-                    continue;
-                }
+                // if while_loop_summation(&mut output, v, p, condition, code) {
+                //     continue;
+                // }
                 // parse the condition, get its id
                 let condition_id = get_id(condition, v, p, &mut output, None, true, false, offset);
                 free_register(condition_id, free_registers, v, const_registers);
@@ -1384,9 +1360,9 @@ pub fn compile_expr(
                 let array = get_id(array, v, p, &mut output, None, false, false, offset);
 
                 // try to optimize it
-                if for_loop_summation(&mut output, registers, v, array, code) {
-                    continue;
-                }
+                // if for_loop_summation(&mut output, registers, v, array, code) {
+                //     continue;
+                // }
 
                 // add an instruction to get array length (func id 2 = len)
                 // let array_len_id = registers.len() as u16;
