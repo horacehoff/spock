@@ -97,11 +97,11 @@ impl Data {
         debug_assert!(self.is_str());
         if (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_SMALL {
             let payload = self.0 & PAYLOAD_MASK;
-            let len = payload
-                .to_le_bytes()
-                .iter()
-                .position(|&b| b == 0)
-                .unwrap_or(6);
+            let len = if payload == 0 {
+                0
+            } else {
+                (payload.ilog2() / 8 + 1) as usize
+            };
             let ptr = self as *const Data as *const u8;
             unsafe {
                 let slice = std::slice::from_raw_parts(ptr, len);
