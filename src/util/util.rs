@@ -1,4 +1,9 @@
-use crate::type_system::DataType;
+use crate::color_bright_blue;
+use crate::color_reset;
+use crate::style_bold;
+use crate::style_reset;
+use crate::{errors::error, type_system::DataType};
+use smol_str::SmolStr;
 
 #[cold]
 #[inline(never)]
@@ -25,6 +30,26 @@ macro_rules! debug {
     ($($x:tt)*) => {
         #[cfg(debug_assertions)]
         println!("[DEBUG] {}", format_args!($($x)*))
+    }
+}
+
+pub fn str_to_type(s: &SmolStr) -> DataType {
+    if s == "int" {
+        DataType::Int
+    } else if s == "float" {
+        DataType::Float
+    } else if s == "bool" {
+        DataType::Bool
+    } else if s == "string" {
+        DataType::String
+    } else {
+        error(
+            format_args!(
+                "Unknown type {color_bright_blue}{style_bold}{s}{color_reset}{style_reset}"
+            )
+            .as_str()
+            .unwrap(),
+        );
     }
 }
 

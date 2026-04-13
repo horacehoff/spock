@@ -62,6 +62,7 @@ fn alloc_array(array_pool: &mut ArrayStorage, free_arrays: &mut Vec<u16>) -> u32
 struct CallFrame {
     return_addr: u32,
     return_reg: u16,
+    callsite_id: u16,
 }
 
 pub fn execute(
@@ -105,6 +106,7 @@ pub fn execute(
                 call_frames.push(CallFrame {
                     return_addr: i as u32,
                     return_reg: return_id,
+                    callsite_id: 0,
                 });
                 i = new_loc as usize;
                 continue;
@@ -122,14 +124,14 @@ pub fn execute(
                     ptr.read().return_addr as usize
                 };
             }
-            Instr::SaveFrame(relative_func_loc, return_register, fn_id) => {
+            Instr::SaveFrame(relative_func_loc, return_register, callsite_id) => {
                 call_frames.push(CallFrame {
                     return_addr: (i + relative_func_loc as usize) as u32,
                     return_reg: return_register,
+                    callsite_id,
                 });
-                // Create a "snapshot" of the registers, so as to be able to reset them when the function returns.
                 recursion_stack.extend(
-                    fn_registers[fn_id as usize]
+                    fn_registers[callsite_id as usize]
                         .iter()
                         .map(|&r| registers[r as usize]),
                 );
@@ -153,7 +155,7 @@ pub fn execute(
                     ptr.read()
                 };
                 let temp = registers[tgt as usize];
-                let regs = &fn_registers[fn_id as usize];
+                let regs = &fn_registers[call_frame.callsite_id as usize];
                 let base = recursion_stack.len() - regs.len();
                 for (reg, &saved) in regs.iter().zip(&recursion_stack[base..]) {
                     registers[*reg as usize] = saved;

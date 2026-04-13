@@ -5,6 +5,7 @@ use crate::errors::error;
 use crate::type_system::DataType;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
+use crate::util::str_to_type;
 
 grammar;
 
@@ -214,17 +215,9 @@ pub Code: Box<[Expr]> = {
     <s: Statement*> => s.into_boxed_slice()
 }
 
-
-ManualType:DataType = {
-    "int" => DataType::Int,
-    "float" => DataType::Float,
-    "bool" => DataType::Bool,
-    "string" => DataType::String,
-}
-
 pub FnSignature:(SmolStr, Box<[DataType]>, DataType) = {
-    <return_type: ManualType?> <fn_name: Var> <args: Args<ManualType>> ";" => {
-        (fn_name, Box::from(args), if let Some(t) = return_type {t} else {DataType::Null})
+    <return_type: Var?> <fn_name: Var> <args: Args<Var>> ";" => {
+        (fn_name, Box::from(args.iter().map(|t| str_to_type(t)).collect::<Vec<DataType>>()), if let Some(t) = return_type {str_to_type(&t)} else {DataType::Null})
     }
 }
 

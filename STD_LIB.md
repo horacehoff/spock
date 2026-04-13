@@ -14,7 +14,6 @@ print("Hello, World!");
 print([42]);
 ```
 
-
 ## Type
 
 `type(T) -> String`\
