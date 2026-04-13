@@ -22,6 +22,7 @@ pub enum DataType {
     File,
     Null,
     Poly(Box<[DataType]>),
+    // Fn(Box<[DataType]>, Box<DataType>),
 }
 
 pub fn is_indexable(x: &DataType) -> bool {

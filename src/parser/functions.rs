@@ -253,13 +253,17 @@ pub fn handle_functions(
                     fns.get(function_id).unwrap().impls.last().unwrap()
                 };
 
-                if is_recursive {
+                let saveframe_loc = output.len();
+                let callsite_id = if is_recursive {
+                    let id = fn_registers.len() as u16;
+                    fn_registers.push(Vec::new());
                     output.push(Instr::SaveFrame(0, 0, 0));
                     *allocated_call_depth += 2;
-                }
-                let saveframe_loc = output.len() - 1;
+                    Some(id)
+                } else {
+                    None
+                };
                 // Move evaluated call args into the expected arg slots
-                // if let Some(fn_args) = &fn_loc_data {
                 let fn_args = fn_loc_data.args_loc.to_vec();
                 for (x, tgt_id) in fn_args.iter().enumerate() {
                     let start_len = output.len();
@@ -267,24 +271,22 @@ pub fn handle_functions(
                     let arg_id =
                         get_id(&args[x], v, p, output, Some(*tgt_id), false, false, offset);
                     debug!("MOVING ARG TO {tgt_id}");
-                    // If get_id emitted code, adjust arg dest with move_to_id
                     if output.len() != start_len {
                         move_to_id(output, *tgt_id);
                     } else {
-                        // Else just directly move the arg to the expected slot
                         output.push(Instr::Mov(arg_id, *tgt_id))
                     }
                 }
-                fn_registers
-                    .get_mut(fn_id as usize)
-                    .unwrap()
-                    .extend(get_tgt_ids(&output[saveframe_loc..]));
+                if !is_recursive {
+                    fn_registers
+                        .get_mut(fn_id as usize)
+                        .unwrap()
+                        .extend(get_tgt_ids(&output[saveframe_loc..]));
+                }
                 let loc = fn_loc_data.loc;
 
                 let return_register_id = if !*fn_returns_void {
                     alloc_register(registers, free_registers)
-                    // registers.push(NULL);
-                    // (registers.len() - 1) as u16
                 } else {
                     0
                 };
@@ -301,11 +303,10 @@ pub fn handle_functions(
                     output[saveframe_loc] = Instr::SaveFrame(
                         (output.len() - 1 - saveframe_loc) as u16,
                         return_register_id,
-                        fn_id,
+                        callsite_id.unwrap(),
                     );
                 }
 
-                // Return return slot address
                 return Some(return_register_id);
             }
         }
@@ -426,41 +427,43 @@ fn compile_function(
     );
 
     if is_recursive {
-        // Build the full set of registers the function writes to
-        let mut fn_reg_set: Vec<u16> = fn_registers[fn_id as usize].clone();
-        fn_reg_set.extend(get_tgt_ids(&parsed));
-        fn_reg_set.sort_unstable();
-        fn_reg_set.dedup();
+        let all_written_regs: Vec<u16> = get_tgt_ids(&parsed);
 
-        // Only save registers that are actually read after a recursive call.
-        let mut live_regs: Vec<u16> = Vec::new();
-        for (i, instr) in parsed.iter().enumerate() {
+        // For each recursive call, only save registers that are read between that call's return and the end of the function
+        for (pos, instr) in parsed.iter().enumerate() {
             if matches!(instr, Instr::CallFuncRecursive(_, _)) {
-                for after_instr in &parsed[(i + 1)..] {
+                // Walk backwards to find this call's SaveFrame and its callsite_id
+                let callsite_id = parsed[..pos]
+                    .iter()
+                    .rev()
+                    .find_map(|i| match i {
+                        Instr::SaveFrame(_, _, cid) => Some(*cid),
+                        _ => None,
+                    })
+                    .unwrap();
+
+                let mut live_regs: Vec<u16> = Vec::new();
+                for after_instr in &parsed[pos + 1..] {
                     for_each_read_reg(*after_instr, |reg| {
-                        if fn_reg_set.contains(&reg) {
+                        if all_written_regs.contains(&reg) {
                             live_regs.push(reg);
                         }
                     });
                 }
+                live_regs.sort_unstable();
+                live_regs.dedup();
+                *fn_registers.get_mut(callsite_id as usize).unwrap() = live_regs;
             }
         }
-
-        live_regs.sort_unstable();
-        live_regs.dedup();
-        *fn_registers.get_mut(fn_id as usize).unwrap() = live_regs;
     } else {
-        // Store the full set of registers the function writes to
         fn_registers
             .get_mut(fn_id as usize)
             .unwrap()
             .extend(get_tgt_ids(&parsed));
     }
-    // fns.get_mut(function_id).unwrap().5.extend(fn_registers);
 
     output.extend(parsed);
 
-    // JmpLoad to return to the call site (which will also return a value if necessary)
     output.push(Instr::VoidReturn);
 
     // Fix the placeholder Jmp(0) to skip over the function body
