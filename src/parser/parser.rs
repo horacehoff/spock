@@ -368,7 +368,7 @@ pub fn get_id(
         src,
         _,
         _,
-        _,
+        dyn_libs,
         _,
         _,
         const_registers,
@@ -378,8 +378,8 @@ pub fn get_id(
     macro_rules! uniform_op {
         ($instr: ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type:expr) => {{
             let (t_l, t_r) = (
-                infer_type($l, v, fns, src, p),
-                infer_type($r, v, fns, src, p),
+                infer_type($l, v, fns, src, dyn_libs),
+                infer_type($r, v, fns, src, dyn_libs),
             );
             if t_l != $type || t_r != $type {
                 op_error!(src, t_l, t_r, $symbol, *$start, *$end);
@@ -400,8 +400,8 @@ pub fn get_id(
         }};
         ($instr: ident, $instr2:ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type1:expr, $type2:expr) => {{
             let (t_l, t_r) = (
-                infer_type($l, v, fns, src, p),
-                infer_type($r, v, fns, src, p),
+                infer_type($l, v, fns, src, dyn_libs),
+                infer_type($r, v, fns, src, dyn_libs),
             );
             if !((t_l == $type1 && t_r == $type1) || (t_l == $type2 && t_r == $type2)) {
                 op_error!(src, t_l, t_r, $symbol, *$start, *$end);
@@ -514,10 +514,10 @@ pub fn get_id(
             }
         }
         Expr::Array(elems, start, end) => {
-            let first_type = infer_type(&elems[0], v, fns, src, p);
+            let first_type = infer_type(&elems[0], v, fns, src, dyn_libs);
             if !elems
                 .iter()
-                .all(|x| infer_type(x, v, fns, src, p) == first_type)
+                .all(|x| infer_type(x, v, fns, src, dyn_libs) == first_type)
             {
                 parser_error(
                     src,
@@ -581,8 +581,8 @@ pub fn get_id(
             )
         }
         Expr::Add(l, r, start, end) => {
-            let t_l = infer_type(l, v, fns, src, p);
-            let t_r = infer_type(r, v, fns, src, p);
+            let t_l = infer_type(l, v, fns, src, dyn_libs);
+            let t_r = infer_type(r, v, fns, src, dyn_libs);
             if t_l != t_r
                 || !matches!(
                     t_l,
@@ -653,8 +653,8 @@ pub fn get_id(
             )
         }
         Expr::Eq(l, r) => {
-            let is_array = matches!(infer_type(l, v, fns, src, p), DataType::Array(_))
-                && matches!(infer_type(r, v, fns, src, p), DataType::Array(_));
+            let is_array = matches!(infer_type(l, v, fns, src, dyn_libs), DataType::Array(_))
+                && matches!(infer_type(r, v, fns, src, dyn_libs), DataType::Array(_));
             let id_l = get_id(l, v, p, output, None, false, false, offset);
             let id_r = get_id(r, v, p, output, None, false, false, offset);
             free_register(id_l, free_registers, v, const_registers);
@@ -685,8 +685,8 @@ pub fn get_id(
             } else {
                 alloc_register(registers, free_registers)
             };
-            if matches!(infer_type(l, v, fns, src, p), DataType::Array(_))
-                && matches!(infer_type(r, v, fns, src, p), DataType::Array(_))
+            if matches!(infer_type(l, v, fns, src, dyn_libs), DataType::Array(_))
+                && matches!(infer_type(r, v, fns, src, dyn_libs), DataType::Array(_))
             {
                 output.push(Instr::ArrayNotEq(id_l, id_r, id));
             } else {
@@ -753,7 +753,7 @@ pub fn get_id(
             uniform_op!(BoolOr, "||", l, r, start, end, DataType::Bool)
         }
         Expr::Neg(l, start, end) => {
-            let infered = infer_type(l, v, fns, src, p);
+            let infered = infer_type(l, v, fns, src, dyn_libs);
             let id_l = get_id(l, v, p, output, None, false, false, offset);
             free_register(id_l, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
@@ -1105,7 +1105,7 @@ pub fn compile_expr(
         src,
         is_parsing_recursive,
         parsing_fn_id,
-        _,
+        dyn_libs,
         _,
         _,
         const_registers,
@@ -1146,10 +1146,10 @@ pub fn compile_expr(
                 }
             }
             Expr::Array(elems, start, end) => {
-                let first_type = infer_type(&elems[0], v, fns, src, p);
+                let first_type = infer_type(&elems[0], v, fns, src, dyn_libs);
                 if !elems
                     .iter()
-                    .all(|x| infer_type(x, v, fns, src, p) == first_type)
+                    .all(|x| infer_type(x, v, fns, src, dyn_libs) == first_type)
                 {
                     parser_error(
                         src,
@@ -1190,7 +1190,7 @@ pub fn compile_expr(
             }
             // array[index]
             Expr::GetIndex(array, index, start, end) => {
-                let mut infered = infer_type(array, v, fns, src, p);
+                let mut infered = infer_type(array, v, fns, src, dyn_libs);
                 // process the array/string that is being indexed
                 let mut id = get_id(array, v, p, &mut output, None, false, false, offset);
                 // for each indexing operation, process the index, adjust the id variable for the next index operation, push null to registers to use GetIndex to index at runtime
@@ -1209,7 +1209,7 @@ pub fn compile_expr(
                         );
                     }
 
-                    let index_infered = infer_type(elem, v, fns, src, p);
+                    let index_infered = infer_type(elem, v, fns, src, dyn_libs);
                     if index_infered != DataType::Int {
                         parser_error(
                             src,
@@ -1244,7 +1244,7 @@ pub fn compile_expr(
             }
             // x[y]... = z;
             Expr::ArrayModify(array, z, w, index_start, index_end, elem_start, elem_end) => {
-                let mut infered = infer_type(array, v, fns, src, p);
+                let mut infered = infer_type(array, v, fns, src, dyn_libs);
                 if !is_indexable(&infered) {
                     parser_error(
                         src,
@@ -1263,7 +1263,7 @@ pub fn compile_expr(
 
                 for elem in z.iter().rev().skip(1).rev() {
                     // Check if the index is an integer
-                    if infer_type(elem, v, fns, src, p) != DataType::Int {
+                    if infer_type(elem, v, fns, src, dyn_libs) != DataType::Int {
                         parser_error(
                             src,
                             *index_start,
@@ -1301,7 +1301,7 @@ pub fn compile_expr(
                     offset,
                 );
 
-                let elem_type = infer_type(w, v, fns, src, p);
+                let elem_type = infer_type(w, v, fns, src, dyn_libs);
                 let elem_id = get_id(w, v, p, &mut output, None, false, false, offset);
                 free_register(elem_id, free_registers, v, const_registers);
                 if is_array_with_incompatible_type(&infered, &elem_type)
@@ -1441,7 +1441,7 @@ pub fn compile_expr(
                 // parse the array, get its id (the target array is the first Expr in array_code)
                 let array = array_code.first().unwrap();
                 let code = &array_code[1..];
-                let array_type = infer_type(array, v, fns, src, p);
+                let array_type = infer_type(array, v, fns, src, dyn_libs);
                 let array = get_id(array, v, p, &mut output, None, false, false, offset);
 
                 // try to optimize it
@@ -1535,7 +1535,7 @@ pub fn compile_expr(
             }
             Expr::IntForLoop(var_name, start_elem, end_elem, code, start1, end1, start2, end2) => {
                 // Check start elem type
-                let t1 = infer_type(start_elem, v, fns, src, p);
+                let t1 = infer_type(start_elem, v, fns, src, dyn_libs);
                 if t1 != DataType::Int {
                     parser_error(
                         src,
@@ -1551,7 +1551,7 @@ pub fn compile_expr(
                     )
                 }
                 // Check end elem type
-                let t2 = infer_type(end_elem, v, fns, src, p);
+                let t2 = infer_type(end_elem, v, fns, src, dyn_libs);
                 if t2 != DataType::Int {
                     parser_error(
                         src,
@@ -1613,7 +1613,7 @@ pub fn compile_expr(
                 output.push(Instr::JmpBack(code_length));
             }
             Expr::VarDeclare(x, y) => {
-                let var_type = infer_type(y, v, fns, src, p);
+                let var_type = infer_type(y, v, fns, src, dyn_libs);
                 let output_len = output.len();
 
                 let var_id = if output.len() != output_len {
@@ -1642,7 +1642,7 @@ pub fn compile_expr(
                 });
             }
             Expr::VarAssign(name, y, start, end) => {
-                let var_type = infer_type(y, v, fns, src, p);
+                let var_type = infer_type(y, v, fns, src, dyn_libs);
                 let id = v
                     .iter()
                     .rfind(|x| x.name == *name)

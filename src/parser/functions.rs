@@ -57,7 +57,7 @@ pub fn handle_functions(
     ) = p.destructure();
 
     let mut check_type = |arg: usize, expected: &[DataType]| {
-        let infered = infer_type(&args[arg], v, fns, src, p);
+        let infered = infer_type(&args[arg], v, fns, src, dyn_libs);
         if !{
             if let DataType::Poly(polytype) = &infered {
                 polytype.iter().all(|x| expected.contains(x))
@@ -97,7 +97,7 @@ pub fn handle_functions(
             }
             "type" => {
                 check_args!(args, 1, "type", src, start, end);
-                let infered = infer_type(&args[0], v, fns, src, p);
+                let infered = infer_type(&args[0], v, fns, src, dyn_libs);
                 registers.push(infered.to_string().into());
             }
             "float" => {
@@ -226,7 +226,7 @@ pub fn handle_functions(
                 // Infer arg types
                 let infered_arg_types = args
                     .iter()
-                    .map(|x| infer_type(x, v, fns, src, p))
+                    .map(|x| infer_type(x, v, fns, src, dyn_libs))
                     .collect::<Vec<DataType>>();
 
                 // Try to check if function has already been compiled for these specific arg types
@@ -414,7 +414,7 @@ fn compile_function(
     is_recursive: bool,
     offset: u16,
 ) {
-    let (registers, fns, _, _, fn_registers, _, src, _, _, _, _, _, _, free_registers) =
+    let (registers, fns, _, _, fn_registers, _, src, _, _, dyn_libs, _, _, _, free_registers) =
         p.destructure();
     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
 
@@ -423,7 +423,7 @@ fn compile_function(
         .iter()
         .enumerate()
         .map(|(i, x)| {
-            let infered_type = infer_type(&args[i], v, fns, src, p);
+            let infered_type = infer_type(&args[i], v, fns, src, dyn_libs);
 
             // Allocate a registers slot for each func arg
             registers.push(NULL);
@@ -449,7 +449,7 @@ fn compile_function(
 
     let mut arg_types: Vec<usize> = Vec::with_capacity(args.len());
     args.iter().enumerate().for_each(|(i, x)| {
-        let infered_type = infer_type(x, v, fns, src, p);
+        let infered_type = infer_type(x, v, fns, src, dyn_libs);
         arg_types.push(v.len());
         // 0 => placeholder id, it's never used
         v.push(Variable {
@@ -458,7 +458,7 @@ fn compile_function(
             infered_type,
         });
     });
-    let fn_type = track_returns(fn_code, v, fns, src, fn_name, true, p);
+    let fn_type = track_returns(fn_code, v, fns, src, fn_name, true, dyn_libs);
     let return_type = if !fn_type.is_empty() {
         // If function returns anything, check if it returns the same thing each time
         check_poly(DataType::Poly(Box::from(fn_type)))
