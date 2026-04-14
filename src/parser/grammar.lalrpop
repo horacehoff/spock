@@ -332,9 +332,9 @@ Expression: Expr = {
     Term,
     ArrayIndex,
     // method call
-    <start: @L> <l:Expression> <end: @R> "." <f:FunctionCall> => {
-        if let Expr::FunctionCall(x,y,_,_,indexes) = f {
-            Expr::ObjFunctionCall(Box::from(l),x,y,start,end,indexes)
+    <start: @L> <l:Expression> <end: @R> "."  <f:FunctionCall>  => {
+        if let Expr::FunctionCall(x,y,fn_start,fn_end,indexes) = f {
+            Expr::ObjFunctionCall(Box::from(l),x,y,start,end,fn_start, fn_end, indexes)
         } else {
             unreachable!()
         }

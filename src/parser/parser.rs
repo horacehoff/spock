@@ -60,7 +60,13 @@ pub enum Expr {
         Box<Expr>,
         Box<[Expr]>,
         Box<[SmolStr]>,
+        // obj_start
         usize,
+        // obj_end
+        usize,
+        // fn_start
+        usize,
+        // fn_end
         usize,
         Box<[(usize, usize)]>,
     ),
@@ -1690,7 +1696,16 @@ pub fn compile_expr(
                     free_register(id, free_registers, v, const_registers);
                 }
             }
-            Expr::ObjFunctionCall(obj, args, namespace, start, end, args_indexes) => {
+            Expr::ObjFunctionCall(
+                obj,
+                args,
+                namespace,
+                start,
+                end,
+                fn_start,
+                fn_end,
+                args_indexes,
+            ) => {
                 handle_method_calls(
                     &mut output,
                     v,
@@ -1700,6 +1715,8 @@ pub fn compile_expr(
                     namespace,
                     *start,
                     *end,
+                    *fn_start,
+                    *fn_end,
                     args_indexes,
                     offset,
                 );
