@@ -1,5 +1,4 @@
 use crate::errors::dev_error;
-// use crate::errors::op_e
 use crate::errors::parser_error;
 use crate::op_error;
 use crate::parser::Expr;
@@ -12,7 +11,6 @@ use inline_colorization::*;
 use libffi::middle::Type;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
-#[repr(C)]
 pub enum DataType {
     Array(Box<DataType>),
     Float,
@@ -22,7 +20,8 @@ pub enum DataType {
     File,
     Null,
     Poly(Box<[DataType]>),
-    // Fn(Box<[DataType]>, Box<DataType>),
+    /// Fn (\[arg_types ... return_type\])
+    Fn(Box<[DataType]>),
 }
 
 pub fn is_indexable(x: &DataType) -> bool {
@@ -58,7 +57,7 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                     return true;
                 }
             }
-            Expr::ObjFunctionCall(x, y, _, _, _, _) => {
+            Expr::ObjFunctionCall(x, y, _, _, _, _, _, _) => {
                 if contains_recursive_call_expr(x, fn_name) || contains_recursive_call(y, fn_name) {
                     return true;
                 }
@@ -305,8 +304,10 @@ pub fn infer_type(
                 "bool" => DataType::Bool,
                 "input" => DataType::String,
                 "range" => DataType::Array(Box::from(DataType::Int)),
-                "floor" => DataType::Float,
                 "the_answer" => DataType::Int,
+                // File System
+                "read" => DataType::String,
+                "exists" => DataType::Bool,
                 function_name => {
                     if let Some(lib) = dyn_libs.iter().find(|l| l.name == namespace[0]) {
                         if let Some(FnSignature {
@@ -328,7 +329,7 @@ pub fn infer_type(
                                 *end,
                                 "Unknown function",
                                 format_args!(
-                                    "Function {color_bright_blue}{style_bold}{function_name}{color_reset}{style_reset} does not exist or has not been declared yet"
+                                    "Function {color_bright_blue}{style_bold}{function_name}{color_reset}{style_reset} does not exist"
                                 ),None
                             );
                         });
@@ -351,12 +352,7 @@ pub fn infer_type(
                     //     track_returns(fn_code, var_types, fns, src, function, true),
                     // ]
                     // .concat();
-
-                    // fn dedup(v: &mut Vec<DataType>) {
-                    //     let mut set = HashSet::new();
-                    //     v.retain(|x| set.insert(x.clone()));
-                    // }
-                    // dedup(&mut fn_type);
+                    // fn_type.dedup();
                     // -----
 
                     let fn_type = track_returns(fn_code, v, fns, src, function_name, true, p);
@@ -376,21 +372,24 @@ pub fn infer_type(
                 }
             }
         }
-        Expr::ObjFunctionCall(obj, _, namespace, _, _, _) => {
+        Expr::ObjFunctionCall(obj, _, namespace, _, _, _, _, _) => {
             match namespace.last().unwrap().as_str() {
                 "uppercase" => DataType::String,
                 "lowercase" => DataType::String,
+                "starts_with" => DataType::Bool,
+                "ends_with" => DataType::Bool,
+                "replace" => DataType::String,
                 "len" => DataType::Int,
                 "contains" => DataType::Bool,
                 "trim" => DataType::String,
                 "trim_sequence" => DataType::String,
-                "index" => DataType::Int,
-                "is_num" => DataType::Bool,
+                "find" => DataType::Int,
+                "is_float" => DataType::Bool,
+                "is_int" => DataType::Bool,
                 "trim_left" => DataType::String,
                 "trim_right" => DataType::String,
                 "trim_sequence_left" => DataType::String,
                 "trim_sequence_right" => DataType::String,
-                "rindex" => DataType::Int,
                 "repeat" => {
                     let obj_type = infer_type(obj, v, fns, src, p);
                     if obj_type == DataType::String {
@@ -404,6 +403,7 @@ pub fn infer_type(
                 "push" => DataType::Null,
                 "sqrt" => DataType::Float,
                 "round" => DataType::Float,
+                "floor" => DataType::Float,
                 "abs" => {
                     let obj_type = infer_type(obj, v, fns, src, p);
                     if obj_type == DataType::Float {
@@ -414,10 +414,6 @@ pub fn infer_type(
                         unreachable!()
                     }
                 }
-                // io::read => doesn't work
-                "read" => DataType::String,
-                // io::write => doesn't work
-                "write" => DataType::Null,
                 "reverse" => {
                     let obj_type = infer_type(obj, v, fns, src, p);
                     if obj_type == DataType::String {
@@ -428,17 +424,18 @@ pub fn infer_type(
                         todo!()
                     }
                 }
-                "split" => {
+                "split" => DataType::Array(Box::from(DataType::String)),
+                "partition" => {
                     let obj_type = infer_type(obj, v, fns, src, p);
-                    if obj_type == DataType::String {
-                        DataType::Array(Box::from(DataType::String))
-                    } else if let DataType::Array(array_type) = obj_type {
+                    if let DataType::Array(array_type) = obj_type {
                         DataType::Array(Box::from(DataType::Array(array_type)))
                     } else {
-                        todo!()
+                        unreachable!()
                     }
                 }
+                "join" => DataType::String,
                 "remove" => DataType::Null,
+
                 _ => todo!(),
             }
         }
@@ -464,7 +461,7 @@ pub fn infer_type(
     }
 }
 
-fn check_poly(data: DataType) -> DataType {
+pub fn check_poly(data: DataType) -> DataType {
     if let DataType::Poly(ref elems) = data {
         if !elems.is_empty() {
             let first_type = &elems[0];

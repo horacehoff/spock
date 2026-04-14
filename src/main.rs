@@ -896,6 +896,40 @@ pub fn execute(
                 }
                 registers[dest as usize] = output.into();
             }
+            // -----
+            // FILE SYSTEM FUNCTIONS
+            // -----
+            Instr::CallLibFunc(LibFunc::FsRead, path, dest_reg_id) => {
+                registers[dest_reg_id as usize] =
+                    fs::read_to_string(registers[path as usize].as_str())
+                        .unwrap_or_else(|_| {
+                            runtime_error(
+                                instr_src,
+                                src,
+                                &instructions[i],
+                                "Error",
+                                format_args!(
+                                    "Failed to read file {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                                    registers[path as usize].as_str()
+                                ),
+                            )
+                        })
+                        .into()
+            }
+            Instr::CallLibFunc(LibFunc::FsExists, path, dest_reg_id) => {
+                registers[dest_reg_id as usize] = fs::exists(registers[path as usize].as_str()).unwrap_or_else(#[cold] |_| {
+                    runtime_error(
+                        instr_src,
+                        src,
+                        &instructions[i],
+                        "Error",
+                        format_args!(
+                            "Failed to check if {color_bright_blue}{style_bold}{}{color_reset}{style_reset} exists",
+                            registers[path as usize].as_str()
+                        ),
+                    )
+                }).into()
+            }
         }
         i += 1;
     }

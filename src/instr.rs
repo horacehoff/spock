@@ -144,4 +144,6 @@ pub enum LibFunc {
     Split = 28,
     Range = 29,
     JoinStringArray = 30,
+    FsRead = 31,
+    FsExists = 32,
 }

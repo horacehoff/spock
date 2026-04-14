@@ -4,6 +4,7 @@ use crate::style_bold;
 use crate::style_reset;
 use crate::{errors::error, type_system::DataType};
 use smol_str::SmolStr;
+use smol_str::ToSmolStr;
 
 #[cold]
 #[inline(never)]
@@ -72,6 +73,25 @@ impl std::fmt::Display for DataType {
                     .collect::<Vec<String>>()
                     .join("|")
             ),
+            DataType::Fn(t) => {
+                write!(
+                    f,
+                    "({}) -> {}",
+                    t[..1]
+                        .iter()
+                        .map(|x| x.to_smolstr())
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    {
+                        let x = t.last().unwrap();
+                        if x == &DataType::Null {
+                            SmolStr::new_inline("")
+                        } else {
+                            x.to_smolstr()
+                        }
+                    }
+                )
+            }
         }
     }
 }

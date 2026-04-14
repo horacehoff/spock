@@ -1,5 +1,7 @@
 use crate::ArrayStorage;
 use crate::parser::Expr;
+use crate::parser_data::{Function, FunctionImpl};
+use crate::type_system::DataType;
 use crate::{Data, Instr};
 use inline_colorization::*;
 use smol_str::{SmolStr, ToSmolStr};
@@ -43,6 +45,29 @@ pub fn format_data(x: &Data, arrays: Option<&ArrayStorage>, show_str: bool) -> S
 impl std::fmt::Display for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", format_data(self, None, false))
+    }
+}
+
+pub fn display_fn_signatures(f: Function) {
+    for fn_impl in f.impls {
+        println!(
+            "{} : ({}) -> {}",
+            f.name,
+            fn_impl
+                .arg_types
+                .iter()
+                .map(|x| x.to_smolstr())
+                .collect::<Vec<_>>()
+                .join(", "),
+            {
+                let return_type = fn_impl.return_type;
+                if return_type != DataType::Null {
+                    return_type.to_smolstr()
+                } else {
+                    SmolStr::new_inline("()")
+                }
+            }
+        )
     }
 }
 

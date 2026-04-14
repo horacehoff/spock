@@ -19,10 +19,11 @@ pub fn handle_method_calls(
     output: &mut Vec<Instr>,
     v: &mut Vec<Variable>,
     p: &ParserData,
-
     obj: &Expr,
     args: &[Expr],
     namespace: &[SmolStr],
+    obj_start: usize,
+    obj_end: usize,
     start: usize,
     end: usize,
     args_indexes: &[(usize, usize)],
@@ -76,8 +77,8 @@ pub fn handle_method_calls(
             } {
                 parser_error(
                     src,
-                    start,
-                    end,
+                    obj_start,
+                    obj_end,
                     "Invalid type",
                     format_args!(
                         "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
@@ -556,7 +557,6 @@ pub fn handle_method_calls(
                     None,
                 );
             }
-
             let arg_id = get_id(&args[0], v, p, output, None, false, false, offset);
             free_register(arg_id, free_registers, v, const_registers);
             output.push(Instr::Remove(id, arg_id));

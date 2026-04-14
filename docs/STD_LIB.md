@@ -2,7 +2,7 @@
 
 > T represents any type.\
 > Array\<T\> represents an array containing elements of type T\
-> \<T\> represents any element of type T
+> \<T\> represents any expression of type T
 
 ## Print
 

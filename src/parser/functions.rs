@@ -19,10 +19,11 @@ use crate::parser_data::FunctionImpl;
 use crate::parser_data::ParserData;
 use crate::parser_data::Variable;
 use crate::type_system::DataType;
+use crate::type_system::check_poly;
 use crate::type_system::infer_type;
+use crate::type_system::track_returns;
 use inline_colorization::*;
 use smol_str::SmolStr;
-use std::collections::HashSet;
 use std::slice;
 
 pub fn handle_functions(
@@ -310,6 +311,45 @@ pub fn handle_functions(
                 return Some(return_register_id);
             }
         }
+    } else if namespace == ["fs"] {
+        match name {
+            "read" => {
+                check_args!(args, 1, "read", src, start, end);
+                check_type(0, &[DataType::String]);
+                let id = get_id(&args[0], v, p, output, None, false, false, offset);
+                free_register(id, free_registers, v, const_registers);
+                output.push(Instr::CallLibFunc(
+                    LibFunc::FsRead,
+                    id,
+                    alloc_register(registers, free_registers),
+                ));
+                instr_src.push((*output.last().unwrap(), start, end));
+            }
+            "exists" => {
+                check_args!(args, 1, "read", src, start, end);
+                check_type(0, &[DataType::String]);
+                let id = get_id(&args[0], v, p, output, None, false, false, offset);
+                free_register(id, free_registers, v, const_registers);
+                output.push(Instr::CallLibFunc(
+                    LibFunc::FsExists,
+                    id,
+                    alloc_register(registers, free_registers),
+                ));
+                instr_src.push((*output.last().unwrap(), start, end));
+            }
+            _ => {
+                parser_error(
+                    src,
+                    start,
+                    end,
+                    "Unknown function",
+                    format_args!(
+                        "Function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} does not exist or has not been declared yet"
+                    ),
+                    None,
+                );
+            }
+        }
     } else if let Some(lib) = dyn_libs.iter().find(|l| l.name == namespace[0]) {
         if let Some(FnSignature {
             name: fn_name,
@@ -407,11 +447,36 @@ fn compile_function(
     let fn_start = output.len();
     let loc = fn_start as u16 + offset;
 
+    let mut arg_types: Vec<usize> = Vec::with_capacity(args.len());
+    args.iter().enumerate().for_each(|(i, x)| {
+        let infered_type = infer_type(x, v, fns, src, p);
+        arg_types.push(v.len());
+        // 0 => placeholder id, it's never used
+        v.push(Variable {
+            name: fn_args[i].clone(),
+            register_id: 0,
+            infered_type,
+        });
+    });
+    let fn_type = track_returns(fn_code, v, fns, src, fn_name, true, p);
+    let return_type = if !fn_type.is_empty() {
+        // If function returns anything, check if it returns the same thing each time
+        check_poly(DataType::Poly(Box::from(fn_type)))
+    } else {
+        // If function doesn't return anything, return nothing
+        DataType::Null
+    };
+
+    arg_types.iter().for_each(|i| {
+        v.remove(*i);
+    });
+
     // Add this func specialization to the func's metadata, storing start location, location of args, and infered arg types
     fns.get_mut(function_id).unwrap().impls.push(FunctionImpl {
         loc,
         args_loc: Box::from(args_loc),
         arg_types: Box::from(infered_arg_types),
+        return_type: return_type,
     });
 
     // Compile the function into instructions using local vars
