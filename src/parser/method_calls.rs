@@ -2,8 +2,9 @@ use crate::Instr;
 use crate::LibFunc;
 use crate::check_args;
 use crate::check_args_range;
-use crate::display::format_expr;
+use crate::errors::ErrType;
 use crate::errors::parser_error;
+use crate::errors::throw_parser_error;
 use crate::get_id;
 use crate::parser::Expr;
 use crate::parser::alloc_register;
@@ -14,6 +15,7 @@ use crate::type_system::DataType;
 use crate::type_system::infer_type;
 use inline_colorization::*;
 use smol_str::SmolStr;
+use smol_str::ToSmolStr;
 
 pub fn handle_method_calls(
     output: &mut Vec<Instr>,
@@ -22,10 +24,8 @@ pub fn handle_method_calls(
     obj: &Expr,
     args: &[Expr],
     namespace: &[SmolStr],
-    obj_start: usize,
-    obj_end: usize,
-    start: usize,
-    end: usize,
+    obj_markers: &(usize, usize),
+    fn_markers: &(usize, usize),
     args_indexes: &[(usize, usize)],
     offset: u16,
 ) {
@@ -51,7 +51,7 @@ pub fn handle_method_calls(
     // not in use for now
     // let namespace = &namespace[0..len];
 
-    let infered = infer_type(obj, v, fns, src, dyn_libs);
+    let obj_type = infer_type(obj, v, fns, src, dyn_libs);
     let id = get_id(obj, v, p, output, None, false, false, offset);
     free_register(id, free_registers, v, const_registers);
 
@@ -69,23 +69,21 @@ pub fn handle_method_calls(
     macro_rules! check_type {
         ($expected:pat,$expected_str:expr) => {
             if !{
-                if let DataType::Poly(polytype) = &infered {
+                if let DataType::Poly(polytype) = &obj_type {
                     polytype.iter().all(|x| matches!(x, $expected))
                 } else {
-                    matches!(infered, $expected)
+                    matches!(obj_type, $expected)
                 }
             } {
-                parser_error(
+                throw_parser_error(
                     src,
-                    obj_start,
-                    obj_end,
-                    "Invalid type",
+                    obj_markers,
+                    ErrType::Custom(
                     format_args!(
-                        "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                        "Expected {color_bright_blue}{style_bold}{}{color_reset}{style_reset}, found {color_bright_red}{style_bold}{}{color_reset}{style_reset}",
                         $expected_str,
-                        infered
-                    ),
-                    None,
+                        obj_type
+                    ).to_smolstr())
                 );
             }
         };
@@ -99,8 +97,7 @@ pub fn handle_method_calls(
                 $args,
                 name,
                 src,
-                args_indexes[0].0,
-                args_indexes.last().unwrap().1
+                &(args_indexes[0].0, args_indexes.last().unwrap().1)
             )
         };
         ($expected:pat,$expected_str:expr, $args_min:expr,$args_max:expr) => {
@@ -173,7 +170,7 @@ pub fn handle_method_calls(
             check!(DataType::Array(_) | DataType::String, "Array or String", 1);
 
             let arg_infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if infered == DataType::String && arg_infered != DataType::String {
+            if obj_type == DataType::String && arg_infered != DataType::String {
                 parser_error(
                     src,
                     args_indexes[0].0,
@@ -232,7 +229,7 @@ pub fn handle_method_calls(
             check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
             let arg_infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if let DataType::Array(array_type) = &infered {
+            if let DataType::Array(array_type) = &obj_type {
                 if **array_type != arg_infered {
                     parser_error(
                         src,
@@ -241,12 +238,12 @@ pub fn handle_method_calls(
                         "Invalid type",
                         format_args!(
                             "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            array_type, infered, arg_infered
+                            array_type, obj_type, arg_infered
                         ),
                         None,
                     );
                 }
-            } else if arg_infered != infered {
+            } else if arg_infered != obj_type {
                 parser_error(
                     src,
                     args_indexes[0].0,
@@ -267,7 +264,7 @@ pub fn handle_method_calls(
                 id,
                 alloc_register(registers, free_registers),
             ));
-            instr_src.push((*output.last().unwrap(), start, end))
+            instr_src.push((*output.last().unwrap(), *fn_markers))
         }
         "is_float" => {
             check!(DataType::String, "String", 0);
@@ -381,7 +378,7 @@ pub fn handle_method_calls(
             check!(DataType::Array(_), "Array", 1);
 
             let arg_infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if let DataType::Array(array_type) = &infered
+            if let DataType::Array(array_type) = &obj_type
                 && **array_type != arg_infered
             {
                 parser_error(
@@ -391,7 +388,7 @@ pub fn handle_method_calls(
                     "Invalid type",
                     format_args!(
                         "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        array_type, infered, arg_infered
+                        array_type, obj_type, arg_infered
                     ),
                     None,
                 );
@@ -438,7 +435,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Reverse,
                 id,
-                if infered == DataType::String {
+                if obj_type == DataType::String {
                     alloc_register(registers, free_registers)
                 } else {
                     0
@@ -449,7 +446,7 @@ pub fn handle_method_calls(
             check!(DataType::String, "Array or String", 1);
 
             let arg_infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if infered != arg_infered {
+            if obj_type != arg_infered {
                 parser_error(
                     src,
                     args_indexes[0].0,
@@ -473,7 +470,7 @@ pub fn handle_method_calls(
             check!(DataType::Array(_), "Array", 1);
 
             let arg_infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if let DataType::Array(array_type) = infered
+            if let DataType::Array(array_type) = obj_type
                 && *array_type != arg_infered
             {
                 parser_error(
@@ -498,25 +495,15 @@ pub fn handle_method_calls(
         "join" => {
             let expected = DataType::Array(Box::from(DataType::String));
             if !{
-                if let DataType::Poly(polytype) = &infered {
+                if let DataType::Poly(polytype) = &obj_type {
                     polytype.iter().all(|x| x == &expected)
                 } else {
-                    infered == expected
+                    obj_type == expected
                 }
             } {
-                parser_error(
-                    src,
-                    start,
-                    end,
-                    "Invalid type",
-                    format_args!(
-                        "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        expected, infered
-                    ),
-                    None,
-                );
+                throw_parser_error(src, fn_markers, ErrType::InvalidType(expected, obj_type));
             }
-            check_args_range!(args, 0, 1, "join", src, start, end);
+            check_args_range!(args, 0, 1, "join", src, fn_markers);
             if !args.is_empty() {
                 let arg_infered = infer_type(&args[0], v, fns, src, dyn_libs);
                 if arg_infered != DataType::String {
@@ -560,19 +547,10 @@ pub fn handle_method_calls(
             let arg_id = get_id(&args[0], v, p, output, None, false, false, offset);
             free_register(arg_id, free_registers, v, const_registers);
             output.push(Instr::Remove(id, arg_id));
-            instr_src.push((*output.last().unwrap(), start, end));
+            instr_src.push((*output.last().unwrap(), *fn_markers));
         }
-        _ => {
-            parser_error(
-                src,
-                start,
-                end,
-                "Unknown function",
-                format_args!(
-                    "Function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} does not exist"
-                ),
-                None,
-            );
+        name => {
+            throw_parser_error(src, fn_markers, ErrType::UnknownFunction(name));
         }
     }
 }
