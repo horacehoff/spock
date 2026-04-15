@@ -2,18 +2,17 @@ use crate::data::Data;
 use crate::data::FALSE;
 use crate::data::NULL;
 use crate::display::format_data;
-use crate::errors::error;
-use crate::errors::runtime_error;
+use crate::errors::ErrType;
 use crate::errors::throw_error;
 use crate::instr::Instr;
 use crate::instr::LibFunc;
 use crate::parser::parse;
 use crate::parser_data::DynamicLibFn;
 use crate::util::likely;
-use concat_string::concat_string;
 use inline_colorization::*;
 use mimalloc::MiMalloc;
 use parser::*;
+use smol_str::ToSmolStr;
 use std::any::Any;
 use std::fs;
 use std::hint::black_box;
@@ -148,7 +147,7 @@ pub fn execute(
                 i = call_frame.return_addr as usize;
                 registers[call_frame.return_reg as usize] = registers[tgt as usize];
             }
-            Instr::RecursiveReturn(tgt, fn_id) => {
+            Instr::RecursiveReturn(tgt) => {
                 let call_frame = unsafe {
                     let new_len = call_frames.len() - 1;
                     let ptr = call_frames.as_mut_ptr().add(new_len);
@@ -195,12 +194,13 @@ pub fn execute(
                         } else if t == libffi::middle::Type::pointer().type_id() {
                             data.0
                         } else {
-                            runtime_error(
+                            throw_error(
                                 instr_src,
                                 src,
                                 &instructions[i],
-                                "Unknown argument type",
-                                format_args!("Unknown argument type: {t:?}"),
+                                ErrType::Custom(
+                                    format_args!("Invalid argument type: {t:?}").to_smolstr(),
+                                ),
                             );
                         }
                     });
@@ -226,12 +226,13 @@ pub fn execute(
                     } else if t == libffi::middle::Type::void().type_id() {
                         NULL
                     } else {
-                        runtime_error(
+                        throw_error(
                             instr_src,
                             src,
                             &instructions[i],
-                            "Unknown return type",
-                            format_args!("Unknown return type: {t:?}"),
+                            ErrType::Custom(
+                                format_args!("Invalid return type: {t:?}").to_smolstr(),
+                            ),
                         );
                     }
                 };
@@ -245,10 +246,8 @@ pub fn execute(
                     (registers[o1 as usize].as_int() + registers[o2 as usize].as_int()).into();
             }
             Instr::AddStr(o1, o2, dest) => {
-                registers[dest as usize] = concat_string!(
-                    registers[o1 as usize].as_str(),
-                    registers[o2 as usize].as_str()
-                )
+                registers[dest as usize] = (registers[o1 as usize].as_str().to_string()
+                    + registers[o2 as usize].as_str())
                 .into();
             }
             Instr::AddArray(o1, o2, dest) => {
@@ -460,14 +459,13 @@ pub fn execute(
                     writeln!(
                         handle,
                         "{}",
-                        concat_string!(
-                            "[",
+                        format_args!(
+                            "[{}]",
                             array_pool[tgt.as_array() as usize]
                                 .iter()
                                 .map(|x| format_data(x, Some(array_pool), false))
                                 .collect::<Vec<_>>()
                                 .join(","),
-                            "]"
                         )
                     )
                     .unwrap();
@@ -487,77 +485,57 @@ pub fn execute(
                 if likely(array.len() > index) {
                     array[index] = registers[new_elem_reg_id as usize];
                 } else {
-                    runtime_error(
+                    throw_error(
                         instr_src,
                         src,
                         &instructions[i],
-                        "Invalid index",
-                        format_args!(
-                            "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but array has {} elements",
-                            index,
-                            array.len()
-                        ),
+                        ErrType::IndexOutOfBounds(array.len(), index),
                     );
                 }
             }
             Instr::SetElementString(string_reg_id, new_str_reg_id, idx) => {
-                let index = registers[idx as usize].as_int();
+                let index = registers[idx as usize].as_int() as usize;
                 let source_string = registers[string_reg_id as usize].as_str();
-                if likely(source_string.len() > index as usize) {
+                if likely(source_string.len() > index) {
                     let mut temp = source_string.to_string();
-                    temp.remove(index as usize);
-                    temp.insert_str(index as usize, &registers[new_str_reg_id as usize].as_str());
+                    temp.remove(index);
+                    temp.insert_str(index, registers[new_str_reg_id as usize].as_str());
                     registers[string_reg_id as usize] = temp.into();
                 } else {
-                    runtime_error(
+                    throw_error(
                         instr_src,
                         src,
                         &instructions[i],
-                        "Invalid index",
-                        format_args!(
-                            "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but string has {} characters",
-                            index,
-                            source_string.len()
-                        ),
+                        ErrType::IndexOutOfBounds(source_string.len(), index),
                     );
                 }
             }
             // takes tgt from  registers, index is index, dest is registers index destination
             Instr::GetIndexArray(array_reg_id, index, dest) => {
-                let idx = registers[index as usize].as_int();
+                let idx = registers[index as usize].as_int() as usize;
                 let array = &array_pool[registers[array_reg_id as usize].as_array() as usize];
-                if likely(array.len() > idx as usize) {
-                    registers[dest as usize] = array[idx as usize];
+                if likely(array.len() > idx) {
+                    registers[dest as usize] = array[idx];
                 } else {
-                    runtime_error(
+                    throw_error(
                         instr_src,
                         src,
                         &instructions[i],
-                        "Invalid index",
-                        format_args!(
-                            "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but Array has {} elements",
-                            idx,
-                            array.len()
-                        ),
+                        ErrType::IndexOutOfBounds(array.len(), idx),
                     );
                 }
             }
             Instr::GetIndexString(tgt, index, dest) => {
-                let idx = registers[index as usize].as_int();
+                let idx = registers[index as usize].as_int() as usize;
                 let str = registers[tgt as usize].as_str();
-                if likely(str.len() > idx as usize) {
-                    registers[dest as usize] = str.get(idx as usize..=idx as usize).unwrap().into();
+                if likely(str.len() > idx) {
+                    registers[dest as usize] = str.get(idx..=idx).unwrap().into();
                 } else {
-                    runtime_error(
+                    throw_error(
                         instr_src,
                         src,
                         &instructions[i],
-                        "Invalid index",
-                        format_args!(
-                            "Trying to get index {color_bright_blue}{style_bold}{}{color_reset}{style_reset} but String has {} characters",
-                            idx,
-                            str.len()
-                        ),
+                        ErrType::IndexOutOfBounds(str.len(), idx),
                     );
                 }
             }
@@ -747,17 +725,9 @@ pub fn execute(
                 } else if reg.is_str() {
                     let str = reg.as_str();
                     registers[dest as usize] = (str.parse::<f64>().unwrap_or_else(|_| {
-                    runtime_error(instr_src,
-                    src,
-                    &
-                        instructions[i],
-                        "Invalid type",
-                        format_args!(
-                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Float",
-                            str
-                        )
-                    );
-                    })).into();
+                        throw_error(instr_src, src, &instructions[i], ErrType::FloatParsingError);
+                    }))
+                    .into();
                 }
             }
             Instr::CallLibFunc(LibFunc::Int, tgt, dest) => {
@@ -766,12 +736,10 @@ pub fn execute(
                     registers[dest as usize] = (reg.as_float().round() as i32).into();
                 } else if reg.is_str() {
                     let str = reg.as_str();
-                    registers[dest as usize] = (str.parse::<i32>().unwrap_or_else(|_| {
-                        runtime_error(instr_src, src, &instructions[i], "Invalid type", format_args!(
-                            "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into an Integer",
-                            str
-                        ));
-                    })).into();
+                    registers[dest as usize] = (str.parse::<i32>().unwrap_or_else(|e| {
+                        throw_error(instr_src, src, &instructions[i], (*e.kind()).into());
+                    }))
+                    .into();
                 }
             }
             Instr::CallLibFunc(LibFunc::Str, tgt, dest) => {
@@ -780,12 +748,10 @@ pub fn execute(
             }
             Instr::CallLibFunc(LibFunc::Bool, tgt, dest) => {
                 let str = registers[tgt as usize].as_str();
-                registers[dest as usize] = (str.parse::<bool>().unwrap_or_else(|_| {
-                    runtime_error(instr_src, src, &instructions[i], "Invalid type", format_args!(
-                        "Cannot convert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} into a Boolean",
-                        str
-                    ));
-                })).into();
+                registers[dest as usize] = (str.parse::<bool>().unwrap_or_else(|e| {
+                    throw_error(instr_src, src, &instructions[i], ErrType::BoolParsingError);
+                }))
+                .into();
             }
             Instr::CallLibFunc(LibFunc::Input, tgt, dest) => {
                 let str_msg = registers[tgt as usize].as_str();
@@ -932,11 +898,10 @@ fn main() {
     });
 
     let contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-        error(
-            format_args!("Unable to read contents of file {color_red}{filename}{color_reset}")
-                .as_str()
-                .unwrap(),
-        )
+        eprintln!(
+            "--------------\n{color_red}SPOCK RUNTIME ERROR:{color_reset}\nCannot read {color_bright_red}{style_bold}{filename}{style_reset}{color_reset}\n--------------",
+        );
+        std::process::exit(1);
     });
 
     let now = Instant::now();

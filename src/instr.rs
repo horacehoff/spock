@@ -74,7 +74,7 @@ pub enum Instr {
     Return(u16),
     /// RecursiveReturn(n,function_id)\
     /// Returns the data located in register n, and restores the function's register state
-    RecursiveReturn(u16, u16),
+    RecursiveReturn(u16),
     /// SaveFrame(function_location, return_register, function_id)
     SaveFrame(u16, u16, u16),
 

@@ -2,16 +2,13 @@ use crate::ArrayStorage;
 use crate::LibFunc;
 use crate::data::NULL;
 use crate::debug;
-use crate::display::print_debug;
 use crate::errors::ErrType;
 use crate::errors::dev_error;
 use crate::errors::lalrpop_error;
-use crate::errors::parser_error;
 use crate::errors::throw_parser_error;
 use crate::functions::handle_functions;
 use crate::grammar::Token;
 use crate::method_calls::handle_method_calls;
-use crate::op_error;
 use crate::parser_data::*;
 use crate::type_system::check_if_returns_void;
 use crate::type_system::contains_recursive_call;
@@ -19,7 +16,7 @@ use crate::type_system::datatype_to_c_type;
 use crate::type_system::is_array_with_incompatible_type;
 use crate::type_system::is_indexable;
 use crate::type_system::{DataType, infer_type};
-use crate::{Data, Instr, error};
+use crate::{Data, Instr};
 use inline_colorization::*;
 use lalrpop_util::lalrpop_mod;
 use smol_str::SmolStr;
@@ -42,9 +39,9 @@ pub enum Expr {
     /// VarDeclare(name, value),
     VarDeclare(SmolStr, Box<Expr>),
     /// VarDeclare(name, value, start, end)
-    VarAssign(SmolStr, Box<Expr>, usize, usize),
+    VarAssign(SmolStr, Box<Expr>, (usize, usize)),
     /// Condition(condition, code (contains else_if_blocks and potentially else_block), start, end)
-    Condition(Box<Expr>, Box<[Expr]>, usize, usize),
+    Condition(Box<Expr>, Box<[Expr]>, (usize, usize)),
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
     ElseBlock(Box<[Expr]>),
 
@@ -75,7 +72,7 @@ pub enum Expr {
         Box<[(usize, usize)]>,
     ),
     /// FunctionDecl(name+args, code, start, end)
-    FunctionDecl(Box<[SmolStr]>, Box<[Expr]>, usize, usize),
+    FunctionDecl(Box<[SmolStr]>, Box<[Expr]>, (usize, usize)),
 
     ReturnVal(Box<Option<Expr>>),
 
@@ -96,10 +93,8 @@ pub enum Expr {
         Box<Expr>,
         Box<Expr>,
         Box<[Expr]>,
-        usize,
-        usize,
-        usize,
-        usize,
+        (usize, usize),
+        (usize, usize),
     ),
     // --- Dynamic libs ---
     /// Import(lib_path, [(fn_name, fn_args, fn_return_type)])
@@ -111,42 +106,42 @@ pub enum Expr {
     EvalBlock(Box<[Expr]>),
     LoopBlock(Box<[Expr]>),
 
-    Mul(Box<Expr>, Box<Expr>, usize, usize),
-    Div(Box<Expr>, Box<Expr>, usize, usize),
-    Add(Box<Expr>, Box<Expr>, usize, usize),
-    Sub(Box<Expr>, Box<Expr>, usize, usize),
-    Mod(Box<Expr>, Box<Expr>, usize, usize),
-    Pow(Box<Expr>, Box<Expr>, usize, usize),
+    Mul(Box<Expr>, Box<Expr>, (usize, usize)),
+    Div(Box<Expr>, Box<Expr>, (usize, usize)),
+    Add(Box<Expr>, Box<Expr>, (usize, usize)),
+    Sub(Box<Expr>, Box<Expr>, (usize, usize)),
+    Mod(Box<Expr>, Box<Expr>, (usize, usize)),
+    Pow(Box<Expr>, Box<Expr>, (usize, usize)),
     Eq(Box<Expr>, Box<Expr>),
     NotEq(Box<Expr>, Box<Expr>),
-    Sup(Box<Expr>, Box<Expr>, usize, usize),
-    SupEq(Box<Expr>, Box<Expr>, usize, usize),
-    Inf(Box<Expr>, Box<Expr>, usize, usize),
-    InfEq(Box<Expr>, Box<Expr>, usize, usize),
-    BoolAnd(Box<Expr>, Box<Expr>, usize, usize),
-    BoolOr(Box<Expr>, Box<Expr>, usize, usize),
-    Neg(Box<Expr>, usize, usize),
+    Sup(Box<Expr>, Box<Expr>, (usize, usize)),
+    SupEq(Box<Expr>, Box<Expr>, (usize, usize)),
+    Inf(Box<Expr>, Box<Expr>, (usize, usize)),
+    InfEq(Box<Expr>, Box<Expr>, (usize, usize)),
+    BoolAnd(Box<Expr>, Box<Expr>, (usize, usize)),
+    BoolOr(Box<Expr>, Box<Expr>, (usize, usize)),
+    Neg(Box<Expr>, (usize, usize)),
 }
 
 #[cold]
 #[inline(never)]
 pub fn symbol_of_expr(expr: &Expr) -> &str {
     match expr {
-        Expr::Mul(_, _, _, _) => "*",
-        Expr::Div(_, _, _, _) => "/",
-        Expr::Add(_, _, _, _) => "+",
-        Expr::Sub(_, _, _, _) => "-",
-        Expr::Mod(_, _, _, _) => "%",
-        Expr::Pow(_, _, _, _) => "^",
+        Expr::Mul(_, _, _) => "*",
+        Expr::Div(_, _, _) => "/",
+        Expr::Add(_, _, _) => "+",
+        Expr::Sub(_, _, _) => "-",
+        Expr::Mod(_, _, _) => "%",
+        Expr::Pow(_, _, _) => "^",
         Expr::Eq(_, _) => "==",
         Expr::NotEq(_, _) => "!=",
-        Expr::Sup(_, _, _, _) => ">",
-        Expr::SupEq(_, _, _, _) => ">=",
-        Expr::Inf(_, _, _, _) => "<",
-        Expr::InfEq(_, _, _, _) => "<=",
-        Expr::BoolAnd(_, _, _, _) => "&&",
-        Expr::BoolOr(_, _, _, _) => "||",
-        Expr::Neg(_, _, _) => "-",
+        Expr::Sup(_, _, _) => ">",
+        Expr::SupEq(_, _, _) => ">=",
+        Expr::Inf(_, _, _) => "<",
+        Expr::InfEq(_, _, _) => "<=",
+        Expr::BoolAnd(_, _, _) => "&&",
+        Expr::BoolOr(_, _, _) => "||",
+        Expr::Neg(_, _) => "-",
         other => dev_error(
             "parser.rs",
             "symbol_of_expr",
@@ -291,7 +286,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::ArrayMov(_, _, _)
         | Instr::Push(_, _)
         | Instr::Return(_) // Modifies a register, but this function doesn't know which one
-        | Instr::RecursiveReturn(_, _) // Modifies a register, but this function doesn't know which one
+        | Instr::RecursiveReturn(_) // Modifies a register, but this function doesn't know which one
         | Instr::VoidReturn
         | Instr::Remove(_, _)
         | Instr::FreeArray(_) => None,
@@ -378,13 +373,14 @@ pub fn get_id(
     ) = p.destructure();
 
     macro_rules! uniform_op {
-        ($instr: ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type:expr) => {{
+        ($instr: ident,$symbol:expr, $l: expr, $r: expr, $markers: expr, $type:expr) => {{
             let (t_l, t_r) = (
                 infer_type($l, v, fns, src, dyn_libs),
                 infer_type($r, v, fns, src, dyn_libs),
             );
             if t_l != $type || t_r != $type {
-                op_error!(src, t_l, t_r, $symbol, *$start, *$end);
+                throw_parser_error(src, $markers, ErrType::OpError(t_l, t_r, $symbol))
+                // op_error!(src, t_l, t_r, $symbol, *$start, *$end);
             }
             let id_l = get_id($l, v, p, output, None, false, false, offset);
             let id_r = get_id($r, v, p, output, None, false, false, offset);
@@ -400,13 +396,14 @@ pub fn get_id(
             output.push(Instr::$instr(id_l, id_r, id));
             id
         }};
-        ($instr: ident, $instr2:ident,$symbol:expr, $l: expr, $r: expr, $start: expr, $end: expr, $type1:expr, $type2:expr) => {{
+        ($instr: ident, $instr2:ident,$symbol:expr, $l: expr, $r: expr, $markers: expr, $type1:expr, $type2:expr) => {{
             let (t_l, t_r) = (
                 infer_type($l, v, fns, src, dyn_libs),
                 infer_type($r, v, fns, src, dyn_libs),
             );
             if !((t_l == $type1 && t_r == $type1) || (t_l == $type2 && t_r == $type2)) {
-                op_error!(src, t_l, t_r, $symbol, *$start, *$end);
+                throw_parser_error(src, $markers, ErrType::OpError(t_l, t_r, $symbol))
+                // op_error!(src, t_l, t_r, $symbol, *$start, *$end);
             }
             let id_l = get_id($l, v, p, output, None, false, false, offset);
             let id_r = get_id($r, v, p, output, None, false, false, offset);
@@ -538,33 +535,31 @@ pub fn get_id(
             registers.push(Data::array(array_id as u32));
             (registers.len() - 1) as u16
         }
-        Expr::Mul(l, r, start, end) => {
+        Expr::Mul(l, r, markers) => {
             uniform_op!(
                 MulFloat,
                 MulInt,
                 "*",
                 l,
                 r,
-                start,
-                end,
+                markers,
                 DataType::Float,
                 DataType::Int
             )
         }
-        Expr::Div(l, r, start, end) => {
+        Expr::Div(l, r, markers) => {
             uniform_op!(
                 DivFloat,
                 DivInt,
                 "/",
                 l,
                 r,
-                start,
-                end,
+                markers,
                 DataType::Float,
                 DataType::Int
             )
         }
-        Expr::Add(l, r, start, end) => {
+        Expr::Add(l, r, markers) => {
             let t_l = infer_type(l, v, fns, src, dyn_libs);
             let t_r = infer_type(r, v, fns, src, dyn_libs);
             if t_l != t_r
@@ -573,7 +568,8 @@ pub fn get_id(
                     DataType::String | DataType::Array(_) | DataType::Float | DataType::Int
                 )
             {
-                op_error!(src, t_l, t_r, "+", *start, *end);
+                throw_parser_error(src, markers, ErrType::OpError(t_l, t_r, "+"));
+                // op_error!(src, t_l, t_r, "+", markers);
             }
             let id_l = get_id(l, v, p, output, None, false, false, offset);
             let id_r = get_id(r, v, p, output, None, false, false, offset);
@@ -597,41 +593,38 @@ pub fn get_id(
             }
             id
         }
-        Expr::Sub(l, r, start, end) => {
+        Expr::Sub(l, r, markers) => {
             uniform_op!(
                 SubFloat,
                 SubInt,
                 "-",
                 l,
                 r,
-                start,
-                end,
+                markers,
                 DataType::Float,
                 DataType::Int
             )
         }
-        Expr::Mod(l, r, start, end) => {
+        Expr::Mod(l, r, markers) => {
             uniform_op!(
                 ModFloat,
                 ModInt,
                 "%",
                 l,
                 r,
-                start,
-                end,
+                markers,
                 DataType::Float,
                 DataType::Int
             )
         }
-        Expr::Pow(l, r, start, end) => {
+        Expr::Pow(l, r, markers) => {
             uniform_op!(
                 PowFloat,
                 PowInt,
                 "^",
                 l,
                 r,
-                start,
-                end,
+                markers,
                 DataType::Float,
                 DataType::Int
             )
@@ -678,66 +671,62 @@ pub fn get_id(
             }
             id
         }
-        Expr::Sup(l, r, start, end) => {
+        Expr::Sup(l, r, markers) => {
             uniform_op!(
                 SupFloat,
                 SupInt,
                 ">",
                 l,
                 r,
-                start,
-                end,
+                markers,
                 DataType::Float,
                 DataType::Int
             )
         }
-        Expr::SupEq(l, r, start, end) => {
+        Expr::SupEq(l, r, markers) => {
             uniform_op!(
                 SupEqFloat,
                 SupEqInt,
                 ">=",
                 l,
                 r,
-                start,
-                end,
+                markers,
                 DataType::Float,
                 DataType::Int
             )
         }
-        Expr::Inf(l, r, start, end) => {
+        Expr::Inf(l, r, markers) => {
             uniform_op!(
                 InfFloat,
                 InfInt,
                 "<",
                 l,
                 r,
-                start,
-                end,
+                markers,
                 DataType::Float,
                 DataType::Int
             )
         }
-        Expr::InfEq(l, r, start, end) => {
+        Expr::InfEq(l, r, markers) => {
             uniform_op!(
                 InfEqFloat,
                 InfEqInt,
                 "<=",
                 l,
                 r,
-                start,
-                end,
+                markers,
                 DataType::Float,
                 DataType::Int
             )
         }
-        Expr::BoolAnd(l, r, start, end) => {
-            uniform_op!(BoolAnd, "&&", l, r, start, end, DataType::Bool)
+        Expr::BoolAnd(l, r, markers) => {
+            uniform_op!(BoolAnd, "&&", l, r, markers, DataType::Bool)
         }
-        Expr::BoolOr(l, r, start, end) => {
-            uniform_op!(BoolOr, "||", l, r, start, end, DataType::Bool)
+        Expr::BoolOr(l, r, markers) => {
+            uniform_op!(BoolOr, "||", l, r, markers, DataType::Bool)
         }
-        Expr::Neg(l, start, end) => {
-            let infered = infer_type(l, v, fns, src, dyn_libs);
+        Expr::Neg(l, markers) => {
+            let operand_type = infer_type(l, v, fns, src, dyn_libs);
             let id_l = get_id(l, v, p, output, None, false, false, offset);
             free_register(id_l, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
@@ -747,27 +736,17 @@ pub fn get_id(
             } else {
                 alloc_register(registers, free_registers)
             };
-            if infered == DataType::Float {
+            if operand_type == DataType::Float {
                 output.push(Instr::NegFloat(id_l, id))
-            } else if infered == DataType::Int {
+            } else if operand_type == DataType::Int {
                 output.push(Instr::NegInt(id_l, id))
             } else {
-                parser_error(
-                    src,
-                    *start,
-                    *end,
-                    "Invalid operation",
-                    format_args!(
-                        "Cannot negate {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        infered,
-                    ),
-                    None,
-                );
+                throw_parser_error(src, markers, ErrType::InvalidOp(operand_type, "-"));
             }
             id
         }
 
-        Expr::Condition(main_condition, code, start, end) => {
+        Expr::Condition(main_condition, code, markers) => {
             // let return_id = registers.len() as u16;
             // registers.push(NULL);
             let return_id = alloc_register(registers, free_registers);
@@ -849,14 +828,7 @@ pub fn get_id(
                 }
             }
             if !else_exists {
-                parser_error(
-                    src,
-                    *start,
-                    *end,
-                    "Invalid condition",
-                    format_args!("Inline conditions need an else statement"),
-                    None,
-                );
+                throw_parser_error(src, markers, ErrType::InvalidConditionalExpression);
             }
 
             for y in jmp_markers {
@@ -901,9 +873,7 @@ pub fn get_id(
             args_indexes,
             offset + output.len() as u16,
         )
-        .unwrap_or_else(|| {
-            get_last_tgt_id(&output).unwrap_or_else(|| (registers.len() - 1) as u16)
-        }),
+        .unwrap_or_else(|| get_last_tgt_id(output).unwrap_or_else(|| (registers.len() - 1) as u16)),
         other => {
             // dbg!(&other);
             let output_code = compile_expr(slice::from_ref(other), v, p, 0);
@@ -1053,7 +1023,7 @@ pub fn for_each_read_reg(instr: Instr, mut f: impl FnMut(u16)) {
         | Instr::Print(a)
         | Instr::StoreFuncArg(a)
         | Instr::Return(a)
-        | Instr::RecursiveReturn(a, _)
+        | Instr::RecursiveReturn(a)
         | Instr::IsFalseJmp(a, _) => f(a),
 
         Instr::ArrayMov(a, _, _) => f(a),
@@ -1249,7 +1219,7 @@ pub fn compile_expr(
                 output.push(to_push);
                 free_register(id, free_registers, v, const_registers);
             }
-            Expr::Condition(main_condition, code, _, _) => {
+            Expr::Condition(main_condition, code, _) => {
                 // get first code limit (after which there are only else(if) blocks)
                 let main_code_limit = code
                     .iter()
@@ -1453,38 +1423,16 @@ pub fn compile_expr(
                 // }
                 dbg!(&free_registers);
             }
-            Expr::IntForLoop(var_name, start_elem, end_elem, code, start1, end1, start2, end2) => {
+            Expr::IntForLoop(var_name, start_elem, end_elem, code, markers1, markers2) => {
                 // Check start elem type
                 let t1 = infer_type(start_elem, v, fns, src, dyn_libs);
                 if t1 != DataType::Int {
-                    parser_error(
-                        src,
-                        *start1,
-                        *end1,
-                        "Invalid type",
-                        format_args!(
-                            "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            DataType::Int,
-                            t1
-                        ),
-                        None,
-                    )
+                    throw_parser_error(src, markers1, ErrType::InvalidType(DataType::Int, t1));
                 }
                 // Check end elem type
                 let t2 = infer_type(end_elem, v, fns, src, dyn_libs);
                 if t2 != DataType::Int {
-                    parser_error(
-                        src,
-                        *start2,
-                        *end2,
-                        "Invalid type",
-                        format_args!(
-                            "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            DataType::Int,
-                            t2
-                        ),
-                        None,
-                    )
+                    throw_parser_error(src, markers2, ErrType::InvalidType(DataType::Int, t2));
                 }
                 let elem_id = get_id(start_elem, v, p, &mut output, None, false, false, offset);
                 let end_elem_id = get_id(end_elem, v, p, &mut output, None, false, false, offset);
@@ -1561,22 +1509,13 @@ pub fn compile_expr(
                     infered_type: var_type,
                 });
             }
-            Expr::VarAssign(name, y, start, end) => {
+            Expr::VarAssign(name, y, markers) => {
                 let var_type = infer_type(y, v, fns, src, dyn_libs);
                 let id = v
                     .iter()
                     .rfind(|x| x.name == *name)
                     .unwrap_or_else(|| {
-                        parser_error(
-                            src,
-                            *start,
-                            *end,
-                            "Unknown variable",
-                            format_args!(
-                                "Variable {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} has not been declared yet"
-                            ),
-                            Some(format_args!("Declare it with {color_green}let {name} = 0;{color_reset}"))
-                        )
+                        throw_parser_error(src, markers, ErrType::UnknownVariable(name));
                     })
                     .register_id;
 
@@ -1629,19 +1568,20 @@ pub fn compile_expr(
                     offset,
                 );
             }
-            Expr::FunctionDecl(x, y, start, end) => {
+            Expr::FunctionDecl(x, y, markers) => {
                 if fns.iter().any(|func| &func.name == x.first().unwrap()) {
-                    parser_error(
-                        src,
-                        *start,
-                        *end,
-                        "Function defined twice",
-                        format_args!(
-                            "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} is already defined",
-                            x[0]
-                        ),
-                        None,
-                    );
+                    throw_parser_error(src, markers, ErrType::FunctionAlreadyExists(&x[0]));
+                    // parser_error(
+                    //     src,
+                    //     *start,
+                    //     *end,
+                    //     "Function defined twice",
+                    //     format_args!(
+                    //         "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} is already defined",
+                    //         x[0]
+                    //     ),
+                    //     None,
+                    // );
                 }
                 fns.push(Function {
                     name: x.first().unwrap().clone(),
@@ -1658,7 +1598,7 @@ pub fn compile_expr(
                 if let Some(x) = &**val {
                     let id = get_id(x, v, p, &mut output, None, false, false, offset);
                     if is_parsing_recursive {
-                        output.push(Instr::RecursiveReturn(id, parsing_fn_id.unwrap()));
+                        output.push(Instr::RecursiveReturn(id));
                     } else {
                         output.push(Instr::Return(id));
                     }
@@ -1696,7 +1636,7 @@ pub fn parse(
 ) {
     let now = std::time::Instant::now();
     let code: Vec<Expr> = grammar::FileParser::new()
-        .parse(contents)
+        .parse((filename, contents), contents)
         .unwrap_or_else(|x| lalrpop_error::<usize, Token<'_>, &str>(x, contents, filename));
     println!("LALRPOP TIME {:.2?}", now.elapsed());
     // println!("FUNCS {functions:?}");
@@ -1716,7 +1656,7 @@ pub fn parse(
     let mut free_registers = Vec::new();
 
     for w in code {
-        if let Expr::FunctionDecl(x, y, _, _) = w {
+        if let Expr::FunctionDecl(x, y, _) = w {
             fn_registers.push(Vec::new());
             functions.push(Function {
                 name: x[0].to_smolstr(),
@@ -1782,7 +1722,10 @@ pub fn parse(
             .iter()
             .find(|func| func.name == "main")
             .unwrap_or_else(|| {
-                error("Could not find main function");
+                eprintln!(
+                    "--------------\n{color_red}SPOCK RUNTIME ERROR:{color_reset}\nCannot find {color_bright_blue}{style_bold}main{style_reset}{color_reset} function\n--------------",
+                );
+                std::process::exit(1);
             })
             .code
             .clone(),
@@ -1811,7 +1754,7 @@ pub fn parse(
     }
     #[cfg(debug_assertions)]
     {
-        print_debug(&instructions, &registers, &arrays);
+        crate::display::print_debug(&instructions, &registers, &arrays);
     }
     (
         instructions,

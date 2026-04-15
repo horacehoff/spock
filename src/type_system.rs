@@ -1,17 +1,13 @@
 use crate::errors::ErrType;
 use crate::errors::dev_error;
-use crate::errors::parser_error;
 use crate::errors::throw_parser_error;
-use crate::op_error;
 use crate::parser::Expr;
 use crate::parser::symbol_of_expr;
 use crate::parser_data::Dynamiclib;
 use crate::parser_data::FnSignature;
 use crate::parser_data::Function;
 use crate::parser_data::Variable;
-use inline_colorization::*;
 use libffi::middle::Type;
-use smol_str::ToSmolStr;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum DataType {
@@ -44,7 +40,7 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                     return true;
                 }
             }
-            Expr::Condition(x, y, _, _) => {
+            Expr::Condition(x, y, _) => {
                 if contains_recursive_call_expr(x, fn_name) || contains_recursive_call(y, fn_name) {
                     return true;
                 }
@@ -73,7 +69,7 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                 }
             }
             // name+args -- code
-            Expr::FunctionDecl(_, x, _, _) => {
+            Expr::FunctionDecl(_, x, _) => {
                 if contains_recursive_call(x, fn_name) {
                     return true;
                 }
@@ -83,27 +79,27 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                     return true;
                 }
             }
-            Expr::Mul(x, y, _, _)
-            | Expr::Div(x, y, _, _)
-            | Expr::Add(x, y, _, _)
-            | Expr::Sub(x, y, _, _)
-            | Expr::Mod(x, y, _, _)
-            | Expr::Pow(x, y, _, _)
+            Expr::Mul(x, y, _)
+            | Expr::Div(x, y, _)
+            | Expr::Add(x, y, _)
+            | Expr::Sub(x, y, _)
+            | Expr::Mod(x, y, _)
+            | Expr::Pow(x, y, _)
             | Expr::Eq(x, y)
             | Expr::NotEq(x, y)
-            | Expr::Sup(x, y, _, _)
-            | Expr::SupEq(x, y, _, _)
-            | Expr::Inf(x, y, _, _)
-            | Expr::InfEq(x, y, _, _)
-            | Expr::BoolAnd(x, y, _, _)
-            | Expr::BoolOr(x, y, _, _) => {
+            | Expr::Sup(x, y, _)
+            | Expr::SupEq(x, y, _)
+            | Expr::Inf(x, y, _)
+            | Expr::InfEq(x, y, _)
+            | Expr::BoolAnd(x, y, _)
+            | Expr::BoolOr(x, y, _) => {
                 if contains_recursive_call_expr(x, fn_name)
                     || contains_recursive_call_expr(y, fn_name)
                 {
                     return true;
                 }
             }
-            Expr::Neg(x, _, _) => {
+            Expr::Neg(x, _) => {
                 if contains_recursive_call_expr(x, fn_name) {
                     return true;
                 }
@@ -119,12 +115,12 @@ pub fn check_if_returns_void(content: &[Expr]) -> bool {
         match content {
             Expr::ElseIfBlock(_, code)
             | Expr::ElseBlock(code)
-            | Expr::Condition(_, code, _, _)
+            | Expr::Condition(_, code, _)
             | Expr::WhileBlock(_, code)
             | Expr::ForLoop(_, code)
             | Expr::EvalBlock(code)
             | Expr::LoopBlock(code)
-            | Expr::IntForLoop(_, _, _, code, _, _, _, _) => {
+            | Expr::IntForLoop(_, _, _, code, _, _) => {
                 if !check_if_returns_void(code) {
                     return false;
                 }
@@ -152,7 +148,7 @@ pub fn track_returns(
     let mut return_types: Vec<DataType> = Vec::new();
     for content in content {
         match content {
-            Expr::Condition(_, code, _, _) => {
+            Expr::Condition(_, code, _) => {
                 if track_condition {
                     return_types.extend(track_returns(
                         code,
@@ -178,7 +174,7 @@ pub fn track_returns(
             | Expr::ForLoop(_, code)
             | Expr::EvalBlock(code)
             | Expr::LoopBlock(code)
-            | Expr::IntForLoop(_, _, _, code, _, _, _, _) => return_types.extend(track_returns(
+            | Expr::IntForLoop(_, _, _, code, _, _) => return_types.extend(track_returns(
                 code,
                 v,
                 fns,
@@ -207,7 +203,7 @@ pub fn track_returns(
 }
 
 pub fn infer_type(
-    x: &Expr,
+    e: &Expr,
     v: &mut Vec<Variable>,
     fns: &[Function],
     src: (&str, &str),
@@ -215,7 +211,7 @@ pub fn infer_type(
     dyn_libs: &[Dynamiclib],
 ) -> DataType {
     // let (_, _, _, _, _, _, _, _, _, dyn_libs, _, _, _, free_registers) = p.destructure();
-    match x {
+    match e {
         Expr::Var(name, markers) => v
             .iter()
             .rfind(|x| &x.name == name)
@@ -229,7 +225,7 @@ pub fn infer_type(
         Expr::String(_) => DataType::String,
         Expr::Bool(_) => DataType::Bool,
         Expr::Array(x, _) => DataType::Array(Box::from(infer_type(&x[0], v, fns, src, dyn_libs))),
-        Expr::Add(x, y, start, end) => {
+        Expr::Add(x, y, markers) => {
             match (
                 infer_type(x, v, fns, src, dyn_libs),
                 infer_type(y, v, fns, src, dyn_libs),
@@ -238,56 +234,52 @@ pub fn infer_type(
                 (DataType::Int, DataType::Int) => DataType::Int,
                 (DataType::String, DataType::String) => DataType::String,
                 (DataType::Array(type1), DataType::Array(_)) => DataType::Array(type1),
-                (a, b) => {
-                    op_error!(src, a, b, "+", *start, *end)
-                }
+                (l, r) => throw_parser_error(src, markers, ErrType::OpError(l, r, "+")),
             }
         }
-        Expr::Mul(x, y, start, end)
-        | Expr::Div(x, y, start, end)
-        | Expr::Sub(x, y, start, end)
-        | Expr::Mod(x, y, start, end)
-        | Expr::Pow(x, y, start, end) => {
+        Expr::Mul(x, y, markers)
+        | Expr::Div(x, y, markers)
+        | Expr::Sub(x, y, markers)
+        | Expr::Mod(x, y, markers)
+        | Expr::Pow(x, y, markers) => {
             match (
                 infer_type(x, v, fns, src, dyn_libs),
                 infer_type(y, v, fns, src, dyn_libs),
             ) {
                 (DataType::Float, DataType::Float) => DataType::Float,
                 (DataType::Int, DataType::Int) => DataType::Int,
-                (a, b) => {
-                    op_error!(src, a, b, symbol_of_expr(x), *start, *end);
+                (l, r) => {
+                    throw_parser_error(src, markers, ErrType::OpError(l, r, symbol_of_expr(e)))
                 }
             }
         }
         Expr::Eq(_, _) => DataType::Bool,
         Expr::NotEq(_, _) => DataType::Bool,
-        Expr::Sup(x, y, start, end)
-        | Expr::SupEq(x, y, start, end)
-        | Expr::Inf(x, y, start, end)
-        | Expr::InfEq(x, y, start, end) => {
+        Expr::Sup(x, y, markers)
+        | Expr::SupEq(x, y, markers)
+        | Expr::Inf(x, y, markers)
+        | Expr::InfEq(x, y, markers) => {
             match (
                 infer_type(x, v, fns, src, dyn_libs),
                 infer_type(y, v, fns, src, dyn_libs),
             ) {
                 (DataType::Float, DataType::Float) => DataType::Bool,
                 (DataType::Int, DataType::Int) => DataType::Bool,
-                (a, b) => {
-                    op_error!(src, a, b, symbol_of_expr(x), *start, *end);
+                (l, r) => {
+                    throw_parser_error(src, markers, ErrType::OpError(l, r, symbol_of_expr(e)))
                 }
             }
         }
-        Expr::BoolAnd(x, y, start, end) | Expr::BoolOr(x, y, start, end) => {
+        Expr::BoolAnd(x, y, markers) | Expr::BoolOr(x, y, markers) => {
             match (
                 infer_type(x, v, fns, src, dyn_libs),
                 infer_type(y, v, fns, src, dyn_libs),
             ) {
                 (DataType::Bool, DataType::Bool) => DataType::Bool,
-                (a, b) => {
-                    op_error!(src, a, b, "||", *start, *end);
-                }
+                (l, r) => throw_parser_error(src, markers, ErrType::OpError(l, r, "||")),
             }
         }
-        Expr::Neg(x, _, _) => match infer_type(x, v, fns, src, dyn_libs) {
+        Expr::Neg(x, _) => match infer_type(x, v, fns, src, dyn_libs) {
             DataType::Float => DataType::Float,
             DataType::Int => DataType::Int,
             _ => todo!("TODO NEG ERR"),
@@ -456,7 +448,7 @@ pub fn infer_type(
                 _ => todo!(),
             }
         }
-        Expr::Condition(_, code, _, _) => {
+        Expr::Condition(_, code, _) => {
             let mut types: Vec<DataType> = Vec::with_capacity(code.len());
             types.push(infer_type(&code[0], v, fns, src, dyn_libs));
             for t in &code[0..] {
