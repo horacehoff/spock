@@ -4,7 +4,9 @@ use crate::check_args_range;
 use crate::data::NULL;
 use crate::debug;
 use crate::display::format_expr;
+use crate::errors::ErrType;
 use crate::errors::parser_error;
+use crate::errors::throw_parser_error;
 use crate::get_id;
 use crate::instr::LibFunc;
 use crate::parser::Expr;
@@ -24,6 +26,7 @@ use crate::type_system::infer_type;
 use crate::type_system::track_returns;
 use inline_colorization::*;
 use smol_str::SmolStr;
+use smol_str::ToSmolStr;
 use std::slice;
 
 pub fn handle_functions(
@@ -34,8 +37,7 @@ pub fn handle_functions(
     // method call data
     args: &[Expr],
     namespace: &[SmolStr],
-    start: usize,
-    end: usize,
+    markers: &(usize, usize),
     args_indexes: &[(usize, usize)],
     offset: u16,
 ) -> Option<u16> {
@@ -65,21 +67,19 @@ pub fn handle_functions(
                 expected.contains(&infered)
             }
         } {
-            parser_error(
+            throw_parser_error(
                 src,
-                args_indexes[arg].0,
-                args_indexes[arg].1,
-                "Invalid type",
+                &args_indexes[arg],
+                ErrType::Custom(
                 format_args!(
-                    "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
+                    "Expected {color_bright_blue}{style_bold}{}{color_reset}{style_reset}, found {color_bright_red}{style_bold}{}{color_reset}{style_reset}",
                     expected
                         .iter()
-                        .map(|x| x.to_string().to_lowercase())
+                        .map(|x| x.to_string())
                         .collect::<Vec<String>>()
-                        .join(" or "),
+                        .join("{color_reset}{style_reset} or {color_bright_blue}{style_bold}"),
                     infered
-                ),
-                None,
+                ).to_smolstr())
             );
         }
     };
@@ -96,12 +96,12 @@ pub fn handle_functions(
                 }
             }
             "type" => {
-                check_args!(args, 1, "type", src, start, end);
+                check_args!(args, 1, "type", src, markers);
                 let infered = infer_type(&args[0], v, fns, src, dyn_libs);
                 registers.push(infered.to_string().into());
             }
             "float" => {
-                check_args!(args, 1, "float", src, start, end);
+                check_args!(args, 1, "float", src, markers);
                 check_type(0, &[DataType::String, DataType::Int]);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
@@ -110,10 +110,10 @@ pub fn handle_functions(
                     id,
                     alloc_register(registers, free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), start, end));
+                instr_src.push((*output.last().unwrap(), *markers));
             }
             "int" => {
-                check_args!(args, 1, "int", src, start, end);
+                check_args!(args, 1, "int", src, markers);
                 check_type(0, &[DataType::String, DataType::Float]);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
@@ -122,10 +122,10 @@ pub fn handle_functions(
                     id,
                     alloc_register(registers, free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), start, end));
+                instr_src.push((*output.last().unwrap(), *markers));
             }
             "str" => {
-                check_args!(args, 1, "str", src, start, end);
+                check_args!(args, 1, "str", src, markers);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
@@ -135,7 +135,7 @@ pub fn handle_functions(
                 ));
             }
             "bool" => {
-                check_args!(args, 1, "bool", src, start, end);
+                check_args!(args, 1, "bool", src, markers);
                 check_type(0, &[DataType::String]);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
@@ -144,10 +144,10 @@ pub fn handle_functions(
                     id,
                     alloc_register(registers, free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), start, end));
+                instr_src.push((*output.last().unwrap(), *markers));
             }
             "input" => {
-                check_args_range!(args, 0, 1, "input", src, start, end);
+                check_args_range!(args, 0, 1, "input", src, markers);
                 check_type(0, &[DataType::String]);
                 let id = if args.is_empty() {
                     registers.push(SmolStr::new_static("").into());
@@ -163,7 +163,7 @@ pub fn handle_functions(
                 ));
             }
             "range" => {
-                check_args_range!(args, 1, 2, "range", src, start, end);
+                check_args_range!(args, 1, 2, "range", src, markers);
                 check_type(0, &[DataType::Int]);
                 if args.len() != 1 {
                     check_type(1, &[DataType::Int]);
@@ -187,7 +187,7 @@ pub fn handle_functions(
                 ));
             }
             "the_answer" => {
-                check_args!(args, 0, "the_answer", src, start, end);
+                check_args!(args, 0, "the_answer", src, markers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::TheAnswer,
                     0,
@@ -201,16 +201,7 @@ pub fn handle_functions(
                     .iter_mut()
                     .position(|func| func.name == fn_name)
                     .unwrap_or_else(|| {
-                        parser_error(
-                            src,
-                            start,
-                            end,
-                            "Unknown function",
-                            format_args!(
-                                "Function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} does not exist or has not been declared yet"
-                            ),
-                            None
-                        );
+                        throw_parser_error(src, markers, ErrType::UnknownFunction(fn_name));
                     });
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
                 let fn_id = fns[function_id].id;
@@ -221,7 +212,7 @@ pub fn handle_functions(
                 let fn_returns_void = &fns[function_id].returns_void;
 
                 let args_len = fn_args.len();
-                check_args!(args, args_len, fn_name, src, start, end);
+                check_args!(args, args_len, fn_name, src, markers);
 
                 // Infer arg types
                 let infered_arg_types = args
@@ -314,7 +305,7 @@ pub fn handle_functions(
     } else if namespace == ["fs"] {
         match name {
             "read" => {
-                check_args!(args, 1, "read", src, start, end);
+                check_args!(args, 1, "read", src, markers);
                 check_type(0, &[DataType::String]);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
@@ -323,10 +314,10 @@ pub fn handle_functions(
                     id,
                     alloc_register(registers, free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), start, end));
+                instr_src.push((*output.last().unwrap(), *markers));
             }
             "exists" => {
-                check_args!(args, 1, "read", src, start, end);
+                check_args!(args, 1, "read", src, markers);
                 check_type(0, &[DataType::String]);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
@@ -335,19 +326,10 @@ pub fn handle_functions(
                     id,
                     alloc_register(registers, free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), start, end));
+                instr_src.push((*output.last().unwrap(), *markers));
             }
-            _ => {
-                parser_error(
-                    src,
-                    start,
-                    end,
-                    "Unknown function",
-                    format_args!(
-                        "Function {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} does not exist or has not been declared yet"
-                    ),
-                    None,
-                );
+            name => {
+                throw_parser_error(src, markers, ErrType::UnknownFunction(name));
             }
         }
     } else if let Some(lib) = dyn_libs.iter().find(|l| l.name == namespace[0]) {
@@ -358,7 +340,7 @@ pub fn handle_functions(
             id,
         }) = lib.fns.iter().find(|x| x.name == name)
         {
-            check_args!(args, fn_args.len(), fn_name, src, start, end);
+            check_args!(args, fn_args.len(), fn_name, src, markers);
             for (i, a) in fn_args.iter().enumerate() {
                 check_type(i, slice::from_ref(a));
             }
@@ -378,23 +360,20 @@ pub fn handle_functions(
                 (registers.len() - 1) as u16
             };
             output.push(Instr::CallDynamicLibFunc(*id, register_id));
-            instr_src.push((Instr::CallDynamicLibFunc(*id, register_id), start, end));
+            instr_src.push((Instr::CallDynamicLibFunc(*id, register_id), *markers));
         }
     } else {
-        parser_error(
+        throw_parser_error(
             src,
-            start,
-            end,
-            "Unknown namespace",
-            format_args!(
-                "Namespace {color_bright_blue}{style_bold}{}{color_reset}{style_reset} does not exist",
+            markers,
+            ErrType::UnknownNamespace(
                 namespace
                     .iter()
                     .map(|x| (*x).to_string())
                     .collect::<Vec<String>>()
                     .join("::")
+                    .as_str(),
             ),
-            None,
         );
     }
     None

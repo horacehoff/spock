@@ -1,15 +1,17 @@
+use crate::errors::ErrType;
 use crate::errors::dev_error;
 use crate::errors::parser_error;
+use crate::errors::throw_parser_error;
 use crate::op_error;
 use crate::parser::Expr;
 use crate::parser::symbol_of_expr;
 use crate::parser_data::Dynamiclib;
 use crate::parser_data::FnSignature;
 use crate::parser_data::Function;
-use crate::parser_data::ParserData;
 use crate::parser_data::Variable;
 use inline_colorization::*;
 use libffi::middle::Type;
+use smol_str::ToSmolStr;
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum DataType {
@@ -21,7 +23,7 @@ pub enum DataType {
     File,
     Null,
     Poly(Box<[DataType]>),
-    /// Fn (\[arg_types ... return_type\])
+    /// Fn (\[arg_types ... return_type\]) => return_type is always specified
     Fn(Box<[DataType]>),
 }
 
@@ -37,7 +39,7 @@ fn contains_recursive_call_expr(expr: &Expr, fn_name: &str) -> bool {
 pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
     for content in content {
         match content {
-            Expr::FunctionCall(_, namespace, _, _, _) => {
+            Expr::FunctionCall(_, namespace, _, _) => {
                 if namespace.last().unwrap().as_str() == fn_name {
                     return true;
                 }
@@ -58,7 +60,7 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                     return true;
                 }
             }
-            Expr::ObjFunctionCall(x, y, _, _, _, _, _, _) => {
+            Expr::ObjFunctionCall(x, y, _, _, _, _) => {
                 if contains_recursive_call_expr(x, fn_name) || contains_recursive_call(y, fn_name) {
                     return true;
                 }
@@ -76,7 +78,7 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                     return true;
                 }
             }
-            Expr::GetIndex(x, y, _, _) => {
+            Expr::GetIndex(x, y, _) => {
                 if contains_recursive_call_expr(x, fn_name) || contains_recursive_call(y, fn_name) {
                     return true;
                 }
@@ -214,18 +216,11 @@ pub fn infer_type(
 ) -> DataType {
     // let (_, _, _, _, _, _, _, _, _, dyn_libs, _, _, _, free_registers) = p.destructure();
     match x {
-        Expr::Var(name, start, end) => v
+        Expr::Var(name, markers) => v
             .iter()
             .rfind(|x| &x.name == name)
             .unwrap_or_else(|| {
-                parser_error(
-                    src,
-                    *start,
-                    *end,
-                    "Variable type",
-                    format_args!("Unable to get variable's type"),
-                    None,
-                );
+                throw_parser_error(src, markers, ErrType::CannotInferType(name));
             })
             .infered_type
             .clone(),
@@ -233,9 +228,7 @@ pub fn infer_type(
         Expr::Int(_) => DataType::Int,
         Expr::String(_) => DataType::String,
         Expr::Bool(_) => DataType::Bool,
-        Expr::Array(x, _, _) => {
-            DataType::Array(Box::from(infer_type(&x[0], v, fns, src, dyn_libs)))
-        }
+        Expr::Array(x, _) => DataType::Array(Box::from(infer_type(&x[0], v, fns, src, dyn_libs))),
         Expr::Add(x, y, start, end) => {
             match (
                 infer_type(x, v, fns, src, dyn_libs),
@@ -299,12 +292,12 @@ pub fn infer_type(
             DataType::Int => DataType::Int,
             _ => todo!("TODO NEG ERR"),
         },
-        Expr::GetIndex(array, _, _, _) => match infer_type(array, v, fns, src, dyn_libs) {
+        Expr::GetIndex(array, _, _) => match infer_type(array, v, fns, src, dyn_libs) {
             DataType::Array(array_type) => *array_type,
             DataType::String => DataType::String,
             _ => todo!(),
         },
-        Expr::FunctionCall(args, namespace, start, end, _) => {
+        Expr::FunctionCall(args, namespace, markers, _) => {
             if namespace.len() == 1 && &namespace[0] == "io" {
                 match namespace.last().unwrap().as_str() {
                     "open" => return DataType::File,
@@ -338,16 +331,22 @@ pub fn infer_type(
                         }
                     }
 
-                    let Function {name:_, args:fn_args, code:fn_code, impls:_, is_recursive:_, id:_, returns_void: _} =
-                        fns.iter().find(|func| func.name == function_name).unwrap_or_else(|| {
-                            parser_error(
+                    let Function {
+                        name: _,
+                        args: fn_args,
+                        code: fn_code,
+                        impls: _,
+                        is_recursive: _,
+                        id: _,
+                        returns_void: _,
+                    } = fns
+                        .iter()
+                        .find(|func| func.name == function_name)
+                        .unwrap_or_else(|| {
+                            throw_parser_error(
                                 src,
-                                *start,
-                                *end,
-                                "Unknown function",
-                                format_args!(
-                                    "Function {color_bright_blue}{style_bold}{function_name}{color_reset}{style_reset} does not exist"
-                                ),None
+                                markers,
+                                ErrType::UnknownFunction(function_name),
                             );
                         });
 
@@ -390,7 +389,7 @@ pub fn infer_type(
                 }
             }
         }
-        Expr::ObjFunctionCall(obj, _, namespace, _, _, _, _, _) => {
+        Expr::ObjFunctionCall(obj, _, namespace, _, _, _) => {
             match namespace.last().unwrap().as_str() {
                 "uppercase" => DataType::String,
                 "lowercase" => DataType::String,

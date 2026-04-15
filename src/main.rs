@@ -4,6 +4,7 @@ use crate::data::NULL;
 use crate::display::format_data;
 use crate::errors::error;
 use crate::errors::runtime_error;
+use crate::errors::throw_error;
 use crate::instr::Instr;
 use crate::instr::LibFunc;
 use crate::parser::parse;
@@ -69,7 +70,7 @@ pub fn execute(
     instructions: &[Instr],
     registers: &mut [Data],
     array_pool: &mut ArrayStorage,
-    instr_src: &[(Instr, usize, usize)],
+    instr_src: &[(Instr, (usize, usize))],
     src: (&str, &str),
     fn_registers: &[Vec<u16>],
     dyn_libs: &[DynamicLibFn],
@@ -902,33 +903,17 @@ pub fn execute(
             Instr::CallLibFunc(LibFunc::FsRead, path, dest_reg_id) => {
                 registers[dest_reg_id as usize] =
                     fs::read_to_string(registers[path as usize].as_str())
-                        .unwrap_or_else(|_| {
-                            runtime_error(
-                                instr_src,
-                                src,
-                                &instructions[i],
-                                "Error",
-                                format_args!(
-                                    "Failed to read file {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                    registers[path as usize].as_str()
-                                ),
-                            )
+                        .unwrap_or_else(|t| {
+                            throw_error(instr_src, src, &instructions[i], t.kind().into())
                         })
                         .into()
             }
             Instr::CallLibFunc(LibFunc::FsExists, path, dest_reg_id) => {
-                registers[dest_reg_id as usize] = fs::exists(registers[path as usize].as_str()).unwrap_or_else(#[cold] |_| {
-                    runtime_error(
-                        instr_src,
-                        src,
-                        &instructions[i],
-                        "Error",
-                        format_args!(
-                            "Failed to check if {color_bright_blue}{style_bold}{}{color_reset}{style_reset} exists",
-                            registers[path as usize].as_str()
-                        ),
-                    )
-                }).into()
+                registers[dest_reg_id as usize] = fs::exists(registers[path as usize].as_str())
+                    .unwrap_or_else(|t| {
+                        throw_error(instr_src, src, &instructions[i], t.kind().into())
+                    })
+                    .into()
             }
         }
         i += 1;
@@ -1009,7 +994,7 @@ pub fn benchmark(
     instructions: &[Instr],
     registers: &mut [Data],
     arrays: &mut ArrayStorage,
-    instr_src: &[(Instr, usize, usize)],
+    instr_src: &[(Instr, (usize, usize))],
     src: (&str, &str),
     fn_registers: &[Vec<u16>],
     warmup_runs: usize,

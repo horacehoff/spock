@@ -94,14 +94,14 @@ pub fn format_expr(x: &Expr) -> SmolStr {
         Expr::Float(num) => num.to_smolstr(),
         Expr::Bool(bool) => bool.to_smolstr(),
         Expr::String(str) => format_args!("\"{str}\"").to_smolstr(),
-        Expr::Array(a, _, _) => format_args!(
+        Expr::Array(a, _) => format_args!(
             "[{}]",
             a.iter().map(format_expr).collect::<Vec<_>>().join(","),
         )
         .as_str()
         .unwrap()
         .to_smolstr(),
-        Expr::Var(x, _, _) => x.to_smolstr(),
+        Expr::Var(x, _) => x.to_smolstr(),
         _ => unreachable!(),
     }
 }

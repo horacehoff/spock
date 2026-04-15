@@ -98,51 +98,16 @@ impl std::fmt::Display for DataType {
 
 #[macro_export]
 macro_rules! check_args {
-    ($args:expr, $expected_args_len:expr, $fn_name:expr, $src:expr,$start:expr,$end:expr) => {
-        if $args.len() > $expected_args_len {
-            parser_error(
+    ($args:expr, $expected_args_len:expr, $fn_name:expr, $src:expr,$markers:expr) => {
+        if $args.len() != $expected_args_len {
+            throw_parser_error(
                 $src,
-                $start,
-                $end,
-                "Incorrect arguments for function",
-                format_args!(
-                    "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset}{} expects {} argument{}",
+                $markers,
+                ErrType::IncorrectFuncArgCount(
                     $fn_name,
-                    if $expected_args_len != 0 { " only" } else { "" },
-                    $expected_args_len,
-                    if $expected_args_len == 1 { "" } else { "s" }
+                    $expected_args_len as u16,
+                    $args.len() as u16,
                 ),
-                Some(format_args!(
-                    "Replace with {color_green}{}({}){color_reset}",
-                    $fn_name,
-                    $args[0..$expected_args_len]
-                        .iter()
-                        .map(|x| format_expr(x))
-                        .collect::<Vec<SmolStr>>()
-                        .join(",")
-                ))
-            );
-        } else if $args.len() < $expected_args_len {
-            parser_error(
-                $src,
-                $start,
-                $end,
-                "Incorrect arguments for function",
-                format_args!(
-                    "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects {} argument{}",
-                    $fn_name,
-                    $expected_args_len,
-                    if $expected_args_len == 1 { "" } else { "s" }
-                ),
-                Some(format_args!(
-                    "Add {} additional argument{}",
-                    $expected_args_len - $args.len(),
-                    if $expected_args_len - $args.len() > 1 {
-                        "s"
-                    } else {
-                        ""
-                    }
-                ))
             );
         }
     };
@@ -150,80 +115,19 @@ macro_rules! check_args {
 
 #[macro_export]
 macro_rules! check_args_range {
-    ($args:expr, $min_args_len:expr,$max_args_len:expr, $fn_name:expr, $src:expr,$start:expr,$end:expr) => {
-            if const {$min_args_len == 0} {
-                if $args.len() > $max_args_len {
-                    parser_error(
-                        $src,
-                        $start,
-                        $end,
-                        "Incorrect arguments for function",
-                        format_args!(
-                            "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects at most {} argument{}",
-                            $fn_name,
-                            $max_args_len,
-                            if $max_args_len > 1 { "s" } else { "" }
-                        ),
-                        Some(format_args!(
-                            "Remove {} argument{}",
-                            $args.len() - $max_args_len,
-                            if $args.len() - $max_args_len > 1 {
-                                "s"
-                            } else {
-                                ""
-                            }
-                        ))
-                    );
-                }
-            } else {
-                if $args.len() < $min_args_len {
-                    parser_error(
-                        $src,
-                        $start,
-                        $end,
-                        "Incorrect arguments for function",
-                        format_args!(
-                            "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects at least {} argument{}",
-                            $fn_name,
-                            $min_args_len,
-                            if $min_args_len > 1 { "s" } else { "" }
-                        ),
-                        Some(format_args!(
-                            "Add {} additional argument{}",
-                            $min_args_len - $args.len(),
-                            if $min_args_len - $args.len() > 1 {
-                                "s"
-                            } else {
-                                ""
-                            }
-                        ))
-                    );
-                } else if $args.len() > $max_args_len {
-                    parser_error(
-                        $src,
-                        $start,
-                        $end,
-                        "Incorrect arguments for function",
-                        format_args!(
-                            "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} expects at most {} argument{}",
-                            $fn_name,
-                            $max_args_len,
-                            if $max_args_len > 1 { "s" } else { "" }
-                        ),
-                        Some(format_args!(
-                            "Remove {} argument{}",
-                            $args.len() - $max_args_len,
-                            if $args.len() - $max_args_len > 1 {
-                                "s"
-                            } else {
-                                ""
-                            }
-                        ))
-                    );
-
-            }
+    ($args:expr, $min_args_len:expr,$max_args_len:expr, $fn_name:expr, $src:expr,$markers:expr) => {
+        if $args.len() < $min_args_len || $args.len() > $max_args_len {
+            throw_parser_error(
+                $src,
+                $markers,
+                ErrType::IncorrectFuncArgCountVariable(
+                    $fn_name.into(),
+                    $min_args_len as u16,
+                    $max_args_len as u16,
+                    $args.len() as u16,
+                ),
+            );
         }
-
     };
 }
 

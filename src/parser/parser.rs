@@ -3,14 +3,15 @@ use crate::LibFunc;
 use crate::data::NULL;
 use crate::debug;
 use crate::display::print_debug;
+use crate::errors::ErrType;
 use crate::errors::dev_error;
 use crate::errors::lalrpop_error;
 use crate::errors::parser_error;
+use crate::errors::throw_parser_error;
 use crate::functions::handle_functions;
 use crate::grammar::Token;
 use crate::method_calls::handle_method_calls;
 use crate::op_error;
-use crate::optimizations::{for_loop_summation, while_loop_summation};
 use crate::parser_data::*;
 use crate::type_system::check_if_returns_void;
 use crate::type_system::contains_recursive_call;
@@ -35,9 +36,9 @@ pub enum Expr {
     Bool(bool),
     String(SmolStr),
     /// Var(name, start, end)
-    Var(SmolStr, usize, usize),
+    Var(SmolStr, (usize, usize)),
     /// Array(contents, start, end)
-    Array(Box<[Expr]>, usize, usize),
+    Array(Box<[Expr]>, (usize, usize)),
     /// VarDeclare(name, value),
     VarDeclare(SmolStr, Box<Expr>),
     /// VarDeclare(name, value, start, end)
@@ -52,8 +53,7 @@ pub enum Expr {
     FunctionCall(
         Box<[Expr]>,
         Box<[SmolStr]>,
-        usize,
-        usize,
+        (usize, usize),
         Box<[(usize, usize)]>,
     ),
     ObjFunctionCall(
@@ -61,13 +61,17 @@ pub enum Expr {
         Box<[Expr]>,
         Box<[SmolStr]>,
         // obj_start
-        usize,
-        // obj_end
-        usize,
+        (
+            usize,
+            // obj_end
+            usize,
+        ),
         // fn_start
-        usize,
-        // fn_end
-        usize,
+        (
+            usize,
+            // fn_end
+            usize,
+        ),
         Box<[(usize, usize)]>,
     ),
     /// FunctionDecl(name+args, code, start, end)
@@ -75,15 +79,13 @@ pub enum Expr {
 
     ReturnVal(Box<Option<Expr>>),
 
-    GetIndex(Box<Expr>, Box<[Expr]>, usize, usize),
+    GetIndex(Box<Expr>, Box<[Expr]>, (usize, usize)),
     ArrayModify(
         Box<Expr>,
         Box<[Expr]>,
         Box<Expr>,
-        usize,
-        usize,
-        usize,
-        usize,
+        (usize, usize),
+        (usize, usize),
     ),
 
     /// ForLoop(loop_var_name, loop_array+code)
@@ -490,7 +492,7 @@ pub fn get_id(
                 (registers.len() - 1) as u16
             }
         }
-        Expr::Var(name, start, end) => {
+        Expr::Var(name, markers) => {
             if let Some(Variable {
                 name: _,
                 register_id,
@@ -499,34 +501,16 @@ pub fn get_id(
             {
                 *register_id
             } else {
-                parser_error(
-                    src,
-                    *start,
-                    *end,
-                    "Unknown variable",
-                    format_args!(
-                        "Variable {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} has not been declared yet"
-                    ),
-                    Some(format_args!(
-                        "Declare it with {color_green}let {name} = 0;{color_reset}"
-                    )),
-                )
+                throw_parser_error(src, markers, ErrType::UnknownVariable(name))
             }
         }
-        Expr::Array(elems, start, end) => {
+        Expr::Array(elems, markers) => {
             let first_type = infer_type(&elems[0], v, fns, src, dyn_libs);
             if !elems
                 .iter()
                 .all(|x| infer_type(x, v, fns, src, dyn_libs) == first_type)
             {
-                parser_error(
-                    src,
-                    *start,
-                    *end,
-                    "Array",
-                    format_args!("Arrays can only hold one type of value"),
-                    None,
-                );
+                throw_parser_error(src, markers, ErrType::ArrayWithDiffType);
             }
             let array_id = {
                 arrays.push(Vec::new());
@@ -907,14 +891,13 @@ pub fn get_id(
             free_register(condition_id, free_registers, v, const_registers);
             return_id
         }
-        Expr::FunctionCall(args, namespace, start, end, args_indexes) => handle_functions(
+        Expr::FunctionCall(args, namespace, markers, args_indexes) => handle_functions(
             output,
             v,
             p,
             args,
             namespace,
-            *start,
-            *end,
+            markers,
             args_indexes,
             offset + output.len() as u16,
         )
@@ -1119,7 +1102,7 @@ pub fn compile_expr(
             Expr::Int(num) => registers.push((*num).into()),
             Expr::Bool(bool) => registers.push((*bool).into()),
             Expr::String(str) => registers.push(str.as_str().into()),
-            Expr::Var(name, start, end) => {
+            Expr::Var(name, markers) => {
                 if let Some(Variable {
                     name: _,
                     register_id,
@@ -1131,34 +1114,16 @@ pub fn compile_expr(
                         alloc_register(registers, free_registers),
                     ));
                 } else {
-                    parser_error(
-                        src,
-                        *start,
-                        *end,
-                        "Unknown variable",
-                        format_args!(
-                            "Variable {color_bright_blue}{style_bold}{name}{color_reset}{style_reset} has not been declared yet"
-                        ),
-                        Some(format_args!(
-                            "Declare it with {color_green}let {name} = 0;{color_reset}"
-                        )),
-                    );
+                    throw_parser_error(src, markers, ErrType::UnknownVariable(name))
                 }
             }
-            Expr::Array(elems, start, end) => {
+            Expr::Array(elems, markers) => {
                 let first_type = infer_type(&elems[0], v, fns, src, dyn_libs);
                 if !elems
                     .iter()
                     .all(|x| infer_type(x, v, fns, src, dyn_libs) == first_type)
                 {
-                    parser_error(
-                        src,
-                        *start,
-                        *end,
-                        "Array",
-                        format_args!("Arrays can only hold one type of value"),
-                        None,
-                    );
+                    throw_parser_error(src, markers, ErrType::ArrayWithDiffType);
                 }
                 // create new blank array with latest id
                 let array_id = {
@@ -1189,39 +1154,19 @@ pub fn compile_expr(
                 registers.push(Data::array(array_id as u32));
             }
             // array[index]
-            Expr::GetIndex(array, index, start, end) => {
+            Expr::GetIndex(array, index, markers) => {
                 let mut infered = infer_type(array, v, fns, src, dyn_libs);
                 // process the array/string that is being indexed
                 let mut id = get_id(array, v, p, &mut output, None, false, false, offset);
                 // for each indexing operation, process the index, adjust the id variable for the next index operation, push null to registers to use GetIndex to index at runtime
                 for elem in index {
                     if !is_indexable(&infered) {
-                        parser_error(
-                            src,
-                            *start,
-                            *end,
-                            "Invalid type",
-                            format_args!(
-                                "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                                infered,
-                            ),
-                            None,
-                        );
+                        throw_parser_error(src, markers, ErrType::NotIndexable(infered));
                     }
 
                     let index_infered = infer_type(elem, v, fns, src, dyn_libs);
                     if index_infered != DataType::Int {
-                        parser_error(
-                            src,
-                            *start,
-                            *end,
-                            "Invalid type",
-                            format_args!(
-                                "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a valid index",
-                                index_infered
-                            ),
-                            None,
-                        );
+                        throw_parser_error(src, markers, ErrType::InvalidIndexType(index_infered));
                     }
                     let f_id = get_id(elem, v, p, &mut output, None, false, false, offset);
                     free_register(f_id, free_registers, v, const_registers);
@@ -1232,7 +1177,7 @@ pub fn compile_expr(
                     } else {
                         Instr::GetIndexArray(id, f_id, dest_reg_id)
                     };
-                    instr_src.push((to_push, *start, *end));
+                    instr_src.push((to_push, *markers));
                     output.push(to_push);
 
                     id = (registers.len() - 1) as u16;
@@ -1243,38 +1188,19 @@ pub fn compile_expr(
                 free_register(id, free_registers, v, const_registers);
             }
             // x[y]... = z;
-            Expr::ArrayModify(array, z, w, index_start, index_end, elem_start, elem_end) => {
-                let mut infered = infer_type(array, v, fns, src, dyn_libs);
-                if !is_indexable(&infered) {
-                    parser_error(
-                        src,
-                        *index_start,
-                        *index_end,
-                        "Invalid type",
-                        format_args!(
-                            "Cannot index {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            infered
-                        ),
-                        None,
-                    );
+            Expr::ArrayModify(array, z, w, index_markers, elem_markers) => {
+                let mut array_type = infer_type(array, v, fns, src, dyn_libs);
+                if !is_indexable(&array_type) {
+                    throw_parser_error(src, index_markers, ErrType::NotIndexable(array_type));
                 }
                 // Get the id of the source array
                 let mut id = get_id(array, v, p, &mut output, None, false, false, offset);
 
                 for elem in z.iter().rev().skip(1).rev() {
                     // Check if the index is an integer
-                    if infer_type(elem, v, fns, src, dyn_libs) != DataType::Int {
-                        parser_error(
-                            src,
-                            *index_start,
-                            *index_end,
-                            "Invalid type",
-                            format_args!(
-                                "{color_bright_blue}{style_bold}{}{color_reset}{style_reset} is not a valid index",
-                                infered,
-                            ),
-                            None,
-                        );
+                    let t = infer_type(elem, v, fns, src, dyn_libs);
+                    if t != DataType::Int {
+                        throw_parser_error(src, index_markers, ErrType::InvalidIndexType(t));
                     }
                     let f_id = get_id(elem, v, p, &mut output, None, false, false, offset);
 
@@ -1284,8 +1210,8 @@ pub fn compile_expr(
 
                     id = dest_reg_id;
                     free_register(f_id, free_registers, v, const_registers);
-                    if let DataType::Array(inner) = infered {
-                        infered = *inner;
+                    if let DataType::Array(inner) = array_type {
+                        array_type = *inner;
                     }
                 }
 
@@ -1304,28 +1230,22 @@ pub fn compile_expr(
                 let elem_type = infer_type(w, v, fns, src, dyn_libs);
                 let elem_id = get_id(w, v, p, &mut output, None, false, false, offset);
                 free_register(elem_id, free_registers, v, const_registers);
-                if is_array_with_incompatible_type(&infered, &elem_type)
-                    || (infered == DataType::String && elem_type != DataType::String)
+                if is_array_with_incompatible_type(&array_type, &elem_type)
+                    || (array_type == DataType::String && elem_type != DataType::String)
                 {
-                    parser_error(
+                    throw_parser_error(
                         src,
-                        *elem_start,
-                        *elem_end,
-                        "Invalid type",
-                        format_args!(
-                            "Cannot insert {color_bright_blue}{style_bold}{}{color_reset}{style_reset} in {}",
-                            elem_type, infered,
-                        ),
-                        None,
+                        elem_markers,
+                        ErrType::CannotPushTypeToArray(elem_type, array_type),
                     );
                 }
 
-                let to_push = if infered == DataType::String {
+                let to_push = if array_type == DataType::String {
                     Instr::SetElementString(id, elem_id, final_id)
                 } else {
                     Instr::SetElementArray(id, elem_id, final_id)
                 };
-                instr_src.push((to_push, *index_start, *index_end));
+                instr_src.push((to_push, *index_markers));
                 output.push(to_push);
                 free_register(id, free_registers, v, const_registers);
             }
@@ -1680,15 +1600,14 @@ pub fn compile_expr(
                 debug!("NEW VAR TYPES ARE {v:?}");
             }
 
-            Expr::FunctionCall(args, namespace, start, end, args_indexes) => {
+            Expr::FunctionCall(args, namespace, markers, args_indexes) => {
                 let output_id = handle_functions(
                     &mut output,
                     v,
                     p,
                     args,
                     namespace,
-                    *start,
-                    *end,
+                    markers,
                     args_indexes,
                     offset,
                 );
@@ -1696,16 +1615,7 @@ pub fn compile_expr(
                     free_register(id, free_registers, v, const_registers);
                 }
             }
-            Expr::ObjFunctionCall(
-                obj,
-                args,
-                namespace,
-                start,
-                end,
-                fn_start,
-                fn_end,
-                args_indexes,
-            ) => {
+            Expr::ObjFunctionCall(obj, args, namespace, obj_markers, fn_markers, args_indexes) => {
                 handle_method_calls(
                     &mut output,
                     v,
@@ -1713,10 +1623,8 @@ pub fn compile_expr(
                     obj,
                     args,
                     namespace,
-                    *start,
-                    *end,
-                    *fn_start,
-                    *fn_end,
+                    obj_markers,
+                    fn_markers,
                     args_indexes,
                     offset,
                 );
@@ -1780,7 +1688,7 @@ pub fn parse(
     Vec<Instr>,
     Vec<Data>,
     ArrayStorage,
-    Vec<(Instr, usize, usize)>,
+    Vec<(Instr, (usize, usize))>,
     Vec<Vec<u16>>,
     Vec<DynamicLibFn>,
     usize,
