@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-concat-string = "1.0.1"
 lalrpop-util = { version = "0.23.1", features = ["lexer"] }
 inline_colorization = "0.1.6"
 ariadne = "0.6.0"
@@ -12,8 +11,6 @@ libloading = "0.9.0"
 libffi = "5.1.0"
 smol_str = "0.3.6"
 mimalloc = "0.1.48"
-itertools = "0.14.0"
-lazy_format = "2.0.3"
 
 [build-dependencies]
 lalrpop = "0.23.1"

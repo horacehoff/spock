@@ -3,9 +3,7 @@ use crate::check_args;
 use crate::check_args_range;
 use crate::data::NULL;
 use crate::debug;
-use crate::display::format_expr;
 use crate::errors::ErrType;
-use crate::errors::parser_error;
 use crate::errors::throw_parser_error;
 use crate::get_id;
 use crate::instr::LibFunc;
@@ -393,8 +391,7 @@ fn compile_function(
     is_recursive: bool,
     offset: u16,
 ) {
-    let (registers, fns, _, _, fn_registers, _, src, _, _, dyn_libs, _, _, _, free_registers) =
-        p.destructure();
+    let (registers, fns, _, _, fn_registers, _, src, _, _, dyn_libs, _, _, _, _) = p.destructure();
     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
 
     // Local vector vars and recorded_types to allow the inner body to type-check correctly

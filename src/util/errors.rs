@@ -4,32 +4,8 @@ use ariadne::{Color, Label, Report, ReportKind, Source};
 use inline_colorization::*;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
-use lazy_format::lazy_format;
 use smol_str::{SmolStr, ToSmolStr};
 use std::fmt::Arguments;
-
-#[cold]
-#[inline(never)]
-pub fn runtime_error(
-    instr_src: &[(Instr, (usize, usize))],
-    src: (&str, &str),
-    instr: &Instr,
-    error: &str,
-    message: Arguments,
-) -> ! {
-    let (_, (start, end)) = instr_src.iter().find(|(x, _)| x == instr).unwrap();
-    parser_error(src, *start, *end, error, message, None);
-}
-
-#[cold]
-#[inline(never)]
-pub fn error(message: &str) -> ! {
-    eprintln!(
-        "--------------\n{color_red}SPOCK RUNTIME ERROR:{color_reset}\n{}\n--------------",
-        message
-    );
-    std::process::exit(1);
-}
 
 #[cold]
 #[inline(always)]
@@ -40,43 +16,86 @@ pub fn dev_error(file: &str, function: &str, additional_data: Arguments) -> ! {
     );
 }
 
-#[macro_export]
-macro_rules! op_error {
-    ($src: expr, $l: expr, $r: expr, $op: expr, $start:expr, $end:expr) => {
-        parser_error(
-            $src,
-            $start,
-            $end,
-            "Invalid operation",
-            format_args!(
-                "Cannot perform operation {color_bright_blue}{style_bold}{} {color_red}{}{color_bright_blue} {}{color_reset}{style_reset}",
-                $l, $op, $r
+impl<'a> From<std::io::ErrorKind> for ErrType<'a> {
+    #[inline(never)]
+    fn from(value: std::io::ErrorKind) -> Self {
+        match value {
+            std::io::ErrorKind::AlreadyExists => ErrType::IOAlreadyExists,
+            std::io::ErrorKind::Deadlock => ErrType::IODeadlock,
+            std::io::ErrorKind::FileTooLarge => ErrType::IOFileTooLarge,
+            std::io::ErrorKind::Interrupted => ErrType::IOInterrupted,
+            std::io::ErrorKind::InvalidData => ErrType::IOInvalidData,
+            std::io::ErrorKind::InvalidFilename => ErrType::IOInvalidFilename,
+            std::io::ErrorKind::IsADirectory => ErrType::IOIsADirectory,
+            std::io::ErrorKind::NotADirectory => ErrType::IONotADirectory,
+            std::io::ErrorKind::NotFound => ErrType::IONotFound,
+            std::io::ErrorKind::PermissionDenied => ErrType::IOPermissionDenied,
+            std::io::ErrorKind::OutOfMemory => ErrType::IOOutOfMemory,
+            std::io::ErrorKind::ReadOnlyFilesystem => ErrType::IOReadOnlyFilesystem,
+            std::io::ErrorKind::StorageFull => ErrType::IOStorageFull,
+            std::io::ErrorKind::TimedOut => ErrType::IOTimedOut,
+            other => ErrType::Custom(other.to_smolstr()),
+        }
+    }
+}
+
+impl<'a> From<std::num::IntErrorKind> for ErrType<'a> {
+    #[inline(never)]
+    fn from(value: std::num::IntErrorKind) -> Self {
+        match value {
+            std::num::IntErrorKind::Empty => ErrType::IntEmpty,
+            std::num::IntErrorKind::InvalidDigit => ErrType::IntInvalidDigit,
+            std::num::IntErrorKind::NegOverflow => ErrType::IntNegOverflow,
+            std::num::IntErrorKind::PosOverflow => ErrType::IntPosOverflow,
+            std::num::IntErrorKind::Zero => dev_error(
+                file!(),
+                "impl<'a> From<std::num::IntErrorKind> for ErrType<'a>",
+                format_args!("Encountered std::num::IntErrorKind::Zero"),
             ),
-            None,
-        )
-    };
+            _ => unreachable!(),
+        }
+    }
 }
 
 /// Error types, largely borrowed from Rust
 pub enum ErrType<'a> {
-    // IO ERRORS
-    AlreadyExists,
-    Deadlock,
-    FileTooLarge,
-    Interrupted,
-    InvalidData,
-    InvalidFilename,
-    /// When a file was expected...
-    IsADirectory,
-    /// When a directory was expected...
-    NotADirectory,
-    NotFound,
-    PermissionDenied,
-    OutOfMemory,
-    ReadOnlyFilesystem,
-    StorageFull,
-    TimedOut,
     Custom(SmolStr),
+
+    // IO ERRORS
+    IOAlreadyExists,
+    IODeadlock,
+    IOFileTooLarge,
+    IOInterrupted,
+    IOInvalidData,
+    IOInvalidFilename,
+    /// When a file was expected...
+    IOIsADirectory,
+    /// When a directory was expected...
+    IONotADirectory,
+    IONotFound,
+    IOPermissionDenied,
+    IOOutOfMemory,
+    IOReadOnlyFilesystem,
+    IOStorageFull,
+    IOTimedOut,
+
+    // INT PARSING ERRORS
+    IntEmpty,
+    IntInvalidDigit,
+    IntNegOverflow,
+    IntPosOverflow,
+
+    // FLOAT PARSING ERRORS
+    FloatParsingError,
+
+    // BOOL PARSING ERRORS
+    BoolParsingError,
+
+    /// IndexOutOfBounds(length, index)
+    IndexOutOfBounds(usize, usize),
+
+    InvalidFloat,
+    IntTooBig,
 
     // PARSER ERRORS
     UnknownVariable(&'a str),
@@ -94,39 +113,54 @@ pub enum ErrType<'a> {
     IncorrectFuncArgCountVariable(&'a str, u16, u16, u16),
     /// InvalidType(expected_type, received_type)
     InvalidType(DataType, DataType),
+    /// OpError(l, r, op)
     OpError(DataType, DataType, &'a str),
+    /// InvalidOp(type, op)
+    InvalidOp(DataType, &'a str),
+    InvalidConditionalExpression,
+    FunctionAlreadyExists(&'a str),
 }
 
 impl<'a> From<ErrType<'a>> for SmolStr {
+    #[inline(always)]
     fn from(value: ErrType) -> Self {
         match value {
             ErrType::Custom(m) => m,
-            ErrType::AlreadyExists => "The entity (directory, file, ...) already exists".into(),
-            ErrType::Deadlock => "This operation would result in a deadlock".into(),
-            ErrType::FileTooLarge => "The file is too large".into(),
-            ErrType::Interrupted => "This operation was interrupted".into(),
-            ErrType::InvalidData => "Malformed or invalid data were encountered".into(),
-            ErrType::InvalidFilename => "The filename is invalid or too long".into(),
-            ErrType::IsADirectory => {
+            ErrType::IntTooBig => "The integer is too big".into(),
+            ErrType::InvalidFloat => "Invalid float".into(),
+            ErrType::IndexOutOfBounds(length, index) => format_args!("Tried to get index {color_bright_red}{style_bold}{index}{color_reset}{style_reset} but the length is {color_bright_blue}{style_bold}{length}{color_reset}{style_reset}").to_smolstr(),
+            ErrType::BoolParsingError => "The string could not be parsed into a boolean".into(),
+            ErrType::FloatParsingError => "The string could not be parsed into a float".into(),
+            ErrType::IntEmpty => "The parsing string is empty".into(),
+            ErrType::IntInvalidDigit => "The parsing string contains an invalid digit".into(),
+            ErrType::IntPosOverflow => "The integer is too large".into(),
+            ErrType::IntNegOverflow => "The integer is too small".into(),
+            ErrType::IOAlreadyExists => "The entity (directory, file, ...) already exists".into(),
+            ErrType::IODeadlock => "This operation would result in a deadlock".into(),
+            ErrType::IOFileTooLarge => "The file is too large".into(),
+            ErrType::IOInterrupted => "This operation was interrupted".into(),
+            ErrType::IOInvalidData => "Malformed or invalid data were encountered".into(),
+            ErrType::IOInvalidFilename => "The filename is invalid or too long".into(),
+            ErrType::IOIsADirectory => {
                 "This operation encountered a directory, when a non-directory was expected".into()
             }
-            ErrType::NotADirectory => {
+            ErrType::IONotADirectory => {
                 "This operation encountered a non-directory, when a directory was expected".into()
             }
-            ErrType::NotFound => "The entity (directory, file, ...) was not found".into(),
-            ErrType::PermissionDenied => {
+            ErrType::IONotFound => "The entity (directory, file, ...) was not found".into(),
+            ErrType::IOPermissionDenied => {
                 "This operation lacked the necessary privileges to complete".into()
             }
-            ErrType::OutOfMemory => {
+            ErrType::IOOutOfMemory => {
                 "This operation could not be completed, because it failed to allocate enough memory"
                     .into()
             }
-            ErrType::ReadOnlyFilesystem => {
+            ErrType::IOReadOnlyFilesystem => {
                 "The filesystem or storage medium is read-only, but a write operation was attempted"
                     .into()
             }
-            ErrType::StorageFull => "Storage is full".into(),
-            ErrType::TimedOut => "This operation timed out".into(),
+            ErrType::IOStorageFull => "Storage is full".into(),
+            ErrType::IOTimedOut => "This operation timed out".into(),
             ErrType::UnknownFunction(f) => format_args!(
                 "Cannot find function {color_bright_blue}{style_bold}{f}{color_reset}{style_reset}"
             )
@@ -158,28 +192,12 @@ impl<'a> From<ErrType<'a>> for SmolStr {
             ErrType::InvalidType(expected, received) => format_args!("Expected type {expected}, found {color_bright_blue}{style_bold}{received}{color_reset}{style_reset}").to_smolstr(),
             ErrType::OpError(l, r, op) => format_args!(
                 "Cannot perform operation {color_bright_blue}{style_bold}{l} {color_red}{op}{color_bright_blue} {r}{color_reset}{style_reset}").to_smolstr(),
-        }
-    }
-}
-
-impl<'a> From<std::io::ErrorKind> for ErrType<'a> {
-    fn from(value: std::io::ErrorKind) -> Self {
-        match value {
-            std::io::ErrorKind::AlreadyExists => ErrType::AlreadyExists,
-            std::io::ErrorKind::Deadlock => ErrType::Deadlock,
-            std::io::ErrorKind::FileTooLarge => ErrType::FileTooLarge,
-            std::io::ErrorKind::Interrupted => ErrType::Interrupted,
-            std::io::ErrorKind::InvalidData => ErrType::InvalidData,
-            std::io::ErrorKind::InvalidFilename => ErrType::InvalidFilename,
-            std::io::ErrorKind::IsADirectory => ErrType::IsADirectory,
-            std::io::ErrorKind::NotADirectory => ErrType::NotADirectory,
-            std::io::ErrorKind::NotFound => ErrType::NotFound,
-            std::io::ErrorKind::PermissionDenied => ErrType::PermissionDenied,
-            std::io::ErrorKind::OutOfMemory => ErrType::OutOfMemory,
-            std::io::ErrorKind::ReadOnlyFilesystem => ErrType::ReadOnlyFilesystem,
-            std::io::ErrorKind::StorageFull => ErrType::StorageFull,
-            std::io::ErrorKind::TimedOut => ErrType::TimedOut,
-            other => ErrType::Custom(other.to_smolstr()),
+            ErrType::InvalidOp(t, op) => format_args!(
+                "Operation {color_bright_red}{style_bold}{op}{color_reset}{style_reset} is not supported for type {color_bright_blue}{style_bold}{t}{color_reset}{style_reset}").to_smolstr(),
+            ErrType::InvalidConditionalExpression => "Conditional expressions must have an else clause".into(),
+            ErrType::FunctionAlreadyExists(fn_name) => format_args!(
+                "Function {color_bright_red}{style_bold}{fn_name}{color_reset}{style_reset} is already defined",
+            ).to_smolstr()
         }
     }
 }

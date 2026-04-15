@@ -3,7 +3,6 @@ use crate::LibFunc;
 use crate::check_args;
 use crate::check_args_range;
 use crate::errors::ErrType;
-use crate::errors::parser_error;
 use crate::errors::throw_parser_error;
 use crate::get_id;
 use crate::parser::Expr;
@@ -169,18 +168,12 @@ pub fn handle_method_calls(
         "contains" => {
             check!(DataType::Array(_) | DataType::String, "Array or String", 1);
 
-            let arg_infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if obj_type == DataType::String && arg_infered != DataType::String {
-                parser_error(
+            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            if obj_type == DataType::String && arg_type != DataType::String {
+                throw_parser_error(
                     src,
-                    args_indexes[0].0,
-                    args_indexes[0].1,
-                    "Invalid type",
-                    format_args!(
-                        "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        arg_infered
-                    ),
-                    None,
+                    &args_indexes[0],
+                    ErrType::InvalidType(DataType::String, arg_type),
                 );
             }
 
@@ -203,18 +196,12 @@ pub fn handle_method_calls(
         "trim_sequence" => {
             check!(DataType::String, "String", 1);
 
-            let infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if infered != DataType::String {
-                parser_error(
+            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            if arg_type != DataType::String {
+                throw_parser_error(
                     src,
-                    args_indexes[0].0,
-                    args_indexes[0].1,
-                    "Invalid type",
-                    format_args!(
-                        "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        infered
-                    ),
-                    None,
+                    &args_indexes[0],
+                    ErrType::InvalidType(DataType::String, arg_type),
                 );
             }
             add_args!();
@@ -228,32 +215,20 @@ pub fn handle_method_calls(
         "find" => {
             check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
-            let arg_infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if let DataType::Array(array_type) = &obj_type {
-                if **array_type != arg_infered {
-                    parser_error(
+            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            if let DataType::Array(array_elem_type) = &obj_type {
+                if **array_elem_type != arg_type {
+                    throw_parser_error(
                         src,
-                        args_indexes[0].0,
-                        args_indexes[0].1,
-                        "Invalid type",
-                        format_args!(
-                            "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            array_type, obj_type, arg_infered
-                        ),
-                        None,
+                        &args_indexes[0],
+                        ErrType::InvalidType(*array_elem_type.clone(), arg_type),
                     );
                 }
-            } else if arg_infered != obj_type {
-                parser_error(
+            } else if arg_type != obj_type {
+                throw_parser_error(
                     src,
-                    args_indexes[0].0,
-                    args_indexes[0].1,
-                    "Invalid type",
-                    format_args!(
-                        "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        arg_infered
-                    ),
-                    None,
+                    &args_indexes[0],
+                    ErrType::InvalidType(DataType::String, arg_type),
                 );
             }
 
@@ -301,18 +276,12 @@ pub fn handle_method_calls(
         "trim_sequence_left" => {
             check!(DataType::String, "String", 1);
 
-            let infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if infered != DataType::String {
-                parser_error(
+            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            if arg_type != DataType::String {
+                throw_parser_error(
                     src,
-                    args_indexes[0].0,
-                    args_indexes[0].1,
-                    "Invalid type",
-                    format_args!(
-                        "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        infered
-                    ),
-                    None,
+                    &args_indexes[0],
+                    ErrType::InvalidType(DataType::String, arg_type),
                 );
             }
 
@@ -326,18 +295,12 @@ pub fn handle_method_calls(
         "trim_sequence_right" => {
             check!(DataType::String, "String", 1);
 
-            let infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if infered != DataType::String {
-                parser_error(
+            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            if arg_type != DataType::String {
+                throw_parser_error(
                     src,
-                    args_indexes[0].0,
-                    args_indexes[0].1,
-                    "Invalid type",
-                    format_args!(
-                        "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        infered
-                    ),
-                    None,
+                    &args_indexes[0],
+                    ErrType::InvalidType(DataType::String, arg_type),
                 );
             }
 
@@ -351,18 +314,12 @@ pub fn handle_method_calls(
         "repeat" => {
             check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
-            let arg_infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if arg_infered != DataType::Int {
-                parser_error(
+            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            if arg_type != DataType::Int {
+                throw_parser_error(
                     src,
-                    args_indexes[0].0,
-                    args_indexes[0].1,
-                    "Invalid type",
-                    format_args!(
-                        "Expected Integer, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        arg_infered,
-                    ),
-                    None,
+                    &args_indexes[0],
+                    ErrType::InvalidType(DataType::Int, arg_type),
                 );
             }
 
@@ -377,20 +334,14 @@ pub fn handle_method_calls(
         "push" => {
             check!(DataType::Array(_), "Array", 1);
 
-            let arg_infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if let DataType::Array(array_type) = &obj_type
-                && **array_type != arg_infered
+            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            if let DataType::Array(array_elem_type) = &obj_type
+                && **array_elem_type != arg_type
             {
-                parser_error(
+                throw_parser_error(
                     src,
-                    args_indexes[0].0,
-                    args_indexes[0].1,
-                    "Invalid type",
-                    format_args!(
-                        "Expected {} (because array has type {}), found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        array_type, obj_type, arg_infered
-                    ),
-                    None,
+                    &args_indexes[0],
+                    ErrType::InvalidType(*array_elem_type.clone(), arg_type),
                 );
             }
 
@@ -443,20 +394,14 @@ pub fn handle_method_calls(
             ));
         }
         "split" => {
-            check!(DataType::String, "Array or String", 1);
+            check!(DataType::String, "String", 1);
 
-            let arg_infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if obj_type != arg_infered {
-                parser_error(
+            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            if obj_type != arg_type {
+                throw_parser_error(
                     src,
-                    args_indexes[0].0,
-                    args_indexes[0].1,
-                    "Invalid type",
-                    format_args!(
-                        "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        arg_infered
-                    ),
-                    None,
+                    &args_indexes[0],
+                    ErrType::InvalidType(DataType::String, arg_type),
                 );
             }
             add_args!();
@@ -469,20 +414,14 @@ pub fn handle_method_calls(
         "partition" => {
             check!(DataType::Array(_), "Array", 1);
 
-            let arg_infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if let DataType::Array(array_type) = obj_type
-                && *array_type != arg_infered
+            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            if let DataType::Array(array_elem_type) = obj_type
+                && *array_elem_type != arg_type
             {
-                parser_error(
+                throw_parser_error(
                     src,
-                    args_indexes[0].0,
-                    args_indexes[0].1,
-                    "Invalid type",
-                    format_args!(
-                        "Expected {}, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        array_type, arg_infered
-                    ),
-                    None,
+                    &args_indexes[0],
+                    ErrType::InvalidType(*array_elem_type, arg_type),
                 );
             }
             add_args!();
@@ -505,18 +444,12 @@ pub fn handle_method_calls(
             }
             check_args_range!(args, 0, 1, "join", src, fn_markers);
             if !args.is_empty() {
-                let arg_infered = infer_type(&args[0], v, fns, src, dyn_libs);
-                if arg_infered != DataType::String {
-                    parser_error(
+                let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+                if arg_type != DataType::String {
+                    throw_parser_error(
                         src,
-                        args_indexes[0].0,
-                        args_indexes[0].1,
-                        "Invalid type",
-                        format_args!(
-                            "Expected String, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                            arg_infered
-                        ),
-                        None,
+                        &args_indexes[0],
+                        ErrType::InvalidType(DataType::String, arg_type),
                     );
                 }
                 add_args!();
@@ -530,18 +463,12 @@ pub fn handle_method_calls(
         "remove" => {
             check!(DataType::Array(_), "Array", 1);
 
-            let infered = infer_type(&args[0], v, fns, src, dyn_libs);
-            if infered != DataType::Int {
-                parser_error(
+            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            if arg_type != DataType::Int {
+                throw_parser_error(
                     src,
-                    args_indexes[0].0,
-                    args_indexes[0].1,
-                    "Invalid type",
-                    format_args!(
-                        "Expected Integer, found {color_bright_blue}{style_bold}{}{color_reset}{style_reset}",
-                        infered
-                    ),
-                    None,
+                    &args_indexes[0],
+                    ErrType::InvalidType(DataType::Int, arg_type),
                 );
             }
             let arg_id = get_id(&args[0], v, p, output, None, false, false, offset);

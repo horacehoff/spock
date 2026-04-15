@@ -1,8 +1,4 @@
-use crate::color_bright_blue;
-use crate::color_reset;
-use crate::style_bold;
-use crate::style_reset;
-use crate::{errors::error, type_system::DataType};
+use crate::type_system::DataType;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
 
@@ -44,13 +40,7 @@ pub fn str_to_type(s: &SmolStr) -> DataType {
     } else if s == "string" {
         DataType::String
     } else {
-        error(
-            format_args!(
-                "Unknown type {color_bright_blue}{style_bold}{s}{color_reset}{style_reset}"
-            )
-            .as_str()
-            .unwrap(),
-        );
+        unreachable!()
     }
 }
 
