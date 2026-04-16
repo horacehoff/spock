@@ -288,8 +288,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::Return(_) // Modifies a register, but this function doesn't know which one
         | Instr::RecursiveReturn(_) // Modifies a register, but this function doesn't know which one
         | Instr::VoidReturn
-        | Instr::Remove(_, _)
-        | Instr::FreeArray(_) => None,
+        | Instr::Remove(_, _) => None,
     }
 }
 
@@ -1034,8 +1033,7 @@ pub fn for_each_read_reg(instr: Instr, mut f: impl FnMut(u16)) {
         | Instr::CallFunc(_, _)
         | Instr::CallFuncRecursive(_, _)
         | Instr::SaveFrame(_, _, _)
-        | Instr::CallDynamicLibFunc(_, _)
-        | Instr::FreeArray(_) => {}
+        | Instr::CallDynamicLibFunc(_, _) => {}
     }
 }
 

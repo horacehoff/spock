@@ -1,3 +1,4 @@
+use crate::array_gc::alloc_array;
 use crate::data::Data;
 use crate::data::FALSE;
 use crate::data::NULL;
@@ -22,17 +23,19 @@ use std::time::Instant;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
+#[path = "./vm/array_gc.rs"]
+mod array_gc;
 #[path = "./data.rs"]
 mod data;
 #[path = "./util/display.rs"]
 mod display;
 #[path = "./util/errors.rs"]
 mod errors;
-#[path = "./parser/functions.rs"]
+#[path = "./parser/functions/functions.rs"]
 mod functions;
 #[path = "./instr.rs"]
 mod instr;
-#[path = "./parser/method_calls.rs"]
+#[path = "./parser/functions/method_calls.rs"]
 mod method_calls;
 #[path = "./parser/optimizations.rs"]
 mod optimizations;
@@ -49,15 +52,6 @@ mod type_system;
 mod util;
 
 pub type ArrayStorage = Vec<Vec<Data>>;
-
-fn alloc_array(array_pool: &mut ArrayStorage, free_arrays: &mut Vec<u16>) -> u32 {
-    if let Some(id) = free_arrays.pop() {
-        id as u32
-    } else {
-        array_pool.push(Vec::with_capacity(1));
-        (array_pool.len() - 1) as u32
-    }
-}
 
 struct CallFrame {
     return_addr: u32,
@@ -166,7 +160,6 @@ pub fn execute(
                 i = call_frame.return_addr as usize;
                 registers[call_frame.return_reg as usize] = temp;
             }
-            Instr::FreeArray(id) => free_arrays.push(id),
             Instr::IsFalseJmp(cond_id, size) => {
                 if registers[cond_id as usize] == FALSE {
                     i += size as usize;
@@ -257,7 +250,8 @@ pub fn execute(
                 let mut combined = Vec::with_capacity(arr_a.len() + arr_b.len());
                 combined.extend_from_slice(arr_a);
                 combined.extend_from_slice(arr_b);
-                let array_id = alloc_array(array_pool, &mut free_arrays);
+                let array_id =
+                    alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack);
                 array_pool[array_id as usize] = combined;
                 registers[dest as usize] = Data::array(array_id);
             }
@@ -656,7 +650,8 @@ pub fn execute(
                     registers[dest as usize] = str.repeat(repeat_count as usize).into();
                 } else if reg.is_array() {
                     let repeat_count = registers[args.pop().unwrap() as usize].as_int();
-                    let array_id = alloc_array(array_pool, &mut free_arrays);
+                    let array_id =
+                        alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack);
                     array_pool[array_id as usize] =
                         array_pool[reg.as_array() as usize].repeat(repeat_count as usize);
                     registers[dest as usize] = Data::array(array_id);
@@ -818,12 +813,18 @@ pub fn execute(
                         .to_vec()
                         .split(|x| x == &registers[separator as usize])
                         .for_each(|x| {
-                            let array_id = alloc_array(array_pool, &mut free_arrays);
+                            let array_id = alloc_array(
+                                array_pool,
+                                &mut free_arrays,
+                                registers,
+                                &recursion_stack,
+                            );
                             array_pool[array_id as usize] = x.to_vec();
                             sub_array_ids.push(array_id);
                         });
 
-                    let array_id = alloc_array(array_pool, &mut free_arrays);
+                    let array_id =
+                        alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack);
                     array_pool[array_id as usize] = sub_array_ids
                         .iter()
                         .map(|id| Data::array(*id))
