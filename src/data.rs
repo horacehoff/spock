@@ -1,10 +1,4 @@
-use smol_str::SmolStr;
-use std::cell::{RefCell, UnsafeCell};
-
-use crate::{
-    ArrayPool,
-    string_gc::{self, string_gc},
-};
+use crate::{ArrayPool, string_gc::string_gc};
 
 // 51 bits of total payload -- 3 bits for data type => 48 bits of actual payload
 // 1111_1111_1111_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000
@@ -22,14 +16,6 @@ const BOOL_TABLE: [Data; 2] = [FALSE, TRUE];
 pub const NULL: Data = Data(NAN_TAG_NULL);
 pub const FALSE: Data = Data(NAN_TAG_BOOL);
 pub const TRUE: Data = Data(NAN_TAG_BOOL | 1);
-
-thread_local! {
-    pub static STRING_POOL: UnsafeCell<Vec<String>> = UnsafeCell::new(Vec::new());
-}
-#[inline(always)]
-fn string_pool() -> &'static mut Vec<String> {
-    STRING_POOL.with(|p| unsafe { &mut *p.get() })
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Data(pub u64);
@@ -128,21 +114,21 @@ impl Data {
             }
             Data(NAN_TAG_STRING_SMALL | (payload & PAYLOAD_MASK))
         } else {
+            if string_pool.len() >= 512 {
+                string_gc(
+                    array_pool,
+                    string_pool,
+                    free_strings,
+                    registers,
+                    recursion_stack,
+                );
+            }
             if let Some(id) = free_strings.pop() {
                 string_pool[id as usize] = s.to_string();
                 Data(NAN_TAG_STRING_LARGE | (id as u64))
             } else {
                 let string_pool_id = string_pool.len() as u64;
                 string_pool.push(s.to_string());
-                if string_pool.len() > 100 {
-                    string_gc(
-                        array_pool,
-                        string_pool,
-                        free_strings,
-                        registers,
-                        recursion_stack,
-                    );
-                }
                 Data(NAN_TAG_STRING_LARGE | string_pool_id)
             }
         }
@@ -160,27 +146,26 @@ impl Data {
         if len <= 6 {
             let bytes = s.as_bytes();
             let mut payload: u64 = 0;
-            // Packs 6 bytes into the payload, filling up the 48 payload bits
             for i in 0..len {
                 payload |= (bytes[i] as u64) << (i * 8);
             }
             Data(NAN_TAG_STRING_SMALL | (payload & PAYLOAD_MASK))
         } else {
+            if string_pool.len() >= 512 {
+                string_gc(
+                    array_pool,
+                    string_pool,
+                    free_strings,
+                    registers,
+                    recursion_stack,
+                );
+            }
             if let Some(id) = free_strings.pop() {
                 string_pool[id as usize] = s;
                 Data(NAN_TAG_STRING_LARGE | (id as u64))
             } else {
                 let string_pool_id = string_pool.len() as u64;
                 string_pool.push(s);
-                if string_pool.len() > 100 {
-                    string_gc(
-                        array_pool,
-                        string_pool,
-                        free_strings,
-                        registers,
-                        recursion_stack,
-                    );
-                }
                 Data(NAN_TAG_STRING_LARGE | string_pool_id)
             }
         }
