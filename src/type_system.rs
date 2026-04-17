@@ -310,6 +310,8 @@ pub fn infer_type(
                 // File System
                 "read" => DataType::String,
                 "exists" => DataType::Bool,
+                "write" => DataType::Null,
+                "append" => DataType::Null,
                 function_name => {
                     if let Some(lib) = dyn_libs.iter().find(|l| l.name == namespace[0]) {
                         if let Some(FnSignature {

@@ -145,4 +145,6 @@ pub enum LibFunc {
     JoinStringArray = 30,
     FsRead = 31,
     FsExists = 32,
+    FsWrite = 33,
+    FsAppend = 34,
 }
