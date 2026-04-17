@@ -118,7 +118,6 @@ pub fn execute(
 
     let len = instructions.len();
     while i < len {
-        // dbg!(&instructions[i]);
         match instructions[i] {
             Instr::Jmp(size) => {
                 i += size as usize;
@@ -942,11 +941,14 @@ pub fn execute(
 
 /// Live long and prosper
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let debug = args.iter().any(|x| x == "--debug");
+
     #[cfg(debug_assertions)]
     let filename = "test.spock";
 
     #[cfg(not(debug_assertions))]
-    let filename = &std::env::args().nth(1).unwrap_or_else(|| {
+    let filename = &args.get(1).unwrap_or_else(|| {
         println!("{}", util::SPOCK_LOGO);
         std::process::exit(0);
     });
@@ -957,6 +959,31 @@ fn main() {
         );
         std::process::exit(1);
     });
+
+    if !debug {
+        let (
+            instructions,
+            mut registers,
+            mut arrays,
+            instr_src,
+            fn_registers,
+            fn_dyn_libs,
+            allocated_arg_count,
+            allocated_call_depth,
+        ) = parse(&contents, filename, debug);
+        execute(
+            &instructions,
+            &mut registers,
+            &mut arrays,
+            &instr_src,
+            (filename, &contents),
+            &fn_registers,
+            &fn_dyn_libs,
+            allocated_arg_count,
+            allocated_call_depth,
+        );
+        return;
+    }
 
     let now = Instant::now();
 
@@ -969,10 +996,10 @@ fn main() {
         fn_dyn_libs,
         allocated_arg_count,
         allocated_call_depth,
-    ) = parse(&contents, filename);
+    ) = parse(&contents, filename, true);
 
     println!("PARSING TIME {:.2?}", now.elapsed());
-    if std::env::args().len() > 2 && std::env::args().nth(2).unwrap() == "--bench" {
+    if args.len() > 2 && args.iter().any(|x| x == "--bench") {
         benchmark(
             &instructions,
             &mut registers,
@@ -982,7 +1009,7 @@ fn main() {
             &fn_registers,
             10,
             150,
-            std::env::args().len() > 3 && std::env::args().nth(3).unwrap() == "--verbose",
+            args.len() > 3 && args.iter().any(|x| x == "--verbose"),
             &fn_dyn_libs,
             allocated_arg_count,
             allocated_call_depth,

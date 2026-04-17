@@ -61,8 +61,8 @@ pub fn handle_functions(
         free_registers,
     ) = p.destructure();
 
-    let mut check_type = |arg: usize, expected: &[DataType]| {
-        let infered = infer_type(&args[arg], v, fns, src, dyn_libs);
+    let mut check_arg_type = |arg_idx: usize, expected: &[DataType]| {
+        let infered = infer_type(&args[arg_idx], v, fns, src, dyn_libs);
         if !{
             if let DataType::Poly(polytype) = &infered {
                 polytype.iter().all(|x| expected.contains(x))
@@ -72,7 +72,7 @@ pub fn handle_functions(
         } {
             throw_parser_error(
                 src,
-                &args_indexes[arg],
+                &args_indexes[arg_idx],
                 ErrType::Custom(
                 format_args!(
                     "Expected {color_bright_blue}{style_bold}{}{color_reset}{style_reset}, found {color_bright_red}{style_bold}{}{color_reset}{style_reset}",
@@ -99,13 +99,13 @@ pub fn handle_functions(
                 }
             }
             "type" => {
-                check_args!(args, 1, "type", src, markers);
+                check_args!(args, 1, name, src, markers);
                 let infered = infer_type(&args[0], v, fns, src, dyn_libs);
                 registers.push(Data::p_str(&infered.to_string(), string_pool));
             }
             "float" => {
-                check_args!(args, 1, "float", src, markers);
-                check_type(0, &[DataType::String, DataType::Int]);
+                check_args!(args, 1, name, src, markers);
+                check_arg_type(0, &[DataType::String, DataType::Int]);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
@@ -116,8 +116,8 @@ pub fn handle_functions(
                 instr_src.push((*output.last().unwrap(), *markers));
             }
             "int" => {
-                check_args!(args, 1, "int", src, markers);
-                check_type(0, &[DataType::String, DataType::Float]);
+                check_args!(args, 1, name, src, markers);
+                check_arg_type(0, &[DataType::String, DataType::Float]);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
@@ -128,7 +128,7 @@ pub fn handle_functions(
                 instr_src.push((*output.last().unwrap(), *markers));
             }
             "str" => {
-                check_args!(args, 1, "str", src, markers);
+                check_args!(args, 1, name, src, markers);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
@@ -138,8 +138,8 @@ pub fn handle_functions(
                 ));
             }
             "bool" => {
-                check_args!(args, 1, "bool", src, markers);
-                check_type(0, &[DataType::String]);
+                check_args!(args, 1, name, src, markers);
+                check_arg_type(0, &[DataType::String]);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
@@ -150,8 +150,8 @@ pub fn handle_functions(
                 instr_src.push((*output.last().unwrap(), *markers));
             }
             "input" => {
-                check_args_range!(args, 0, 1, "input", src, markers);
-                check_type(0, &[DataType::String]);
+                check_args_range!(args, 0, 1, name, src, markers);
+                check_arg_type(0, &[DataType::String]);
                 let id = if args.is_empty() {
                     registers.push(Data::p_str("", string_pool));
                     (registers.len() - 1) as u16
@@ -166,10 +166,10 @@ pub fn handle_functions(
                 ));
             }
             "range" => {
-                check_args_range!(args, 1, 2, "range", src, markers);
-                check_type(0, &[DataType::Int]);
+                check_args_range!(args, 1, 2, name, src, markers);
+                check_arg_type(0, &[DataType::Int]);
                 if args.len() != 1 {
-                    check_type(1, &[DataType::Int]);
+                    check_arg_type(1, &[DataType::Int]);
                 }
 
                 let id_first_arg = get_id(&args[0], v, p, output, None, false, false, offset);
@@ -190,7 +190,7 @@ pub fn handle_functions(
                 ));
             }
             "the_answer" => {
-                check_args!(args, 0, "the_answer", src, markers);
+                check_args!(args, 0, name, src, markers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::TheAnswer,
                     0,
@@ -309,7 +309,7 @@ pub fn handle_functions(
         match name {
             "read" => {
                 check_args!(args, 1, name, src, markers);
-                check_type(0, &[DataType::String]);
+                check_arg_type(0, &[DataType::String]);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
@@ -321,7 +321,7 @@ pub fn handle_functions(
             }
             "exists" => {
                 check_args!(args, 1, name, src, markers);
-                check_type(0, &[DataType::String]);
+                check_arg_type(0, &[DataType::String]);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
@@ -333,8 +333,8 @@ pub fn handle_functions(
             }
             "write" => {
                 check_args!(args, 2, name, src, markers);
-                check_type(0, &[DataType::String]);
-                check_type(1, &[DataType::String]);
+                check_arg_type(0, &[DataType::String]);
+                check_arg_type(1, &[DataType::String]);
                 let filepath = get_id(&args[0], v, p, output, None, false, false, offset);
                 let contents = get_id(&args[1], v, p, output, None, false, false, offset);
                 free_register(filepath, free_registers, v, const_registers);
@@ -344,8 +344,8 @@ pub fn handle_functions(
             }
             "append" => {
                 check_args!(args, 2, name, src, markers);
-                check_type(0, &[DataType::String]);
-                check_type(1, &[DataType::String]);
+                check_arg_type(0, &[DataType::String]);
+                check_arg_type(1, &[DataType::String]);
                 let filepath = get_id(&args[0], v, p, output, None, false, false, offset);
                 let contents = get_id(&args[1], v, p, output, None, false, false, offset);
                 free_register(filepath, free_registers, v, const_registers);
@@ -355,7 +355,7 @@ pub fn handle_functions(
             }
             "delete" => {
                 check_args!(args, 1, name, src, markers);
-                check_type(0, &[DataType::String]);
+                check_arg_type(0, &[DataType::String]);
                 let path = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(path, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(LibFunc::FsDelete, path, 0));
@@ -363,7 +363,7 @@ pub fn handle_functions(
             }
             "delete_dir" => {
                 check_args!(args, 1, name, src, markers);
-                check_type(0, &[DataType::String]);
+                check_arg_type(0, &[DataType::String]);
                 let path = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(path, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(LibFunc::FsDeleteDir, path, 0));
@@ -383,7 +383,7 @@ pub fn handle_functions(
         {
             check_args!(args, fn_args.len(), fn_name, src, markers);
             for (i, a) in fn_args.iter().enumerate() {
-                check_type(i, slice::from_ref(a));
+                check_arg_type(i, slice::from_ref(a));
             }
 
             for arg in args {
