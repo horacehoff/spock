@@ -331,6 +331,28 @@ pub fn handle_functions(
                 ));
                 instr_src.push((*output.last().unwrap(), *markers));
             }
+            "write" => {
+                check_args!(args, 2, "read", src, markers);
+                check_type(0, &[DataType::String]);
+                check_type(1, &[DataType::String]);
+                let filepath = get_id(&args[0], v, p, output, None, false, false, offset);
+                let contents = get_id(&args[1], v, p, output, None, false, false, offset);
+                free_register(filepath, free_registers, v, const_registers);
+                free_register(contents, free_registers, v, const_registers);
+                output.push(Instr::CallLibFunc(LibFunc::FsWrite, filepath, contents));
+                instr_src.push((*output.last().unwrap(), *markers));
+            }
+            "append" => {
+                check_args!(args, 2, "read", src, markers);
+                check_type(0, &[DataType::String]);
+                check_type(1, &[DataType::String]);
+                let filepath = get_id(&args[0], v, p, output, None, false, false, offset);
+                let contents = get_id(&args[1], v, p, output, None, false, false, offset);
+                free_register(filepath, free_registers, v, const_registers);
+                free_register(contents, free_registers, v, const_registers);
+                output.push(Instr::CallLibFunc(LibFunc::FsAppend, filepath, contents));
+                instr_src.push((*output.last().unwrap(), *markers));
+            }
             name => {
                 throw_parser_error(src, markers, ErrType::UnknownFunction(name));
             }

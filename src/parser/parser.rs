@@ -1,4 +1,3 @@
-use crate::ArrayPool;
 use crate::LibFunc;
 use crate::data::NULL;
 use crate::debug;
@@ -21,7 +20,6 @@ use inline_colorization::*;
 use lalrpop_util::lalrpop_mod;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
-use std::collections::HashSet;
 use std::slice;
 
 lalrpop_mod!(pub grammar);

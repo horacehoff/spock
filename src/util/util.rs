@@ -86,6 +86,7 @@ impl std::fmt::Display for DataType {
     }
 }
 
+/// check_args(args, expected_args_len, fn_name, src, markers)
 #[macro_export]
 macro_rules! check_args {
     ($args:expr, $expected_args_len:expr, $fn_name:expr, $src:expr,$markers:expr) => {
@@ -103,6 +104,7 @@ macro_rules! check_args {
     };
 }
 
+/// check_args_range(args, min_args_len, max_args_len, fn_name, src, markers)
 #[macro_export]
 macro_rules! check_args_range {
     ($args:expr, $min_args_len:expr,$max_args_len:expr, $fn_name:expr, $src:expr,$markers:expr) => {

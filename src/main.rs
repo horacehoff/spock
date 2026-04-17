@@ -889,18 +889,39 @@ pub fn execute(
             Instr::CallLibFunc(LibFunc::FsRead, path, dest_reg_id) => {
                 registers[dest_reg_id as usize] = string!(
                     fs::read_to_string(registers[path as usize].as_str(string_pool))
-                        .unwrap_or_else(|t| {
-                            throw_error(instr_src, src, &instructions[i], t.kind().into())
+                        .unwrap_or_else(|e| {
+                            throw_error(instr_src, src, &instructions[i], e.kind().into())
                         })
                 );
             }
             Instr::CallLibFunc(LibFunc::FsExists, path, dest_reg_id) => {
                 registers[dest_reg_id as usize] =
                     fs::exists(registers[path as usize].as_str(string_pool))
-                        .unwrap_or_else(|t| {
-                            throw_error(instr_src, src, &instructions[i], t.kind().into())
+                        .unwrap_or_else(|e| {
+                            throw_error(instr_src, src, &instructions[i], e.kind().into())
                         })
                         .into()
+            }
+            // Overwrites a file, will create it if it doesn't exist
+            Instr::CallLibFunc(LibFunc::FsWrite, path, contents) => {
+                fs::write(
+                    registers[path as usize].as_str(string_pool),
+                    registers[contents as usize].as_str(string_pool),
+                )
+                .unwrap_or_else(|e| throw_error(instr_src, src, &instructions[i], e.kind().into()));
+            }
+            // Appends to a file, will create if it doesn't exist
+            Instr::CallLibFunc(LibFunc::FsAppend, path, contents) => {
+                fs::OpenOptions::new()
+                    .append(true)
+                    .open(registers[path as usize].as_str(string_pool))
+                    .unwrap_or_else(|e| {
+                        throw_error(instr_src, src, &instructions[i], e.kind().into())
+                    })
+                    .write(registers[contents as usize].as_str(string_pool).as_bytes())
+                    .unwrap_or_else(|e| {
+                        throw_error(instr_src, src, &instructions[i], e.kind().into())
+                    });
             }
         }
         i += 1;

@@ -78,17 +78,22 @@ impl Data {
         (self.0 & !PAYLOAD_MASK) == NAN_TAG_ARRAY
     }
     #[inline(always)]
+    pub fn small_str(s: &str) -> Data {
+        debug_assert!(s.len() <= 6);
+        let bytes = s.as_bytes();
+        let mut payload: u64 = 0;
+        // Packs 6 bytes into the payload, filling up the 48 payload bits
+        for i in 0..s.len() {
+            payload |= (bytes[i] as u64) << (i * 8);
+        }
+        Data(NAN_TAG_STRING_SMALL | (payload & PAYLOAD_MASK))
+    }
+    #[inline(always)]
     /// Allocates a string at runtime. This never runs the GC.
     pub fn p_str(s: &str, string_pool: &mut Vec<String>) -> Data {
         let len = s.len();
         if len <= 6 {
-            let bytes = s.as_bytes();
-            let mut payload: u64 = 0;
-            // Packs 6 bytes into the payload, filling up the 48 payload bits
-            for i in 0..len {
-                payload |= (bytes[i] as u64) << (i * 8);
-            }
-            Data(NAN_TAG_STRING_SMALL | (payload & PAYLOAD_MASK))
+            Data::small_str(s)
         } else {
             let string_pool_id = string_pool.len() as u64;
             string_pool.push(s.to_string());
@@ -106,13 +111,7 @@ impl Data {
     ) -> Data {
         let len = s.len();
         if len <= 6 {
-            let bytes = s.as_bytes();
-            let mut payload: u64 = 0;
-            // Packs 6 bytes into the payload, filling up the 48 payload bits
-            for i in 0..len {
-                payload |= (bytes[i] as u64) << (i * 8);
-            }
-            Data(NAN_TAG_STRING_SMALL | (payload & PAYLOAD_MASK))
+            Data::small_str(s)
         } else {
             if string_pool.len() >= 512 {
                 string_gc(
@@ -144,12 +143,7 @@ impl Data {
     ) -> Data {
         let len = s.len();
         if len <= 6 {
-            let bytes = s.as_bytes();
-            let mut payload: u64 = 0;
-            for i in 0..len {
-                payload |= (bytes[i] as u64) << (i * 8);
-            }
-            Data(NAN_TAG_STRING_SMALL | (payload & PAYLOAD_MASK))
+            Data::small_str(&s)
         } else {
             if string_pool.len() >= 512 {
                 string_gc(

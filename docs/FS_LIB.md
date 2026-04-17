@@ -22,3 +22,21 @@ Example:
 print(fs::exists("exists.txt")); // returns true
 print(fs::exists("does_not_exist.txt")) // returns false
 ```
+
+## Write
+
+`fs::write(path: String, contents: String)`\
+Writes `contents` to `path`. Creates `path` if it doesn't exist.
+Example:
+```
+fs::write("test.txt", "Hello, World!");
+```
+
+## Append
+
+`fs::write(path: String, contents: String)`\
+Appends `contents` to `path`. Creates `path` if it doesn't exist.
+Example:
+```
+fs::append("test.txt", "Hello, World!");
+```
