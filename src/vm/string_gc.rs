@@ -18,6 +18,11 @@ pub fn string_gc(
         }
     }
 
+    // Prevent duplicates: mark already-free slots as live
+    for &id in free_strings.iter() {
+        live[id as usize] = true;
+    }
+
     for i in 0..string_pool.len() {
         if !live[i] {
             free_strings.push(i as u16);
@@ -26,6 +31,9 @@ pub fn string_gc(
 }
 
 fn track_strings(array_pool: &ArrayPool, array: &[Data], live: &mut [bool]) {
+    if array.len() == 0 {
+        return;
+    }
     if array[0].is_large_str() {
         for x in array {
             live[x.get_str_pool_id()] = true;
