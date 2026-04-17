@@ -147,4 +147,6 @@ pub enum LibFunc {
     FsExists = 32,
     FsWrite = 33,
     FsAppend = 34,
+    FsDelete = 35,
+    FsDeleteDir = 36,
 }

@@ -308,7 +308,7 @@ pub fn handle_functions(
     } else if namespace == ["fs"] {
         match name {
             "read" => {
-                check_args!(args, 1, "read", src, markers);
+                check_args!(args, 1, name, src, markers);
                 check_type(0, &[DataType::String]);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
@@ -320,7 +320,7 @@ pub fn handle_functions(
                 instr_src.push((*output.last().unwrap(), *markers));
             }
             "exists" => {
-                check_args!(args, 1, "read", src, markers);
+                check_args!(args, 1, name, src, markers);
                 check_type(0, &[DataType::String]);
                 let id = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(id, free_registers, v, const_registers);
@@ -332,7 +332,7 @@ pub fn handle_functions(
                 instr_src.push((*output.last().unwrap(), *markers));
             }
             "write" => {
-                check_args!(args, 2, "read", src, markers);
+                check_args!(args, 2, name, src, markers);
                 check_type(0, &[DataType::String]);
                 check_type(1, &[DataType::String]);
                 let filepath = get_id(&args[0], v, p, output, None, false, false, offset);
@@ -343,7 +343,7 @@ pub fn handle_functions(
                 instr_src.push((*output.last().unwrap(), *markers));
             }
             "append" => {
-                check_args!(args, 2, "read", src, markers);
+                check_args!(args, 2, name, src, markers);
                 check_type(0, &[DataType::String]);
                 check_type(1, &[DataType::String]);
                 let filepath = get_id(&args[0], v, p, output, None, false, false, offset);
@@ -351,6 +351,22 @@ pub fn handle_functions(
                 free_register(filepath, free_registers, v, const_registers);
                 free_register(contents, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(LibFunc::FsAppend, filepath, contents));
+                instr_src.push((*output.last().unwrap(), *markers));
+            }
+            "delete" => {
+                check_args!(args, 1, name, src, markers);
+                check_type(0, &[DataType::String]);
+                let path = get_id(&args[0], v, p, output, None, false, false, offset);
+                free_register(path, free_registers, v, const_registers);
+                output.push(Instr::CallLibFunc(LibFunc::FsDelete, path, 0));
+                instr_src.push((*output.last().unwrap(), *markers));
+            }
+            "delete_dir" => {
+                check_args!(args, 1, name, src, markers);
+                check_type(0, &[DataType::String]);
+                let path = get_id(&args[0], v, p, output, None, false, false, offset);
+                free_register(path, free_registers, v, const_registers);
+                output.push(Instr::CallLibFunc(LibFunc::FsDeleteDir, path, 0));
                 instr_src.push((*output.last().unwrap(), *markers));
             }
             name => {

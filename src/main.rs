@@ -923,6 +923,18 @@ pub fn execute(
                         throw_error(instr_src, src, &instructions[i], e.kind().into())
                     });
             }
+            // Deletes the file located at `path`, throwing an error if it doesn't exist.
+            Instr::CallLibFunc(LibFunc::FsDelete, path, _) => {
+                fs::remove_file(registers[path as usize].as_str(string_pool)).unwrap_or_else(|e| {
+                    throw_error(instr_src, src, &instructions[i], e.kind().into())
+                });
+            }
+            // Deletes the empty directory located at `path`
+            Instr::CallLibFunc(LibFunc::FsDeleteDir, path, _) => {
+                fs::remove_dir(registers[path as usize].as_str(string_pool)).unwrap_or_else(|e| {
+                    throw_error(instr_src, src, &instructions[i], e.kind().into())
+                });
+            }
         }
         i += 1;
     }
