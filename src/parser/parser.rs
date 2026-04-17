@@ -1,4 +1,4 @@
-use crate::ArrayStorage;
+use crate::ArrayPool;
 use crate::LibFunc;
 use crate::data::NULL;
 use crate::debug;
@@ -21,6 +21,7 @@ use inline_colorization::*;
 use lalrpop_util::lalrpop_mod;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
+use std::collections::HashSet;
 use std::slice;
 
 lalrpop_mod!(pub grammar);
@@ -96,10 +97,11 @@ pub enum Expr {
         (usize, usize),
         (usize, usize),
     ),
-    // --- Dynamic libs ---
     /// Import(lib_path, [(fn_name, fn_args, fn_return_type)])
-    Import(SmolStr, Box<[(SmolStr, Box<[DataType]>, DataType)]>),
-    // ---
+    ImportDynLib(SmolStr, Box<[(SmolStr, Box<[DataType]>, DataType)]>),
+
+    ImportFile(SmolStr),
+
     Break,
     Continue,
 
@@ -357,7 +359,10 @@ pub fn get_id(
     let (
         registers,
         fns,
-        arrays,
+        Pools {
+            array_pool,
+            string_pool,
+        },
         _,
         _,
         block_id,
@@ -458,17 +463,17 @@ pub fn get_id(
         }
         Expr::String(str) => {
             if var_assignment {
-                registers.push(str.as_str().into());
+                registers.push(Data::p_str(str, string_pool));
                 return (registers.len() - 1) as u16;
             }
-            if let Some(id) = const_registers
-                .iter()
-                .find(|x| registers[**x as usize] == str.as_str().into())
-            {
+            if let Some(id) = const_registers.iter().find(|x| {
+                registers[**x as usize].is_str()
+                    && registers[**x as usize].as_str(string_pool) == str
+            }) {
                 *id
             } else {
                 const_registers.push(registers.len() as u16);
-                registers.push(str.as_str().into());
+                registers.push(Data::p_str(str, string_pool));
                 (registers.len() - 1) as u16
             }
         }
@@ -509,23 +514,23 @@ pub fn get_id(
                 throw_parser_error(src, markers, ErrType::ArrayWithDiffType);
             }
             let array_id = {
-                arrays.push(Vec::new());
-                arrays.len() - 1
+                array_pool.push(Vec::new());
+                array_pool.len() - 1
             };
             for elem in elems {
                 let x = compile_expr(slice::from_ref(elem), v, p, 0);
                 if !x.is_empty() {
                     let c_id = get_tgt_id(*x.last().unwrap()).unwrap();
-                    arrays.get_mut(array_id).unwrap().push(NULL);
+                    array_pool.get_mut(array_id).unwrap().push(NULL);
 
                     output.extend(x);
                     output.push(Instr::ArrayMov(
                         c_id,
                         block_id,
-                        (arrays[array_id].len() - 1) as u16,
+                        (array_pool[array_id].len() - 1) as u16,
                     ));
                 } else {
-                    arrays
+                    array_pool
                         .get_mut(array_id)
                         .unwrap()
                         .push(registers.pop().unwrap());
@@ -1049,7 +1054,10 @@ pub fn compile_expr(
     let (
         registers,
         fns,
-        arrays,
+        Pools {
+            array_pool,
+            string_pool,
+        },
         instr_src,
         fn_registers,
         block_id,
@@ -1069,7 +1077,7 @@ pub fn compile_expr(
             Expr::Float(num) => registers.push((*num).into()),
             Expr::Int(num) => registers.push((*num).into()),
             Expr::Bool(bool) => registers.push((*bool).into()),
-            Expr::String(str) => registers.push(str.as_str().into()),
+            Expr::String(str) => registers.push(Data::p_str(str, string_pool)),
             Expr::Var(name, markers) => {
                 if let Some(Variable {
                     name: _,
@@ -1095,15 +1103,15 @@ pub fn compile_expr(
                 }
                 // create new blank array with latest id
                 let array_id = {
-                    arrays.push(Vec::new());
-                    arrays.len() - 1
+                    array_pool.push(Vec::new());
+                    array_pool.len() - 1
                 };
                 for elem in elems {
                     // process each array element
                     let x = compile_expr(slice::from_ref(elem), v, p, 0);
                     // if there are no instructions, then that means the element has been pushed to the registers, so pop it and push it directly to the array
                     if x.is_empty() {
-                        arrays
+                        array_pool
                             .get_mut(array_id)
                             .unwrap()
                             .push(registers.pop().unwrap());
@@ -1111,11 +1119,11 @@ pub fn compile_expr(
                         // if there are instructions, then push everything, add a null to the array, and then add an instruction to move the element to the array at runtime with ArrayMov
                         let c_id = get_tgt_id(*x.last().unwrap()).unwrap();
                         output.extend(x);
-                        arrays.get_mut(array_id).unwrap().push(NULL);
+                        array_pool.get_mut(array_id).unwrap().push(NULL);
                         output.push(Instr::ArrayMov(
                             c_id,
                             block_id,
-                            (arrays[array_id].len() - 1) as u16,
+                            (array_pool[array_id].len() - 1) as u16,
                         ));
                     }
                 }
@@ -1419,7 +1427,6 @@ pub fn compile_expr(
                 // if real_var {
                 free_register(current_element_id, free_registers, v, const_registers);
                 // }
-                dbg!(&free_registers);
             }
             Expr::IntForLoop(var_name, start_elem, end_elem, code, markers1, markers2) => {
                 // Check start elem type
@@ -1625,7 +1632,7 @@ pub fn parse(
 ) -> (
     Vec<Instr>,
     Vec<Data>,
-    ArrayStorage,
+    Pools,
     Vec<(Instr, (usize, usize))>,
     Vec<Vec<u16>>,
     Vec<DynamicLibFn>,
@@ -1641,7 +1648,10 @@ pub fn parse(
 
     let mut variables: Vec<Variable> = Vec::new();
     let mut registers: Vec<Data> = Vec::new();
-    let mut arrays: ArrayStorage = Vec::with_capacity(20);
+    let mut pools: Pools = Pools {
+        array_pool: Vec::with_capacity(20),
+        string_pool: Vec::with_capacity(20),
+    };
     let mut instr_src = Vec::new();
     let mut fn_registers: Vec<Vec<u16>> = Vec::new();
     let mut functions: Vec<Function> = Vec::new();
@@ -1654,64 +1664,68 @@ pub fn parse(
     let mut free_registers = Vec::new();
 
     for w in code {
-        if let Expr::FunctionDecl(x, y, _) = w {
-            fn_registers.push(Vec::new());
-            functions.push(Function {
-                name: x[0].to_smolstr(),
-                args: x[1..].into(),
-                code: y.clone(),
-                impls: Vec::new(),
-                is_recursive: contains_recursive_call(&y, &x[0]),
-                id: (fn_registers.len() - 1) as u16,
-                returns_void: check_if_returns_void(&y),
-            });
-        } else if let Expr::Import(path, fn_signatures) = w {
-            let fns = fn_signatures
-                .iter()
-                .map(|(fn_name, fn_args, fn_return_type)| {
-                    let return_val = FnSignature {
-                        name: fn_name.clone(),
-                        args: fn_args.clone(),
-                        return_type: fn_return_type.clone(),
-                        id,
-                    };
+        match w {
+            Expr::FunctionDecl(x, y, _) => {
+                fn_registers.push(Vec::new());
+                functions.push(Function {
+                    name: x[0].to_smolstr(),
+                    args: x[1..].into(),
+                    code: y.clone(),
+                    impls: Vec::new(),
+                    is_recursive: contains_recursive_call(&y, &x[0]),
+                    id: (fn_registers.len() - 1) as u16,
+                    returns_void: check_if_returns_void(&y),
+                });
+            }
+            Expr::ImportDynLib(path, fn_signatures) => {
+                let fns = fn_signatures
+                    .iter()
+                    .map(|(fn_name, fn_args, fn_return_type)| {
+                        let return_val = FnSignature {
+                            name: fn_name.clone(),
+                            args: fn_args.clone(),
+                            return_type: fn_return_type.clone(),
+                            id,
+                        };
 
-                    // Convert arguments and return to libffi types
-                    let arg_types: Vec<_> = fn_args.iter().map(datatype_to_c_type).collect();
-                    let return_type = datatype_to_c_type(fn_return_type);
-                    // Build the CIF (call interface object)
-                    let cif = libffi::middle::Cif::new(arg_types.clone(), return_type.clone());
-                    // Get the function's pointer (lib is stored to avoid freeing the memory)
-                    let lib = unsafe { libloading::Library::new(path.as_str()).unwrap() };
-                    let ptr = unsafe {
-                        libffi::middle::CodePtr(
-                            lib.get::<*const ()>(fn_name.as_str())
-                                .unwrap()
-                                .try_as_raw_ptr()
-                                .unwrap(),
-                        )
-                    };
-                    dyn_lib_fns.push(DynamicLibFn {
-                        arg_types: Box::from(arg_types),
-                        return_type,
-                        lib,
-                        ptr,
-                        cif,
-                    });
-                    id += 1;
-                    return_val
-                })
-                .collect();
-            dyn_libs.push(Dynamiclib {
-                name: std::path::PathBuf::from(path.as_str())
-                    .file_prefix()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_smolstr(),
+                        // Convert arguments and return to libffi types
+                        let arg_types: Vec<_> = fn_args.iter().map(datatype_to_c_type).collect();
+                        let return_type = datatype_to_c_type(fn_return_type);
+                        // Build the CIF (call interface object)
+                        let cif = libffi::middle::Cif::new(arg_types.clone(), return_type.clone());
+                        // Get the function's pointer (lib is stored to avoid freeing the memory)
+                        let lib = unsafe { libloading::Library::new(path.as_str()).unwrap() };
+                        let ptr = unsafe {
+                            libffi::middle::CodePtr(
+                                lib.get::<*const ()>(fn_name.as_str())
+                                    .unwrap()
+                                    .try_as_raw_ptr()
+                                    .unwrap(),
+                            )
+                        };
+                        dyn_lib_fns.push(DynamicLibFn {
+                            arg_types: Box::from(arg_types),
+                            return_type,
+                            lib,
+                            ptr,
+                            cif,
+                        });
+                        id += 1;
+                        return_val
+                    })
+                    .collect();
+                dyn_libs.push(Dynamiclib {
+                    name: std::path::PathBuf::from(path.as_str())
+                        .file_prefix()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_smolstr(),
 
-                fns,
-            });
+                    fns,
+                });
+            }
+            _ => {}
         }
     }
 
@@ -1731,7 +1745,7 @@ pub fn parse(
         &ParserData {
             registers: &mut registers,
             fns: &mut functions,
-            arrays: &mut arrays,
+            pools: &mut pools,
             block_id: 0,
             src: (filename, contents),
             instr_src: &mut instr_src,
@@ -1752,12 +1766,12 @@ pub fn parse(
     }
     #[cfg(debug_assertions)]
     {
-        crate::display::print_debug(&instructions, &registers, &arrays);
+        crate::display::print_debug(&instructions, &registers, &pools);
     }
     (
         instructions,
         registers,
-        arrays,
+        pools,
         instr_src,
         fn_registers,
         dyn_lib_fns,

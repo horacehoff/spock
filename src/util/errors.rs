@@ -119,6 +119,7 @@ pub enum ErrType<'a> {
     InvalidOp(DataType, &'a str),
     InvalidConditionalExpression,
     FunctionAlreadyExists(&'a str),
+    CannotReadImportedFile(&'a str),
 }
 
 impl<'a> From<ErrType<'a>> for SmolStr {
@@ -126,6 +127,7 @@ impl<'a> From<ErrType<'a>> for SmolStr {
     fn from(value: ErrType) -> Self {
         match value {
             ErrType::Custom(m) => m,
+            ErrType::CannotReadImportedFile(filename) => format_args!("Cannot read imported file {color_bright_red}{style_bold}{filename}{color_reset}{style_reset}").to_smolstr(),
             ErrType::IntTooBig => "The integer is too big".into(),
             ErrType::InvalidFloat => "Invalid float".into(),
             ErrType::IndexOutOfBounds(length, index) => format_args!("Tried to get index {color_bright_red}{style_bold}{index}{color_reset}{style_reset} but the length is {color_bright_blue}{style_bold}{length}{color_reset}{style_reset}").to_smolstr(),
@@ -239,44 +241,6 @@ pub fn throw_parser_error(src: (&str, &str), (start, end): &(usize, usize), t: E
         .finish()
         .eprint((src.0, Source::from(src.1)))
         .unwrap();
-    std::process::exit(1);
-}
-
-#[cold]
-#[inline(never)]
-pub fn parser_error(
-    src: (&str, &str),
-    start: usize,
-    end: usize,
-    general_error: &str,
-    msg: Arguments,
-    note: Option<Arguments>,
-) -> ! {
-    eprintln!("{color_red}SPOCK ERROR{color_reset}");
-    if let Some(note) = note {
-        Report::build(ReportKind::Error, (src.0, start..end))
-            .with_message(general_error)
-            .with_label(
-                Label::new((src.0, start..end))
-                    .with_message(msg)
-                    .with_color(Color::Red),
-            )
-            .with_note(note)
-            .finish()
-            .print((src.0, Source::from(src.1)))
-            .unwrap();
-    } else {
-        Report::build(ReportKind::Error, (src.0, start..end))
-            .with_message(general_error)
-            .with_label(
-                Label::new((src.0, start..end))
-                    .with_message(msg)
-                    .with_color(Color::Red),
-            )
-            .finish()
-            .print((src.0, Source::from(src.1)))
-            .unwrap();
-    }
     std::process::exit(1);
 }
 

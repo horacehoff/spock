@@ -1,8 +1,8 @@
-use crate::ArrayStorage;
+use crate::ArrayPool;
 use crate::Data;
 
 pub fn alloc_array(
-    array_pool: &mut ArrayStorage,
+    array_pool: &mut ArrayPool,
     free_arrays: &mut Vec<u16>,
     registers: &[Data],
     recursion_stack: &[Data],
@@ -15,21 +15,21 @@ pub fn alloc_array(
         let id = array_pool.len() as u32;
         array_pool.push(Vec::new());
         if array_pool.len() > 100 {
-            gc_arrays(array_pool, free_arrays, registers, recursion_stack);
+            array_gc(array_pool, free_arrays, registers, recursion_stack);
         }
         id
     }
 }
 
-fn gc_arrays(
-    array_pool: &ArrayStorage,
+fn array_gc(
+    array_pool: &ArrayPool,
     free_arrays: &mut Vec<u16>,
     registers: &[Data],
     recursion_stack: &[Data],
 ) {
     let mut live = vec![false; array_pool.len()];
 
-    // Recursively find all "used" arrays
+    // Recursively find all "used" objects (arrays, long strings)
     for data in registers.iter().chain(recursion_stack.iter()) {
         if data.is_array() {
             track_arrays(data.as_array() as usize, array_pool, &mut live);
@@ -44,7 +44,7 @@ fn gc_arrays(
     }
 }
 
-fn track_arrays(id: usize, array_pool: &ArrayStorage, live: &mut [bool]) {
+fn track_arrays(id: usize, array_pool: &ArrayPool, live: &mut [bool]) {
     if live[id] {
         return;
     }
@@ -53,6 +53,10 @@ fn track_arrays(id: usize, array_pool: &ArrayStorage, live: &mut [bool]) {
     for elem in &array_pool[id] {
         if elem.is_array() {
             track_arrays(elem.as_array() as usize, array_pool, live);
+        } else {
+            // Arrays can only hold a single type
+            // As such, if the first element in the array is not an array, then the other elements aren't either
+            break;
         }
     }
 }

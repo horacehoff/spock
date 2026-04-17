@@ -1,6 +1,7 @@
 use crate::Instr;
 use crate::check_args;
 use crate::check_args_range;
+use crate::data::Data;
 use crate::data::NULL;
 use crate::debug;
 use crate::errors::ErrType;
@@ -17,6 +18,7 @@ use crate::parser::move_to_id;
 use crate::parser_data::FnSignature;
 use crate::parser_data::FunctionImpl;
 use crate::parser_data::ParserData;
+use crate::parser_data::Pools;
 use crate::parser_data::Variable;
 use crate::type_system::DataType;
 use crate::type_system::check_poly;
@@ -42,7 +44,10 @@ pub fn handle_functions(
     let (
         registers,
         fns,
-        _,
+        Pools {
+            array_pool: _,
+            string_pool,
+        },
         instr_src,
         fn_registers,
         _,
@@ -96,7 +101,7 @@ pub fn handle_functions(
             "type" => {
                 check_args!(args, 1, "type", src, markers);
                 let infered = infer_type(&args[0], v, fns, src, dyn_libs);
-                registers.push(infered.to_string().into());
+                registers.push(Data::p_str(&infered.to_string(), string_pool));
             }
             "float" => {
                 check_args!(args, 1, "float", src, markers);
@@ -148,7 +153,7 @@ pub fn handle_functions(
                 check_args_range!(args, 0, 1, "input", src, markers);
                 check_type(0, &[DataType::String]);
                 let id = if args.is_empty() {
-                    registers.push(SmolStr::new_static("").into());
+                    registers.push(Data::p_str("", string_pool));
                     (registers.len() - 1) as u16
                 } else {
                     get_id(&args[0], v, p, output, None, false, false, offset)
