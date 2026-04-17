@@ -312,6 +312,8 @@ pub fn infer_type(
                 "exists" => DataType::Bool,
                 "write" => DataType::Null,
                 "append" => DataType::Null,
+                "delete" => DataType::Null,
+                "delete_dir" => DataType::Null,
                 function_name => {
                     if let Some(lib) = dyn_libs.iter().find(|l| l.name == namespace[0]) {
                         if let Some(FnSignature {

@@ -26,7 +26,7 @@ print(fs::exists("does_not_exist.txt")) // returns false
 ## Write
 
 `fs::write(path: String, contents: String)`\
-Writes `contents` to `path`. Creates `path` if it doesn't exist.
+Writes `contents` to `path`, overwriting any existing content. Creates `path` if it doesn't exist.
 Example:
 ```
 fs::write("test.txt", "Hello, World!");
@@ -39,4 +39,22 @@ Appends `contents` to `path`. Creates `path` if it doesn't exist.
 Example:
 ```
 fs::append("test.txt", "Hello, World!");
+```
+
+## Delete
+
+`fs::delete(path: String)`\
+Deletes the file located at `path`. Crashes if the file doesn't exist.
+Example:
+```
+fs::delete("bad_file.txt");
+```
+
+## Delete_dir
+
+`fs::delete_dir(path: String)`\
+Deletes the empty folder located at `path`. Crashes if the folder doesn't exist or isn't empty.
+Example:
+```
+fs::delete_dir("bad_folder/");
 ```
