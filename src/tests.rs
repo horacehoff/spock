@@ -15,7 +15,7 @@ macro_rules! run_and_check_registers {
             _,
             allocated_arg_count,
             allocated_call_depth,
-        ) = parse(contents, filename);
+        ) = parse(contents, filename, true);
         println!("{contents}");
         execute(
             &instructions,

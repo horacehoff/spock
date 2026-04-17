@@ -877,7 +877,6 @@ pub fn get_id(
         )
         .unwrap_or_else(|| get_last_tgt_id(output).unwrap_or_else(|| (registers.len() - 1) as u16)),
         other => {
-            // dbg!(&other);
             let output_code = compile_expr(slice::from_ref(other), v, p, 0);
             if !output_code.is_empty() {
                 output.extend(output_code);
@@ -1344,8 +1343,6 @@ pub fn compile_expr(
                 // }
 
                 // add an instruction to get array length (func id 2 = len)
-                // let array_len_id = registers.len() as u16;
-                // registers.push(NULL);
                 let array_len_id = alloc_register(registers, free_registers);
 
                 output.push(Instr::CallLibFunc(LibFunc::Len, array, array_len_id));
@@ -1355,18 +1352,11 @@ pub fn compile_expr(
                 registers.push(0.into());
 
                 // do the 'i < len' condition, set up the condition's id (true/false)
-                // let condition_id = registers.len() as u16;
-                // registers.push(NULL);
                 let condition_id = alloc_register(registers, free_registers);
 
                 output.push(Instr::InfInt(index_id, array_len_id, condition_id));
 
                 // set up the variable for the current element (for current_element_id in ... {}) => current_element_id = array[index]
-                // let current_element_id = registers.len() as u16;
-                // if real_var {
-                //     registers.push(NULL);
-                // }
-                // dbg!(free_registers);
                 let current_element_id = alloc_register(registers, free_registers);
 
                 let v_len = v.len();
@@ -1627,6 +1617,7 @@ pub fn compile_expr(
 pub fn parse(
     contents: &str,
     filename: &str,
+    debug: bool,
 ) -> (
     Vec<Instr>,
     Vec<Data>,
@@ -1641,8 +1632,9 @@ pub fn parse(
     let code: Vec<Expr> = grammar::FileParser::new()
         .parse((filename, contents), contents)
         .unwrap_or_else(|x| lalrpop_error::<usize, Token<'_>, &str>(x, contents, filename));
-    println!("LALRPOP TIME {:.2?}", now.elapsed());
-    // println!("FUNCS {functions:?}");
+    if debug {
+        println!("LALRPOP TIME {:.2?}", now.elapsed());
+    }
 
     let mut variables: Vec<Variable> = Vec::new();
     let mut registers: Vec<Data> = Vec::new();
