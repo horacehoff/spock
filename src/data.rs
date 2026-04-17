@@ -1,4 +1,10 @@
 use smol_str::SmolStr;
+use std::cell::{RefCell, UnsafeCell};
+
+use crate::{
+    ArrayPool,
+    string_gc::{self, string_gc},
+};
 
 // 51 bits of total payload -- 3 bits for data type => 48 bits of actual payload
 // 1111_1111_1111_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000
@@ -16,6 +22,14 @@ const BOOL_TABLE: [Data; 2] = [FALSE, TRUE];
 pub const NULL: Data = Data(NAN_TAG_NULL);
 pub const FALSE: Data = Data(NAN_TAG_BOOL);
 pub const TRUE: Data = Data(NAN_TAG_BOOL | 1);
+
+thread_local! {
+    pub static STRING_POOL: UnsafeCell<Vec<String>> = UnsafeCell::new(Vec::new());
+}
+#[inline(always)]
+fn string_pool() -> &'static mut Vec<String> {
+    STRING_POOL.with(|p| unsafe { &mut *p.get() })
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Data(pub u64);
@@ -69,16 +83,17 @@ impl Data {
         Data(NAN_TAG_ARRAY | id as u64)
     }
     #[inline(always)]
-    pub fn as_array(&self) -> u32 {
+    pub fn as_array(&self) -> usize {
         debug_assert!(self.is_array());
-        (self.0 & PAYLOAD_MASK) as u32
+        (self.0 & PAYLOAD_MASK) as usize
     }
     #[inline(always)]
     pub fn is_array(&self) -> bool {
         (self.0 & !PAYLOAD_MASK) == NAN_TAG_ARRAY
     }
     #[inline(always)]
-    pub fn str(s: &str) -> Data {
+    /// Allocates a string at runtime. This never runs the GC.
+    pub fn p_str(s: &str, string_pool: &mut Vec<String>) -> Data {
         let len = s.len();
         if len <= 6 {
             let bytes = s.as_bytes();
@@ -89,11 +104,89 @@ impl Data {
             }
             Data(NAN_TAG_STRING_SMALL | (payload & PAYLOAD_MASK))
         } else {
-            panic!("String too big!")
+            let string_pool_id = string_pool.len() as u64;
+            string_pool.push(s.to_string());
+            Data(NAN_TAG_STRING_LARGE | string_pool_id)
         }
     }
     #[inline(always)]
-    pub fn as_str(&self) -> &str {
+    pub fn str(
+        s: &str,
+        array_pool: &ArrayPool,
+        string_pool: &mut Vec<String>,
+        registers: &[Data],
+        recursion_stack: &[Data],
+        free_strings: &mut Vec<u16>,
+    ) -> Data {
+        let len = s.len();
+        if len <= 6 {
+            let bytes = s.as_bytes();
+            let mut payload: u64 = 0;
+            // Packs 6 bytes into the payload, filling up the 48 payload bits
+            for i in 0..len {
+                payload |= (bytes[i] as u64) << (i * 8);
+            }
+            Data(NAN_TAG_STRING_SMALL | (payload & PAYLOAD_MASK))
+        } else {
+            if let Some(id) = free_strings.pop() {
+                string_pool[id as usize] = s.to_string();
+                Data(NAN_TAG_STRING_LARGE | (id as u64))
+            } else {
+                let string_pool_id = string_pool.len() as u64;
+                string_pool.push(s.to_string());
+                if string_pool.len() > 100 {
+                    string_gc(
+                        array_pool,
+                        string_pool,
+                        free_strings,
+                        registers,
+                        recursion_stack,
+                    );
+                }
+                Data(NAN_TAG_STRING_LARGE | string_pool_id)
+            }
+        }
+    }
+    #[inline(always)]
+    pub fn string(
+        s: String,
+        array_pool: &ArrayPool,
+        string_pool: &mut Vec<String>,
+        registers: &[Data],
+        recursion_stack: &[Data],
+        free_strings: &mut Vec<u16>,
+    ) -> Data {
+        let len = s.len();
+        if len <= 6 {
+            let bytes = s.as_bytes();
+            let mut payload: u64 = 0;
+            // Packs 6 bytes into the payload, filling up the 48 payload bits
+            for i in 0..len {
+                payload |= (bytes[i] as u64) << (i * 8);
+            }
+            Data(NAN_TAG_STRING_SMALL | (payload & PAYLOAD_MASK))
+        } else {
+            if let Some(id) = free_strings.pop() {
+                string_pool[id as usize] = s;
+                Data(NAN_TAG_STRING_LARGE | (id as u64))
+            } else {
+                let string_pool_id = string_pool.len() as u64;
+                string_pool.push(s);
+                if string_pool.len() > 100 {
+                    string_gc(
+                        array_pool,
+                        string_pool,
+                        free_strings,
+                        registers,
+                        recursion_stack,
+                    );
+                }
+                Data(NAN_TAG_STRING_LARGE | string_pool_id)
+            }
+        }
+    }
+    #[inline(always)]
+    pub fn as_str(&self, string_pool: &[String]) -> &str {
         debug_assert!(self.is_str());
         if (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_SMALL {
             let payload = self.0 & PAYLOAD_MASK;
@@ -108,14 +201,23 @@ impl Data {
                 std::str::from_utf8_unchecked(slice)
             }
         } else {
-            // Will be implemented via a string pool or hashset
-            unreachable!("huh");
+            let payload = (self.0 & PAYLOAD_MASK) as usize;
+            unsafe { &*(string_pool[payload].as_str() as *const str) }
         }
     }
     #[inline(always)]
     pub fn is_str(&self) -> bool {
         (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_SMALL
             || (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_LARGE
+    }
+    #[inline(always)]
+    pub fn is_large_str(&self) -> bool {
+        (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_LARGE
+    }
+    #[inline(always)]
+    pub fn get_str_pool_id(&self) -> usize {
+        debug_assert!(self.is_large_str());
+        (self.0 & PAYLOAD_MASK) as usize
     }
 }
 
@@ -166,27 +268,21 @@ impl From<Data> for bool {
         value.as_bool()
     }
 }
-impl From<&str> for Data {
-    #[inline(always)]
-    fn from(value: &str) -> Self {
-        Data::str(value)
-    }
-}
-impl From<String> for Data {
-    #[inline(always)]
-    fn from(value: String) -> Self {
-        Data::str(&value)
-    }
-}
-impl From<SmolStr> for Data {
-    #[inline(always)]
-    fn from(value: SmolStr) -> Self {
-        Data::str(&value)
-    }
-}
-// impl From<Data> for SmolStr {
+// impl From<&str> for Data {
 //     #[inline(always)]
-//     fn from(value: Data) -> Self {
-//         value.as_str()
+//     fn from(value: &str) -> Self {
+//         Data::str(value)
+//     }
+// }
+// impl From<String> for Data {
+//     #[inline(always)]
+//     fn from(value: String) -> Self {
+//         Data::str(&value)
+//     }
+// }
+// impl From<SmolStr> for Data {
+//     #[inline(always)]
+//     fn from(value: SmolStr) -> Self {
+//         Data::str(&value)
 //     }
 // }

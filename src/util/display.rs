@@ -1,6 +1,6 @@
-use crate::ArrayStorage;
+use crate::ArrayPool;
 use crate::parser::Expr;
-use crate::parser_data::{Function, FunctionImpl};
+use crate::parser_data::{Function, FunctionImpl, Pools};
 use crate::type_system::DataType;
 use crate::{Data, Instr};
 use inline_colorization::*;
@@ -8,7 +8,12 @@ use smol_str::{SmolStr, ToSmolStr};
 use std::hint::unreachable_unchecked;
 
 #[inline(always)]
-pub fn format_data(x: &Data, arrays: Option<&ArrayStorage>, show_str: bool) -> SmolStr {
+pub fn format_data(
+    x: &Data,
+    array_pool: &[Vec<Data>],
+    string_pool: &[String],
+    show_str: bool,
+) -> SmolStr {
     if x.is_float() {
         x.as_float().to_smolstr()
     } else if x.is_int() {
@@ -17,24 +22,20 @@ pub fn format_data(x: &Data, arrays: Option<&ArrayStorage>, show_str: bool) -> S
         x.as_bool().to_smolstr()
     } else if x.is_str() {
         if show_str {
-            x.as_str().to_smolstr()
+            x.as_str(string_pool).to_smolstr()
         } else {
-            format_args!("\"{}\"", x.as_str()).to_smolstr()
+            format_args!("\"{}\"", x.as_str(string_pool)).to_smolstr()
         }
     } else if x.is_array() {
-        if let Some(arrays) = arrays {
-            format_args!(
-                "[{}]",
-                arrays[x.as_array() as usize]
-                    .iter()
-                    .map(|x| format_data(x, Some(arrays), true))
-                    .collect::<Vec<_>>()
-                    .join(","),
-            )
-            .to_smolstr()
-        } else {
-            format_args!("ARRAY[{}]", x.as_array()).to_smolstr()
-        }
+        format_args!(
+            "[{}]",
+            array_pool[x.as_array() as usize]
+                .iter()
+                .map(|x| format_data(x, array_pool, string_pool, true))
+                .collect::<Vec<_>>()
+                .join(","),
+        )
+        .to_smolstr()
     } else if x.is_null() {
         SmolStr::from("NULL")
     } else {
@@ -42,11 +43,11 @@ pub fn format_data(x: &Data, arrays: Option<&ArrayStorage>, show_str: bool) -> S
     }
 }
 
-impl std::fmt::Display for Data {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", format_data(self, None, false))
-    }
-}
+// impl std::fmt::Display for Data {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         write!(f, "{}", format_data(self, None, false))
+//     }
+// }
 
 pub fn display_fn_signatures(f: Function) {
     for fn_impl in f.impls {
@@ -121,17 +122,21 @@ pub fn token_recognition(token: &str) -> SmolStr {
     }
 }
 
-pub fn print_debug(instructions: &[Instr], registers: &[Data], arrays: &ArrayStorage) {
+pub fn print_debug(instructions: &[Instr], registers: &[Data], pools: &Pools) {
     println!("{color_yellow}---- DEBUG ----{color_reset}");
-    if !arrays.is_empty() {
+    if !pools.array_pool.is_empty() {
         println!("{color_green}---  ARRAYS  ---{color_reset}");
-        for (i, data) in arrays.iter().enumerate() {
+        for (i, data) in pools.array_pool.iter().enumerate() {
             println!(" {i} {data:?}")
         }
     }
     println!("{color_green}-- REGISTERS --{color_reset}");
     for (i, data) in registers.iter().enumerate() {
-        println!(" [{i}] {}({data})", get_type_name(data))
+        println!(
+            " [{i}] {}({})",
+            get_type_name(data),
+            format_data(data, &pools.array_pool, &pools.string_pool, true)
+        )
     }
     if instructions.is_empty() {
         return;

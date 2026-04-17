@@ -1,7 +1,8 @@
-use crate::ArrayStorage;
+use crate::ArrayPool;
 use crate::Data;
 use crate::Expr;
 use crate::Instr;
+use crate::StringPool;
 use crate::type_system::DataType;
 use libffi::middle::Type;
 use libloading::Library;
@@ -49,10 +50,16 @@ pub struct DynamicLibFn {
     pub cif: libffi::middle::Cif,
 }
 
+#[derive(Clone)]
+pub struct Pools {
+    pub array_pool: ArrayPool,
+    pub string_pool: StringPool,
+}
+
 pub struct ParserData<'a> {
     pub registers: *mut Vec<Data>,
     pub fns: *mut Vec<Function>,
-    pub arrays: *mut ArrayStorage,
+    pub pools: *mut Pools,
     pub block_id: u16,
     pub src: (&'a str, &'a str),
     pub instr_src: *mut Vec<(Instr, (usize, usize))>,
@@ -71,7 +78,7 @@ impl ParserData<'_> {
     ) -> (
         &mut Vec<Data>,
         &mut Vec<Function>,
-        &mut Vec<Vec<Data>>,
+        &mut Pools,
         &mut Vec<(Instr, (usize, usize))>,
         &mut Vec<Vec<u16>>,
         u16,
@@ -87,7 +94,7 @@ impl ParserData<'_> {
         (
             unsafe { &mut *self.registers },
             unsafe { &mut *self.fns },
-            unsafe { &mut *self.arrays },
+            unsafe { &mut *self.pools },
             unsafe { &mut *self.instr_src },
             unsafe { &mut *self.fn_registers },
             self.block_id,
