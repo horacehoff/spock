@@ -82,8 +82,11 @@ pub enum Instr {
     CallDynamicLibFunc(u16, u16),
 
     StoreFuncArg(u16),
-    /// CallLibFunc(function, tgt register id, dest register id)
+    /// CallLibFunc(function, src register id, dest register id)
     CallLibFunc(LibFunc, u16, u16),
+    /// CallLibFuncVoid(function, src register 1, src register 2)
+    /// For single-source ops, src register 2 is unused (pass 0).
+    CallLibFuncVoid(LibFunc, u16, u16),
 
     /// ArrayMov(new_elem_reg_id, array_id, idx)\
     /// Replaces the idx-th element in the array (with the id array_id) with the element located in new_elem_reg_id
