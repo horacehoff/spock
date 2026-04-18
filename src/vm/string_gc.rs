@@ -1,6 +1,6 @@
-use crate::ArrayPool;
 use crate::Data;
-use crate::StringPool;
+use crate::vm::ArrayPool;
+use crate::vm::StringPool;
 
 pub fn string_gc(
     array_pool: &ArrayPool,
@@ -23,15 +23,15 @@ pub fn string_gc(
         live[id as usize] = true;
     }
 
-    for i in 0..string_pool.len() {
-        if !live[i] {
+    for (i, s) in live.iter().enumerate() {
+        if !s {
             free_strings.push(i as u16);
         }
     }
 }
 
 fn track_strings(array_pool: &ArrayPool, array: &[Data], live: &mut [bool]) {
-    if array.len() == 0 {
+    if array.is_empty() {
         return;
     }
     if array[0].is_large_str() {

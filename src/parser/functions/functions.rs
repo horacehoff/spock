@@ -527,7 +527,7 @@ fn compile_function(
         loc,
         args_loc: Box::from(args_loc),
         arg_types: Box::from(infered_arg_types),
-        return_type: return_type,
+        return_type,
     });
 
     // Compile the function into instructions using local vars

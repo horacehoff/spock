@@ -21,7 +21,7 @@ pub File:Vec<Expr> = {
 
 pub FnSignature:(SmolStr, Box<[DataType]>, DataType) = {
     <return_type: Var?> <fn_name: Var> <args: Args<Var>> ";" => {
-        (fn_name, Box::from(args.iter().map(|t| str_to_type(t)).collect::<Vec<DataType>>()), if let Some(t) = return_type {str_to_type(&t)} else {DataType::Null})
+        (fn_name, Box::from(args.iter().map(str_to_type).collect::<Vec<DataType>>()), if let Some(t) = return_type {str_to_type(&t)} else {DataType::Null})
     }
 }
 

@@ -1,5 +1,5 @@
-use crate::ArrayPool;
 use crate::Data;
+use crate::vm::ArrayPool;
 
 pub fn alloc_array(
     array_pool: &mut ArrayPool,
@@ -36,7 +36,7 @@ fn array_gc(
     // Recursively find all "used" arrays
     for data in registers.iter().chain(recursion_stack.iter()) {
         if data.is_array() {
-            track_arrays(data.as_array() as usize, array_pool, &mut live);
+            track_arrays(data.as_array(), array_pool, &mut live);
         }
     }
 
@@ -46,8 +46,8 @@ fn array_gc(
     }
 
     // Mark as free any array that isn't referenced by a register
-    for i in 0..array_pool.len() {
-        if !live[i] {
+    for (i, array_alive) in live.iter().enumerate() {
+        if !array_alive {
             free_arrays.push(i as u16);
         }
     }
@@ -61,10 +61,10 @@ fn track_arrays(id: usize, array_pool: &ArrayPool, live: &mut [bool]) {
     live[id] = true;
     // Arrays can only hold a single type
     // As such, if the first element in the array is not an array, then the other elements aren't either
-    if array_pool[id].len() != 0 && !array_pool[id][0].is_array() {
+    if !array_pool[id].is_empty() && !array_pool[id][0].is_array() {
         return;
     }
     for elem in &array_pool[id] {
-        track_arrays(elem.as_array() as usize, array_pool, live);
+        track_arrays(elem.as_array(), array_pool, live);
     }
 }

@@ -1,5 +1,4 @@
 use crate::Instr;
-use crate::execute;
 use crate::parse;
 
 macro_rules! run_and_check_registers {
@@ -18,7 +17,7 @@ macro_rules! run_and_check_registers {
             _,
         ) = parse(contents, filename, true);
         println!("{contents}");
-        execute(
+        crate::vm::execute(
             &instructions,
             &mut registers,
             &mut arrays,
