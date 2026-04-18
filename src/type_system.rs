@@ -307,6 +307,7 @@ pub fn infer_type(
                 "input" => DataType::String,
                 "range" => DataType::Array(Box::from(DataType::Int)),
                 "the_answer" => DataType::Int,
+                "argv" => DataType::Array(Box::from(DataType::String)),
                 // File System
                 "read" => DataType::String,
                 "exists" => DataType::Bool,
@@ -415,6 +416,7 @@ pub fn infer_type(
                     }
                 }
                 "push" => DataType::Null,
+                "sort" => DataType::Null,
                 "sqrt" => DataType::Float,
                 "round" => DataType::Float,
                 "floor" => DataType::Float,
