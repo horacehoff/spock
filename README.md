@@ -3,20 +3,13 @@
 # Spock
 
 > [!WARNING]
-> This language is experimental, and there may be logic-breaking bugs.
-Expect breaking changes.
+> Spock is experimental. Expect bugs and breaking changes.
 
-Spock is a WIP interpreted programming language written in Rust.
-Its main goals are:
+Spock is a fast, statically-typed interpreted language that aims to combine Rust-like syntax with Python's ease-of-use.
 
-- Performance
-- Ease-of-use and readabilty
-- Syntax similarity with low-level languages
+Its goal is to provide a faster alternative to Python that sits closer to low-level languages while remaining accessible to a wide audience.
 
-Its goal is to provide a faster alternative to Python, and one that's closer to
-low-level languages, while still being accessible to a wide audience.
-
-Key info:
+## Key Info
 
 - ~2-10x faster than Python in most cases.
   [Comparisons](COMPARISONS.md)
@@ -29,11 +22,6 @@ Key info:
 - Type inference, static type checking, supports polymorphism
 - Monomorphization
 
-## Documentation
-
-The documentation is in the `docs/` folder.\
-[Standard library documentation](docs/STD_LIB.md)
-
 ## Installation
 
 No binaries are provided yet. You need to compile Spock yourself.
@@ -42,63 +30,14 @@ No binaries are provided yet. You need to compile Spock yourself.
 2. Clone the repo
 
 ```sh
+# 1. Install Rust: https://rustup.rs/
+# 2. Clone
 git clone https://github.com/horacehoff/spock
-```
-
-3. Run/Build Spock
-
-```diff
-cargo run --release -- myfile.spock
+cd spock
+# 3. Build
 cargo build --release
-```
-
-## Instruction Set
-
-Spock uses an instruction set with a size of 8 bytes.
-[Browse the instructions here](src/instr.rs).
-
-```rs
-let x = 20;
-// parentheses are optional
-if (x < 200) {
-  print("TRUE!");
-}
-```
-
-becomes...
-
-```spock
-0: SupEqIntJmp(0, 1, 2)   ─┐
-1: Print(2)                X
-```
-
----
-
-```rs
-let n = 40;
-let a=0;
-let b=1;
-let c=0;
-let i=0;
-while i < n {
-   c = a+b;
-   a = b;
-   b = c;
-   i = i+1;
-}
-print(c);
-```
-
-becomes...
-
-```spock
-0: SupEqIntJmp(4, 0, 6)   ─┐ <─┐
-1: AddInt(1, 2, 3)         │   │
-2: Mov(2, 1)               │   │
-3: Mov(3, 2)               │   │
-4: AddInt(4, 5, 4)         │   │
-5: JmpBack(5)              │  ─┘
-6: Print(3)              <─┘
+# 4. Run
+./target/release/spock myfile.spock
 ```
 
 ## Syntax
@@ -334,11 +273,15 @@ print(x > 1 || x < 1);
 print(x > 1 && x < 1);
 ```
 
-## Types
+### Built-in types
 
-- `Boolean` (`true`/`false`)
+- `Boolean`
 - `Integer` (i32)
 - `Float` (f64)
-- `Array` (`[1, 2, 3, "4", 5.0, true]`)
+- `Array<T>`
 - `String`
-- 
+
+## Documentation
+
+- [Standard library](docs/STD_LIB.md)
+- [File system library](docs/FS_LIB.md)
