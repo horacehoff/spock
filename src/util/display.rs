@@ -1,6 +1,5 @@
-use crate::ArrayPool;
 use crate::parser::Expr;
-use crate::parser_data::{Function, FunctionImpl, Pools};
+use crate::parser_data::{Function, Pools};
 use crate::type_system::DataType;
 use crate::{Data, Instr};
 use inline_colorization::*;
@@ -29,7 +28,7 @@ pub fn format_data(
     } else if x.is_array() {
         format_args!(
             "[{}]",
-            array_pool[x.as_array() as usize]
+            array_pool[x.as_array()]
                 .iter()
                 .map(|x| format_data(x, array_pool, string_pool, true))
                 .collect::<Vec<_>>()

@@ -1,4 +1,4 @@
-use crate::{ArrayPool, string_gc::string_gc};
+use crate::{string_gc::string_gc, vm::ArrayPool};
 
 // 51 bits of total payload -- 3 bits for data type => 48 bits of actual payload
 // 1111_1111_1111_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000
@@ -83,8 +83,8 @@ impl Data {
         let bytes = s.as_bytes();
         let mut payload: u64 = 0;
         // Packs 6 bytes into the payload, filling up the 48 payload bits
-        for i in 0..s.len() {
-            payload |= (bytes[i] as u64) << (i * 8);
+        for (i, byte) in bytes.iter().enumerate() {
+            payload |= (*byte as u64) << (i * 8);
         }
         Data(NAN_TAG_STRING_SMALL | (payload & PAYLOAD_MASK))
     }

@@ -1,9 +1,9 @@
-use crate::ArrayPool;
 use crate::Data;
 use crate::Expr;
 use crate::Instr;
-use crate::StringPool;
 use crate::type_system::DataType;
+use crate::vm::ArrayPool;
+use crate::vm::StringPool;
 use libffi::middle::Type;
 use libloading::Library;
 use smol_str::SmolStr;

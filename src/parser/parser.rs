@@ -1782,7 +1782,7 @@ pub fn parse(
         .parse((filename, contents), contents)
         .unwrap_or_else(|x| lalrpop_error::<usize, Token<'_>, &str>(x, contents, filename));
     if debug {
-        println!("LALRPOP TIME {:.2?}", now.elapsed());
+        println!("PARSING TIME: {:.2?}", now.elapsed());
     }
 
     let mut variables: Vec<Variable> = Vec::new();
