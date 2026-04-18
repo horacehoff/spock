@@ -203,7 +203,6 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::CallLibFunc(_, _, y)
         | Instr::GetIndexArray(_, _, y)
         | Instr::GetIndexString(_, _, y)
-        // | Instr::IoOpen(_, y, _)
         | Instr::SaveFrame(_, y, _)
         | Instr::CallDynamicLibFunc(_, y) => *y = tgt_id,
         Instr::CallFuncRecursive(_, y_func) => {
@@ -226,6 +225,35 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
 /// Returns the ID of the register that will be modified by the given instruction
 fn get_tgt_id(x: Instr) -> Option<u16> {
     match x {
+        // ↓ INSTRUCTIONS THAT DON'T MODIFY ANY REGISTER ↓
+        Instr::Print(_)
+        | Instr::Jmp(_)
+        | Instr::JmpBack(_)
+        | Instr::IsFalseJmp(_, _)
+        | Instr::NotEqJmp(_, _, _)
+        | Instr::ArrayNotEqJmp(_, _, _)
+        | Instr::EqJmp(_, _, _)
+        | Instr::ArrayEqJmp(_, _, _)
+        | Instr::SupFloatJmp(_, _, _)
+        | Instr::SupIntJmp(_, _, _)
+        | Instr::SupEqFloatJmp(_, _, _)
+        | Instr::SupEqIntJmp(_, _, _)
+        | Instr::InfEqFloatJmp(_, _, _)
+        | Instr::InfEqIntJmp(_, _, _)
+        | Instr::InfFloatJmp(_, _, _)
+        | Instr::InfIntJmp(_, _, _)
+        // | Instr::IoDelete(_)
+        | Instr::StoreFuncArg(_)
+        | Instr::SetElementArray(_, _, _)
+        | Instr::ArrayMov(_, _, _)
+        | Instr::Push(_, _)
+        | Instr::Return(_) // Modifies a register, but this function doesn't know which one
+        | Instr::RecursiveReturn(_) // Modifies a register, but this function doesn't know which one
+        | Instr::VoidReturn
+        | Instr::Remove(_, _)
+
+
+        => None,
         Instr::Mov(_, y)
         | Instr::CallFunc(_, y)
         | Instr::CallFuncRecursive(_, y)
@@ -266,32 +294,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         // | Instr::IoOpen(_, y, _)
         | Instr::SetElementString(y, _, _)
         | Instr::CallDynamicLibFunc(_, y) => Some(y),
-        // ↓ INSTRUCTIONS THAT DON'T MODIFY ANY REGISTER ↓
-        Instr::Print(_)
-        | Instr::Jmp(_)
-        | Instr::JmpBack(_)
-        | Instr::IsFalseJmp(_, _)
-        | Instr::NotEqJmp(_, _, _)
-        | Instr::ArrayNotEqJmp(_, _, _)
-        | Instr::EqJmp(_, _, _)
-        | Instr::ArrayEqJmp(_, _, _)
-        | Instr::SupFloatJmp(_, _, _)
-        | Instr::SupIntJmp(_, _, _)
-        | Instr::SupEqFloatJmp(_, _, _)
-        | Instr::SupEqIntJmp(_, _, _)
-        | Instr::InfEqFloatJmp(_, _, _)
-        | Instr::InfEqIntJmp(_, _, _)
-        | Instr::InfFloatJmp(_, _, _)
-        | Instr::InfIntJmp(_, _, _)
-        // | Instr::IoDelete(_)
-        | Instr::StoreFuncArg(_)
-        | Instr::SetElementArray(_, _, _)
-        | Instr::ArrayMov(_, _, _)
-        | Instr::Push(_, _)
-        | Instr::Return(_) // Modifies a register, but this function doesn't know which one
-        | Instr::RecursiveReturn(_) // Modifies a register, but this function doesn't know which one
-        | Instr::VoidReturn
-        | Instr::Remove(_, _) => None,
+
     }
 }
 
@@ -304,13 +307,7 @@ pub fn get_tgt_ids(x: &[Instr]) -> Vec<u16> {
 }
 
 fn get_last_tgt_id(x: &[Instr]) -> Option<u16> {
-    debug_assert!(
-        !(x.is_empty()
-            || matches!(
-                x.last().unwrap(),
-                Instr::ArrayMov(_, _, _) // | Instr::IoDelete(_)
-            ))
-    );
+    debug_assert!(!(x.is_empty() || matches!(x.last().unwrap(), Instr::ArrayMov(_, _, _))));
     for y in x.iter().rev() {
         if let Some(id) = get_tgt_id(*y) {
             return Some(id);
@@ -930,38 +927,25 @@ fn parse_loop_flow_control(
     loop_id: u16,
     code_length: u16,
     for_loop: bool,
+    indef: bool,
 ) {
-    loop_code.iter_mut().enumerate().for_each(|x| {
-        if let Instr::NotEqJmp(break_id, 0, 0) = x.1
-            && *break_id == loop_id
-        {
-            if for_loop {
-                *x.1 = Instr::Jmp(code_length - x.0 as u16 - 1);
-            } else {
-                *x.1 = Instr::Jmp(code_length - x.0 as u16);
-            }
-        } else if let Instr::EqJmp(continue_id, 0, 0) = x.1
-            && *continue_id == loop_id
-        {
-            if for_loop {
-                *x.1 = Instr::Jmp(code_length - x.0 as u16 - 3);
-            } else {
-                *x.1 = Instr::Jmp(code_length - x.0 as u16 - 1);
-            }
-        }
-    });
-}
-
-fn parse_indef_loop_flow_control(loop_code: &mut [Instr], loop_id: u16, code_length: u16) {
     loop_code.iter_mut().enumerate().for_each(|(i, x)| {
         if let Instr::NotEqJmp(break_id, 0, 0) = x
             && *break_id == loop_id
         {
-            *x = Instr::Jmp(code_length - i as u16);
+            if for_loop && !indef {
+                *x = Instr::Jmp(code_length - i as u16 - 1);
+            } else {
+                *x = Instr::Jmp(code_length - i as u16);
+            }
         } else if let Instr::EqJmp(continue_id, 0, 0) = x
             && *continue_id == loop_id
         {
-            *x = Instr::Jmp(code_length - i as u16 - 3);
+            if for_loop || indef {
+                *x = Instr::Jmp(code_length - i as u16 - 3);
+            } else {
+                *x = Instr::Jmp(code_length - i as u16 - 1);
+            }
         }
     });
 }
@@ -1331,7 +1315,7 @@ pub fn compile_expr(
                 // get length of the code, then add Cmp/OpCmp (decided by add_cmp), and add the condition logic
                 let mut len = (cond_code.len() + 2) as u16;
                 add_cmp(condition_id, &mut len, &mut output, true);
-                parse_loop_flow_control(&mut cond_code, loop_id, len, false);
+                parse_loop_flow_control(&mut cond_code, loop_id, len, false, false);
                 output.extend(cond_code);
                 output.push(Instr::JmpBack(len));
             }
@@ -1398,7 +1382,7 @@ pub fn compile_expr(
                         output.push(Instr::GetIndexArray(array, index_id, current_element_id));
                     }
                 }
-                parse_loop_flow_control(&mut cond_code, loop_id, len, true);
+                parse_loop_flow_control(&mut cond_code, loop_id, len, true, false);
                 // then add the condition code
                 output.extend(cond_code);
                 // add 1 to the index (i+=1) so that the next loop iteration will have the next element in the array
@@ -1476,7 +1460,7 @@ pub fn compile_expr(
                 let mut compiled = compile_expr(code, v, p, output.len() as u16);
                 v.truncate(v_len);
                 let code_length = compiled.len() as u16;
-                parse_indef_loop_flow_control(&mut compiled, loop_id, code_length + 1);
+                parse_loop_flow_control(&mut compiled, loop_id, code_length + 1, false, true);
                 output.extend(compiled);
                 output.push(Instr::JmpBack(code_length));
             }
