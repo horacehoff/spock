@@ -670,8 +670,13 @@ pub fn execute(
                 }
             }
             Instr::CallLibFunc(LibFunc::Reverse, tgt, dest) => {
-                registers[dest as usize] =
-                    string!(registers[tgt as usize].as_str(string_pool).chars().rev().collect::<String>());
+                registers[dest as usize] = string!(
+                    registers[tgt as usize]
+                        .as_str(string_pool)
+                        .chars()
+                        .rev()
+                        .collect::<String>()
+                );
             }
             Instr::CallLibFuncVoid(LibFunc::Reverse, tgt, _) => {
                 array_pool[registers[tgt as usize].as_array()].reverse();
