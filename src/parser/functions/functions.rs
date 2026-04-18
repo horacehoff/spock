@@ -349,7 +349,7 @@ pub fn handle_functions(
                 let contents = get_id(&args[1], v, p, output, None, false, false, offset);
                 free_register(filepath, free_registers, v, const_registers);
                 free_register(contents, free_registers, v, const_registers);
-                output.push(Instr::CallLibFunc(LibFunc::FsWrite, filepath, contents));
+                output.push(Instr::CallLibFuncVoid(LibFunc::FsWrite, filepath, contents));
                 instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             "append" => {
@@ -360,7 +360,11 @@ pub fn handle_functions(
                 let contents = get_id(&args[1], v, p, output, None, false, false, offset);
                 free_register(filepath, free_registers, v, const_registers);
                 free_register(contents, free_registers, v, const_registers);
-                output.push(Instr::CallLibFunc(LibFunc::FsAppend, filepath, contents));
+                output.push(Instr::CallLibFuncVoid(
+                    LibFunc::FsAppend,
+                    filepath,
+                    contents,
+                ));
                 instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             "delete" => {
@@ -368,7 +372,7 @@ pub fn handle_functions(
                 check_arg_type(0, &[DataType::String]);
                 let path = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(path, free_registers, v, const_registers);
-                output.push(Instr::CallLibFunc(LibFunc::FsDelete, path, 0));
+                output.push(Instr::CallLibFuncVoid(LibFunc::FsDelete, path, 0));
                 instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             "delete_dir" => {
@@ -376,7 +380,7 @@ pub fn handle_functions(
                 check_arg_type(0, &[DataType::String]);
                 let path = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(path, free_registers, v, const_registers);
-                output.push(Instr::CallLibFunc(LibFunc::FsDeleteDir, path, 0));
+                output.push(Instr::CallLibFuncVoid(LibFunc::FsDeleteDir, path, 0));
                 instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             name => {

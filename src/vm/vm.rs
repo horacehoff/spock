@@ -670,15 +670,11 @@ pub fn execute(
                 }
             }
             Instr::CallLibFunc(LibFunc::Reverse, tgt, dest) => {
-                let reg = registers[tgt as usize];
-                if reg.is_str() {
-                    registers[dest as usize] =
-                        string!(reg.as_str(string_pool).chars().rev().collect::<String>());
-                } else if reg.is_array() {
-                    let id = reg.as_array();
-                    array_pool[id].reverse();
-                    // registers[dest as usize] = Data::array(id);
-                }
+                registers[dest as usize] =
+                    string!(registers[tgt as usize].as_str(string_pool).chars().rev().collect::<String>());
+            }
+            Instr::CallLibFuncVoid(LibFunc::Reverse, tgt, _) => {
+                array_pool[registers[tgt as usize].as_array()].reverse();
             }
             Instr::CallLibFunc(LibFunc::SqrtFloat, tgt, dest) => {
                 registers[dest as usize] = registers[tgt as usize].as_float().sqrt().into()
@@ -872,7 +868,7 @@ pub fn execute(
                         .into()
             }
             // Overwrites a file, will create it if it doesn't exist
-            Instr::CallLibFunc(LibFunc::FsWrite, path, contents) => {
+            Instr::CallLibFuncVoid(LibFunc::FsWrite, path, contents) => {
                 fs::write(
                     registers[path as usize].as_str(string_pool),
                     registers[contents as usize].as_str(string_pool),
@@ -882,7 +878,7 @@ pub fn execute(
                 });
             }
             // Appends to a file, will create if it doesn't exist
-            Instr::CallLibFunc(LibFunc::FsAppend, path, contents) => {
+            Instr::CallLibFuncVoid(LibFunc::FsAppend, path, contents) => {
                 fs::OpenOptions::new()
                     .append(true)
                     .open(registers[path as usize].as_str(string_pool))
@@ -895,13 +891,13 @@ pub fn execute(
                     });
             }
             // Deletes the file located at `path`, throwing an error if it doesn't exist.
-            Instr::CallLibFunc(LibFunc::FsDelete, path, _) => {
+            Instr::CallLibFuncVoid(LibFunc::FsDelete, path, _) => {
                 fs::remove_file(registers[path as usize].as_str(string_pool)).unwrap_or_else(|e| {
                     throw_error(instr_src, sources, &instructions[i], e.kind().into())
                 });
             }
             // Deletes the empty directory located at `path`
-            Instr::CallLibFunc(LibFunc::FsDeleteDir, path, _) => {
+            Instr::CallLibFuncVoid(LibFunc::FsDeleteDir, path, _) => {
                 fs::remove_dir(registers[path as usize].as_str(string_pool)).unwrap_or_else(|e| {
                     throw_error(instr_src, sources, &instructions[i], e.kind().into())
                 });
@@ -911,7 +907,7 @@ pub fn execute(
                 array_pool.push(std::env::args().skip(2).map(|s| string!(s)).collect());
                 registers[dest as usize] = Data::array(array_id);
             }
-            Instr::CallLibFunc(LibFunc::Sort, tgt, _) => {
+            Instr::CallLibFuncVoid(LibFunc::Sort, tgt, _) => {
                 let array = &mut array_pool[registers[tgt as usize].as_array()];
                 if !array.is_empty() {
                     if array[0].is_int() {
@@ -929,6 +925,7 @@ pub fn execute(
                     }
                 }
             }
+            instr => unreachable!("Unhandled instruction: {instr:?}"),
         }
         i += 1;
     }

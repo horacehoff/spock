@@ -373,7 +373,7 @@ Example:
 
 ## Sort
 
-`<Array<T>>.sort() -> Array<T>`\
+`<Array<T>>.sort()`\
 Sorts an array in place and returns it. Supports arrays of integers, floats, and strings.
 Example:
 ```

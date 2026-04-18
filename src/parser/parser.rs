@@ -253,7 +253,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::RecursiveReturn(_) // Modifies a register, but this function doesn't know which one
         | Instr::VoidReturn
         | Instr::Remove(_, _)
-
+        | Instr::CallLibFuncVoid(_, _, _)
 
         => None,
         Instr::Mov(_, y)
@@ -1017,6 +1017,13 @@ pub fn for_each_read_reg(instr: Instr, mut f: impl FnMut(u16)) {
         | Instr::IsFalseJmp(a, _) => f(a),
 
         Instr::ArrayMov(a, _, _) => f(a),
+
+        Instr::CallLibFuncVoid(func, a, b) => {
+            f(a);
+            if matches!(func, LibFunc::FsWrite | LibFunc::FsAppend) {
+                f(b);
+            }
+        }
 
         Instr::Jmp(_)
         | Instr::JmpBack(_)

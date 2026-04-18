@@ -385,15 +385,15 @@ pub fn handle_method_calls(
         }
         "reverse" => {
             check!(DataType::Array(_) | DataType::String, "Array or String", 0);
-            output.push(Instr::CallLibFunc(
-                LibFunc::Reverse,
-                id,
-                if obj_type == DataType::String {
-                    alloc_register(registers, free_registers)
-                } else {
-                    0
-                },
-            ));
+            if obj_type == DataType::String {
+                output.push(Instr::CallLibFunc(
+                    LibFunc::Reverse,
+                    id,
+                    alloc_register(registers, free_registers),
+                ));
+            } else {
+                output.push(Instr::CallLibFuncVoid(LibFunc::Reverse, id, 0));
+            }
         }
         "split" => {
             check!(DataType::String, "String", 1);
@@ -480,7 +480,7 @@ pub fn handle_method_calls(
         }
         "sort" => {
             check!(DataType::Array(_), "Array", 0);
-            output.push(Instr::CallLibFunc(LibFunc::Sort, id, 0));
+            output.push(Instr::CallLibFuncVoid(LibFunc::Sort, id, 0));
         }
         name => {
             throw_parser_error(src, fn_markers, ErrType::UnknownFunction(name));
