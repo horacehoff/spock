@@ -26,7 +26,7 @@ pub FnSignature:(SmolStr, Box<[DataType]>, DataType) = {
 }
 
 pub Import:Expr = {
-    "import" <path: String>  <b: Block<FnSignature*>> => {
+    "import" <path: String> <b: Block<FnSignature*>> => {
         Expr::ImportDynLib(path.trim_start_matches("import").trim().to_smolstr(), Box::from(b))
     }
 }
@@ -34,7 +34,7 @@ pub Import:Expr = {
 pub FileStatement:Expr = {
     <o: Function> => o,
     <i: Import>  => i,
-    "use" <path: String> => Expr::ImportFile(path),
+    <l:@L> "use" <path: String> <r:@R> => Expr::ImportFile(path, (l, r)),
 }
 
 Comma<T>: Vec<T> = {

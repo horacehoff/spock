@@ -59,6 +59,8 @@ pub fn handle_functions(
         allocated_call_depth,
         const_registers,
         free_registers,
+        _,
+        current_src_file,
     ) = p.destructure();
 
     let mut check_arg_type = |arg_idx: usize, expected: &[DataType]| {
@@ -113,7 +115,7 @@ pub fn handle_functions(
                     id,
                     alloc_register(registers, free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), *markers));
+                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             "int" => {
                 check_args!(args, 1, name, src, markers);
@@ -125,7 +127,7 @@ pub fn handle_functions(
                     id,
                     alloc_register(registers, free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), *markers));
+                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             "str" => {
                 check_args!(args, 1, name, src, markers);
@@ -147,7 +149,7 @@ pub fn handle_functions(
                     id,
                     alloc_register(registers, free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), *markers));
+                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             "input" => {
                 check_args_range!(args, 0, 1, name, src, markers);
@@ -317,7 +319,7 @@ pub fn handle_functions(
                     id,
                     alloc_register(registers, free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), *markers));
+                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             "exists" => {
                 check_args!(args, 1, name, src, markers);
@@ -329,7 +331,7 @@ pub fn handle_functions(
                     id,
                     alloc_register(registers, free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), *markers));
+                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             "write" => {
                 check_args!(args, 2, name, src, markers);
@@ -340,7 +342,7 @@ pub fn handle_functions(
                 free_register(filepath, free_registers, v, const_registers);
                 free_register(contents, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(LibFunc::FsWrite, filepath, contents));
-                instr_src.push((*output.last().unwrap(), *markers));
+                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             "append" => {
                 check_args!(args, 2, name, src, markers);
@@ -351,7 +353,7 @@ pub fn handle_functions(
                 free_register(filepath, free_registers, v, const_registers);
                 free_register(contents, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(LibFunc::FsAppend, filepath, contents));
-                instr_src.push((*output.last().unwrap(), *markers));
+                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             "delete" => {
                 check_args!(args, 1, name, src, markers);
@@ -359,7 +361,7 @@ pub fn handle_functions(
                 let path = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(path, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(LibFunc::FsDelete, path, 0));
-                instr_src.push((*output.last().unwrap(), *markers));
+                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             "delete_dir" => {
                 check_args!(args, 1, name, src, markers);
@@ -367,7 +369,7 @@ pub fn handle_functions(
                 let path = get_id(&args[0], v, p, output, None, false, false, offset);
                 free_register(path, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(LibFunc::FsDeleteDir, path, 0));
-                instr_src.push((*output.last().unwrap(), *markers));
+                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             name => {
                 throw_parser_error(src, markers, ErrType::UnknownFunction(name));
@@ -401,7 +403,11 @@ pub fn handle_functions(
                 (registers.len() - 1) as u16
             };
             output.push(Instr::CallDynamicLibFunc(*id, register_id));
-            instr_src.push((Instr::CallDynamicLibFunc(*id, register_id), *markers));
+            instr_src.push((
+                Instr::CallDynamicLibFunc(*id, register_id),
+                *markers,
+                current_src_file,
+            ));
         }
     } else {
         throw_parser_error(
@@ -434,15 +440,41 @@ fn compile_function(
     is_recursive: bool,
     offset: u16,
 ) {
-    let (registers, fns, _, _, fn_registers, _, src, _, _, dyn_libs, _, _, _, _) = p.destructure();
+    let (
+        registers,
+        fns,
+        _,
+        _,
+        fn_registers,
+        _,
+        src,
+        _,
+        _,
+        dyn_libs,
+        _,
+        _,
+        _,
+        _,
+        sources,
+        current_src_file,
+    ) = p.destructure();
     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
+    // Use the function's own source file for error reporting inside the function body
+    let fn_src_file = fns[function_id].src_file;
+    let fn_src: (&str, &str) = if fn_src_file != current_src_file {
+        let name: &str = sources[fn_src_file as usize].0.as_str();
+        let content: &str = sources[fn_src_file as usize].1.as_str();
+        (name, content)
+    } else {
+        src
+    };
 
     // Local vector vars and recorded_types to allow the inner body to type-check correctly
     let mut v_temp: Vec<Variable> = fn_args
         .iter()
         .enumerate()
         .map(|(i, x)| {
-            let infered_type = infer_type(&args[i], v, fns, src, dyn_libs);
+            let infered_type = infer_type(&args[i], v, fns, fn_src, dyn_libs);
 
             // Allocate a registers slot for each func arg
             registers.push(NULL);
@@ -468,7 +500,7 @@ fn compile_function(
 
     let mut arg_types: Vec<usize> = Vec::with_capacity(args.len());
     args.iter().enumerate().for_each(|(i, x)| {
-        let infered_type = infer_type(x, v, fns, src, dyn_libs);
+        let infered_type = infer_type(x, v, fns, fn_src, dyn_libs);
         arg_types.push(v.len());
         // 0 => placeholder id, it's never used
         v.push(Variable {
@@ -477,7 +509,7 @@ fn compile_function(
             infered_type,
         });
     });
-    let fn_type = track_returns(fn_code, v, fns, src, fn_name, true, dyn_libs);
+    let fn_type = track_returns(fn_code, v, fns, fn_src, fn_name, true, dyn_libs);
     let return_type = if !fn_type.is_empty() {
         // If function returns anything, check if it returns the same thing each time
         check_poly(DataType::Poly(Box::from(fn_type)))
@@ -505,6 +537,8 @@ fn compile_function(
         &ParserData {
             is_parsing_recursive: is_recursive,
             parsing_fn_id: Some(fn_id),
+            src: fn_src,
+            current_src_file: fn_src_file,
             ..*p
         },
         output.len() as u16,

@@ -43,6 +43,8 @@ pub fn handle_method_calls(
         _,
         const_registers,
         free_registers,
+        _,
+        current_src_file,
     ) = p.destructure();
 
     let len = namespace.len() - 1;
@@ -239,7 +241,7 @@ pub fn handle_method_calls(
                 id,
                 alloc_register(registers, free_registers),
             ));
-            instr_src.push((*output.last().unwrap(), *fn_markers))
+            instr_src.push((*output.last().unwrap(), *fn_markers, current_src_file))
         }
         "is_float" => {
             check!(DataType::String, "String", 0);
@@ -474,7 +476,7 @@ pub fn handle_method_calls(
             let arg_id = get_id(&args[0], v, p, output, None, false, false, offset);
             free_register(arg_id, free_registers, v, const_registers);
             output.push(Instr::Remove(id, arg_id));
-            instr_src.push((*output.last().unwrap(), *fn_markers));
+            instr_src.push((*output.last().unwrap(), *fn_markers, current_src_file));
         }
         name => {
             throw_parser_error(src, fn_markers, ErrType::UnknownFunction(name));
