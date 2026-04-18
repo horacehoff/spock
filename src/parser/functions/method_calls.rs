@@ -478,6 +478,10 @@ pub fn handle_method_calls(
             output.push(Instr::Remove(id, arg_id));
             instr_src.push((*output.last().unwrap(), *fn_markers, current_src_file));
         }
+        "sort" => {
+            check!(DataType::Array(_), "Array", 0);
+            output.push(Instr::CallLibFunc(LibFunc::Sort, id, 0));
+        }
         name => {
             throw_parser_error(src, fn_markers, ErrType::UnknownFunction(name));
         }

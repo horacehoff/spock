@@ -199,6 +199,14 @@ pub fn handle_functions(
                     alloc_register(registers, free_registers),
                 ));
             }
+            "argv" => {
+                check_args!(args, 0, name, src, markers);
+                output.push(Instr::CallLibFunc(
+                    LibFunc::Argv,
+                    0,
+                    alloc_register(registers, free_registers),
+                ));
+            }
             fn_name => {
                 // Lookup function by name in function registry
                 // Registry is (fn_name, fn_args, fn_code, fn_data (per implementation: loc, args_loc, arg_types) )

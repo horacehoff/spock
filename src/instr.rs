@@ -149,4 +149,6 @@ pub enum LibFunc {
     FsAppend = 34,
     FsDelete = 35,
     FsDeleteDir = 36,
+    Argv = 37,
+    Sort = 38,
 }

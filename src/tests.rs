@@ -118,3 +118,121 @@ pub fn iter_fib_40() {
         102334155.into()
     );
 }
+
+#[test]
+pub fn string_split_len() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "hello world";
+            let parts = s.split(" ");
+            print(parts.len());
+        }
+        "#,
+        2.into()
+    );
+}
+
+#[test]
+pub fn string_contains_replace() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "hello world";
+            print(s.contains("world"));
+        }
+        "#,
+        true.into()
+    );
+}
+
+#[test]
+pub fn for_loop_sum() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let arr = [1, 2, 3, 4, 5];
+            let sum = 0;
+            for x in arr {
+                sum += x;
+            }
+            print(sum);
+        }
+        ",
+        15.into()
+    );
+}
+
+#[test]
+pub fn array_sort() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let arr = [3, 1, 4, 1, 5, 9, 2, 6];
+            arr.sort();
+            print(arr[0]);
+        }
+        ",
+        1.into()
+    );
+}
+
+#[test]
+pub fn array_push_len() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let arr = [1, 2, 3];
+            arr.push(4);
+            print(arr.len());
+        }
+        ",
+        4.into()
+    );
+}
+
+#[test]
+pub fn int_for_loop() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let sum = 0;
+            for i in 0..10 {
+                sum += i;
+            }
+            print(sum);
+        }
+        ",
+        45.into()
+    );
+}
+
+#[test]
+pub fn string_trim() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "  hello  ";
+            let t = s.trim();
+            print(t.len());
+        }
+        "#,
+        5.into()
+    );
+}
+
+#[test]
+pub fn recursive_factorial() {
+    run_and_check_registers!(
+        "
+        function fact(n) {
+            if n <= 1 { return 1; }
+            else { return n * fact(n - 1); }
+        }
+        function main() {
+            print(fact(10));
+        }
+        ",
+        3628800.into()
+    );
+}

@@ -906,6 +906,29 @@ pub fn execute(
                     throw_error(instr_src, sources, &instructions[i], e.kind().into())
                 });
             }
+            Instr::CallLibFunc(LibFunc::Argv, _, dest) => {
+                let array_id = array_pool.len() as u32;
+                array_pool.push(std::env::args().skip(2).map(|s| string!(s)).collect());
+                registers[dest as usize] = Data::array(array_id);
+            }
+            Instr::CallLibFunc(LibFunc::Sort, tgt, _) => {
+                let array = &mut array_pool[registers[tgt as usize].as_array()];
+                if !array.is_empty() {
+                    if array[0].is_int() {
+                        array.sort_unstable_by_key(|x| x.as_int());
+                    } else if array[0].is_float() {
+                        array.sort_unstable_by(|a, b| {
+                            a.as_float()
+                                .partial_cmp(&b.as_float())
+                                .unwrap_or(std::cmp::Ordering::Equal)
+                        });
+                    } else if array[0].is_str() {
+                        array.sort_unstable_by(|a, b| {
+                            a.as_str(string_pool).cmp(b.as_str(string_pool))
+                        });
+                    }
+                }
+            }
         }
         i += 1;
     }

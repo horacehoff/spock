@@ -370,3 +370,24 @@ Example:
 ["a","b","c"].join(",") // Returns "a,b,c"
 ["1","2"].join("--") // Returns "1--2"
 ```
+
+## Sort
+
+`<Array<T>>.sort()`\
+Sorts an array in place. Supports arrays of integers, floats, and strings.
+Example:
+```
+let arr = [3, 1, 2];
+arr.sort();
+print(arr); // Prints "[1,2,3]"
+```
+
+## Argv
+
+`argv() -> Array<String>`\
+Returns the arguments passed to the script, excluding the interpreter path and script name.
+Example:
+```
+// ./spock script.spock foo bar
+argv() // Returns ["foo", "bar"]
+```
