@@ -373,8 +373,8 @@ Example:
 
 ## Sort
 
-`<Array<T>>.sort()`\
-Sorts an array in place. Supports arrays of integers, floats, and strings.
+`<Array<T>>.sort() -> Array<T>`\
+Sorts an array in place and returns it. Supports arrays of integers, floats, and strings.
 Example:
 ```
 let arr = [3, 1, 2];
