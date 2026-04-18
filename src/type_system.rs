@@ -40,7 +40,7 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                     return true;
                 }
             }
-            Expr::Condition(x, y, _) => {
+            Expr::Condition(x, y, _) | Expr::InlineCondition(x, y, _) => {
                 if contains_recursive_call_expr(x, fn_name) || contains_recursive_call(y, fn_name) {
                     return true;
                 }
@@ -116,6 +116,7 @@ pub fn check_if_returns_void(content: &[Expr]) -> bool {
             Expr::ElseIfBlock(_, code)
             | Expr::ElseBlock(code)
             | Expr::Condition(_, code, _)
+            | Expr::InlineCondition(_, code, _)
             | Expr::WhileBlock(_, code)
             | Expr::ForLoop(_, code)
             | Expr::EvalBlock(code)
@@ -148,7 +149,7 @@ pub fn track_returns(
     let mut return_types: Vec<DataType> = Vec::new();
     for content in content {
         match content {
-            Expr::Condition(_, code, _) => {
+            Expr::Condition(_, code, _) | Expr::InlineCondition(_, code, _) => {
                 if track_condition {
                     return_types.extend(track_returns(
                         code,
@@ -455,7 +456,8 @@ pub fn infer_type(
                 _ => todo!(),
             }
         }
-        Expr::Condition(_, code, _) => {
+        Expr::Condition(_, _, _) => DataType::Null,
+        Expr::InlineCondition(_, code, _) => {
             let mut types: Vec<DataType> = Vec::with_capacity(code.len());
             types.push(infer_type(&code[0], v, fns, src, dyn_libs));
             for t in &code[0..] {

@@ -146,7 +146,7 @@ InlineConditionalBlock: Expr = {
                     Expr::EvalBlock(Box::from([]))
                 }
             } else if let Expr::ElseIfBlock(condition,code) = &o3[0] {
-                    Expr::Condition(
+                    Expr::InlineCondition(
                         condition.clone(),
                         Box::from(
                             [&(**code),
@@ -159,7 +159,7 @@ InlineConditionalBlock: Expr = {
                     ),(start,end))
                 } else {unreachable!();}
         } else {
-            Expr::Condition(
+            Expr::InlineCondition(
                 Box::from(o1),
                 Box::from(
                     [

@@ -236,3 +236,58 @@ pub fn recursive_factorial() {
         3628800.into()
     );
 }
+
+#[test]
+pub fn inline_condition_basic() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 10;
+            let result = if x > 5 { 1 } else { 0 };
+            print(result);
+        }
+        ",
+        1.into()
+    );
+}
+
+#[test]
+pub fn inline_condition_else_branch() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 3;
+            let result = if x > 5 { 1 } else { 0 };
+            print(result);
+        }
+        ",
+        0.into()
+    );
+}
+
+#[test]
+pub fn inline_condition_else_if() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 5;
+            let result = if x > 10 { 2 } else if x > 3 { 1 } else { 0 };
+            print(result);
+        }
+        ",
+        1.into()
+    );
+}
+
+#[test]
+pub fn inline_condition_as_arg() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 42;
+            print(if x == 42 { 99 } else { 0 });
+        }
+        ",
+        99.into()
+    );
+}

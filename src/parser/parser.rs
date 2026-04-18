@@ -43,6 +43,8 @@ pub enum Expr {
     VarAssign(SmolStr, Box<Expr>, (usize, usize)),
     /// Condition(condition, code (contains else_if_blocks and potentially else_block), start, end)
     Condition(Box<Expr>, Box<[Expr]>, (usize, usize)),
+    /// InlineCondition — expression-form if/else, always produces a value, must have an else branch
+    InlineCondition(Box<Expr>, Box<[Expr]>, (usize, usize)),
     ElseIfBlock(Box<Expr>, Box<[Expr]>),
     ElseBlock(Box<[Expr]>),
 
@@ -750,9 +752,7 @@ pub fn get_id(
             id
         }
 
-        Expr::Condition(main_condition, code, markers) => {
-            // let return_id = registers.len() as u16;
-            // registers.push(NULL);
+        Expr::InlineCondition(main_condition, code, markers) => {
             let return_id = alloc_register(registers, free_registers);
 
             // get first code limit (after which there are only else(if) blocks)
