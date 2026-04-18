@@ -120,6 +120,10 @@ pub enum ErrType<'a> {
     InvalidConditionalExpression,
     FunctionAlreadyExists(&'a str),
     CannotReadImportedFile(&'a str),
+    /// CircularImport(path)
+    CircularImport(&'a str),
+    /// DuplicateFunctionInImport(fn_name, file_path)
+    DuplicateFunctionInImport(&'a str, &'a str),
 }
 
 impl<'a> From<ErrType<'a>> for SmolStr {
@@ -199,7 +203,13 @@ impl<'a> From<ErrType<'a>> for SmolStr {
             ErrType::InvalidConditionalExpression => "Conditional expressions must have an else clause".into(),
             ErrType::FunctionAlreadyExists(fn_name) => format_args!(
                 "Function {color_bright_red}{style_bold}{fn_name}{color_reset}{style_reset} is already defined",
-            ).to_smolstr()
+            ).to_smolstr(),
+            ErrType::CircularImport(path) => format_args!(
+                "Circular import detected: {color_bright_red}{style_bold}{path}{color_reset}{style_reset} is already being imported"
+            ).to_smolstr(),
+            ErrType::DuplicateFunctionInImport(fn_name, file_path) => format_args!(
+                "Function {color_bright_blue}{style_bold}{fn_name}{color_reset}{style_reset} imported from {color_bright_red}{style_bold}{file_path}{color_reset}{style_reset} is already defined"
+            ).to_smolstr(),
         }
     }
 }
@@ -207,22 +217,23 @@ impl<'a> From<ErrType<'a>> for SmolStr {
 #[cold]
 #[inline(never)]
 pub fn throw_error(
-    instr_src: &[(Instr, (usize, usize))],
-    src: (&str, &str),
+    instr_src: &[(Instr, (usize, usize), u16)],
+    sources: &[(SmolStr, String)],
     instr: &Instr,
     t: ErrType,
 ) -> ! {
-    let (_, (start, end)) = instr_src.iter().find(|(x, _)| x == instr).unwrap();
+    let (_, (start, end), file_idx) = instr_src.iter().find(|(x, _, _)| x == instr).unwrap();
+    let src = &sources[*file_idx as usize];
     let err_message: SmolStr = t.into();
     eprintln!("{color_red}SPOCK ERROR{color_reset}");
-    Report::build(ReportKind::Error, (src.0, *start..*end))
+    Report::build(ReportKind::Error, (src.0.as_str(), *start..*end))
         .with_label(
-            Label::new((src.0, *start..*end))
+            Label::new((src.0.as_str(), *start..*end))
                 .with_message(err_message)
                 .with_color(Color::Red),
         )
         .finish()
-        .eprint((src.0, Source::from(src.1)))
+        .eprint((src.0.as_str(), Source::from(src.1.as_str())))
         .unwrap();
     std::process::exit(1);
 }

@@ -245,7 +245,19 @@ for x in [0,1,2,3] {
 }
 ```
 
-### Imports
+### Importing other `.spock` files
+
+You can import other `.spock` files with the following syntax:
+```spock
+use "fibonacci.spock"
+
+fn main() {print(fibonacci(25));}
+```
+
+All top-level functions from the imported file become available immediately.
+Imports can be nested, and circular imports trigger an error and crash the program.
+
+### Importing dynamic libraries
 
 You can load functions from dynamic libraries by specifying each function's
 signature, with the following syntax:

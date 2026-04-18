@@ -335,6 +335,7 @@ pub fn infer_type(
                         is_recursive: _,
                         id: _,
                         returns_void: _,
+                        src_file: _,
                     } = fns
                         .iter()
                         .find(|func| func.name == function_name)

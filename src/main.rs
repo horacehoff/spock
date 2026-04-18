@@ -14,6 +14,7 @@ use crate::util::likely;
 use inline_colorization::*;
 use mimalloc::MiMalloc;
 use parser::*;
+use smol_str::SmolStr;
 use smol_str::ToSmolStr;
 use std::any::Any;
 use std::fs;
@@ -70,8 +71,8 @@ pub fn execute(
         array_pool,
         string_pool,
     }: &mut Pools,
-    instr_src: &[(Instr, (usize, usize))],
-    src: (&str, &str),
+    instr_src: &[(Instr, (usize, usize), u16)],
+    sources: &[(SmolStr, String)],
     fn_registers: &[Vec<u16>],
     dyn_libs: &[DynamicLibFn],
     allocated_arg_count: usize,
@@ -221,7 +222,7 @@ pub fn execute(
                         } else {
                             throw_error(
                                 instr_src,
-                                src,
+                                sources,
                                 &instructions[i],
                                 ErrType::Custom(
                                     format_args!("Invalid argument type: {t:?}").to_smolstr(),
@@ -253,7 +254,7 @@ pub fn execute(
                     } else {
                         throw_error(
                             instr_src,
-                            src,
+                            sources,
                             &instructions[i],
                             ErrType::Custom(
                                 format_args!("Invalid return type: {t:?}").to_smolstr(),
@@ -514,7 +515,7 @@ pub fn execute(
                 } else {
                     throw_error(
                         instr_src,
-                        src,
+                        sources,
                         &instructions[i],
                         ErrType::IndexOutOfBounds(array.len(), index),
                     );
@@ -534,7 +535,7 @@ pub fn execute(
                 } else {
                     throw_error(
                         instr_src,
-                        src,
+                        sources,
                         &instructions[i],
                         ErrType::IndexOutOfBounds(source_string.len(), index),
                     );
@@ -549,7 +550,7 @@ pub fn execute(
                 } else {
                     throw_error(
                         instr_src,
-                        src,
+                        sources,
                         &instructions[i],
                         ErrType::IndexOutOfBounds(array.len(), idx),
                     );
@@ -563,7 +564,7 @@ pub fn execute(
                 } else {
                     throw_error(
                         instr_src,
-                        src,
+                        sources,
                         &instructions[i],
                         ErrType::IndexOutOfBounds(str.len(), idx),
                     );
@@ -730,7 +731,7 @@ pub fn execute(
                 } else if reg.is_str() {
                     let str = reg.as_str(string_pool);
                     registers[dest as usize] = (str.parse::<f64>().unwrap_or_else(|_| {
-                        throw_error(instr_src, src, &instructions[i], ErrType::FloatParsingError);
+                        throw_error(instr_src, sources, &instructions[i], ErrType::FloatParsingError);
                     }))
                     .into();
                 }
@@ -742,7 +743,7 @@ pub fn execute(
                 } else if reg.is_str() {
                     let str = reg.as_str(string_pool);
                     registers[dest as usize] = (str.parse::<i32>().unwrap_or_else(|e| {
-                        throw_error(instr_src, src, &instructions[i], (*e.kind()).into());
+                        throw_error(instr_src, sources, &instructions[i], (*e.kind()).into());
                     }))
                     .into();
                 }
@@ -758,7 +759,7 @@ pub fn execute(
             Instr::CallLibFunc(LibFunc::Bool, tgt, dest) => {
                 let str = registers[tgt as usize].as_str(string_pool);
                 registers[dest as usize] = (str.parse::<bool>().unwrap_or_else(|_| {
-                    throw_error(instr_src, src, &instructions[i], ErrType::BoolParsingError);
+                    throw_error(instr_src, sources, &instructions[i], ErrType::BoolParsingError);
                 }))
                 .into();
             }
@@ -889,7 +890,7 @@ pub fn execute(
                 registers[dest_reg_id as usize] = string!(
                     fs::read_to_string(registers[path as usize].as_str(string_pool))
                         .unwrap_or_else(|e| {
-                            throw_error(instr_src, src, &instructions[i], e.kind().into())
+                            throw_error(instr_src, sources, &instructions[i], e.kind().into())
                         })
                 );
             }
@@ -897,7 +898,7 @@ pub fn execute(
                 registers[dest_reg_id as usize] =
                     fs::exists(registers[path as usize].as_str(string_pool))
                         .unwrap_or_else(|e| {
-                            throw_error(instr_src, src, &instructions[i], e.kind().into())
+                            throw_error(instr_src, sources, &instructions[i], e.kind().into())
                         })
                         .into()
             }
@@ -907,7 +908,7 @@ pub fn execute(
                     registers[path as usize].as_str(string_pool),
                     registers[contents as usize].as_str(string_pool),
                 )
-                .unwrap_or_else(|e| throw_error(instr_src, src, &instructions[i], e.kind().into()));
+                .unwrap_or_else(|e| throw_error(instr_src, sources, &instructions[i], e.kind().into()));
             }
             // Appends to a file, will create if it doesn't exist
             Instr::CallLibFunc(LibFunc::FsAppend, path, contents) => {
@@ -915,23 +916,23 @@ pub fn execute(
                     .append(true)
                     .open(registers[path as usize].as_str(string_pool))
                     .unwrap_or_else(|e| {
-                        throw_error(instr_src, src, &instructions[i], e.kind().into())
+                        throw_error(instr_src, sources, &instructions[i], e.kind().into())
                     })
                     .write(registers[contents as usize].as_str(string_pool).as_bytes())
                     .unwrap_or_else(|e| {
-                        throw_error(instr_src, src, &instructions[i], e.kind().into())
+                        throw_error(instr_src, sources, &instructions[i], e.kind().into())
                     });
             }
             // Deletes the file located at `path`, throwing an error if it doesn't exist.
             Instr::CallLibFunc(LibFunc::FsDelete, path, _) => {
                 fs::remove_file(registers[path as usize].as_str(string_pool)).unwrap_or_else(|e| {
-                    throw_error(instr_src, src, &instructions[i], e.kind().into())
+                    throw_error(instr_src, sources, &instructions[i], e.kind().into())
                 });
             }
             // Deletes the empty directory located at `path`
             Instr::CallLibFunc(LibFunc::FsDeleteDir, path, _) => {
                 fs::remove_dir(registers[path as usize].as_str(string_pool)).unwrap_or_else(|e| {
-                    throw_error(instr_src, src, &instructions[i], e.kind().into())
+                    throw_error(instr_src, sources, &instructions[i], e.kind().into())
                 });
             }
         }
@@ -970,13 +971,14 @@ fn main() {
             fn_dyn_libs,
             allocated_arg_count,
             allocated_call_depth,
+            sources,
         ) = parse(&contents, filename, debug);
         execute(
             &instructions,
             &mut registers,
             &mut arrays,
             &instr_src,
-            (filename, &contents),
+            &sources,
             &fn_registers,
             &fn_dyn_libs,
             allocated_arg_count,
@@ -996,6 +998,7 @@ fn main() {
         fn_dyn_libs,
         allocated_arg_count,
         allocated_call_depth,
+        sources,
     ) = parse(&contents, filename, true);
 
     println!("PARSING TIME {:.2?}", now.elapsed());
@@ -1005,7 +1008,7 @@ fn main() {
             &mut registers,
             &mut arrays,
             &instr_src,
-            (filename, &contents),
+            &sources,
             &fn_registers,
             10,
             150,
@@ -1021,7 +1024,7 @@ fn main() {
             &mut registers,
             &mut arrays,
             &instr_src,
-            (filename, &contents),
+            &sources,
             &fn_registers,
             &fn_dyn_libs,
             allocated_arg_count,
@@ -1040,8 +1043,8 @@ pub fn benchmark(
     instructions: &[Instr],
     registers: &mut [Data],
     pools: &mut Pools,
-    instr_src: &[(Instr, (usize, usize))],
-    src: (&str, &str),
+    instr_src: &[(Instr, (usize, usize), u16)],
+    sources: &[(SmolStr, String)],
     fn_registers: &[Vec<u16>],
     warmup_runs: usize,
     samples_count: usize,
@@ -1058,7 +1061,7 @@ pub fn benchmark(
             black_box(&mut registers.to_vec()),
             black_box(&mut pools.to_owned()),
             black_box(instr_src),
-            black_box(src),
+            black_box(sources),
             black_box(fn_registers),
             black_box(fn_dyn_libs),
             black_box(allocated_arg_count),
@@ -1073,7 +1076,7 @@ pub fn benchmark(
             black_box(registers),
             black_box(&mut pools.to_owned()),
             black_box(instr_src),
-            black_box(src),
+            black_box(sources),
             black_box(fn_registers),
             black_box(fn_dyn_libs),
             black_box(allocated_arg_count),
@@ -1110,7 +1113,7 @@ pub fn benchmark(
 
         println!(
             "\nBENCHMARK RESULTS\n---{color_blue}Program{color_reset}---\n{color_blue}{}{color_reset}\n-------------",
-            src.1
+            sources[0].1
         );
         println!("Samples          : {}", samples_count);
         println!("Min              : {:.3} ms", min_ns as f64 / 1000000.0);

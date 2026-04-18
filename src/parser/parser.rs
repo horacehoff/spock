@@ -20,6 +20,8 @@ use inline_colorization::*;
 use lalrpop_util::lalrpop_mod;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::slice;
 
 lalrpop_mod!(pub grammar);
@@ -98,7 +100,8 @@ pub enum Expr {
     /// Import(lib_path, [(fn_name, fn_args, fn_return_type)])
     ImportDynLib(SmolStr, Box<[(SmolStr, Box<[DataType]>, DataType)]>),
 
-    ImportFile(SmolStr),
+    /// ImportFile(path, (start, end))
+    ImportFile(SmolStr, (usize, usize)),
 
     Break,
     Continue,
@@ -372,6 +375,8 @@ pub fn get_id(
         _,
         const_registers,
         free_registers,
+        _,
+        _,
     ) = p.destructure();
 
     macro_rules! uniform_op {
@@ -1060,12 +1065,14 @@ pub fn compile_expr(
         block_id,
         src,
         is_parsing_recursive,
-        parsing_fn_id,
+        _,
         dyn_libs,
         _,
         _,
         const_registers,
         free_registers,
+        _,
+        current_src_file,
     ) = p.destructure();
 
     for x in input {
@@ -1150,7 +1157,7 @@ pub fn compile_expr(
                     } else {
                         Instr::GetIndexArray(id, f_id, dest_reg_id)
                     };
-                    instr_src.push((to_push, *markers));
+                    instr_src.push((to_push, *markers, current_src_file));
                     output.push(to_push);
 
                     id = (registers.len() - 1) as u16;
@@ -1218,7 +1225,7 @@ pub fn compile_expr(
                 } else {
                     Instr::SetElementArray(id, elem_id, final_id)
                 };
-                instr_src.push((to_push, *index_markers));
+                instr_src.push((to_push, *index_markers, current_src_file));
                 output.push(to_push);
                 free_register(id, free_registers, v, const_registers);
             }
@@ -1564,17 +1571,6 @@ pub fn compile_expr(
             Expr::FunctionDecl(x, y, markers) => {
                 if fns.iter().any(|func| &func.name == x.first().unwrap()) {
                     throw_parser_error(src, markers, ErrType::FunctionAlreadyExists(&x[0]));
-                    // parser_error(
-                    //     src,
-                    //     *start,
-                    //     *end,
-                    //     "Function defined twice",
-                    //     format_args!(
-                    //         "Function {color_bright_blue}{style_bold}{}{color_reset}{style_reset} is already defined",
-                    //         x[0]
-                    //     ),
-                    //     None,
-                    // );
                 }
                 fns.push(Function {
                     name: x.first().unwrap().clone(),
@@ -1584,6 +1580,7 @@ pub fn compile_expr(
                     is_recursive: contains_recursive_call(y, x.first().unwrap()),
                     id: fn_registers.len() as u16,
                     returns_void: check_if_returns_void(y),
+                    src_file: current_src_file,
                 });
                 fn_registers.push(Vec::new());
             }
@@ -1614,50 +1611,33 @@ pub fn compile_expr(
     output
 }
 
-pub fn parse(
-    contents: &str,
-    filename: &str,
-    debug: bool,
-) -> (
-    Vec<Instr>,
-    Vec<Data>,
-    Pools,
-    Vec<(Instr, (usize, usize))>,
-    Vec<Vec<u16>>,
-    Vec<DynamicLibFn>,
-    usize,
-    usize,
+/// Recursively collects functions, dyn libs, and imported files
+fn parse_toplevel(
+    code: Vec<Expr>,
+    file_path: &Path,
+    src_file_idx: u16,
+    use_line_markers: (&str, &str),
+    fns: &mut Vec<Function>,
+    fn_registers: &mut Vec<Vec<u16>>,
+    dyn_libs: &mut Vec<Dynamiclib>,
+    dyn_lib_fns: &mut Vec<DynamicLibFn>,
+    sources: &mut Vec<(SmolStr, String)>,
+    visited_files: &mut HashSet<PathBuf>,
+    dyn_fn_id: &mut u16,
 ) {
-    let now = std::time::Instant::now();
-    let code: Vec<Expr> = grammar::FileParser::new()
-        .parse((filename, contents), contents)
-        .unwrap_or_else(|x| lalrpop_error::<usize, Token<'_>, &str>(x, contents, filename));
-    if debug {
-        println!("LALRPOP TIME {:.2?}", now.elapsed());
-    }
-
-    let mut variables: Vec<Variable> = Vec::new();
-    let mut registers: Vec<Data> = Vec::new();
-    let mut pools: Pools = Pools {
-        array_pool: Vec::with_capacity(20),
-        string_pool: Vec::with_capacity(20),
-    };
-    let mut instr_src = Vec::new();
-    let mut fn_registers: Vec<Vec<u16>> = Vec::new();
-    let mut functions: Vec<Function> = Vec::new();
-    let mut dyn_libs: Vec<Dynamiclib> = Vec::new();
-    let mut id = 0;
-    let mut dyn_lib_fns: Vec<DynamicLibFn> = Vec::new();
-    let mut allocated_arg_count = 0;
-    let mut allocated_call_depth = 0;
-    let mut const_registers = Vec::new();
-    let mut free_registers = Vec::new();
-
-    for w in code {
-        match w {
-            Expr::FunctionDecl(x, y, _) => {
+    for expr in code {
+        match expr {
+            Expr::FunctionDecl(x, y, markers) => {
+                if let Some(existing) = fns.iter().find(|f| f.name == x[0]) {
+                    let existing_file = &sources[existing.src_file as usize].0;
+                    throw_parser_error(
+                        use_line_markers,
+                        &markers,
+                        ErrType::DuplicateFunctionInImport(&x[0], existing_file.as_str()),
+                    );
+                }
                 fn_registers.push(Vec::new());
-                functions.push(Function {
+                fns.push(Function {
                     name: x[0].to_smolstr(),
                     args: x[1..].into(),
                     code: y.clone(),
@@ -1665,6 +1645,7 @@ pub fn parse(
                     is_recursive: contains_recursive_call(&y, &x[0]),
                     id: (fn_registers.len() - 1) as u16,
                     returns_void: check_if_returns_void(&y),
+                    src_file: src_file_idx,
                 });
             }
             Expr::ImportDynLib(path, fn_signatures) => {
@@ -1675,15 +1656,11 @@ pub fn parse(
                             name: fn_name.clone(),
                             args: fn_args.clone(),
                             return_type: fn_return_type.clone(),
-                            id,
+                            id: *dyn_fn_id,
                         };
-
-                        // Convert arguments and return to libffi types
                         let arg_types: Vec<_> = fn_args.iter().map(datatype_to_c_type).collect();
                         let return_type = datatype_to_c_type(fn_return_type);
-                        // Build the CIF (call interface object)
                         let cif = libffi::middle::Cif::new(arg_types.clone(), return_type.clone());
-                        // Get the function's pointer (lib is stored to avoid freeing the memory)
                         let lib = unsafe { libloading::Library::new(path.as_str()).unwrap() };
                         let ptr = unsafe {
                             libffi::middle::CodePtr(
@@ -1700,7 +1677,7 @@ pub fn parse(
                             ptr,
                             cif,
                         });
-                        id += 1;
+                        *dyn_fn_id += 1;
                         return_val
                     })
                     .collect();
@@ -1711,13 +1688,142 @@ pub fn parse(
                         .to_str()
                         .unwrap()
                         .to_smolstr(),
-
                     fns,
                 });
+            }
+            Expr::ImportFile(path, markers) => {
+                // Resolve path relative to the importing file's directory
+                let file_path = file_path
+                    .parent()
+                    .unwrap_or(Path::new("."))
+                    .join(path.as_str())
+                    .canonicalize()
+                    .unwrap_or_else(|_| {
+                        let current_src = &sources[src_file_idx as usize];
+                        throw_parser_error(
+                            (current_src.0.as_str(), current_src.1.as_str()),
+                            &markers,
+                            ErrType::CannotReadImportedFile(path.as_str()),
+                        );
+                    });
+                if visited_files.contains(&file_path) {
+                    let current_src = &sources[src_file_idx as usize];
+                    throw_parser_error(
+                        (current_src.0.as_str(), current_src.1.as_str()),
+                        &markers,
+                        ErrType::CircularImport(file_path.to_str().unwrap_or(path.as_str())),
+                    );
+                }
+                visited_files.insert(file_path.clone());
+                let file_contents = std::fs::read_to_string(&file_path).unwrap_or_else(|_| {
+                    let current_src = &sources[src_file_idx as usize];
+                    throw_parser_error(
+                        (current_src.0.as_str(), current_src.1.as_str()),
+                        &markers,
+                        ErrType::CannotReadImportedFile(path.as_str()),
+                    );
+                });
+                let new_idx = sources.len() as u16;
+                let file_name: SmolStr = file_path.to_str().unwrap_or(path.as_str()).into();
+                sources.push((file_name.clone(), file_contents.clone()));
+
+                // Parse the imported file's contents
+                let file_code: Vec<Expr> = grammar::FileParser::new()
+                    .parse(
+                        (file_name.as_str(), file_contents.as_str()),
+                        file_contents.as_str(),
+                    )
+                    .unwrap_or_else(|x| {
+                        lalrpop_error::<usize, Token<'_>, &str>(
+                            x,
+                            file_contents.as_str(),
+                            file_name.as_str(),
+                        )
+                    });
+
+                let s = sources[new_idx as usize].clone();
+                let import_src: (&str, &str) = { (s.0.as_str(), s.1.as_str()) };
+                parse_toplevel(
+                    file_code,
+                    &file_path,
+                    new_idx,
+                    import_src,
+                    fns,
+                    fn_registers,
+                    dyn_libs,
+                    dyn_lib_fns,
+                    sources,
+                    visited_files,
+                    dyn_fn_id,
+                );
             }
             _ => {}
         }
     }
+}
+
+pub fn parse(
+    contents: &str,
+    filename: &str,
+    debug: bool,
+) -> (
+    Vec<Instr>,
+    Vec<Data>,
+    Pools,
+    Vec<(Instr, (usize, usize), u16)>,
+    Vec<Vec<u16>>,
+    Vec<DynamicLibFn>,
+    usize,
+    usize,
+    Vec<(SmolStr, String)>,
+) {
+    let now = std::time::Instant::now();
+    let code: Vec<Expr> = grammar::FileParser::new()
+        .parse((filename, contents), contents)
+        .unwrap_or_else(|x| lalrpop_error::<usize, Token<'_>, &str>(x, contents, filename));
+    if debug {
+        println!("LALRPOP TIME {:.2?}", now.elapsed());
+    }
+
+    let mut variables: Vec<Variable> = Vec::new();
+    let mut registers: Vec<Data> = Vec::new();
+    let mut pools: Pools = Pools {
+        array_pool: Vec::with_capacity(20),
+        string_pool: Vec::with_capacity(20),
+    };
+    let mut instr_src: Vec<(Instr, (usize, usize), u16)> = Vec::new();
+    let mut fn_registers: Vec<Vec<u16>> = Vec::new();
+    let mut functions: Vec<Function> = Vec::new();
+    let mut dyn_libs: Vec<Dynamiclib> = Vec::new();
+    let mut dyn_fn_id: u16 = 0;
+    let mut dyn_lib_fns: Vec<DynamicLibFn> = Vec::new();
+    let mut allocated_arg_count = 0;
+    let mut allocated_call_depth = 0;
+    let mut const_registers = Vec::new();
+    let mut free_registers = Vec::new();
+
+    // sources[0] = main file; additional entries added for each `use`
+    let mut sources: Vec<(SmolStr, String)> = vec![(SmolStr::from(filename), contents.to_string())];
+    let main_path = PathBuf::from(filename)
+        .canonicalize()
+        .unwrap_or_else(|_| PathBuf::from(filename));
+    let mut visited: HashSet<PathBuf> = HashSet::new();
+    visited.insert(main_path.clone());
+
+    let main_src: (&str, &str) = (filename, contents);
+    parse_toplevel(
+        code,
+        &main_path,
+        0,
+        main_src,
+        &mut functions,
+        &mut fn_registers,
+        &mut dyn_libs,
+        &mut dyn_lib_fns,
+        &mut sources,
+        &mut visited,
+        &mut dyn_fn_id,
+    );
 
     let instructions = compile_expr(
         &functions
@@ -1747,6 +1853,8 @@ pub fn parse(
             allocated_call_depth: &mut allocated_call_depth,
             const_registers: &mut const_registers,
             free_registers: &mut free_registers,
+            sources: &mut sources,
+            current_src_file: 0,
         },
         0,
     );
@@ -1767,5 +1875,6 @@ pub fn parse(
         dyn_lib_fns,
         allocated_arg_count,
         allocated_call_depth,
+        sources,
     )
 }

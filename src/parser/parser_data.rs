@@ -17,6 +17,8 @@ pub struct Function {
     pub is_recursive: bool,
     pub id: u16,
     pub returns_void: bool,
+    /// Index into the sources table for error reporting
+    pub src_file: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -62,15 +64,24 @@ pub struct ParserData<'a> {
     pub pools: *mut Pools,
     pub block_id: u16,
     pub src: (&'a str, &'a str),
-    pub instr_src: *mut Vec<(Instr, (usize, usize))>,
+    pub instr_src: *mut Vec<(Instr, (usize, usize), u16)>,
+    /// Indicates if the current expression being compiled is part of a recursive function
     pub is_parsing_recursive: bool,
+    /// Each element is specific to a callsite and indicates the registers that need to be "saved" before a recursive call
     pub fn_registers: *mut Vec<Vec<u16>>,
     pub parsing_fn_id: Option<u16>,
     pub dyn_libs: *mut Vec<Dynamiclib>,
+    /// Used for Vec::with_capacity()
     pub allocated_arg_count: *mut usize,
+    /// Used for Vec::with_capacity()
     pub allocated_call_depth: *mut usize,
     pub const_registers: *mut Vec<u16>,
     pub free_registers: *mut Vec<u16>,
+    /// All source files: index 0 = main file
+    /// Vec<(name, content)>
+    pub sources: *mut Vec<(SmolStr, String)>,
+    /// Index of the file currently being compiled
+    pub current_src_file: u16,
 }
 impl ParserData<'_> {
     pub fn destructure(
@@ -79,7 +90,7 @@ impl ParserData<'_> {
         &mut Vec<Data>,
         &mut Vec<Function>,
         &mut Pools,
-        &mut Vec<(Instr, (usize, usize))>,
+        &mut Vec<(Instr, (usize, usize), u16)>,
         &mut Vec<Vec<u16>>,
         u16,
         (&str, &str),
@@ -90,6 +101,8 @@ impl ParserData<'_> {
         &mut usize,
         &mut Vec<u16>,
         &mut Vec<u16>,
+        &mut Vec<(SmolStr, String)>,
+        u16,
     ) {
         (
             unsafe { &mut *self.registers },
@@ -106,6 +119,8 @@ impl ParserData<'_> {
             unsafe { &mut *self.allocated_call_depth },
             unsafe { &mut *self.const_registers },
             unsafe { &mut *self.free_registers },
+            unsafe { &mut *self.sources },
+            self.current_src_file,
         )
     }
 }

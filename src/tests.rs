@@ -15,6 +15,7 @@ macro_rules! run_and_check_registers {
             _,
             allocated_arg_count,
             allocated_call_depth,
+            _,
         ) = parse(contents, filename, true);
         println!("{contents}");
         execute(
@@ -22,7 +23,7 @@ macro_rules! run_and_check_registers {
             &mut registers,
             &mut arrays,
             &instr_src,
-            (filename, &contents),
+            &[(filename.into(), contents.into())],
             &fn_registers,
             &[],
             allocated_arg_count,
