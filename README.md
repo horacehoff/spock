@@ -1,4 +1,5 @@
-![Spock logo](assets/spock_logo_horizontal.png)
+![Spock logo](assets/spock_logo_horizontal.png#gh-light-mode-only)
+![Spock logo](assets/spock_logo_horizontal_dark.png#gh-dark-mode-only)
 
 > [!WARNING]
 > Spock is experimental. Expect bugs and breaking changes.
