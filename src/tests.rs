@@ -750,17 +750,16 @@ pub fn bubble_sort() {
             let n = arr.len();
             for i in 0..n {
                 for j in 0..(n - 1) {
-                    let a = arr[j];
-                    let b = arr[j + 1];
-                    if a > b {
-                        arr[j] = b;
-                        arr[j + 1] = a;
+                    if arr[j] > arr[j + 1] {
+                        let tmp = arr[j];
+                        arr[j] = arr[j + 1];
+                        arr[j + 1] = tmp;
                     }
                 }
             }
-            print(arr[0]);
+            print(arr[0]+arr[8]);
         }
         ",
-        1.into()
+        10.into()
     );
 }
