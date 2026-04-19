@@ -1309,7 +1309,13 @@ pub fn compile_expr(
                 //     continue;
                 // }
                 // parse the condition, get its id
+                // track how many instructions get_id emits
+                let output_len_before = output.len();
                 let condition_id = get_id(condition, v, p, &mut output, None, true, false, offset);
+                // preamble = all instructions get_id pushed except the final comparison (which
+                // add_cmp will fold into a fused branch, replacing it in-place, not adding one)
+                let condition_preamble_len =
+                    (output.len() - output_len_before).saturating_sub(1) as u16;
                 free_register(condition_id, free_registers, v, const_registers);
 
                 // parse the code block, clone the vars to avoid overriding anything
@@ -1322,6 +1328,8 @@ pub fn compile_expr(
                 // get length of the code, then add Cmp/OpCmp (decided by add_cmp), and add the condition logic
                 let mut len = (cond_code.len() + 2) as u16;
                 add_cmp(condition_id, &mut len, &mut output, true);
+                // include preamble instructions in the back-jump so we re-evaluate the full condition
+                len += condition_preamble_len;
                 parse_loop_flow_control(&mut cond_code, loop_id, len, false, false);
                 output.extend(cond_code);
                 output.push(Instr::JmpBack(len));
