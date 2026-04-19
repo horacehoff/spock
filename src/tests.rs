@@ -565,7 +565,7 @@ pub fn bool_and_operator() {
         "
         function main() {
             let x = 5;
-            print((x > 3) && (x < 10));
+            print(x > 3 && x < 10);
         }
         ",
         true.into()
@@ -578,7 +578,7 @@ pub fn bool_or_operator() {
         "
         function main() {
             let x = 15;
-            print((x < 3) || (x > 10));
+            print(x < 3 || x > 10);
         }
         ",
         true.into()
