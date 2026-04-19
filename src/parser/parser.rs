@@ -1151,7 +1151,6 @@ pub fn compile_expr(
                         infered = *array_type;
                     }
                 }
-                free_register(id, free_registers, v, const_registers);
             }
             // x[y]... = z;
             Expr::ArrayModify(array, z, w, index_markers, elem_markers) => {
@@ -1428,11 +1427,12 @@ pub fn compile_expr(
                 if t2 != DataType::Int {
                     throw_parser_error(src, markers2, ErrType::InvalidType(DataType::Int, t2));
                 }
-                let elem_id = get_id(start_elem, v, p, &mut output, None, false, false, offset);
+                let start_val_id =
+                    get_id(start_elem, v, p, &mut output, None, false, false, offset);
+                let elem_id = alloc_register(registers, free_registers);
                 let end_elem_id = get_id(end_elem, v, p, &mut output, None, false, false, offset);
 
-                // remove elem_id from const_registers so that
-                // later get_id(&Expr::Int(start_value), ...) doesn't reuse it as a constant, since it's a mutable loop variable
+                // elem_id is a fresh mutable register — remove from const_registers just in case
                 const_registers.retain(|&id| id != elem_id);
 
                 let v_len = v.len();
@@ -1442,11 +1442,14 @@ pub fn compile_expr(
                     infered_type: DataType::Int,
                 });
                 // Compile the code inside the loop
+                let loop_id = block_id + 1;
                 let compiled_loop_code = compile_expr(code, v, p, offset + output.len() as u16);
                 let compiled_loop_code_len = compiled_loop_code.len() as u16;
 
-                // Loop logic
-                // Add an InfCmp first, to check if i < end_elem
+                // mov to (re)initialise the loop variable from start_val_id.
+                output.push(Instr::Mov(start_val_id, elem_id));
+
+                // skip the whole loop if elem >= end
                 let jmp_idx = output.len();
                 output.push(Instr::SupEqIntJmp(elem_id, end_elem_id, 0));
 
@@ -1457,11 +1460,20 @@ pub fn compile_expr(
                 let len2 = output.len() as u16;
                 // Do i += 1
                 output.push(Instr::AddInt(elem_id, one_cst_id, elem_id));
-                // Jump back to the start of the function
+                // jump back to the SupEqIntJmp
                 output.push(Instr::JmpBack(2 + (len2 - len1) + compiled_loop_code_len));
 
                 let exit_size = (output.len() - jmp_idx) as u16;
                 output[jmp_idx] = Instr::SupEqIntJmp(elem_id, end_elem_id, exit_size);
+
+                // Jmp(exit_size - i - 1) from slice index i lands exactly past JmpBack.
+                parse_loop_flow_control(
+                    &mut output[jmp_idx + 1..],
+                    loop_id,
+                    exit_size,
+                    true,
+                    false,
+                );
                 v.truncate(v_len);
 
                 free_register(end_elem_id, free_registers, v, const_registers);
@@ -1592,10 +1604,8 @@ pub fn compile_expr(
                     }
                 }
             }
-            // Break(block_id) = EqCmp(block_id, 0, 0)
-            Expr::Break => output.push(Instr::NotEqJmp(block_id, 0, 0)),
-            // Break(block_id) = NotEqCmp(block_id, 0, 0)
-            Expr::Continue => output.push(Instr::EqJmp(block_id, 0, 0)),
+            Expr::Break => output.push(Instr::NotEqJmp(block_id + 1, 0, 0)),
+            Expr::Continue => output.push(Instr::EqJmp(block_id + 1, 0, 0)),
             Expr::EvalBlock(code) => {
                 let v_len = v.len();
                 output.extend(compile_expr(code, v, p, output.len() as u16));

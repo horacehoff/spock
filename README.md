@@ -11,7 +11,7 @@ Its goal is to provide a faster alternative to Python that sits closer to low-le
 ## Why Spock?
 
 - ~2-10x faster than Python in most cases.
-  [Comparisons](COMPARISONS.md)
+  [Comparisons](docs/COMPARISONS.md)
 - Inlined functions
 - Constant folding
 - Constant propagation

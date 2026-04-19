@@ -510,6 +510,7 @@ fn compile_function(
     let fn_start = output.len();
     let loc = fn_start as u16 + offset;
 
+    let v_len_before_args = v.len();
     let mut arg_types: Vec<usize> = Vec::with_capacity(args.len());
     args.iter().enumerate().for_each(|(i, x)| {
         let infered_type = infer_type(x, v, fns, fn_src, dyn_libs);
@@ -530,9 +531,7 @@ fn compile_function(
         DataType::Null
     };
 
-    arg_types.iter().for_each(|i| {
-        v.remove(*i);
-    });
+    v.truncate(v_len_before_args);
 
     // Add this func specialization to the func's metadata, storing start location, location of args, and infered arg types
     fns.get_mut(function_id).unwrap().impls.push(FunctionImpl {
