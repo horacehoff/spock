@@ -11,6 +11,7 @@ use crate::fs;
 use crate::likely;
 use crate::parser_data::Pools;
 use crate::throw_error;
+use crate::util::unlikely;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
 use std::any::Any;
@@ -538,8 +539,17 @@ pub fn execute(
                     .push(registers[element as usize]);
             }
             Instr::Remove(array, idx) => {
-                array_pool[registers[array as usize].as_array()]
-                    .remove(registers[idx as usize].as_int() as usize);
+                let arr = &mut array_pool[registers[array as usize].as_array()];
+                let index = registers[idx as usize].as_int() as usize;
+                if unlikely(index >= arr.len()) {
+                    throw_error(
+                        instr_src,
+                        sources,
+                        &instructions[i],
+                        ErrType::IndexOutOfBounds(arr.len(), index),
+                    );
+                }
+                arr.remove(index);
             }
             Instr::CallLibFunc(LibFunc::Uppercase, source_string_reg_id, dest_reg_id) => {
                 registers[dest_reg_id as usize] = string!(

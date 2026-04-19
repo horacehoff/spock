@@ -56,6 +56,15 @@ mod vm;
 
 /// Live long and prosper
 fn main() {
+    std::panic::set_hook(Box::new(|info| {
+        let msg = info.payload_as_str().unwrap_or("");
+        if msg.contains("divide by zero") || msg.contains("remainder") {
+            eprintln!("{color_red}SPOCK ERROR{color_reset}\nDivision by zero");
+        } else {
+            eprintln!("{color_red}SPOCK ERROR{color_reset}\n{info}");
+        }
+    }));
+
     let args: Vec<String> = std::env::args().collect();
     let debug = args.iter().any(|x| x == "--debug");
 
