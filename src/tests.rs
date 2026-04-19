@@ -291,3 +291,476 @@ pub fn inline_condition_as_arg() {
         99.into()
     );
 }
+
+#[test]
+pub fn float_addition() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 1.5 + 2.5;
+            print(x);
+        }
+        ",
+        4.0f64.into()
+    );
+}
+
+#[test]
+pub fn float_sqrt() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = float(144).sqrt();
+            print(x);
+        }
+        ",
+        12.0f64.into()
+    );
+}
+
+#[test]
+pub fn float_floor() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 3.9;
+            print(x.floor());
+        }
+        ",
+        3.0f64.into()
+    );
+}
+
+#[test]
+pub fn float_abs() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = -7.5;
+            print(x.abs());
+        }
+        ",
+        7.5f64.into()
+    );
+}
+
+#[test]
+pub fn int_to_float_conversion() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = float(42);
+            print(x);
+        }
+        ",
+        42.0f64.into()
+    );
+}
+
+#[test]
+pub fn float_to_int_conversion() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = int(3.9);
+            print(x);
+        }
+        ",
+        3.into()
+    );
+}
+
+#[test]
+pub fn int_to_str_conversion() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let x = str(42);
+            print(x.len());
+        }
+        "#,
+        2.into()
+    );
+}
+
+#[test]
+pub fn string_starts_ends_with() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "hello world";
+            let a = s.starts_with("hello");
+            let b = s.ends_with("world");
+            print(a && b);
+        }
+        "#,
+        true.into()
+    );
+}
+
+#[test]
+pub fn string_replace() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "hello world";
+            let r = s.replace("world", "spock");
+            print(r.len());
+        }
+        "#,
+        11.into()
+    );
+}
+
+#[test]
+pub fn string_find() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "hello world";
+            print(s.find("world"));
+        }
+        "#,
+        6.into()
+    );
+}
+
+#[test]
+pub fn string_repeat() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "ab";
+            print(s.repeat(3).len());
+        }
+        "#,
+        6.into()
+    );
+}
+
+#[test]
+pub fn array_contains() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let arr = [1, 2, 3, 4, 5];
+            print(arr.contains(3));
+        }
+        ",
+        true.into()
+    );
+}
+
+#[test]
+pub fn array_reverse() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let arr = [1, 2, 3];
+            arr.reverse();
+            print(arr[0]);
+        }
+        ",
+        3.into()
+    );
+}
+
+#[test]
+pub fn array_remove() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let arr = [10, 20, 30];
+            arr.remove(1);
+            print(arr.len());
+        }
+        ",
+        2.into()
+    );
+}
+
+#[test]
+pub fn array_join() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let arr = ["a", "b", "c"];
+            let s = arr.join(",");
+            print(s.len());
+        }
+        "#,
+        5.into()
+    );
+}
+
+#[test]
+pub fn array_modify_index() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let arr = [1, 2, 3];
+            arr[1] = 99;
+            print(arr[1]);
+        }
+        ",
+        99.into()
+    );
+}
+
+#[test]
+pub fn break_loop() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 0;
+            for i in 0..100 {
+                if i == 5 { break; }
+                x += 1;
+            }
+            print(x);
+        }
+        ",
+        5.into()
+    );
+}
+
+#[test]
+pub fn continue_in_loop() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let sum = 0;
+            for i in 0..10 {
+                if (i % 2) == 0 { continue; }
+                sum += i;
+            }
+            print(sum);
+        }
+        ",
+        25.into()
+    );
+}
+
+#[test]
+pub fn nested_loops() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let count = 0;
+            for i in 0..4 {
+                for j in 0..4 {
+                    count += 1;
+                }
+            }
+            print(count);
+        }
+        ",
+        16.into()
+    );
+}
+
+#[test]
+pub fn bool_and_operator() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 5;
+            print((x > 3) && (x < 10));
+        }
+        ",
+        true.into()
+    );
+}
+
+#[test]
+pub fn bool_or_operator() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 15;
+            print((x < 3) || (x > 10));
+        }
+        ",
+        true.into()
+    );
+}
+
+#[test]
+pub fn negation() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 5;
+            print(-x);
+        }
+        ",
+        (-5).into()
+    );
+}
+
+#[test]
+pub fn power_operator() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 2 ^ 10;
+            print(x);
+        }
+        ",
+        1024.into()
+    );
+}
+
+#[test]
+pub fn multi_arg_function() {
+    run_and_check_registers!(
+        "
+        function add(a, b) { return a + b; }
+        function main() {
+            print(add(3, 4));
+        }
+        ",
+        7.into()
+    );
+}
+
+#[test]
+pub fn function_called_after_loop() {
+    run_and_check_registers!(
+        "
+        function double(n) { return n * 2; }
+        function main() {
+            let sum = 0;
+            for i in 0..10 { sum += i; }
+            print(double(sum));
+        }
+        ",
+        90.into()
+    );
+}
+
+#[test]
+pub fn recursive_fib_after_loop() {
+    run_and_check_registers!(
+        "
+        function fib(n) {
+            if n <= 1 { return n; }
+            return fib(n - 1) + fib(n - 2);
+        }
+        function main() {
+            let x = 0;
+            for i in 0..100 { x += i; }
+            print(fib(10));
+        }
+        ",
+        55.into()
+    );
+}
+
+#[test]
+pub fn sieve_of_eratosthenes() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let limit = 100000;
+            let sieve = range(limit);
+            sieve[0] = 0;
+            sieve[1] = 0;
+            let i = 2;
+            while (i * i) <= limit {
+                if sieve[i] != 0 {
+                    let j = i * i;
+                    while j < limit {
+                        sieve[j] = 0;
+                        j += i;
+                    }
+                }
+                i += 1;
+            }
+            let count = 0;
+            for x in sieve {
+                if x != 0 { count += 1; }
+            }
+            print(count);
+        }
+        ",
+        9592.into()
+    );
+}
+
+#[test]
+pub fn collatz_steps() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let n = 27;
+            let steps = 0;
+            while n != 1 {
+                if (n % 2) == 0 {
+                    n /= 2;
+                } else {
+                    n = n * 3 + 1;
+                }
+                steps += 1;
+            }
+            print(steps);
+        }
+        ",
+        111.into()
+    );
+}
+
+#[test]
+pub fn string_word_count() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "the quick brown fox jumps";
+            let words = s.split(" ");
+            print(words.len());
+        }
+        "#,
+        5.into()
+    );
+}
+
+#[test]
+pub fn range_sum() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let arr = range(101);
+            let sum = 0;
+            for x in arr {
+                sum += x;
+            }
+            print(sum);
+        }
+        ",
+        5050.into()
+    );
+}
+
+#[test]
+pub fn bubble_sort() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let arr = [5, 3, 8, 1, 9, 2, 7, 4, 6];
+            let n = arr.len();
+            for i in 0..n {
+                for j in 0..(n - 1) {
+                    let a = arr[j];
+                    let b = arr[j + 1];
+                    if a > b {
+                        arr[j] = b;
+                        arr[j + 1] = a;
+                    }
+                }
+            }
+            print(arr[0]);
+        }
+        ",
+        1.into()
+    );
+}

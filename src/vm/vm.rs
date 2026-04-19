@@ -704,7 +704,7 @@ pub fn execute(
             Instr::CallLibFunc(LibFunc::Int, tgt, dest) => {
                 let reg = registers[tgt as usize];
                 if reg.is_float() {
-                    registers[dest as usize] = (reg.as_float().round() as i32).into();
+                    registers[dest as usize] = (reg.as_float() as i32).into();
                 } else if reg.is_str() {
                     let str = reg.as_str(string_pool);
                     registers[dest as usize] = (str.parse::<i32>().unwrap_or_else(|e| {
