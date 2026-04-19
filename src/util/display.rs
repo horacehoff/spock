@@ -6,7 +6,6 @@ use inline_colorization::*;
 use smol_str::{SmolStr, ToSmolStr};
 use std::hint::unreachable_unchecked;
 
-#[inline(always)]
 pub fn format_data(
     x: &Data,
     array_pool: &[Vec<Data>],
@@ -30,23 +29,17 @@ pub fn format_data(
             "[{}]",
             array_pool[x.as_array()]
                 .iter()
-                .map(|x| format_data(x, array_pool, string_pool, true))
-                .collect::<Vec<_>>()
+                .map(|x| format_data(x, array_pool, string_pool, false))
+                .collect::<Vec<SmolStr>>()
                 .join(","),
         )
         .to_smolstr()
     } else if x.is_null() {
-        SmolStr::from("NULL")
+        SmolStr::new_static("NULL")
     } else {
         unsafe { unreachable_unchecked() }
     }
 }
-
-// impl std::fmt::Display for Data {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "{}", format_data(self, None, false))
-//     }
-// }
 
 pub fn display_fn_signatures(f: Function) {
     for fn_impl in f.impls {
@@ -64,7 +57,7 @@ pub fn display_fn_signatures(f: Function) {
                 if return_type != DataType::Null {
                     return_type.to_smolstr()
                 } else {
-                    SmolStr::new_inline("()")
+                    SmolStr::new_static("()")
                 }
             }
         )

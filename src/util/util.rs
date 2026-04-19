@@ -75,7 +75,7 @@ impl std::fmt::Display for DataType {
                     {
                         let x = t.last().unwrap();
                         if x == &DataType::Null {
-                            SmolStr::new_inline("")
+                            SmolStr::new_static("")
                         } else {
                             x.to_smolstr()
                         }
