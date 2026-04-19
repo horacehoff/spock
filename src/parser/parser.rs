@@ -1436,6 +1436,10 @@ pub fn compile_expr(
                 let elem_id = get_id(start_elem, v, p, &mut output, None, false, false, offset);
                 let end_elem_id = get_id(end_elem, v, p, &mut output, None, false, false, offset);
 
+                // remove elem_id from const_registers so that
+                // later get_id(&Expr::Int(start_value), ...) doesn't reuse it as a constant, since it's a mutable loop variable
+                const_registers.retain(|&id| id != elem_id);
+
                 let v_len = v.len();
                 v.push(Variable {
                     name: var_name.clone(),
