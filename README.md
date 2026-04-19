@@ -1,7 +1,5 @@
 ![Spock logo](assets/spock_logo_horizontal.png)
 
-# Spock
-
 > [!WARNING]
 > Spock is experimental. Expect bugs and breaking changes.
 
@@ -9,7 +7,7 @@ Spock is a fast, statically-typed interpreted language that aims to combine Rust
 
 Its goal is to provide a faster alternative to Python that sits closer to low-level languages while remaining accessible to a wide audience.
 
-## Key Info
+## Why Spock?
 
 - ~2-10x faster than Python in most cases.
   [Comparisons](COMPARISONS.md)
@@ -40,7 +38,36 @@ cargo build --release
 ./target/release/spock myfile.spock
 ```
 
-## Syntax
+## Language tour
+
+### Variables & Types
+
+Types are inferred and are never written explicitly.
+
+```rs
+let x = 42;
+let name = "Spock";
+let ratio = 3.14;
+let flag = true;
+let numbers = [1, 2, 3, 4, 5];
+```
+
+Built-in types: `Integer` (i32), `Float` (f64), `Boolean`, `String`, `Array<T>`.
+
+### Functions
+
+> A `main()` function is required when executing a `.spock` file.\
+> It is the starting point for the execution of the program.
+
+```rs
+function add(a, b) {
+    return a + b;
+}
+
+function main() {
+    print(add(10, 32));
+}
+```
 
 ### Blocks
 
@@ -68,15 +95,28 @@ if x == 20 {
 }
 ```
 
+Inline conditions work as expressions:
+
+```rs
+let my_number = 42;
+let the_answer = if my_number == 42 { "It's the answer!" } else { "It's not the answer..." };
+print(the_answer);
+```
+
 ### Inline conditions
 
 ```rs
 let y = 10;
-print(if y == 10 {"y is: 10"} else {"y is "+str(y)});
+print(if y == 10 {"y is: 10"} else {"y is something else"});
 let x = if y == 42 {5} else {10};
 ```
 
-### While loops
+### Loops
+
+Use `break` to exit the loop.\
+Use `continue` to skip to the next iteration.
+
+#### While loops
 
 ```rs
 let i = 0;
@@ -86,19 +126,19 @@ while i < 10 {
 }
 ```
 
-### For loops
+#### For loops
 
 ```rs
-// NOTE: using _ as the variable name in a for loop will discard the value, making the program faster, but preventing access to the element
+// Using _ as the variable name in a for loop will discard the value,
+// making the program faster, but preventing access to the element
 for x in [0,1,2,3] {
-  for y in "abcd" {
+  for _ in "abcd" {
     print(x);
-    print(y);
   }
 }
 ```
 
-### Loops
+#### Infinite loops
 
 > Loops indefinitely until flow is stopped
 
@@ -114,7 +154,7 @@ loop {
 print("End of the loop!");
 ```
 
-### Integer loops
+#### Integer range loops
 
 > Loops over a range of integers
 
@@ -138,7 +178,7 @@ for i in ..10 {
 print(x);
 ```
 
-### Match statements
+### Match
 
 > Match statements currently don't support binding variables
 
@@ -153,33 +193,6 @@ match x {
   }
   _ => {
     print("You said: "+x);
-  }
-}
-```
-
-### Loop flow control
-
-```rs
-let i = 0;
-while i < 10 {
-  print(i);
-  i += 1;
-  if i > 5 {
-    // exits the loop
-    break;
-  }
-}
-```
-
-```rs
-for x in [0,1,2,3] {
-  for y in "abcd" {
-    if x == 2 {
-      // skip to the next loop iteration
-      continue;
-    }
-    print(x);
-    print(y);
   }
 }
 ```
@@ -202,7 +215,7 @@ You can load functions from dynamic libraries by specifying each function's
 signature, with the following syntax:
 
 ```spock
-import lib.extension {
+import "dynamic_library_path" {
   function_return_type function_name(function_arg_type_1, function_arg_type_1, ..., function_arg_type_n);
 }
 ```
@@ -210,7 +223,7 @@ import lib.extension {
 For example:
 
 ```spock
-import test.dylib {
+import "test.dylib" {
     int add(int, int);
 }
 
@@ -229,15 +242,15 @@ print(fib(25));
 
 ### Arrays
 
-Arrays can only hold one type
+Arrays are homogeneous and can only hold one type.
 
 ```rs
-let x = [0,1,2,3,4];
-print(x[0]);
-x[1] = "42";
-for w in x {
-  print(w);
-}
+let nums = [3, 1, 4, 1, 5, 9];
+nums.sort();
+print(nums[0]);         // 1
+print(nums.len());      // 6
+nums.push(2);
+print(nums.contains(9)); // true
 ```
 
 ### Arithmetic Operations
@@ -272,14 +285,6 @@ print(x <= 1);
 print(x > 1 || x < 1);
 print(x > 1 && x < 1);
 ```
-
-### Built-in types
-
-- `Boolean`
-- `Integer` (i32)
-- `Float` (f64)
-- `Array<T>`
-- `String`
 
 ## Documentation
 
