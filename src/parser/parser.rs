@@ -867,17 +867,12 @@ pub fn get_id(
             free_register(condition_id, free_registers, v, const_registers);
             return_id
         }
-        Expr::FunctionCall(args, namespace, markers, args_indexes) => handle_functions(
-            output,
-            v,
-            p,
-            args,
-            namespace,
-            markers,
-            args_indexes,
-            offset + output.len() as u16,
-        )
-        .unwrap_or_else(|| get_last_tgt_id(output).unwrap_or_else(|| (registers.len() - 1) as u16)),
+        Expr::FunctionCall(args, namespace, markers, args_indexes) => {
+            handle_functions(output, v, p, args, namespace, markers, args_indexes, offset)
+                .unwrap_or_else(|| {
+                    get_last_tgt_id(output).unwrap_or_else(|| (registers.len() - 1) as u16)
+                })
+        }
         other => {
             let output_code = compile_expr(slice::from_ref(other), v, p, 0);
             if !output_code.is_empty() {
