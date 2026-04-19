@@ -1366,7 +1366,7 @@ pub fn compile_expr(
                     name: if real_var {
                         var_name.clone()
                     } else {
-                        SmolStr::new_inline("")
+                        SmolStr::new_static("")
                     },
                     register_id: current_element_id,
                     infered_type: match &array_type {
