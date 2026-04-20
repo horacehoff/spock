@@ -1,23 +1,20 @@
 use crate::type_system::DataType;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
-
-#[cold]
-#[inline(never)]
-pub fn cold() {}
+use std::hint::cold_path;
 
 #[inline(always)]
-pub fn likely(b: bool) -> bool {
+pub const fn likely(b: bool) -> bool {
     if !b {
-        cold();
+        cold_path();
     }
     b
 }
 
 #[inline(always)]
-pub fn unlikely(b: bool) -> bool {
+pub const fn unlikely(b: bool) -> bool {
     if b {
-        cold();
+        cold_path();
     }
     b
 }
