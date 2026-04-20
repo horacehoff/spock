@@ -15,6 +15,7 @@ use crate::util::unlikely;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
 use std::any::Any;
+use std::hint::cold_path;
 use std::io::Write;
 
 pub type ArrayPool = Vec<Vec<Data>>;
@@ -701,6 +702,7 @@ pub fn execute(
                 } else if reg.is_str() {
                     let str = reg.as_str(string_pool);
                     registers[dest as usize] = (str.parse::<f64>().unwrap_or_else(|_| {
+                        cold_path();
                         throw_error(
                             instr_src,
                             sources,
@@ -718,6 +720,7 @@ pub fn execute(
                 } else if reg.is_str() {
                     let str = reg.as_str(string_pool);
                     registers[dest as usize] = (str.parse::<i32>().unwrap_or_else(|e| {
+                        cold_path();
                         throw_error(instr_src, sources, &instructions[i], (*e.kind()).into());
                     }))
                     .into();
@@ -734,6 +737,7 @@ pub fn execute(
             Instr::CallLibFunc(LibFunc::Bool, tgt, dest) => {
                 let str = registers[tgt as usize].as_str(string_pool);
                 registers[dest as usize] = (str.parse::<bool>().unwrap_or_else(|_| {
+                    cold_path();
                     throw_error(
                         instr_src,
                         sources,
@@ -870,6 +874,7 @@ pub fn execute(
                 registers[dest_reg_id as usize] = string!(
                     fs::read_to_string(registers[path as usize].as_str(string_pool))
                         .unwrap_or_else(|e| {
+                            cold_path();
                             throw_error(instr_src, sources, &instructions[i], e.kind().into())
                         })
                 );
@@ -878,6 +883,7 @@ pub fn execute(
                 registers[dest_reg_id as usize] =
                     fs::exists(registers[path as usize].as_str(string_pool))
                         .unwrap_or_else(|e| {
+                            cold_path();
                             throw_error(instr_src, sources, &instructions[i], e.kind().into())
                         })
                         .into()
@@ -889,6 +895,7 @@ pub fn execute(
                     registers[contents as usize].as_str(string_pool),
                 )
                 .unwrap_or_else(|e| {
+                    cold_path();
                     throw_error(instr_src, sources, &instructions[i], e.kind().into())
                 });
             }
@@ -898,22 +905,26 @@ pub fn execute(
                     .append(true)
                     .open(registers[path as usize].as_str(string_pool))
                     .unwrap_or_else(|e| {
+                        cold_path();
                         throw_error(instr_src, sources, &instructions[i], e.kind().into())
                     })
                     .write_all(registers[contents as usize].as_str(string_pool).as_bytes())
                     .unwrap_or_else(|e| {
+                        cold_path();
                         throw_error(instr_src, sources, &instructions[i], e.kind().into())
                     });
             }
             // Deletes the file located at `path`, throwing an error if it doesn't exist.
             Instr::CallLibFuncVoid(LibFunc::FsDelete, path, _) => {
                 fs::remove_file(registers[path as usize].as_str(string_pool)).unwrap_or_else(|e| {
+                    cold_path();
                     throw_error(instr_src, sources, &instructions[i], e.kind().into())
                 });
             }
             // Deletes the empty directory located at `path`
             Instr::CallLibFuncVoid(LibFunc::FsDeleteDir, path, _) => {
                 fs::remove_dir(registers[path as usize].as_str(string_pool)).unwrap_or_else(|e| {
+                    cold_path();
                     throw_error(instr_src, sources, &instructions[i], e.kind().into())
                 });
             }

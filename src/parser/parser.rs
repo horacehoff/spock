@@ -99,8 +99,12 @@ pub enum Expr {
         (usize, usize),
         (usize, usize),
     ),
-    /// Import(lib_path, [(fn_name, fn_args, fn_return_type)])
-    ImportDynLib(SmolStr, Box<[(SmolStr, Box<[DataType]>, DataType)]>),
+    /// Import(lib_path, [(fn_name, fn_args, fn_return_type)], (start, end))
+    ImportDynLib(
+        SmolStr,
+        Box<[(SmolStr, Box<[DataType]>, DataType)]>,
+        (usize, usize),
+    ),
 
     /// ImportFile(path, (start, end))
     ImportFile(SmolStr, (usize, usize)),
@@ -1655,7 +1659,7 @@ fn parse_toplevel(
                     src_file: src_file_idx,
                 });
             }
-            Expr::ImportDynLib(path, fn_signatures) => {
+            Expr::ImportDynLib(path, fn_signatures, markers) => {
                 let fns = fn_signatures
                     .iter()
                     .map(|(fn_name, fn_args, fn_return_type)| {
@@ -1668,13 +1672,48 @@ fn parse_toplevel(
                         let arg_types: Vec<_> = fn_args.iter().map(datatype_to_c_type).collect();
                         let return_type = datatype_to_c_type(fn_return_type);
                         let cif = libffi::middle::Cif::new(arg_types.clone(), return_type.clone());
-                        let lib = unsafe { libloading::Library::new(path.as_str()).unwrap() };
+                        let lib = unsafe {
+                            libloading::Library::new(path.as_str()).unwrap_or_else(|e| {
+                                throw_parser_error(
+                                    use_line_markers,
+                                    &markers,
+                                    ErrType::Custom(
+                                        format_args!(
+                                            "Cannot load dynamic library \"{path}\": {e}"
+                                        )
+                                        .to_smolstr(),
+                                    ),
+                                )
+                            })
+                        };
                         let ptr = unsafe {
                             libffi::middle::CodePtr(
-                                lib.get::<*const ()>(fn_name.as_str())
-                                    .unwrap()
+                                lib.get::<*const ()>(fn_name.as_bytes())
+                                    .unwrap_or_else(|e| {
+                                        throw_parser_error(
+                                            use_line_markers,
+                                            &markers,
+                                            ErrType::Custom(
+                                                format_args!(
+                                                    "Cannot find symbol \"{fn_name}\" in \"{path}\": {e}"
+                                                )
+                                                .to_smolstr(),
+                                            ),
+                                        )
+                                    })
                                     .try_as_raw_ptr()
-                                    .unwrap(),
+                                    .unwrap_or_else(|| {
+                                        throw_parser_error(
+                                            use_line_markers,
+                                            &markers,
+                                            ErrType::Custom(
+                                                format_args!(
+                                                    "Symbol \"{fn_name}\" in \"{path}\" is null"
+                                                )
+                                                .to_smolstr(),
+                                            ),
+                                        )
+                                    }),
                             )
                         };
                         dyn_lib_fns.push(DynamicLibFn {
@@ -1691,9 +1730,8 @@ fn parse_toplevel(
                 dyn_libs.push(Dynamiclib {
                     name: std::path::PathBuf::from(path.as_str())
                         .file_prefix()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or(path.as_str())
                         .to_smolstr(),
                     fns,
                 });
