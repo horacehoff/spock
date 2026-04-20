@@ -118,7 +118,7 @@ pub fn check_if_returns_void(content: &[Expr]) -> bool {
             | Expr::Condition(_, code, _)
             | Expr::InlineCondition(_, code, _)
             | Expr::WhileBlock(_, code)
-            | Expr::ForLoop(_, code)
+            | Expr::ForLoop(_, code, _)
             | Expr::EvalBlock(code)
             | Expr::LoopBlock(code)
             | Expr::IntForLoop(_, _, _, code, _, _) => {
@@ -172,7 +172,7 @@ pub fn track_returns(
                 }
             }
             Expr::WhileBlock(_, code)
-            | Expr::ForLoop(_, code)
+            | Expr::ForLoop(_, code, _)
             | Expr::EvalBlock(code)
             | Expr::LoopBlock(code)
             | Expr::IntForLoop(_, _, _, code, _, _) => return_types.extend(track_returns(
@@ -235,7 +235,7 @@ pub fn infer_type(
                 (DataType::Int, DataType::Int) => DataType::Int,
                 (DataType::String, DataType::String) => DataType::String,
                 (DataType::Array(type1), DataType::Array(_)) => DataType::Array(type1),
-                (l, r) => throw_parser_error(src, markers, ErrType::OpError(l, r, "+")),
+                (l, r) => throw_parser_error(src, markers, ErrType::OpError(&l, &r, "+")),
             }
         }
         Expr::Mul(x, y, markers)
@@ -250,7 +250,7 @@ pub fn infer_type(
                 (DataType::Float, DataType::Float) => DataType::Float,
                 (DataType::Int, DataType::Int) => DataType::Int,
                 (l, r) => {
-                    throw_parser_error(src, markers, ErrType::OpError(l, r, symbol_of_expr(e)))
+                    throw_parser_error(src, markers, ErrType::OpError(&l, &r, symbol_of_expr(e)))
                 }
             }
         }
@@ -267,7 +267,7 @@ pub fn infer_type(
                 (DataType::Float, DataType::Float) => DataType::Bool,
                 (DataType::Int, DataType::Int) => DataType::Bool,
                 (l, r) => {
-                    throw_parser_error(src, markers, ErrType::OpError(l, r, symbol_of_expr(e)))
+                    throw_parser_error(src, markers, ErrType::OpError(&l, &r, symbol_of_expr(e)))
                 }
             }
         }
@@ -277,18 +277,18 @@ pub fn infer_type(
                 infer_type(y, v, fns, src, dyn_libs),
             ) {
                 (DataType::Bool, DataType::Bool) => DataType::Bool,
-                (l, r) => throw_parser_error(src, markers, ErrType::OpError(l, r, "||")),
+                (l, r) => throw_parser_error(src, markers, ErrType::OpError(&l, &r, "||")),
             }
         }
         Expr::Neg(x, _) => match infer_type(x, v, fns, src, dyn_libs) {
             DataType::Float => DataType::Float,
             DataType::Int => DataType::Int,
-            _ => todo!("TODO NEG ERR"),
+            _ => unreachable!(),
         },
         Expr::GetIndex(array, _, _) => match infer_type(array, v, fns, src, dyn_libs) {
             DataType::Array(array_type) => *array_type,
             DataType::String => DataType::String,
-            _ => todo!(),
+            _ => unreachable!(),
         },
         Expr::FunctionCall(args, namespace, markers, _) => {
             if namespace.len() == 1 && &namespace[0] == "io" {
@@ -438,7 +438,7 @@ pub fn infer_type(
                     } else if let DataType::Array(array_type) = obj_type {
                         DataType::Array(array_type)
                     } else {
-                        todo!()
+                        unreachable!()
                     }
                 }
                 "split" => DataType::Array(Box::from(DataType::String)),
@@ -452,8 +452,7 @@ pub fn infer_type(
                 }
                 "join" => DataType::String,
                 "remove" => DataType::Null,
-
-                _ => todo!(),
+                _ => unreachable!(),
             }
         }
         Expr::Condition(_, _, _) => DataType::Null,
@@ -475,7 +474,7 @@ pub fn infer_type(
             }
             check_poly(DataType::Poly(Box::from(types)))
         }
-        unknown_type => todo!("TYPE: {unknown_type:?}"),
+        _ => unreachable!(),
     }
 }
 
@@ -520,6 +519,6 @@ pub fn datatype_to_c_type(x: &DataType) -> Type {
         DataType::Int => libffi::middle::Type::i32(),
         DataType::Float => libffi::middle::Type::f64(),
         DataType::Null => libffi::middle::Type::void(),
-        _ => todo!(),
+        _ => unreachable!(),
     }
 }

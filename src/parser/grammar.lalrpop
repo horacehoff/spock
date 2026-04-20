@@ -208,10 +208,10 @@ WhileBlock: Expr = {
 }
 
 ForLoop:Expr = {
-    "for" <o1:Var> "in" <o2: Expression> <o3: Block<Code>> => {
+    "for" <o1:Var> "in" <start:@L> <o2: Expression> <end:@R> <o3: Block<Code>> => {
         let mut output = vec![o2];
         output.extend(o3);
-        Expr::ForLoop(o1,output.into_boxed_slice())
+        Expr::ForLoop(o1,output.into_boxed_slice(), (start,end))
     }
 }
 

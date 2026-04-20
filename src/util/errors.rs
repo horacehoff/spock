@@ -103,20 +103,20 @@ pub enum ErrType<'a> {
     UnknownNamespace(&'a str),
     /// When an array holds two or more different types
     ArrayWithDiffType,
-    NotIndexable(DataType),
-    InvalidIndexType(DataType),
+    NotIndexable(&'a DataType),
+    InvalidIndexType(&'a DataType),
     /// CannotPushTypeToArray(elem_type, array_type)
-    CannotPushTypeToArray(DataType, DataType),
+    CannotPushTypeToArray(&'a DataType, &'a DataType),
     CannotInferType(&'a str),
     /// IncorrectFuncArgCount(fn_name, expected, received)
     IncorrectFuncArgCount(&'a str, u16, u16),
     IncorrectFuncArgCountVariable(&'a str, u16, u16, u16),
     /// InvalidType(expected_type, received_type)
-    InvalidType(DataType, DataType),
+    InvalidType(DataType, &'a DataType),
     /// OpError(l, r, op)
-    OpError(DataType, DataType, &'a str),
+    OpError(&'a DataType, &'a DataType, &'a str),
     /// InvalidOp(type, op)
-    InvalidOp(DataType, &'a str),
+    InvalidOp(&'a DataType, &'a str),
     InvalidConditionalExpression,
     FunctionAlreadyExists(&'a str),
     CannotReadImportedFile(&'a str),
@@ -124,6 +124,7 @@ pub enum ErrType<'a> {
     CircularImport(&'a str),
     /// DuplicateFunctionInImport(fn_name, file_path)
     DuplicateFunctionInImport(&'a str, &'a str),
+    IsNotAnIterator(&'a DataType),
 }
 
 impl<'a> From<ErrType<'a>> for SmolStr {
@@ -210,6 +211,7 @@ impl<'a> From<ErrType<'a>> for SmolStr {
             ErrType::DuplicateFunctionInImport(fn_name, file_path) => format_args!(
                 "Function {color_bright_blue}{style_bold}{fn_name}{color_reset}{style_reset} imported from {color_bright_red}{style_bold}{file_path}{color_reset}{style_reset} is already defined"
             ).to_smolstr(),
+            ErrType::IsNotAnIterator(t) => format_args!("The type {color_bright_red}{style_bold}{t}{color_reset}{style_reset} is not a collection").to_smolstr()
         }
     }
 }

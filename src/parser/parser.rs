@@ -88,8 +88,8 @@ pub enum Expr {
         (usize, usize),
     ),
 
-    /// ForLoop(loop_var_name, loop_array+code)
-    ForLoop(SmolStr, Box<[Expr]>),
+    /// ForLoop(loop_var_name, loop_array+code, obj_markers)
+    ForLoop(SmolStr, Box<[Expr]>, (usize, usize)),
     /// IntForLoop(loop_var_name, first_elem, final_elem, code)
     IntForLoop(
         SmolStr,
@@ -385,7 +385,7 @@ pub fn get_id(
                 infer_type($r, v, fns, src, dyn_libs),
             );
             if t_l != $type || t_r != $type {
-                throw_parser_error(src, $markers, ErrType::OpError(t_l, t_r, $symbol))
+                throw_parser_error(src, $markers, ErrType::OpError(&t_l, &t_r, $symbol))
                 // op_error!(src, t_l, t_r, $symbol, *$start, *$end);
             }
             let id_l = get_id($l, v, p, output, None, false, false, offset);
@@ -408,7 +408,7 @@ pub fn get_id(
                 infer_type($r, v, fns, src, dyn_libs),
             );
             if !((t_l == $type1 && t_r == $type1) || (t_l == $type2 && t_r == $type2)) {
-                throw_parser_error(src, $markers, ErrType::OpError(t_l, t_r, $symbol))
+                throw_parser_error(src, $markers, ErrType::OpError(&t_l, &t_r, $symbol))
                 // op_error!(src, t_l, t_r, $symbol, *$start, *$end);
             }
             let id_l = get_id($l, v, p, output, None, false, false, offset);
@@ -574,8 +574,7 @@ pub fn get_id(
                     DataType::String | DataType::Array(_) | DataType::Float | DataType::Int
                 )
             {
-                throw_parser_error(src, markers, ErrType::OpError(t_l, t_r, "+"));
-                // op_error!(src, t_l, t_r, "+", markers);
+                throw_parser_error(src, markers, ErrType::OpError(&t_l, &t_r, "+"));
             }
             let id_l = get_id(l, v, p, output, None, false, false, offset);
             let id_r = get_id(r, v, p, output, None, false, false, offset);
@@ -747,7 +746,7 @@ pub fn get_id(
             } else if operand_type == DataType::Int {
                 output.push(Instr::NegInt(id_l, id))
             } else {
-                throw_parser_error(src, markers, ErrType::InvalidOp(operand_type, "-"));
+                throw_parser_error(src, markers, ErrType::InvalidOp(&operand_type, "-"));
             }
             id
         }
@@ -1127,12 +1126,12 @@ pub fn compile_expr(
                 // for each indexing operation, process the index, adjust the id variable for the next index operation, push null to registers to use GetIndex to index at runtime
                 for elem in index {
                     if !is_indexable(&infered) {
-                        throw_parser_error(src, markers, ErrType::NotIndexable(infered));
+                        throw_parser_error(src, markers, ErrType::NotIndexable(&infered));
                     }
 
                     let index_infered = infer_type(elem, v, fns, src, dyn_libs);
                     if index_infered != DataType::Int {
-                        throw_parser_error(src, markers, ErrType::InvalidIndexType(index_infered));
+                        throw_parser_error(src, markers, ErrType::InvalidIndexType(&index_infered));
                     }
                     let f_id = get_id(elem, v, p, &mut output, None, false, false, offset);
                     free_register(f_id, free_registers, v, const_registers);
@@ -1156,7 +1155,7 @@ pub fn compile_expr(
             Expr::ArrayModify(array, z, w, index_markers, elem_markers) => {
                 let mut array_type = infer_type(array, v, fns, src, dyn_libs);
                 if !is_indexable(&array_type) {
-                    throw_parser_error(src, index_markers, ErrType::NotIndexable(array_type));
+                    throw_parser_error(src, index_markers, ErrType::NotIndexable(&array_type));
                 }
                 // Get the id of the source array
                 let mut id = get_id(array, v, p, &mut output, None, false, false, offset);
@@ -1165,7 +1164,7 @@ pub fn compile_expr(
                     // Check if the index is an integer
                     let t = infer_type(elem, v, fns, src, dyn_libs);
                     if t != DataType::Int {
-                        throw_parser_error(src, index_markers, ErrType::InvalidIndexType(t));
+                        throw_parser_error(src, index_markers, ErrType::InvalidIndexType(&t));
                     }
                     let f_id = get_id(elem, v, p, &mut output, None, false, false, offset);
 
@@ -1201,7 +1200,7 @@ pub fn compile_expr(
                     throw_parser_error(
                         src,
                         elem_markers,
-                        ErrType::CannotPushTypeToArray(elem_type, array_type),
+                        ErrType::CannotPushTypeToArray(&elem_type, &array_type),
                     );
                 }
 
@@ -1328,7 +1327,7 @@ pub fn compile_expr(
                 output.extend(cond_code);
                 output.push(Instr::JmpBack(len));
             }
-            Expr::ForLoop(var_name, array_code) => {
+            Expr::ForLoop(var_name, array_code, markers) => {
                 let real_var = var_name.as_str() != "_";
 
                 // parse the array, get its id (the target array is the first Expr in array_code)
@@ -1371,7 +1370,7 @@ pub fn compile_expr(
                     infered_type: match &array_type {
                         DataType::String => DataType::String,
                         DataType::Array(a_type) => *a_type.clone(),
-                        _ => todo!("For loop invalid type"),
+                        t => throw_parser_error(src, markers, ErrType::IsNotAnIterator(t)),
                     },
                 });
                 let loop_id = block_id + 1;
@@ -1420,12 +1419,12 @@ pub fn compile_expr(
                 // Check start elem type
                 let t1 = infer_type(start_elem, v, fns, src, dyn_libs);
                 if t1 != DataType::Int {
-                    throw_parser_error(src, markers1, ErrType::InvalidType(DataType::Int, t1));
+                    throw_parser_error(src, markers1, ErrType::InvalidType(DataType::Int, &t1));
                 }
                 // Check end elem type
                 let t2 = infer_type(end_elem, v, fns, src, dyn_libs);
                 if t2 != DataType::Int {
-                    throw_parser_error(src, markers2, ErrType::InvalidType(DataType::Int, t2));
+                    throw_parser_error(src, markers2, ErrType::InvalidType(DataType::Int, &t2));
                 }
                 let start_val_id =
                     get_id(start_elem, v, p, &mut output, None, false, false, offset);

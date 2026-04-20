@@ -175,7 +175,7 @@ pub fn handle_method_calls(
                 throw_parser_error(
                     src,
                     &args_indexes[0],
-                    ErrType::InvalidType(DataType::String, arg_type),
+                    ErrType::InvalidType(DataType::String, &arg_type),
                 );
             }
 
@@ -203,7 +203,7 @@ pub fn handle_method_calls(
                 throw_parser_error(
                     src,
                     &args_indexes[0],
-                    ErrType::InvalidType(DataType::String, arg_type),
+                    ErrType::InvalidType(DataType::String, &arg_type),
                 );
             }
             add_args!();
@@ -223,14 +223,14 @@ pub fn handle_method_calls(
                     throw_parser_error(
                         src,
                         &args_indexes[0],
-                        ErrType::InvalidType(*array_elem_type.clone(), arg_type),
+                        ErrType::InvalidType(*array_elem_type.clone(), &arg_type),
                     );
                 }
             } else if arg_type != obj_type {
                 throw_parser_error(
                     src,
                     &args_indexes[0],
-                    ErrType::InvalidType(DataType::String, arg_type),
+                    ErrType::InvalidType(DataType::String, &arg_type),
                 );
             }
 
@@ -283,7 +283,7 @@ pub fn handle_method_calls(
                 throw_parser_error(
                     src,
                     &args_indexes[0],
-                    ErrType::InvalidType(DataType::String, arg_type),
+                    ErrType::InvalidType(DataType::String, &arg_type),
                 );
             }
 
@@ -302,7 +302,7 @@ pub fn handle_method_calls(
                 throw_parser_error(
                     src,
                     &args_indexes[0],
-                    ErrType::InvalidType(DataType::String, arg_type),
+                    ErrType::InvalidType(DataType::String, &arg_type),
                 );
             }
 
@@ -321,7 +321,7 @@ pub fn handle_method_calls(
                 throw_parser_error(
                     src,
                     &args_indexes[0],
-                    ErrType::InvalidType(DataType::Int, arg_type),
+                    ErrType::InvalidType(DataType::Int, &arg_type),
                 );
             }
 
@@ -343,7 +343,7 @@ pub fn handle_method_calls(
                 throw_parser_error(
                     src,
                     &args_indexes[0],
-                    ErrType::InvalidType(*array_elem_type.clone(), arg_type),
+                    ErrType::InvalidType(*array_elem_type.clone(), &arg_type),
                 );
             }
 
@@ -403,7 +403,7 @@ pub fn handle_method_calls(
                 throw_parser_error(
                     src,
                     &args_indexes[0],
-                    ErrType::InvalidType(DataType::String, arg_type),
+                    ErrType::InvalidType(DataType::String, &arg_type),
                 );
             }
             add_args!();
@@ -423,7 +423,7 @@ pub fn handle_method_calls(
                 throw_parser_error(
                     src,
                     &args_indexes[0],
-                    ErrType::InvalidType(*array_elem_type, arg_type),
+                    ErrType::InvalidType(*array_elem_type, &arg_type),
                 );
             }
             add_args!();
@@ -442,7 +442,7 @@ pub fn handle_method_calls(
                     obj_type == expected
                 }
             } {
-                throw_parser_error(src, fn_markers, ErrType::InvalidType(expected, obj_type));
+                throw_parser_error(src, fn_markers, ErrType::InvalidType(expected, &obj_type));
             }
             check_args_range!(args, 0, 1, "join", src, fn_markers);
             if !args.is_empty() {
@@ -451,7 +451,7 @@ pub fn handle_method_calls(
                     throw_parser_error(
                         src,
                         &args_indexes[0],
-                        ErrType::InvalidType(DataType::String, arg_type),
+                        ErrType::InvalidType(DataType::String, &arg_type),
                     );
                 }
                 add_args!();
@@ -470,7 +470,7 @@ pub fn handle_method_calls(
                 throw_parser_error(
                     src,
                     &args_indexes[0],
-                    ErrType::InvalidType(DataType::Int, arg_type),
+                    ErrType::InvalidType(DataType::Int, &arg_type),
                 );
             }
             let arg_id = get_id(&args[0], v, p, output, None, false, false, offset);
