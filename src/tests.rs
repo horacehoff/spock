@@ -640,6 +640,27 @@ pub fn function_called_after_loop() {
 }
 
 #[test]
+pub fn recursive_fn_inside_for_loop() {
+    run_and_check_registers!(
+        "
+        function fib(n) {
+            if n <= 1 { return n; }
+            return fib(n-1) + fib(n-2);
+        }
+        function main() {
+            let x = [0, 1, 2];
+            let sum = 0;
+            for i in x {
+                sum += fib(i);
+            }
+            print(sum);
+        }
+        ",
+        2.into()
+    );
+}
+
+#[test]
 pub fn recursive_fib_after_loop() {
     run_and_check_registers!(
         "
