@@ -171,19 +171,69 @@ pub fn track_returns(
                     return_types.push(DataType::Null);
                 }
             }
-            Expr::WhileBlock(_, code)
-            | Expr::ForLoop(_, code, _)
-            | Expr::EvalBlock(code)
-            | Expr::LoopBlock(code)
-            | Expr::IntForLoop(_, _, _, code, _, _) => return_types.extend(track_returns(
-                code,
-                v,
-                fns,
-                src,
-                fn_name,
-                track_condition,
-                dyn_libs,
-            )),
+            Expr::VarDeclare(name, expr) => {
+                let var_type = infer_type(expr, v, fns, src, dyn_libs);
+                v.push(Variable {
+                    name: name.clone(),
+                    register_id: 0,
+                    infered_type: var_type,
+                });
+            }
+            Expr::WhileBlock(_, code) | Expr::EvalBlock(code) | Expr::LoopBlock(code) => {
+                return_types.extend(track_returns(
+                    code,
+                    v,
+                    fns,
+                    src,
+                    fn_name,
+                    track_condition,
+                    dyn_libs,
+                ))
+            }
+            Expr::IntForLoop(var_name, _, end_expr, code, _, _) => {
+                let v_len = v.len();
+                v.push(Variable {
+                    name: var_name.clone(),
+                    register_id: 0,
+                    infered_type: DataType::Int,
+                });
+                return_types.extend(track_returns(
+                    code,
+                    v,
+                    fns,
+                    src,
+                    fn_name,
+                    track_condition,
+                    dyn_libs,
+                ));
+                v.truncate(v_len);
+            }
+            Expr::ForLoop(var_name, array_code, _) => {
+                let array_expr = array_code.first().unwrap();
+                let elem_type = match infer_type(array_expr, v, fns, src, dyn_libs) {
+                    DataType::Array(inner) => *inner,
+                    DataType::String => DataType::String,
+                    _ => unreachable!(),
+                };
+                let v_len = v.len();
+                if var_name.as_str() != "_" {
+                    v.push(Variable {
+                        name: var_name.clone(),
+                        register_id: 0,
+                        infered_type: elem_type,
+                    });
+                }
+                return_types.extend(track_returns(
+                    &array_code[1..],
+                    v,
+                    fns,
+                    src,
+                    fn_name,
+                    track_condition,
+                    dyn_libs,
+                ));
+                v.truncate(v_len);
+            }
             Expr::ReturnVal(return_val) => {
                 if let Some(val) = return_val.as_ref() {
                     let contains_call = contains_recursive_call_expr(val, fn_name);
@@ -208,10 +258,8 @@ pub fn infer_type(
     v: &mut Vec<Variable>,
     fns: &[Function],
     src: (&str, &str),
-    // p: &ParserData,
     dyn_libs: &[Dynamiclib],
 ) -> DataType {
-    // let (_, _, _, _, _, _, _, _, _, dyn_libs, _, _, _, free_registers) = p.destructure();
     match e {
         Expr::Var(name, markers) => v
             .iter()

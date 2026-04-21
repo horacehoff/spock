@@ -784,3 +784,23 @@ pub fn bubble_sort() {
         10.into()
     );
 }
+
+#[test]
+pub fn for_loop_called_twice() {
+    run_and_check_registers!(
+        "
+        function sum(arr) {
+            let s = 0;
+            for x in arr {
+                s += x;
+            }
+            return s;
+        }
+        function main() {
+            sum([1, 2, 3]);
+            print(sum([1, 2, 3]));
+        }
+        ",
+        6.into()
+    );
+}
