@@ -398,8 +398,6 @@ pub fn get_id(
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
                 tgt_register_id
-            } else if expects_op_cmp {
-                0
             } else {
                 alloc_register(registers, free_registers)
             };
@@ -421,8 +419,6 @@ pub fn get_id(
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
                 tgt_register_id
-            } else if expects_op_cmp {
-                0
             } else {
                 alloc_register(registers, free_registers)
             };
@@ -586,8 +582,6 @@ pub fn get_id(
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
                 tgt_register_id
-            } else if expects_op_cmp {
-                0
             } else {
                 alloc_register(registers, free_registers)
             };
@@ -647,8 +641,6 @@ pub fn get_id(
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
                 tgt_register_id
-            } else if expects_op_cmp {
-                0
             } else {
                 alloc_register(registers, free_registers)
             };
@@ -666,8 +658,6 @@ pub fn get_id(
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
                 tgt_register_id
-            } else if expects_op_cmp {
-                0
             } else {
                 alloc_register(registers, free_registers)
             };
@@ -740,8 +730,6 @@ pub fn get_id(
             free_register(id_l, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
                 tgt_register_id
-            } else if expects_op_cmp {
-                0
             } else {
                 alloc_register(registers, free_registers)
             };
@@ -1378,12 +1366,16 @@ pub fn compile_expr(
                     },
                 });
                 let loop_id = block_id + 1;
-                let mut cond_code = compile_expr(code, v, p, output.len() as u16);
+                // pending accounts for the GetIndexArray instruction inserted AFTER compile_expr
+                // returns but BEFORE cond_code is extended into output
+                let pending = if real_var { 1 } else { 0 };
+                let mut cond_code =
+                    compile_expr(code, v, p, offset + output.len() as u16 + pending);
                 // Clean up variables
                 v.truncate(v_len);
 
                 // add the condition ('i < len') jumping logic
-                let mut len = (cond_code.len() + 3) as u16 + if real_var { 1 } else { 0 };
+                let mut len = (cond_code.len() + 3) as u16 + pending;
                 add_cmp(condition_id, &mut len, &mut output, true);
 
                 // instruction to make current_element actually hold the array index's value
