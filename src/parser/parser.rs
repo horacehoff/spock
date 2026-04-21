@@ -359,6 +359,7 @@ pub fn get_id(
     expects_op_cmp: bool,
     var_assignment: bool,
     offset: u16,
+    single_run: bool,
 ) -> u16 {
     let (
         registers,
@@ -392,8 +393,8 @@ pub fn get_id(
                 throw_parser_error(src, $markers, ErrType::OpError(&t_l, &t_r, $symbol))
                 // op_error!(src, t_l, t_r, $symbol, *$start, *$end);
             }
-            let id_l = get_id($l, v, p, output, None, false, false, offset);
-            let id_r = get_id($r, v, p, output, None, false, false, offset);
+            let id_l = get_id($l, v, p, output, None, false, false, offset, single_run);
+            let id_r = get_id($r, v, p, output, None, false, false, offset, single_run);
             free_register(id_l, free_registers, v, const_registers);
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
@@ -413,8 +414,8 @@ pub fn get_id(
                 throw_parser_error(src, $markers, ErrType::OpError(&t_l, &t_r, $symbol))
                 // op_error!(src, t_l, t_r, $symbol, *$start, *$end);
             }
-            let id_l = get_id($l, v, p, output, None, false, false, offset);
-            let id_r = get_id($r, v, p, output, None, false, false, offset);
+            let id_l = get_id($l, v, p, output, None, false, false, offset, single_run);
+            let id_r = get_id($r, v, p, output, None, false, false, offset, single_run);
             free_register(id_l, free_registers, v, const_registers);
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
@@ -520,7 +521,7 @@ pub fn get_id(
                 array_pool.len() - 1
             };
             for elem in elems {
-                let x = compile_expr(slice::from_ref(elem), v, p, 0);
+                let x = compile_expr(slice::from_ref(elem), v, p, 0, single_run);
                 if !x.is_empty() {
                     let c_id = get_tgt_id(*x.last().unwrap()).unwrap();
                     array_pool.get_mut(array_id).unwrap().push(NULL);
@@ -576,8 +577,8 @@ pub fn get_id(
             {
                 throw_parser_error(src, markers, ErrType::OpError(&t_l, &t_r, "+"));
             }
-            let id_l = get_id(l, v, p, output, None, false, false, offset);
-            let id_r = get_id(r, v, p, output, None, false, false, offset);
+            let id_l = get_id(l, v, p, output, None, false, false, offset, single_run);
+            let id_r = get_id(r, v, p, output, None, false, false, offset, single_run);
             free_register(id_l, free_registers, v, const_registers);
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
@@ -635,8 +636,8 @@ pub fn get_id(
         Expr::Eq(l, r) => {
             let is_array = matches!(infer_type(l, v, fns, src, dyn_libs), DataType::Array(_))
                 && matches!(infer_type(r, v, fns, src, dyn_libs), DataType::Array(_));
-            let id_l = get_id(l, v, p, output, None, false, false, offset);
-            let id_r = get_id(r, v, p, output, None, false, false, offset);
+            let id_l = get_id(l, v, p, output, None, false, false, offset, single_run);
+            let id_r = get_id(r, v, p, output, None, false, false, offset, single_run);
             free_register(id_l, free_registers, v, const_registers);
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
@@ -652,8 +653,8 @@ pub fn get_id(
             id
         }
         Expr::NotEq(l, r) => {
-            let id_l = get_id(l, v, p, output, None, false, false, offset);
-            let id_r = get_id(r, v, p, output, None, false, false, offset);
+            let id_l = get_id(l, v, p, output, None, false, false, offset, single_run);
+            let id_r = get_id(r, v, p, output, None, false, false, offset, single_run);
             free_register(id_l, free_registers, v, const_registers);
             free_register(id_r, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
@@ -726,7 +727,7 @@ pub fn get_id(
         }
         Expr::Neg(l, markers) => {
             let operand_type = infer_type(l, v, fns, src, dyn_libs);
-            let id_l = get_id(l, v, p, output, None, false, false, offset);
+            let id_l = get_id(l, v, p, output, None, false, false, offset, single_run);
             free_register(id_l, free_registers, v, const_registers);
             let id = if let Some(tgt_register_id) = tgt_id {
                 tgt_register_id
@@ -758,13 +759,29 @@ pub fn get_id(
             let mut condition_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
 
             // parse the main condition
-            let condition_id = get_id(main_condition, v, p, output, None, true, false, offset);
+            let condition_id = get_id(
+                main_condition,
+                v,
+                p,
+                output,
+                None,
+                true,
+                false,
+                offset,
+                single_run,
+            );
             add_cmp(condition_id, &mut 0, output, false);
             cmp_markers.push(output.len() - 1);
 
             let v_len = v.len();
             // parse the main code block
-            let cond_code = compile_expr(&code[0..main_code_limit], v, p, output.len() as u16);
+            let cond_code = compile_expr(
+                &code[0..main_code_limit],
+                v,
+                p,
+                output.len() as u16,
+                single_run,
+            );
             v.truncate(v_len);
             let is_empty = cond_code.is_empty();
             output.extend(cond_code);
@@ -785,12 +802,14 @@ pub fn get_id(
             for elem in &code[main_code_limit..] {
                 if let Expr::ElseIfBlock(condition, code) = elem {
                     condition_markers.push(output.len());
-                    let condition_id = get_id(condition, v, p, output, None, true, false, offset);
+                    let condition_id = get_id(
+                        condition, v, p, output, None, true, false, offset, single_run,
+                    );
                     add_cmp(condition_id, &mut 0, output, false);
                     free_register(condition_id, free_registers, v, const_registers);
                     cmp_markers.push(output.len() - 1);
                     let v_len = v.len();
-                    let cond_code = compile_expr(code, v, p, output.len() as u16);
+                    let cond_code = compile_expr(code, v, p, output.len() as u16, single_run);
                     v.truncate(v_len);
                     let is_empty = cond_code.is_empty();
                     output.extend(cond_code);
@@ -808,7 +827,7 @@ pub fn get_id(
                     else_exists = true;
                     condition_markers.push(output.len());
                     let v_len = v.len();
-                    let cond_code = compile_expr(code, v, p, output.len() as u16);
+                    let cond_code = compile_expr(code, v, p, output.len() as u16, single_run);
                     v.truncate(v_len);
                     let is_empty = cond_code.is_empty();
                     output.extend(cond_code);
@@ -858,14 +877,20 @@ pub fn get_id(
             free_register(condition_id, free_registers, v, const_registers);
             return_id
         }
-        Expr::FunctionCall(args, namespace, markers, args_indexes) => {
-            handle_functions(output, v, p, args, namespace, markers, args_indexes, offset)
-                .unwrap_or_else(|| {
-                    get_last_tgt_id(output).unwrap_or_else(|| (registers.len() - 1) as u16)
-                })
-        }
+        Expr::FunctionCall(args, namespace, markers, args_indexes) => handle_functions(
+            output,
+            v,
+            p,
+            args,
+            namespace,
+            markers,
+            args_indexes,
+            offset,
+            single_run,
+        )
+        .unwrap_or_else(|| get_last_tgt_id(output).unwrap_or_else(|| (registers.len() - 1) as u16)),
         other => {
-            let output_code = compile_expr(slice::from_ref(other), v, p, 0);
+            let output_code = compile_expr(slice::from_ref(other), v, p, 0, single_run);
             if !output_code.is_empty() {
                 output.extend(output_code);
                 get_last_tgt_id(output).unwrap_or((registers.len() - 1) as u16)
@@ -1027,6 +1052,7 @@ pub fn compile_expr(
     v: &mut Vec<Variable>,
     p: &ParserData,
     offset: u16,
+    single_run: bool,
 ) -> Vec<Instr> {
     let mut output: Vec<Instr> = Vec::with_capacity(input.len());
 
@@ -1089,7 +1115,7 @@ pub fn compile_expr(
                 };
                 for elem in elems {
                     // process each array element
-                    let x = compile_expr(slice::from_ref(elem), v, p, 0);
+                    let x = compile_expr(slice::from_ref(elem), v, p, 0, single_run);
                     // if there are no instructions, then that means the element has been pushed to the registers, so pop it and push it directly to the array
                     if x.is_empty() {
                         array_pool
@@ -1114,7 +1140,17 @@ pub fn compile_expr(
             Expr::GetIndex(array, index, markers) => {
                 let mut infered = infer_type(array, v, fns, src, dyn_libs);
                 // process the array/string that is being indexed
-                let mut id = get_id(array, v, p, &mut output, None, false, false, offset);
+                let mut id = get_id(
+                    array,
+                    v,
+                    p,
+                    &mut output,
+                    None,
+                    false,
+                    false,
+                    offset,
+                    single_run,
+                );
                 // for each indexing operation, process the index, adjust the id variable for the next index operation, push null to registers to use GetIndex to index at runtime
                 for elem in index {
                     if !is_indexable(&infered) {
@@ -1125,7 +1161,17 @@ pub fn compile_expr(
                     if index_infered != DataType::Int {
                         throw_parser_error(src, markers, ErrType::InvalidIndexType(&index_infered));
                     }
-                    let f_id = get_id(elem, v, p, &mut output, None, false, false, offset);
+                    let f_id = get_id(
+                        elem,
+                        v,
+                        p,
+                        &mut output,
+                        None,
+                        false,
+                        false,
+                        offset,
+                        single_run,
+                    );
                     free_register(f_id, free_registers, v, const_registers);
                     let dest_reg_id = alloc_register(registers, free_registers);
 
@@ -1150,7 +1196,17 @@ pub fn compile_expr(
                     throw_parser_error(src, index_markers, ErrType::NotIndexable(&array_type));
                 }
                 // Get the id of the source array
-                let mut id = get_id(array, v, p, &mut output, None, false, false, offset);
+                let mut id = get_id(
+                    array,
+                    v,
+                    p,
+                    &mut output,
+                    None,
+                    false,
+                    false,
+                    offset,
+                    single_run,
+                );
 
                 for elem in z.iter().rev().skip(1).rev() {
                     // Check if the index is an integer
@@ -1158,7 +1214,17 @@ pub fn compile_expr(
                     if t != DataType::Int {
                         throw_parser_error(src, index_markers, ErrType::InvalidIndexType(&t));
                     }
-                    let f_id = get_id(elem, v, p, &mut output, None, false, false, offset);
+                    let f_id = get_id(
+                        elem,
+                        v,
+                        p,
+                        &mut output,
+                        None,
+                        false,
+                        false,
+                        offset,
+                        single_run,
+                    );
 
                     let dest_reg_id = alloc_register(registers, free_registers);
 
@@ -1181,10 +1247,11 @@ pub fn compile_expr(
                     false,
                     false,
                     offset,
+                    single_run,
                 );
 
                 let elem_type = infer_type(w, v, fns, src, dyn_libs);
-                let elem_id = get_id(w, v, p, &mut output, None, false, false, offset);
+                let elem_id = get_id(w, v, p, &mut output, None, false, false, offset, single_run);
                 free_register(elem_id, free_registers, v, const_registers);
                 if is_array_with_incompatible_type(&array_type, &elem_type)
                     || (array_type == DataType::String && elem_type != DataType::String)
@@ -1219,15 +1286,30 @@ pub fn compile_expr(
                 let mut condition_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
 
                 // parse the main condition
-                let condition_id =
-                    get_id(main_condition, v, p, &mut output, None, true, false, offset);
+                let condition_id = get_id(
+                    main_condition,
+                    v,
+                    p,
+                    &mut output,
+                    None,
+                    true,
+                    false,
+                    offset,
+                    single_run,
+                );
                 add_cmp(condition_id, &mut 0, &mut output, false);
                 free_register(condition_id, free_registers, v, const_registers);
                 conditional_jmp_instr_idx.push(output.len() - 1);
 
                 let v_len = v.len();
                 // parse the main code block
-                let cond_code = compile_expr(&code[0..main_code_limit], v, p, output.len() as u16);
+                let cond_code = compile_expr(
+                    &code[0..main_code_limit],
+                    v,
+                    p,
+                    output.len() as u16,
+                    single_run,
+                );
                 v.truncate(v_len);
                 output.extend(cond_code);
                 if main_code_limit != code.len() {
@@ -1238,13 +1320,22 @@ pub fn compile_expr(
                 for elem in &code[main_code_limit..] {
                     if let Expr::ElseIfBlock(condition, code) = elem {
                         condition_markers.push(output.len());
-                        let condition_id =
-                            get_id(condition, v, p, &mut output, None, true, false, offset);
+                        let condition_id = get_id(
+                            condition,
+                            v,
+                            p,
+                            &mut output,
+                            None,
+                            true,
+                            false,
+                            offset,
+                            single_run,
+                        );
                         free_register(condition_id, free_registers, v, const_registers);
                         add_cmp(condition_id, &mut 0, &mut output, false);
                         conditional_jmp_instr_idx.push(output.len() - 1);
                         let v_len = v.len();
-                        let cond_code = compile_expr(code, v, p, output.len() as u16);
+                        let cond_code = compile_expr(code, v, p, output.len() as u16, single_run);
                         v.truncate(v_len);
                         debug!("COND CODE IS {cond_code:?}");
                         output.extend(cond_code);
@@ -1253,7 +1344,7 @@ pub fn compile_expr(
                     } else if let Expr::ElseBlock(code) = elem {
                         condition_markers.push(output.len());
                         let v_len = v.len();
-                        let cond_code = compile_expr(code, v, p, output.len() as u16);
+                        let cond_code = compile_expr(code, v, p, output.len() as u16, single_run);
                         v.truncate(v_len);
                         debug!("COND CODE IS {cond_code:?}");
                         output.extend(cond_code);
@@ -1296,18 +1387,30 @@ pub fn compile_expr(
                 // parse the condition, get its id
                 // track how many instructions get_id emits
                 let output_len_before = output.len();
-                let condition_id = get_id(condition, v, p, &mut output, None, true, false, offset);
+                let condition_id = get_id(
+                    condition,
+                    v,
+                    p,
+                    &mut output,
+                    None,
+                    true,
+                    false,
+                    offset,
+                    single_run,
+                );
                 // preamble = all instructions get_id pushed except the final comparison (which
                 // add_cmp will fold into a fused branch, replacing it in-place, not adding one)
                 let condition_preamble_len =
                     (output.len() - output_len_before).saturating_sub(1) as u16;
-                free_register(condition_id, free_registers, v, const_registers);
+                if single_run {
+                    free_register(condition_id, free_registers, v, const_registers);
+                }
 
                 // parse the code block, clone the vars to avoid overriding anything
                 let v_len = v.len();
                 let loop_id = block_id + 1;
 
-                let mut cond_code = compile_expr(code, v, p, offset + output.len() as u16);
+                let mut cond_code = compile_expr(code, v, p, offset + output.len() as u16, false);
                 v.truncate(v_len);
 
                 // get length of the code, then add Cmp/OpCmp (decided by add_cmp), and add the condition logic
@@ -1326,12 +1429,17 @@ pub fn compile_expr(
                 let array = array_code.first().unwrap();
                 let code = &array_code[1..];
                 let array_type = infer_type(array, v, fns, src, dyn_libs);
-                let array = get_id(array, v, p, &mut output, None, false, false, offset);
-
-                // try to optimize it
-                // if for_loop_summation(&mut output, registers, v, array, code) {
-                //     continue;
-                // }
+                let array = get_id(
+                    array,
+                    v,
+                    p,
+                    &mut output,
+                    None,
+                    false,
+                    false,
+                    offset,
+                    single_run,
+                );
 
                 // add an instruction to get array length (func id 2 = len)
                 let array_len_id = alloc_register(registers, free_registers);
@@ -1339,8 +1447,25 @@ pub fn compile_expr(
                 output.push(Instr::CallLibFunc(LibFunc::Len, array, array_len_id));
 
                 // set up the id of the index variable (0..len)
-                let index_id = registers.len() as u16;
-                registers.push(0.into());
+                let index_id = if single_run {
+                    registers.push(0.into());
+                    (registers.len() - 1) as u16
+                } else {
+                    let id = alloc_register(registers, free_registers);
+                    let zero_id = get_id(
+                        &Expr::Int(0),
+                        v,
+                        p,
+                        &mut output,
+                        None,
+                        false,
+                        false,
+                        offset,
+                        single_run,
+                    );
+                    output.push(Instr::Mov(zero_id, id));
+                    id
+                };
 
                 // do the 'i < len' condition, set up the condition's id (true/false)
                 let condition_id = alloc_register(registers, free_registers);
@@ -1374,7 +1499,7 @@ pub fn compile_expr(
                 let pending = if real_var { 1 } else { 0 };
 
                 let mut cond_code =
-                    compile_expr(code, v, p, offset + output.len() as u16 + pending);
+                    compile_expr(code, v, p, offset + output.len() as u16 + pending, false);
                 // Clean up variables
                 v.truncate(v_len);
 
@@ -1404,26 +1529,64 @@ pub fn compile_expr(
                 // jump back to the loop if still inside of it
                 output.push(Instr::JmpBack(len));
 
-                free_register(array_len_id, free_registers, v, const_registers);
-                free_register(index_id, free_registers, v, const_registers);
-                free_register(condition_id, free_registers, v, const_registers);
-                if real_var {
-                    free_register(current_element_id, free_registers, v, const_registers);
+                if single_run {
+                    free_register(array_len_id, free_registers, v, const_registers);
+                    free_register(index_id, free_registers, v, const_registers);
+                    free_register(condition_id, free_registers, v, const_registers);
+                    if real_var {
+                        free_register(current_element_id, free_registers, v, const_registers);
+                    }
                 }
             }
             Expr::IntForLoop(var_name, start_elem, end_elem, code, markers1, markers2) => {
-                // Check start elem type
+                // Check start and elem type
                 let t1 = infer_type(start_elem, v, fns, src, dyn_libs);
+                let t2 = infer_type(end_elem, v, fns, src, dyn_libs);
                 if t1 != DataType::Int {
                     throw_parser_error(src, markers1, ErrType::InvalidType(DataType::Int, &t1));
                 }
-                // Check end elem type
-                let t2 = infer_type(end_elem, v, fns, src, dyn_libs);
                 if t2 != DataType::Int {
                     throw_parser_error(src, markers2, ErrType::InvalidType(DataType::Int, &t2));
                 }
-                let elem_id = get_id(start_elem, v, p, &mut output, None, false, false, offset);
-                let end_elem_id = get_id(end_elem, v, p, &mut output, None, false, false, offset);
+                let elem_id = if single_run {
+                    get_id(
+                        start_elem,
+                        v,
+                        p,
+                        &mut output,
+                        None,
+                        false,
+                        false,
+                        offset,
+                        single_run,
+                    )
+                } else {
+                    let start_elem_id = get_id(
+                        start_elem,
+                        v,
+                        p,
+                        &mut output,
+                        None,
+                        false,
+                        false,
+                        offset,
+                        single_run,
+                    );
+                    let elem_id = alloc_register(registers, free_registers);
+                    output.push(Instr::Mov(start_elem_id, elem_id));
+                    elem_id
+                };
+                let end_elem_id = get_id(
+                    end_elem,
+                    v,
+                    p,
+                    &mut output,
+                    None,
+                    false,
+                    false,
+                    offset,
+                    single_run,
+                );
 
                 // elem_id is a fresh mutable register — remove from const_registers just in case
                 const_registers.retain(|&id| id != elem_id);
@@ -1436,7 +1599,8 @@ pub fn compile_expr(
                 });
                 // Compile the code inside the loop
                 let loop_id = block_id + 1;
-                let compiled_loop_code = compile_expr(code, v, p, offset + output.len() as u16);
+                let compiled_loop_code =
+                    compile_expr(code, v, p, offset + output.len() as u16, false);
                 let compiled_loop_code_len = compiled_loop_code.len() as u16;
 
                 // skip the whole loop if elem >= end
@@ -1445,8 +1609,17 @@ pub fn compile_expr(
 
                 output.extend(compiled_loop_code);
                 let len1 = output.len() as u16;
-                let one_cst_id =
-                    get_id(&Expr::Int(1), v, p, &mut output, None, false, false, offset);
+                let one_cst_id = get_id(
+                    &Expr::Int(1),
+                    v,
+                    p,
+                    &mut output,
+                    None,
+                    false,
+                    false,
+                    offset,
+                    single_run,
+                );
                 let len2 = output.len() as u16;
                 // Do i += 1
                 output.push(Instr::AddInt(elem_id, one_cst_id, elem_id));
@@ -1466,14 +1639,16 @@ pub fn compile_expr(
                 );
                 v.truncate(v_len);
 
-                free_register(end_elem_id, free_registers, v, const_registers);
-                free_register(elem_id, free_registers, v, const_registers);
-                free_register(one_cst_id, free_registers, v, const_registers);
+                if single_run {
+                    free_register(end_elem_id, free_registers, v, const_registers);
+                    free_register(elem_id, free_registers, v, const_registers);
+                    free_register(one_cst_id, free_registers, v, const_registers);
+                }
             }
             Expr::LoopBlock(code) => {
                 let loop_id = block_id + 1;
                 let v_len = v.len();
-                let mut compiled = compile_expr(code, v, p, output.len() as u16);
+                let mut compiled = compile_expr(code, v, p, output.len() as u16, false);
                 v.truncate(v_len);
                 let code_length = compiled.len() as u16;
                 parse_loop_flow_control(&mut compiled, loop_id, code_length + 1, false, true);
@@ -1484,25 +1659,32 @@ pub fn compile_expr(
                 let var_type = infer_type(y, v, fns, src, dyn_libs);
                 let output_len = output.len();
 
-                let var_id = if output.len() != output_len {
-                    if can_move(output.last().unwrap()) {
-                        let id = alloc_register(registers, free_registers);
-                        move_to_id(&mut output, id);
-                        id
+                let var_id = if single_run {
+                    if output.len() != output_len {
+                        if can_move(output.last().unwrap()) {
+                            let id = alloc_register(registers, free_registers);
+                            move_to_id(&mut output, id);
+                            id
+                        } else {
+                            move_to_id(&mut output, (registers.len() - 1) as u16);
+                            (registers.len() - 1) as u16
+                        }
                     } else {
-                        move_to_id(&mut output, (registers.len() - 1) as u16);
-                        (registers.len() - 1) as u16
+                        get_id(y, v, p, &mut output, None, false, true, offset, single_run)
                     }
                 } else {
-                    get_id(y, v, p, &mut output, None, false, true, offset)
-                    // let id = get_id(y, v, p, &mut output, None, false, false);
-                    // if const_registers.contains(&id) {
-                    //     registers.push(registers[id as usize]);
-                    //     (registers.len() - 1) as u16
-                    // } else {
-                    //     id
-                    // }
+                    let src_id =
+                        get_id(y, v, p, &mut output, None, false, false, offset, single_run);
+                    if const_registers.contains(&src_id) {
+                        let mutable_id = alloc_register(registers, free_registers);
+                        registers[mutable_id as usize] = registers[src_id as usize];
+                        output.push(Instr::Mov(src_id, mutable_id));
+                        mutable_id
+                    } else {
+                        src_id
+                    }
                 };
+
                 v.push(Variable {
                     name: x.clone(),
                     register_id: var_id,
@@ -1526,7 +1708,17 @@ pub fn compile_expr(
                 // }
 
                 let output_len = output.len();
-                let obj_id = get_id(y, v, p, &mut output, Some(id), false, false, offset);
+                let obj_id = get_id(
+                    y,
+                    v,
+                    p,
+                    &mut output,
+                    Some(id),
+                    false,
+                    false,
+                    offset,
+                    single_run,
+                );
                 if output.len() != output_len {
                     move_to_id(&mut output, id);
                 } else {
@@ -1549,6 +1741,7 @@ pub fn compile_expr(
                     markers,
                     args_indexes,
                     offset,
+                    single_run,
                 );
                 if let Some(id) = output_id {
                     free_register(id, free_registers, v, const_registers);
@@ -1566,6 +1759,7 @@ pub fn compile_expr(
                     fn_markers,
                     args_indexes,
                     offset,
+                    single_run,
                 );
             }
             Expr::FunctionDecl(x, y, markers) => {
@@ -1586,7 +1780,7 @@ pub fn compile_expr(
             }
             Expr::ReturnVal(val) => {
                 if let Some(x) = &**val {
-                    let id = get_id(x, v, p, &mut output, None, false, false, offset);
+                    let id = get_id(x, v, p, &mut output, None, false, false, offset, single_run);
                     if is_parsing_recursive {
                         output.push(Instr::RecursiveReturn(id));
                     } else {
@@ -1598,11 +1792,22 @@ pub fn compile_expr(
             Expr::Continue => output.push(Instr::EqJmp(block_id + 1, 0, 0)),
             Expr::EvalBlock(code) => {
                 let v_len = v.len();
-                output.extend(compile_expr(code, v, p, output.len() as u16));
+                output.extend(compile_expr(code, v, p, output.len() as u16, single_run));
                 v.truncate(v_len);
             }
             other => {
-                unreachable!("Not implemented {:?}", other);
+                get_id(
+                    other,
+                    v,
+                    p,
+                    &mut output,
+                    None,
+                    false,
+                    false,
+                    offset,
+                    single_run,
+                );
+                // unreachable!("Not implemented {:?}", other);
             }
         }
     }
@@ -1889,6 +2094,7 @@ pub fn parse(
             current_src_file: 0,
         },
         0,
+        true
     );
     for x in fn_registers.iter_mut() {
         x.sort();
