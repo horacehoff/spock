@@ -95,7 +95,7 @@ fn main() {
             allocated_arg_count,
             allocated_call_depth,
             sources,
-        ) = parse(&contents, filename, debug);
+        ) = parse(&contents, filename, false);
         vm::execute(
             &instructions,
             &mut registers,
@@ -122,7 +122,7 @@ fn main() {
         allocated_arg_count,
         allocated_call_depth,
         sources,
-    ) = parse(&contents, filename, true);
+    ) = parse(&contents, filename, false);
 
     println!("COMPILATION TIME: {:.2?}", now.elapsed());
     if args.len() > 2 && args.iter().any(|x| x == "--bench") {

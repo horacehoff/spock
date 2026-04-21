@@ -1422,9 +1422,7 @@ pub fn compile_expr(
                 if t2 != DataType::Int {
                     throw_parser_error(src, markers2, ErrType::InvalidType(DataType::Int, &t2));
                 }
-                let start_val_id =
-                    get_id(start_elem, v, p, &mut output, None, false, false, offset);
-                let elem_id = alloc_register(registers, free_registers);
+                let elem_id = get_id(start_elem, v, p, &mut output, None, false, false, offset);
                 let end_elem_id = get_id(end_elem, v, p, &mut output, None, false, false, offset);
 
                 // elem_id is a fresh mutable register — remove from const_registers just in case
@@ -1440,9 +1438,6 @@ pub fn compile_expr(
                 let loop_id = block_id + 1;
                 let compiled_loop_code = compile_expr(code, v, p, offset + output.len() as u16);
                 let compiled_loop_code_len = compiled_loop_code.len() as u16;
-
-                // mov to (re)initialise the loop variable from start_val_id.
-                output.push(Instr::Mov(start_val_id, elem_id));
 
                 // skip the whole loop if elem >= end
                 let jmp_idx = output.len();
