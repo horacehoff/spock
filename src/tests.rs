@@ -118,6 +118,29 @@ pub fn iter_fib_40() {
         102334155.into()
     );
 }
+#[test]
+pub fn iter_fib_40_loop() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let sum = 0;
+            for _ in 0..200000 {
+                let a = 0;
+                let b = 1;
+                let c = 0;
+                for i in 0..39 {
+                    c = a + b;
+                    a = b;
+                    b = c;
+                }
+                sum += (b % 10);
+            }
+            print(sum);
+        }
+        ",
+        1000000.into()
+    );
+}
 
 #[test]
 pub fn string_split_len() {
@@ -804,3 +827,270 @@ pub fn for_loop_called_twice() {
         6.into()
     );
 }
+
+// --- two for loops in sequence in the same function ---
+#[test]
+pub fn two_for_loops_in_sequence() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let a = [1, 2, 3];
+            let b = [10, 20, 30];
+            let sum = 0;
+            for x in a { sum += x; }
+            for x in b { sum += x; }
+            print(sum);
+        }
+        ",
+        66.into()
+    );
+}
+
+// --- early return from inside a for loop ---
+#[test]
+pub fn early_return_from_for_loop() {
+    run_and_check_registers!(
+        "
+        function first_positive(arr) {
+            for x in arr {
+                if x > 0 { return x; }
+            }
+            return 0;
+        }
+        function main() {
+            print(first_positive([-3, -1, 5, 8]));
+        }
+        ",
+        5.into()
+    );
+}
+
+// --- early return from inside a while loop ---
+#[test]
+pub fn early_return_from_while_loop() {
+    run_and_check_registers!(
+        "
+        function find(limit) {
+            let i = 0;
+            while i < limit {
+                if i == 7 { return i; }
+                i += 1;
+            }
+            return -1;
+        }
+        function main() {
+            print(find(20));
+        }
+        ",
+        7.into()
+    );
+}
+
+// --- nested function call as argument ---
+#[test]
+pub fn nested_fn_call_as_arg() {
+    run_and_check_registers!(
+        "
+        function double(n) { return n * 2; }
+        function inc(n)    { return n + 1; }
+        function main() {
+            print(double(inc(double(3))));
+        }
+        ",
+        14.into()
+    );
+}
+
+// --- function with multiple sequential for loops called twice ---
+#[test]
+pub fn multi_loop_fn_called_twice() {
+    run_and_check_registers!(
+        "
+        function run(arr) {
+            let s = 0;
+            for x in arr { s += x; }
+            for x in arr { s += x; }
+            print(s);
+        }
+        function main() {
+            run([1, 2, 3]);
+            run([1, 2, 3]);
+        }
+        ",
+        12.into()
+    );
+}
+
+// --- while loop function called twice ---
+#[test]
+pub fn while_fn_called_twice() {
+    run_and_check_registers!(
+        "
+        function count_down(n) {
+            let s = 0;
+            while n > 0 {
+                s += n;
+                n -= 1;
+            }
+            return s;
+        }
+        function main() {
+            count_down(5);
+            print(count_down(5));
+        }
+        ",
+        15.into()
+    );
+}
+
+// --- function returning an array ---
+#[test]
+pub fn function_returns_array() {
+    run_and_check_registers!(
+        "
+        function make(n) {
+            return [n, n * 2, n * 3];
+        }
+        function main() {
+            let arr = make(4);
+            print(arr[0]+arr[1]+arr[2]);
+        }
+        ",
+        24.into()
+    );
+}
+
+// --- passing an array to a function and reading it ---
+#[test]
+pub fn pass_array_to_function() {
+    run_and_check_registers!(
+        "
+        function last(arr) {
+            let n = arr.len();
+            return arr[n - 1];
+        }
+        function main() {
+            print(last([7, 8, 9]));
+        }
+        ",
+        9.into()
+    );
+}
+
+// --- string split result iterated ---
+#[test]
+pub fn string_split_then_iterate() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "a,b,c,d,e";
+            let parts = s.split(",");
+            let count = 0;
+            for p in parts { count += 1; }
+            print(count);
+        }
+        "#,
+        5.into()
+    );
+}
+
+// --- deeply nested conditions ---
+#[test]
+pub fn deeply_nested_conditions() {
+    run_and_check_registers!(
+        "
+        function classify(n) {
+            if n < 0 {
+                return 0;
+            } else {
+                if n < 10 {
+                    return 1;
+                } else {
+                    if n < 100 {
+                        return 2;
+                    } else {
+                        return 3;
+                    }
+                }
+            }
+        }
+        function main() {
+            print(classify(50));
+        }
+        ",
+        2.into()
+    );
+}
+
+// --- break inside a while loop ---
+#[test]
+pub fn break_in_while_loop() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let i = 0;
+            while i < 1000 {
+                if i == 42 { break; }
+                i += 1;
+            }
+            print(i);
+        }
+        ",
+        42.into()
+    );
+}
+
+// --- for loop with _ discard variable ---
+#[test]
+pub fn for_loop_discard_var() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let count = 0;
+            for _ in [0, 0, 0, 0, 0] { count += 1; }
+            print(count);
+        }
+        ",
+        5.into()
+    );
+}
+
+// --- integer range loop called twice inside another function ---
+#[test]
+pub fn int_range_loop_fn_called_twice() {
+    run_and_check_registers!(
+        "
+        function sum_to(n) {
+            let s = 0;
+            for i in 0..n { s += i; }
+            return s;
+        }
+        function main() {
+            sum_to(10);
+            print(sum_to(10));
+        }
+        ",
+        45.into()
+    );
+}
+
+// // --- mutual recursion ---
+// #[test]
+// pub fn mutual_recursion() {
+//     run_and_check_registers!(
+//         "
+//         function is_even(n) {
+//             if n == 0 { return true; }
+//             return is_odd(n - 1);
+//         }
+//         function is_odd(n) {
+//             if n == 0 { return false; }
+//             return is_even(n - 1);
+//         }
+//         function main() {
+//             print(is_even(10));
+//         }
+//         ",
+//         true.into()
+//     );
+// }
