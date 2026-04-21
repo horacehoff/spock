@@ -1348,27 +1348,31 @@ pub fn compile_expr(
                 output.push(Instr::InfInt(index_id, array_len_id, condition_id));
 
                 // set up the variable for the current element (for current_element_id in ... {}) => current_element_id = array[index]
-                let current_element_id = alloc_register(registers, free_registers);
+                let current_element_id = if real_var {
+                    alloc_register(registers, free_registers)
+                } else {
+                    // In this case, the register id doesn't matter since it's never interacted with
+                    0
+                };
 
                 let v_len = v.len();
-                // parse everything, add the current element variable to temp_vars so that the loop code can interact with it
-                v.push(Variable {
-                    name: if real_var {
-                        var_name.clone()
-                    } else {
-                        SmolStr::new_static("")
-                    },
-                    register_id: current_element_id,
-                    infered_type: match &array_type {
-                        DataType::String => DataType::String,
-                        DataType::Array(a_type) => *a_type.clone(),
-                        t => throw_parser_error(src, markers, ErrType::IsNotAnIterator(t)),
-                    },
-                });
+                if real_var {
+                    v.push(Variable {
+                        name: var_name.clone(),
+                        register_id: current_element_id,
+                        infered_type: match &array_type {
+                            DataType::String => DataType::String,
+                            DataType::Array(a_type) => *a_type.clone(),
+                            t => throw_parser_error(src, markers, ErrType::IsNotAnIterator(t)),
+                        },
+                    });
+                }
                 let loop_id = block_id + 1;
+
                 // pending accounts for the GetIndexArray instruction inserted AFTER compile_expr
                 // returns but BEFORE cond_code is extended into output
                 let pending = if real_var { 1 } else { 0 };
+
                 let mut cond_code =
                     compile_expr(code, v, p, offset + output.len() as u16 + pending);
                 // Clean up variables
@@ -1400,16 +1404,12 @@ pub fn compile_expr(
                 // jump back to the loop if still inside of it
                 output.push(Instr::JmpBack(len));
 
-                // clean up, reset the index variable
-                registers.push(0.into());
-                output.push(Instr::Mov((registers.len() - 1) as u16, index_id));
-
                 free_register(array_len_id, free_registers, v, const_registers);
                 free_register(index_id, free_registers, v, const_registers);
                 free_register(condition_id, free_registers, v, const_registers);
-                // if real_var {
-                free_register(current_element_id, free_registers, v, const_registers);
-                // }
+                if real_var {
+                    free_register(current_element_id, free_registers, v, const_registers);
+                }
             }
             Expr::IntForLoop(var_name, start_elem, end_elem, code, markers1, markers2) => {
                 // Check start elem type
