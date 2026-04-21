@@ -1046,6 +1046,21 @@ pub fn for_each_read_reg(instr: Instr, mut f: impl FnMut(u16)) {
     }
 }
 
+fn contains_var_reassign(name: &SmolStr, code: &[Expr]) -> bool {
+    code.iter().any(|expr| match expr {
+        Expr::VarAssign(n, _, _) => n == name,
+        Expr::Condition(_, body, _)
+        | Expr::WhileBlock(_, body)
+        | Expr::EvalBlock(body)
+        | Expr::LoopBlock(body)
+        | Expr::InlineCondition(_, body, _) => contains_var_reassign(name, body),
+        Expr::ElseIfBlock(_, body) | Expr::ElseBlock(body) => contains_var_reassign(name, body),
+        Expr::ForLoop(_, body, _) => contains_var_reassign(name, body),
+        Expr::IntForLoop(_, _, _, body, _, _) => contains_var_reassign(name, body),
+        _ => false,
+    })
+}
+
 #[inline(always)]
 pub fn compile_expr(
     input: &[Expr],
@@ -1078,7 +1093,7 @@ pub fn compile_expr(
         current_src_file,
     ) = p.destructure();
 
-    for x in input {
+    for (idx, x) in input.iter().enumerate() {
         match x {
             // if number / bool / str, just push it to the registers, and the caller will grab the last index
             Expr::Float(num) => registers.push((*num).into()),
@@ -1657,28 +1672,19 @@ pub fn compile_expr(
             }
             Expr::VarDeclare(x, y) => {
                 let var_type = infer_type(y, v, fns, src, dyn_libs);
-                let output_len = output.len();
 
                 let var_id = if single_run {
-                    if output.len() != output_len {
-                        if can_move(output.last().unwrap()) {
-                            let id = alloc_register(registers, free_registers);
-                            move_to_id(&mut output, id);
-                            id
-                        } else {
-                            move_to_id(&mut output, (registers.len() - 1) as u16);
-                            (registers.len() - 1) as u16
-                        }
-                    } else {
-                        get_id(y, v, p, &mut output, None, false, true, offset, single_run)
-                    }
+                    get_id(y, v, p, &mut output, None, false, true, offset, single_run)
                 } else {
                     let src_id =
                         get_id(y, v, p, &mut output, None, false, false, offset, single_run);
                     if const_registers.contains(&src_id) {
                         let mutable_id = alloc_register(registers, free_registers);
                         registers[mutable_id as usize] = registers[src_id as usize];
-                        output.push(Instr::Mov(src_id, mutable_id));
+                        // Only emit reset mov if the variable is mutated later
+                        if contains_var_reassign(x, &input[idx + 1..]) {
+                            output.push(Instr::Mov(src_id, mutable_id));
+                        }
                         mutable_id
                     } else {
                         src_id
