@@ -23,6 +23,12 @@ pub enum Instr {
     ArrayEqJmp(u16, u16, u16),
 
     Mov(u16, u16),
+    /// SetInt(dest_reg_id, val)\
+    /// Writes the integer `val` directly into dest_reg_id
+    SetInt(u16, i32),
+    /// SetBool(dest_reg_id, val)\
+    /// Writes the bool `val` directly into dest_reg_id
+    SetBool(u16, bool),
 
     // OPS
     /// (3) = (1) + (2)

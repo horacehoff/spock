@@ -175,6 +175,8 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
     let matching_elem = x.get_mut(matching_elem_index).unwrap();
     match matching_elem {
         Instr::Mov(_, y)
+        | Instr::SetInt(y, _)
+        | Instr::SetBool(y, _)
         | Instr::CallFunc(_, y)
         | Instr::AddFloat(_, _, y)
         | Instr::AddInt(_, _, y)
@@ -261,6 +263,8 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
 
         => None,
         Instr::Mov(_, y)
+        | Instr::SetInt(y, _)
+        | Instr::SetBool(y, _)
         | Instr::CallFunc(_, y)
         | Instr::CallFuncRecursive(_, y)
         | Instr::SaveFrame(_, y, _)
@@ -320,6 +324,24 @@ fn get_last_tgt_id(x: &[Instr]) -> Option<u16> {
         }
     }
     None
+}
+
+pub fn alloc_const_register(
+    registers: &mut Vec<Data>,
+    const_registers: &mut Vec<u16>,
+    n: i32,
+) -> u16 {
+    if let Some(id) = const_registers
+        .iter()
+        .find(|x| registers[**x as usize].is_int() && registers[**x as usize].as_int() == n)
+    {
+        *id
+    } else {
+        registers.push(n.into());
+        let cst_id = (registers.len() - 1) as u16;
+        const_registers.push(cst_id);
+        cst_id
+    }
 }
 
 pub fn alloc_register(registers: &mut Vec<Data>, free_registers: &mut Vec<u16>) -> u16 {
@@ -1042,7 +1064,21 @@ pub fn for_each_read_reg(instr: Instr, mut f: impl FnMut(u16)) {
         | Instr::CallFunc(_, _)
         | Instr::CallFuncRecursive(_, _)
         | Instr::SaveFrame(_, _, _)
-        | Instr::CallDynamicLibFunc(_, _) => {}
+        | Instr::CallDynamicLibFunc(_, _)
+        | Instr::SetInt(_, _)
+        | Instr::SetBool(_, _) => {}
+    }
+}
+
+/// Emit the cheapest instruction that writes `val` (from `src_id`) into `dest_id`.
+#[inline(always)]
+fn move_reg_to_reg(output: &mut Vec<Instr>, src_id: u16, dest_id: u16, v: Data) {
+    if v.is_int() {
+        output.push(Instr::SetInt(dest_id, v.as_int()));
+    } else if v.is_bool() {
+        output.push(Instr::SetBool(dest_id, v.as_bool()));
+    } else {
+        output.push(Instr::Mov(src_id, dest_id));
     }
 }
 
@@ -1467,18 +1503,7 @@ pub fn compile_expr(
                     (registers.len() - 1) as u16
                 } else {
                     let id = alloc_register(registers, free_registers);
-                    let zero_id = get_id(
-                        &Expr::Int(0),
-                        v,
-                        p,
-                        &mut output,
-                        None,
-                        false,
-                        false,
-                        offset,
-                        single_run,
-                    );
-                    output.push(Instr::Mov(zero_id, id));
+                    output.push(Instr::SetInt(id, 0));
                     id
                 };
 
@@ -1534,10 +1559,9 @@ pub fn compile_expr(
                 // then add the condition code
                 output.extend(cond_code);
                 // add 1 to the index (i+=1) so that the next loop iteration will have the next element in the array
-                registers.push(1.into());
                 output.push(Instr::AddInt(
                     index_id,
-                    (registers.len() - 1) as u16,
+                    alloc_const_register(registers, const_registers, 1),
                     index_id,
                 ));
 
@@ -1587,8 +1611,13 @@ pub fn compile_expr(
                         offset,
                         single_run,
                     );
+                    let start_val = registers[start_elem_id as usize];
                     let elem_id = alloc_register(registers, free_registers);
-                    output.push(Instr::Mov(start_elem_id, elem_id));
+                    if const_registers.contains(&start_elem_id) && start_val.is_int() {
+                        output.push(Instr::SetInt(elem_id, start_val.as_int()));
+                    } else {
+                        output.push(Instr::Mov(start_elem_id, elem_id));
+                    }
                     elem_id
                 };
                 let end_elem_id = get_id(
@@ -1623,23 +1652,14 @@ pub fn compile_expr(
                 output.push(Instr::SupEqIntJmp(elem_id, end_elem_id, 0));
 
                 output.extend(compiled_loop_code);
-                let len1 = output.len() as u16;
-                let one_cst_id = get_id(
-                    &Expr::Int(1),
-                    v,
-                    p,
-                    &mut output,
-                    None,
-                    false,
-                    false,
-                    offset,
-                    single_run,
-                );
-                let len2 = output.len() as u16;
-                // Do i += 1
-                output.push(Instr::AddInt(elem_id, one_cst_id, elem_id));
+                // Allocate a const register for 1 && do i += 1
+                output.push(Instr::AddInt(
+                    elem_id,
+                    alloc_const_register(registers, const_registers, 1),
+                    elem_id,
+                ));
                 // jump back to the SupEqIntJmp
-                output.push(Instr::JmpBack(2 + (len2 - len1) + compiled_loop_code_len));
+                output.push(Instr::JmpBack(2 + compiled_loop_code_len));
 
                 let exit_size = (output.len() - jmp_idx) as u16;
                 output[jmp_idx] = Instr::SupEqIntJmp(elem_id, end_elem_id, exit_size);
@@ -1657,7 +1677,6 @@ pub fn compile_expr(
                 if single_run {
                     free_register(end_elem_id, free_registers, v, const_registers);
                     free_register(elem_id, free_registers, v, const_registers);
-                    free_register(one_cst_id, free_registers, v, const_registers);
                 }
             }
             Expr::LoopBlock(code) => {
@@ -1678,13 +1697,14 @@ pub fn compile_expr(
                 } else {
                     let src_id =
                         get_id(y, v, p, &mut output, None, false, false, offset, single_run);
-                    if const_registers.contains(&src_id) {
+                    if contains_var_reassign(x, &input[idx + 1..]) {
                         let mutable_id = alloc_register(registers, free_registers);
-                        registers[mutable_id as usize] = registers[src_id as usize];
-                        // Only emit reset mov if the variable is mutated later
-                        if contains_var_reassign(x, &input[idx + 1..]) {
-                            output.push(Instr::Mov(src_id, mutable_id));
-                        }
+                        move_reg_to_reg(
+                            &mut output,
+                            src_id,
+                            mutable_id,
+                            registers[src_id as usize],
+                        );
                         mutable_id
                     } else {
                         src_id
@@ -1707,12 +1727,6 @@ pub fn compile_expr(
                     })
                     .register_id;
 
-                // if const_registers.contains(&id) {
-                //     let new_register = alloc_register(registers, free_registers);
-                //     registers[new_register as usize] = registers[id as usize];
-                //     v.iter_mut().find(|x| x.name == *name).unwrap().register_id = new_register;
-                // }
-
                 let output_len = output.len();
                 let obj_id = get_id(
                     y,
@@ -1727,6 +1741,8 @@ pub fn compile_expr(
                 );
                 if output.len() != output_len {
                     move_to_id(&mut output, id);
+                } else if const_registers.contains(&obj_id) {
+                    move_reg_to_reg(&mut output, obj_id, id, registers[obj_id as usize]);
                 } else {
                     output.push(Instr::Mov(obj_id, id));
                 }
