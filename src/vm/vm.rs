@@ -92,6 +92,8 @@ pub fn execute(
                 continue;
             }
             Instr::Mov(tgt, dest) => registers[dest as usize] = registers[tgt as usize],
+            Instr::SetInt(dest, n) => registers[dest as usize] = n.into(),
+            Instr::SetBool(dest, b) => registers[dest as usize] = b.into(),
             Instr::CallFunc(new_loc, return_id) => {
                 call_frames.push(CallFrame {
                     return_addr: i as u32,
