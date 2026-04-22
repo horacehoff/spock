@@ -237,10 +237,12 @@ pub fn execute(
                     (registers[o1 as usize].as_int() + registers[o2 as usize].as_int()).into();
             }
             Instr::AddStr(o1, o2, dest) => {
-                registers[dest as usize] = string!(
-                    registers[o1 as usize].as_str(string_pool).to_string()
-                        + registers[o2 as usize].as_str(string_pool)
-                );
+                let l = registers[o1 as usize].as_str(string_pool);
+                let r = registers[o2 as usize].as_str(string_pool);
+                let mut s = String::with_capacity(l.len() + r.len());
+                s.push_str(l);
+                s.push_str(r);
+                registers[dest as usize] = string!(s);
             }
             Instr::AddArray(o1, o2, dest) => {
                 let arr_a = &array_pool[registers[o1 as usize].as_array()];
@@ -769,8 +771,7 @@ pub fn execute(
                 if reg.is_array() {
                     registers[dest as usize] = (array_pool[reg.as_array()].len() as i32).into()
                 } else if reg.is_str() {
-                    registers[dest as usize] =
-                        (reg.as_str(string_pool).chars().count() as i32).into()
+                    registers[dest as usize] = (reg.as_str(string_pool).len() as i32).into()
                 }
             }
             Instr::CallLibFunc(LibFunc::StartsWith, source_register, dest_register) => {
