@@ -11,7 +11,7 @@ pub fn alloc_array(
         array_pool[id as usize].clear();
         id as u32
     } else {
-        if array_pool.len() >= 100 {
+        if array_pool.len() >= 100 && free_arrays.is_empty() {
             array_gc(array_pool, free_arrays, registers, recursion_stack);
         }
         if let Some(id) = free_arrays.pop() {

@@ -113,7 +113,7 @@ impl Data {
         if len <= 6 {
             Data::small_str(s)
         } else {
-            if string_pool.len() >= 512 {
+            if string_pool.len() >= 512 && free_strings.is_empty() {
                 string_gc(
                     array_pool,
                     string_pool,
@@ -145,7 +145,7 @@ impl Data {
         if len <= 6 {
             Data::small_str(&s)
         } else {
-            if string_pool.len() >= 512 {
+            if string_pool.len() >= 512 && free_strings.is_empty() {
                 string_gc(
                     array_pool,
                     string_pool,
