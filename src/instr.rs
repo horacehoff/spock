@@ -92,7 +92,7 @@ pub enum Instr {
     CallLibFunc(LibFunc, u16, u16),
     /// CallLibFuncVoid(function, src register 1, src register 2)
     /// For single-source ops, src register 2 is unused (pass 0).
-    CallLibFuncVoid(LibFunc, u16, u16),
+    CallLibFuncVoid(LibFuncVoid, u16, u16),
 
     /// ArrayMov(new_elem_reg_id, array_id, idx)\
     /// Replaces the idx-th element in the array (with the id array_id) with the element located in new_elem_reg_id
@@ -136,7 +136,7 @@ pub enum LibFunc {
     Repeat = 12,
     Round = 13,
     Abs = 14,
-    Reverse = 15,
+    Argv = 15,
     SqrtFloat = 16,
     Float = 17,
     Int = 18,
@@ -152,12 +152,17 @@ pub enum LibFunc {
     Split = 28,
     Range = 29,
     JoinStringArray = 30,
-    FsRead = 31,
-    FsExists = 32,
-    FsWrite = 33,
-    FsAppend = 34,
-    FsDelete = 35,
-    FsDeleteDir = 36,
-    Argv = 37,
-    Sort = 38,
+    Reverse = 31,
+    FsRead = 32,
+    FsExists = 323,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LibFuncVoid {
+    Reverse = 0,
+    FsWrite = 1,
+    FsAppend = 2,
+    FsDelete = 3,
+    FsDeleteDir = 4,
+    Sort = 5,
 }

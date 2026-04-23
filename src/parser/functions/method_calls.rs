@@ -5,6 +5,7 @@ use crate::check_args_range;
 use crate::errors::ErrType;
 use crate::errors::throw_parser_error;
 use crate::get_id;
+use crate::instr::LibFuncVoid;
 use crate::parser::Expr;
 use crate::parser::alloc_register;
 use crate::parser::free_register;
@@ -395,7 +396,7 @@ pub fn handle_method_calls(
                     alloc_register(registers, free_registers),
                 ));
             } else {
-                output.push(Instr::CallLibFuncVoid(LibFunc::Reverse, id, 0));
+                output.push(Instr::CallLibFuncVoid(LibFuncVoid::Reverse, id, 0));
             }
         }
         "split" => {
@@ -485,7 +486,7 @@ pub fn handle_method_calls(
         }
         "sort" => {
             check!(DataType::Array(_), "Array", 0);
-            output.push(Instr::CallLibFuncVoid(LibFunc::Sort, id, 0));
+            output.push(Instr::CallLibFuncVoid(LibFuncVoid::Sort, id, 0));
         }
         name => {
             throw_parser_error(src, fn_markers, ErrType::UnknownFunction(name));
