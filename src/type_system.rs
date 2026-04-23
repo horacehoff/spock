@@ -260,7 +260,6 @@ pub fn infer_type(
     src: (&str, &str),
     dyn_libs: &[Dynamiclib],
 ) -> DataType {
-    dbg!(&e);
     match e {
         Expr::Var(name, markers) => v
             .iter()

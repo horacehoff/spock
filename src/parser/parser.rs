@@ -7,6 +7,7 @@ use crate::errors::lalrpop_error;
 use crate::errors::throw_parser_error;
 use crate::functions::handle_functions;
 use crate::grammar::Token;
+use crate::instr::LibFuncVoid;
 use crate::method_calls::handle_method_calls;
 use crate::parser_data::*;
 use crate::type_system::check_if_returns_void;
@@ -1051,7 +1052,7 @@ pub fn for_each_read_reg(instr: Instr, mut f: impl FnMut(u16)) {
 
         Instr::CallLibFuncVoid(func, a, b) => {
             f(a);
-            if matches!(func, LibFunc::FsWrite | LibFunc::FsAppend) {
+            if matches!(func, LibFuncVoid::FsWrite | LibFuncVoid::FsAppend) {
                 f(b);
             }
         }

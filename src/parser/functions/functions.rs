@@ -8,6 +8,7 @@ use crate::errors::ErrType;
 use crate::errors::throw_parser_error;
 use crate::get_id;
 use crate::instr::LibFunc;
+use crate::instr::LibFuncVoid;
 use crate::parser::Expr;
 use crate::parser::alloc_register;
 use crate::parser::compile_expr;
@@ -381,7 +382,11 @@ pub fn handle_functions(
                 );
                 free_register(filepath, free_registers, v, const_registers);
                 free_register(contents, free_registers, v, const_registers);
-                output.push(Instr::CallLibFuncVoid(LibFunc::FsWrite, filepath, contents));
+                output.push(Instr::CallLibFuncVoid(
+                    LibFuncVoid::FsWrite,
+                    filepath,
+                    contents,
+                ));
                 instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             "append" => {
@@ -397,7 +402,7 @@ pub fn handle_functions(
                 free_register(filepath, free_registers, v, const_registers);
                 free_register(contents, free_registers, v, const_registers);
                 output.push(Instr::CallLibFuncVoid(
-                    LibFunc::FsAppend,
+                    LibFuncVoid::FsAppend,
                     filepath,
                     contents,
                 ));
@@ -410,7 +415,7 @@ pub fn handle_functions(
                     &args[0], v, p, output, None, false, false, offset, single_run,
                 );
                 free_register(path, free_registers, v, const_registers);
-                output.push(Instr::CallLibFuncVoid(LibFunc::FsDelete, path, 0));
+                output.push(Instr::CallLibFuncVoid(LibFuncVoid::FsDelete, path, 0));
                 instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             "delete_dir" => {
@@ -420,7 +425,7 @@ pub fn handle_functions(
                     &args[0], v, p, output, None, false, false, offset, single_run,
                 );
                 free_register(path, free_registers, v, const_registers);
-                output.push(Instr::CallLibFuncVoid(LibFunc::FsDeleteDir, path, 0));
+                output.push(Instr::CallLibFuncVoid(LibFuncVoid::FsDeleteDir, path, 0));
                 instr_src.push((*output.last().unwrap(), *markers, current_src_file));
             }
             name => {

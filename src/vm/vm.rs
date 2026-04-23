@@ -8,6 +8,7 @@ use crate::NULL;
 use crate::alloc_array;
 use crate::format_data;
 use crate::fs;
+use crate::instr::LibFuncVoid;
 use crate::likely;
 use crate::parser_data::Pools;
 use crate::throw_error;
@@ -694,7 +695,7 @@ pub fn execute(
                         .collect::<String>()
                 );
             }
-            Instr::CallLibFuncVoid(LibFunc::Reverse, tgt, _) => {
+            Instr::CallLibFuncVoid(LibFuncVoid::Reverse, tgt, _) => {
                 array_pool[registers[tgt as usize].as_array()].reverse();
             }
             Instr::CallLibFunc(LibFunc::SqrtFloat, tgt, dest) => {
@@ -911,7 +912,7 @@ pub fn execute(
                         .into()
             }
             // Overwrites a file, will create it if it doesn't exist
-            Instr::CallLibFuncVoid(LibFunc::FsWrite, path, contents) => {
+            Instr::CallLibFuncVoid(LibFuncVoid::FsWrite, path, contents) => {
                 fs::write(
                     registers[path as usize].as_str(string_pool),
                     registers[contents as usize].as_str(string_pool),
@@ -922,7 +923,7 @@ pub fn execute(
                 });
             }
             // Appends to a file, will create if it doesn't exist
-            Instr::CallLibFuncVoid(LibFunc::FsAppend, path, contents) => {
+            Instr::CallLibFuncVoid(LibFuncVoid::FsAppend, path, contents) => {
                 fs::OpenOptions::new()
                     .append(true)
                     .open(registers[path as usize].as_str(string_pool))
@@ -937,14 +938,14 @@ pub fn execute(
                     });
             }
             // Deletes the file located at `path`, throwing an error if it doesn't exist.
-            Instr::CallLibFuncVoid(LibFunc::FsDelete, path, _) => {
+            Instr::CallLibFuncVoid(LibFuncVoid::FsDelete, path, _) => {
                 fs::remove_file(registers[path as usize].as_str(string_pool)).unwrap_or_else(|e| {
                     cold_path();
                     throw_error(instr_src, sources, &instructions[i], e.kind().into())
                 });
             }
             // Deletes the empty directory located at `path`
-            Instr::CallLibFuncVoid(LibFunc::FsDeleteDir, path, _) => {
+            Instr::CallLibFuncVoid(LibFuncVoid::FsDeleteDir, path, _) => {
                 fs::remove_dir(registers[path as usize].as_str(string_pool)).unwrap_or_else(|e| {
                     cold_path();
                     throw_error(instr_src, sources, &instructions[i], e.kind().into())
@@ -955,7 +956,7 @@ pub fn execute(
                 array_pool.push(std::env::args().skip(2).map(|s| string!(s)).collect());
                 registers[dest as usize] = Data::array(array_id);
             }
-            Instr::CallLibFuncVoid(LibFunc::Sort, tgt, _) => {
+            Instr::CallLibFuncVoid(LibFuncVoid::Sort, tgt, _) => {
                 let array = &mut array_pool[registers[tgt as usize].as_array()];
                 if !array.is_empty() {
                     if array[0].is_int() {
@@ -973,7 +974,6 @@ pub fn execute(
                     }
                 }
             }
-            instr => unreachable!("Unhandled instruction: {instr:?}"),
         }
         i += 1;
     }
