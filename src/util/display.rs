@@ -1,4 +1,3 @@
-use crate::parser::Expr;
 use crate::parser_data::{Function, Pools};
 use crate::type_system::DataType;
 use crate::{Data, Instr};
@@ -82,23 +81,6 @@ pub fn get_type_name(x: &Data) -> SmolStr {
     })
 }
 
-pub fn format_expr(x: &Expr) -> SmolStr {
-    match x {
-        Expr::Float(num) => num.to_smolstr(),
-        Expr::Bool(bool) => bool.to_smolstr(),
-        Expr::String(str) => format_args!("\"{str}\"").to_smolstr(),
-        Expr::Array(a, _) => format_args!(
-            "[{}]",
-            a.iter().map(format_expr).collect::<Vec<_>>().join(","),
-        )
-        .as_str()
-        .unwrap()
-        .to_smolstr(),
-        Expr::Var(x, _) => x.to_smolstr(),
-        _ => unreachable!(),
-    }
-}
-
 pub fn token_recognition(token: &str) -> SmolStr {
     match token {
         "r#\"[a-zA-Z_]+\"#" => SmolStr::from("identifier"),
@@ -154,6 +136,9 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], pools: &Pools) {
             Instr::CallFunc(n, _) => flows.push((i, *n as usize)),
             Instr::CallFuncRecursive(n, _) => flows.push((i, *n as usize)),
             Instr::JmpBack(jump_size) => flows.push((i, i.saturating_sub(*jump_size as usize))),
+            Instr::InfIntJmpBack(_, _, jump_size) => {
+                flows.push((i, i.saturating_sub(*jump_size as usize)));
+            }
             _ => continue,
         }
     }
