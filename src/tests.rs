@@ -16,7 +16,6 @@ macro_rules! run_and_check_registers {
             allocated_call_depth,
             _,
         ) = parse(contents, filename, true);
-        println!("{contents}");
         crate::vm::execute(
             &instructions,
             &mut registers,
@@ -211,6 +210,20 @@ pub fn array_push_len() {
         }
         ",
         4.into()
+    );
+}
+
+#[test]
+pub fn array_partition() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = [1,2,3,0,4,5,6];
+            let p = x.partition(0);
+            print(p[0][0]+p[1][2]);
+        }
+        ",
+        7.into()
     );
 }
 

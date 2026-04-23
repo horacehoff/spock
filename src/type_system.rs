@@ -260,6 +260,7 @@ pub fn infer_type(
     src: (&str, &str),
     dyn_libs: &[Dynamiclib],
 ) -> DataType {
+    dbg!(&e);
     match e {
         Expr::Var(name, markers) => v
             .iter()
@@ -333,8 +334,17 @@ pub fn infer_type(
             DataType::Int => DataType::Int,
             _ => unreachable!(),
         },
-        Expr::GetIndex(array, _, _) => match infer_type(array, v, fns, src, dyn_libs) {
-            DataType::Array(array_type) => *array_type,
+        Expr::GetIndex(array, index, _) => match infer_type(array, v, fns, src, dyn_libs) {
+            DataType::Array(array_type) => {
+                let mut final_type: DataType = *array_type;
+                for _ in 0..index.len() {
+                    match final_type {
+                        DataType::Array(t) => final_type = *t,
+                        other => final_type = other,
+                    }
+                }
+                final_type
+            }
             DataType::String => DataType::String,
             _ => unreachable!(),
         },

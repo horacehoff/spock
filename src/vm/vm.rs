@@ -451,19 +451,20 @@ pub fn execute(
                 } else if tgt.is_bool() {
                     writeln!(handle, "{}", tgt.as_bool()).unwrap();
                 } else if tgt.is_array() {
-                    writeln!(
-                        handle,
-                        "{}",
-                        format_args!(
-                            "[{}]",
-                            array_pool[tgt.as_array()]
-                                .iter()
-                                .map(|x| format_data(x, array_pool, string_pool, false))
-                                .collect::<Vec<_>>()
-                                .join(","),
+                    let array = &array_pool[tgt.as_array()];
+                    write!(handle, "[").unwrap();
+                    for (idx, item) in array.iter().enumerate() {
+                        if idx != 0 {
+                            write!(handle, ",").unwrap();
+                        }
+                        write!(
+                            handle,
+                            "{}",
+                            format_data(item, array_pool, string_pool, false)
                         )
-                    )
-                    .unwrap();
+                        .unwrap();
+                    }
+                    writeln!(handle, "]").unwrap();
                 }
             }
 
@@ -810,21 +811,39 @@ pub fn execute(
                     );
                     registers[dest_register as usize] = Data::array(output_str_register_id);
                 } else if source.is_array() {
-                    // get the array and split it
-                    let mut sub_array_ids: Vec<u32> = Vec::with_capacity(10);
-                    array_pool[source.as_array()]
-                        .to_vec()
-                        .split(|x| x == &registers[separator as usize])
-                        .for_each(|x| {
-                            let array_id = alloc_array(
-                                array_pool,
-                                &mut free_arrays,
-                                registers,
-                                &recursion_stack,
-                            );
-                            array_pool[array_id as usize] = x.to_vec();
-                            sub_array_ids.push(array_id);
-                        });
+                    let source_array_id = source.as_array();
+                    let separator = registers[separator as usize];
+                    let source_array = &array_pool[source_array_id];
+
+                    // Find the source slice ranges that will become output arrays
+                    let mut split_ranges: Vec<(usize, usize)> =
+                        Vec::with_capacity(source_array.len());
+
+                    let mut start = 0;
+                    for (idx, item) in source_array.iter().enumerate() {
+                        if *item == separator {
+                            split_ranges.push((start, idx));
+                            start = idx + 1;
+                        }
+                    }
+                    split_ranges.push((start, source_array.len()));
+
+                    // Allocate one pooled array per recorded range and copy just that segment
+                    let mut sub_array_ids: Vec<u32> = Vec::with_capacity(split_ranges.len());
+                    for (start, end) in split_ranges {
+                        let dest_array_id =
+                            alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack)
+                                as usize;
+                        // Use split_at_mut to copy directly from the source array without having to clone it
+                        if dest_array_id < source_array_id {
+                            let (left, right) = array_pool.split_at_mut(source_array_id);
+                            left[dest_array_id].extend_from_slice(&right[0][start..end]);
+                        } else {
+                            let (left, right) = array_pool.split_at_mut(dest_array_id);
+                            right[0].extend_from_slice(&left[source_array_id][start..end]);
+                        }
+                        sub_array_ids.push(dest_array_id as u32);
+                    }
 
                     let array_id =
                         alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack);

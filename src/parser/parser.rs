@@ -413,7 +413,6 @@ pub fn get_id(
             );
             if t_l != $type || t_r != $type {
                 throw_parser_error(src, $markers, ErrType::OpError(&t_l, &t_r, $symbol))
-                // op_error!(src, t_l, t_r, $symbol, *$start, *$end);
             }
             let id_l = get_id($l, v, p, output, None, false, false, offset, single_run);
             let id_r = get_id($r, v, p, output, None, false, false, offset, single_run);
@@ -434,7 +433,6 @@ pub fn get_id(
             );
             if !((t_l == $type1 && t_r == $type1) || (t_l == $type2 && t_r == $type2)) {
                 throw_parser_error(src, $markers, ErrType::OpError(&t_l, &t_r, $symbol))
-                // op_error!(src, t_l, t_r, $symbol, *$start, *$end);
             }
             let id_l = get_id($l, v, p, output, None, false, false, offset, single_run);
             let id_r = get_id($r, v, p, output, None, false, false, offset, single_run);
