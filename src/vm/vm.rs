@@ -301,6 +301,9 @@ pub fn execute(
                     .pow(registers[o2 as usize].as_int() as u32))
                 .into();
             }
+            Instr::IncInt(reg) => {
+                registers[reg as usize] = (registers[reg as usize].as_int() + 1).into();
+            }
             Instr::Eq(o1, o2, dest) => {
                 registers[dest as usize] =
                     (registers[o1 as usize] == registers[o2 as usize]).into();
@@ -384,6 +387,12 @@ pub fn execute(
             Instr::InfIntJmp(o1, o2, jump_size) => {
                 if registers[o1 as usize].as_int() < registers[o2 as usize].as_int() {
                     i += jump_size as usize;
+                    continue;
+                }
+            }
+            Instr::InfIntJmpBack(o1, o2, jump_size) => {
+                if registers[o1 as usize].as_int() < registers[o2 as usize].as_int() {
+                    i -= jump_size as usize;
                     continue;
                 }
             }

@@ -251,6 +251,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::InfEqIntJmp(_, _, _)
         | Instr::InfFloatJmp(_, _, _)
         | Instr::InfIntJmp(_, _, _)
+        | Instr::InfIntJmpBack(_, _, _)
         // | Instr::IoDelete(_)
         | Instr::StoreFuncArg(_)
         | Instr::SetElementArray(_, _, _)
@@ -304,7 +305,8 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::GetIndexString(_, _, y)
         // | Instr::IoOpen(_, y, _)
         | Instr::SetElementString(y, _, _)
-        | Instr::CallDynamicLibFunc(_, y) => Some(y),
+        | Instr::CallDynamicLibFunc(_, y)
+        | Instr::IncInt(y) => Some(y),
 
     }
 }
@@ -325,24 +327,6 @@ fn get_last_tgt_id(x: &[Instr]) -> Option<u16> {
         }
     }
     None
-}
-
-pub fn alloc_const_register(
-    registers: &mut Vec<Data>,
-    const_registers: &mut Vec<u16>,
-    n: i32,
-) -> u16 {
-    if let Some(id) = const_registers
-        .iter()
-        .find(|x| registers[**x as usize].is_int() && registers[**x as usize].as_int() == n)
-    {
-        *id
-    } else {
-        registers.push(n.into());
-        let cst_id = (registers.len() - 1) as u16;
-        const_registers.push(cst_id);
-        cst_id
-    }
 }
 
 pub fn alloc_register(registers: &mut Vec<Data>, free_registers: &mut Vec<u16>) -> u16 {
@@ -1026,6 +1010,7 @@ pub fn for_each_read_reg(instr: Instr, mut f: impl FnMut(u16)) {
         | Instr::InfIntJmp(a, b, _)
         | Instr::InfEqFloatJmp(a, b, _)
         | Instr::InfEqIntJmp(a, b, _)
+        | Instr::InfIntJmpBack(a, b, _)
         | Instr::Push(a, b)
         | Instr::Remove(a, b) => {
             f(a);
@@ -1039,6 +1024,7 @@ pub fn for_each_read_reg(instr: Instr, mut f: impl FnMut(u16)) {
         }
 
         Instr::Mov(a, _)
+        | Instr::IncInt(a)
         | Instr::NegFloat(a, _)
         | Instr::NegInt(a, _)
         | Instr::CallLibFunc(_, a, _)
@@ -1558,11 +1544,7 @@ pub fn compile_expr(
                 // then add the condition code
                 output.extend(cond_code);
                 // add 1 to the index (i+=1) so that the next loop iteration will have the next element in the array
-                output.push(Instr::AddInt(
-                    index_id,
-                    alloc_const_register(registers, const_registers, 1),
-                    index_id,
-                ));
+                output.push(Instr::IncInt(index_id));
 
                 // jump back to the loop if still inside of it
                 output.push(Instr::JmpBack(len));
@@ -1577,6 +1559,16 @@ pub fn compile_expr(
                 }
             }
             Expr::IntForLoop(var_name, start_elem, end_elem, code, markers1, markers2) => {
+                // IntForLoop is compiled to:
+                // ----
+                // (1) if i >= end_elem jump out
+                // (2) loop_body
+                // (3) i += 1
+                // (4) if i < end_elem jump back to body
+                // ----
+                //
+                //
+                //
                 // Check start and elem type
                 let t1 = infer_type(start_elem, v, fns, src, dyn_libs);
                 let t2 = infer_type(end_elem, v, fns, src, dyn_libs);
@@ -1646,24 +1638,26 @@ pub fn compile_expr(
                     compile_expr(code, v, p, offset + output.len() as u16, false);
                 let compiled_loop_code_len = compiled_loop_code.len() as u16;
 
-                // skip the whole loop if elem >= end
+                // (1) if i >= end_elem jump out
                 let jmp_idx = output.len();
                 output.push(Instr::SupEqIntJmp(elem_id, end_elem_id, 0));
 
+                // (2) loop_body
                 output.extend(compiled_loop_code);
-                // Allocate a const register for 1 && do i += 1
-                output.push(Instr::AddInt(
+
+                // (3) i+= 1
+                output.push(Instr::IncInt(elem_id));
+
+                // (4) if i < end_elem jump back to body
+                output.push(Instr::InfIntJmpBack(
                     elem_id,
-                    alloc_const_register(registers, const_registers, 1),
-                    elem_id,
+                    end_elem_id,
+                    compiled_loop_code_len + 1,
                 ));
-                // jump back to the SupEqIntJmp
-                output.push(Instr::JmpBack(2 + compiled_loop_code_len));
 
                 let exit_size = (output.len() - jmp_idx) as u16;
                 output[jmp_idx] = Instr::SupEqIntJmp(elem_id, end_elem_id, exit_size);
 
-                // Jmp(exit_size - i - 1) from slice index i lands exactly past JmpBack.
                 parse_loop_flow_control(
                     &mut output[jmp_idx + 1..],
                     loop_id,

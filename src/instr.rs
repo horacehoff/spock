@@ -17,6 +17,7 @@ pub enum Instr {
     InfEqIntJmp(u16, u16, u16),
     InfFloatJmp(u16, u16, u16),
     InfIntJmp(u16, u16, u16),
+    InfIntJmpBack(u16, u16, u16),
     NotEqJmp(u16, u16, u16),
     EqJmp(u16, u16, u16),
     ArrayNotEqJmp(u16, u16, u16),
@@ -49,6 +50,8 @@ pub enum Instr {
     ModInt(u16, u16, u16),
     PowFloat(u16, u16, u16),
     PowInt(u16, u16, u16),
+    /// Increments the integer in-place by 1.
+    IncInt(u16),
     Eq(u16, u16, u16),
     NotEq(u16, u16, u16),
     ArrayEq(u16, u16, u16),
