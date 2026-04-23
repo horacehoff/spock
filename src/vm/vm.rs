@@ -802,15 +802,14 @@ pub fn execute(
                 let source = registers[source_register as usize];
                 let separator = args.pop().unwrap();
                 if source.is_str() {
-                    let output_str_register_id = array_pool.len() as u32;
-                    array_pool.push(
-                        source
-                            .as_str(string_pool)
-                            .split(registers[separator as usize].as_str(string_pool))
-                            .map(|x| str!(x))
-                            .collect(),
-                    );
-                    registers[dest_register as usize] = Data::array(output_str_register_id);
+                    let output_str_reg_id =
+                        alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack);
+                    array_pool[output_str_reg_id as usize] = source
+                        .as_str(string_pool)
+                        .split(registers[separator as usize].as_str(string_pool))
+                        .map(|x| str!(x))
+                        .collect();
+                    registers[dest_register as usize] = Data::array(output_str_reg_id);
                 } else if source.is_array() {
                     let source_array_id = source.as_array();
                     let separator = registers[separator as usize];
@@ -863,8 +862,10 @@ pub fn execute(
                     0
                 };
                 let max = registers[max as usize].as_int();
-                let output_array_id = array_pool.len() as u32;
-                array_pool.push((min..max).map(|x| x.into()).collect());
+                let output_array_id =
+                    alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack);
+                array_pool[output_array_id as usize].clear();
+                array_pool[output_array_id as usize].extend((min..max).map(Data::from));
                 registers[dest as usize] = Data::array(output_array_id);
             }
             Instr::CallLibFunc(LibFunc::JoinStringArray, tgt, dest) => {
@@ -952,8 +953,12 @@ pub fn execute(
                 });
             }
             Instr::CallLibFunc(LibFunc::Argv, _, dest) => {
-                let array_id = array_pool.len() as u32;
-                array_pool.push(std::env::args().skip(2).map(|s| string!(s)).collect());
+                let array_id =
+                    alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack);
+                array_pool[array_id as usize] = std::env::args()
+                    .skip(2)
+                    .map(|s| string!(s))
+                    .collect::<Vec<Data>>();
                 registers[dest as usize] = Data::array(array_id);
             }
             Instr::CallLibFuncVoid(LibFuncVoid::Sort, tgt, _) => {
