@@ -54,7 +54,10 @@ pub fn execute(
     let mut free_arrays: Vec<u16> = Vec::with_capacity(array_pool.len());
     let mut free_strings: Vec<u16> = Vec::with_capacity(string_pool.len());
 
-    let mut arg_storage: Vec<u64> = Vec::new();
+    let mut dyn_lib_args: Vec<u64> = Vec::new();
+
+    let mut gc_string_threshold: u32 = 256;
+    let mut gc_array_threshold: u32 = 256;
 
     macro_rules! str {
         ($e: expr) => {
@@ -65,6 +68,7 @@ pub fn execute(
                 registers,
                 &recursion_stack,
                 &mut free_strings,
+                &mut gc_string_threshold,
             )
         };
     }
@@ -77,6 +81,7 @@ pub fn execute(
                 registers,
                 &recursion_stack,
                 &mut free_strings,
+                &mut gc_string_threshold,
             )
         };
     }
@@ -169,11 +174,11 @@ pub fn execute(
                 let func = &dyn_libs[fn_id as usize];
                 let args_len = args.len();
                 // Pointers are "owned" in arg_storage
-                arg_storage.clear();
+                dyn_lib_args.clear();
 
                 for (idx, register_id) in args.drain(..args_len).enumerate() {
                     let data = registers[register_id as usize];
-                    arg_storage.push({
+                    dyn_lib_args.push({
                         let t = func.arg_types[idx].type_id();
                         if t == libffi::middle::Type::i32().type_id() {
                             data.as_int() as u64
@@ -200,7 +205,7 @@ pub fn execute(
 
                 // Args converted from Data to libffi args are stored here
                 let mut ffi_args: Vec<libffi::middle::Arg> = Vec::with_capacity(args_len);
-                for x in &arg_storage {
+                for x in &dyn_lib_args {
                     ffi_args.push(libffi::middle::Arg::new(x));
                 }
 
@@ -252,8 +257,13 @@ pub fn execute(
                 let mut combined = Vec::with_capacity(arr_a.len() + arr_b.len());
                 combined.extend_from_slice(arr_a);
                 combined.extend_from_slice(arr_b);
-                let array_id =
-                    alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack);
+                let array_id = alloc_array(
+                    array_pool,
+                    &mut free_arrays,
+                    registers,
+                    &recursion_stack,
+                    &mut gc_array_threshold,
+                );
                 array_pool[array_id as usize] = combined;
                 registers[dest as usize] = Data::array(array_id);
             }
@@ -677,8 +687,13 @@ pub fn execute(
                     registers[dest as usize] = string!(str.repeat(repeat_count as usize));
                 } else if reg.is_array() {
                     let repeat_count = registers[args.pop().unwrap() as usize].as_int();
-                    let array_id =
-                        alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack);
+                    let array_id = alloc_array(
+                        array_pool,
+                        &mut free_arrays,
+                        registers,
+                        &recursion_stack,
+                        &mut gc_array_threshold,
+                    );
                     array_pool[array_id as usize] =
                         array_pool[reg.as_array()].repeat(repeat_count as usize);
                     registers[dest as usize] = Data::array(array_id);
@@ -811,8 +826,13 @@ pub fn execute(
                 let source = registers[source_register as usize];
                 let separator = args.pop().unwrap();
                 if source.is_str() {
-                    let output_str_reg_id =
-                        alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack);
+                    let output_str_reg_id = alloc_array(
+                        array_pool,
+                        &mut free_arrays,
+                        registers,
+                        &recursion_stack,
+                        &mut gc_array_threshold,
+                    );
                     array_pool[output_str_reg_id as usize] = source
                         .as_str(string_pool)
                         .split(registers[separator as usize].as_str(string_pool))
@@ -840,9 +860,13 @@ pub fn execute(
                     // Allocate one pooled array per recorded range and copy just that segment
                     let mut sub_array_ids: Vec<u32> = Vec::with_capacity(split_ranges.len());
                     for (start, end) in split_ranges {
-                        let dest_array_id =
-                            alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack)
-                                as usize;
+                        let dest_array_id = alloc_array(
+                            array_pool,
+                            &mut free_arrays,
+                            registers,
+                            &recursion_stack,
+                            &mut gc_array_threshold,
+                        ) as usize;
                         // Use split_at_mut to copy directly from the source array without having to clone it
                         if dest_array_id < source_array_id {
                             let (left, right) = array_pool.split_at_mut(source_array_id);
@@ -854,8 +878,13 @@ pub fn execute(
                         sub_array_ids.push(dest_array_id as u32);
                     }
 
-                    let array_id =
-                        alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack);
+                    let array_id = alloc_array(
+                        array_pool,
+                        &mut free_arrays,
+                        registers,
+                        &recursion_stack,
+                        &mut gc_array_threshold,
+                    );
                     array_pool[array_id as usize] = sub_array_ids
                         .iter()
                         .map(|id| Data::array(*id))
@@ -871,8 +900,13 @@ pub fn execute(
                     0
                 };
                 let max = registers[max as usize].as_int();
-                let output_array_id =
-                    alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack);
+                let output_array_id = alloc_array(
+                    array_pool,
+                    &mut free_arrays,
+                    registers,
+                    &recursion_stack,
+                    &mut gc_array_threshold,
+                );
                 array_pool[output_array_id as usize].clear();
                 array_pool[output_array_id as usize].extend((min..max).map(Data::from));
                 registers[dest as usize] = Data::array(output_array_id);
@@ -962,8 +996,13 @@ pub fn execute(
                 });
             }
             Instr::CallLibFunc(LibFunc::Argv, _, dest) => {
-                let array_id =
-                    alloc_array(array_pool, &mut free_arrays, registers, &recursion_stack);
+                let array_id = alloc_array(
+                    array_pool,
+                    &mut free_arrays,
+                    registers,
+                    &recursion_stack,
+                    &mut gc_array_threshold,
+                );
                 array_pool[array_id as usize] = std::env::args()
                     .skip(2)
                     .map(|s| string!(s))

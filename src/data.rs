@@ -108,12 +108,13 @@ impl Data {
         registers: &[Data],
         recursion_stack: &[Data],
         free_strings: &mut Vec<u16>,
+        gc_string_threshold: &mut u32,
     ) -> Data {
-        let len = s.len();
-        if len <= 6 {
+        if s.len() <= 6 {
             Data::small_str(s)
         } else {
-            if string_pool.len() >= 512 && free_strings.is_empty() {
+            if free_strings.is_empty() && string_pool.len() >= (*gc_string_threshold as usize) {
+                *gc_string_threshold *= 2;
                 string_gc(
                     array_pool,
                     string_pool,
@@ -140,12 +141,13 @@ impl Data {
         registers: &[Data],
         recursion_stack: &[Data],
         free_strings: &mut Vec<u16>,
+        gc_string_threshold: &mut u32,
     ) -> Data {
-        let len = s.len();
-        if len <= 6 {
+        if s.len() <= 6 {
             Data::small_str(&s)
         } else {
-            if string_pool.len() >= 512 && free_strings.is_empty() {
+            if free_strings.is_empty() && string_pool.len() >= (*gc_string_threshold as usize) {
+                *gc_string_threshold *= 2;
                 string_gc(
                     array_pool,
                     string_pool,

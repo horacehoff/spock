@@ -6,12 +6,14 @@ pub fn alloc_array(
     free_arrays: &mut Vec<u16>,
     registers: &[Data],
     recursion_stack: &[Data],
+    gc_array_threshold: &mut u32,
 ) -> u32 {
     if let Some(id) = free_arrays.pop() {
         array_pool[id as usize].clear();
         id as u32
     } else {
-        if array_pool.len() >= 100 && free_arrays.is_empty() {
+        if free_arrays.is_empty() && array_pool.len() >= (*gc_array_threshold as usize) {
+            *gc_array_threshold *= 2;
             array_gc(array_pool, free_arrays, registers, recursion_stack);
         }
         if let Some(id) = free_arrays.pop() {
