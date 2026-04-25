@@ -50,7 +50,7 @@ All Spock times are the **mean of 150 runs** via `spock --benchmark`. Python, No
 end</code></pre></td>
 </tr>
 <tr>
-  <td><b>1.912ms</b></td>
+  <td><b>93ms</b></td>
   <td>684ms</td>
   <td>35.8ms</td>
   <td>62.4ms</td>
@@ -97,7 +97,7 @@ end
 print(fib(30))</code></pre></td>
 </tr>
 <tr>
-  <td><b>36ms</b></td>
+  <td><b>35.9ms</b></td>
   <td>114.5ms</td>
   <td>45.6ms</td>
   <td>36.9ms</td>
@@ -158,7 +158,7 @@ end
 print(result)</code></pre></td>
 </tr>
 <tr>
-  <td><b>17.2ms</b></td>
+  <td><b>17.1ms</b></td>
   <td>137.8ms</td>
   <td>39.7ms</td>
   <td>25.6ms</td>
@@ -202,7 +202,7 @@ end
 print(x)</code></pre></td>
 </tr>
 <tr>
-  <td><b>137.7ms</b></td>
+  <td><b>124.3ms</b></td>
   <td>992ms</td>
   <td>50ms</td>
   <td>173.8ms</td>
@@ -296,7 +296,7 @@ end
 print(count)</code></pre></td>
 </tr>
 <tr>
-  <td><b>3.2ms</b></td>
+  <td><b>3.1ms</b></td>
   <td>45.1ms</td>
   <td>39.8ms</td>
   <td>6.6ms</td>
@@ -352,7 +352,7 @@ end
 print(count)</code></pre></td>
 </tr>
 <tr>
-  <td><b>3.7ms</b></td>
+  <td><b>3.5ms</b></td>
   <td>32.2ms</td>
   <td>37.5ms</td>
   <td>4.3ms</td>
@@ -420,7 +420,7 @@ end
 print(last)</code></pre></td>
 </tr>
 <tr>
-  <td><b>30.6ms</b></td>
+  <td><b>27.9ms</b></td>
   <td>172.5ms</td>
   <td>48.9ms</td>
   <td>84.3ms</td>
