@@ -16,10 +16,9 @@ use crate::parser::for_each_read_reg;
 use crate::parser::free_register;
 use crate::parser::get_tgt_ids;
 use crate::parser::move_to_id;
-use crate::parser_data::FnSignature;
+use crate::parser_data::Ctx;
 use crate::parser_data::FunctionImpl;
-use crate::parser_data::ParserData;
-use crate::parser_data::Pools;
+use crate::parser_data::State;
 use crate::parser_data::Variable;
 use crate::type_system::DataType;
 use crate::type_system::check_poly;
@@ -33,7 +32,8 @@ use std::slice;
 pub fn handle_functions(
     output: &mut Vec<Instr>,
     v: &mut Vec<Variable>,
-    p: &ParserData,
+    ctx: Ctx<'_>,
+    state: &mut State<'_>,
 
     // method call data
     args: &[Expr],
@@ -43,30 +43,11 @@ pub fn handle_functions(
     offset: u16,
     single_run: bool,
 ) -> Option<u16> {
-    let (
-        registers,
-        fns,
-        Pools {
-            array_pool: _,
-            string_pool,
-        },
-        instr_src,
-        fn_registers,
-        _,
-        src,
-        _,
-        _,
-        dyn_libs,
-        allocated_arg_count,
-        allocated_call_depth,
-        const_registers,
-        free_registers,
-        _,
-        current_src_file,
-    ) = p.destructure();
+    let src = ctx.src;
+    let current_src_file = ctx.current_src_file;
 
     let mut check_arg_type = |arg_idx: usize, expected: &[DataType]| {
-        let infered = infer_type(&args[arg_idx], v, fns, src, dyn_libs);
+        let infered = infer_type(&args[arg_idx], v, state.fns, src, state.dyn_libs);
         if !{
             if let DataType::Poly(polytype) = &infered {
                 polytype.iter().all(|x| expected.contains(x))
@@ -97,76 +78,97 @@ pub fn handle_functions(
         match name {
             "print" => {
                 for arg in args {
-                    let id = get_id(arg, v, p, output, None, false, offset, single_run);
+                    let id = get_id(arg, v, ctx, state, output, None, false, offset, single_run);
                     output.push(Instr::Print(id));
-                    free_register(id, free_registers, v, const_registers);
+                    free_register(id, state.free_registers, v, state.const_registers);
                 }
             }
             "type" => {
                 check_args!(args, 1, name, src, markers);
-                let infered = infer_type(&args[0], v, fns, src, dyn_libs);
-                registers.push(Data::p_str(&infered.to_string(), string_pool));
+                let infered = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
+                state.registers.push(Data::p_str(
+                    &infered.to_string(),
+                    &mut state.pools.string_pool,
+                ));
             }
             "float" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String, DataType::Int]);
-                let id = get_id(&args[0], v, p, output, None, false, offset, single_run);
-                free_register(id, free_registers, v, const_registers);
+                let id = get_id(
+                    &args[0], v, ctx, state, output, None, false, offset, single_run,
+                );
+                free_register(id, state.free_registers, v, state.const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Float,
                     id,
-                    alloc_register(registers, free_registers),
+                    alloc_register(state.registers, state.free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
+                state
+                    .instr_src
+                    .push((*output.last().unwrap(), *markers, current_src_file));
             }
             "int" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String, DataType::Float]);
-                let id = get_id(&args[0], v, p, output, None, false, offset, single_run);
-                free_register(id, free_registers, v, const_registers);
+                let id = get_id(
+                    &args[0], v, ctx, state, output, None, false, offset, single_run,
+                );
+                free_register(id, state.free_registers, v, state.const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Int,
                     id,
-                    alloc_register(registers, free_registers),
+                    alloc_register(state.registers, state.free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
+                state
+                    .instr_src
+                    .push((*output.last().unwrap(), *markers, current_src_file));
             }
             "str" => {
                 check_args!(args, 1, name, src, markers);
-                let id = get_id(&args[0], v, p, output, None, false, offset, single_run);
-                free_register(id, free_registers, v, const_registers);
+                let id = get_id(
+                    &args[0], v, ctx, state, output, None, false, offset, single_run,
+                );
+                free_register(id, state.free_registers, v, state.const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Str,
                     id,
-                    alloc_register(registers, free_registers),
+                    alloc_register(state.registers, state.free_registers),
                 ));
             }
             "bool" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
-                let id = get_id(&args[0], v, p, output, None, false, offset, single_run);
-                free_register(id, free_registers, v, const_registers);
+                let id = get_id(
+                    &args[0], v, ctx, state, output, None, false, offset, single_run,
+                );
+                free_register(id, state.free_registers, v, state.const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Bool,
                     id,
-                    alloc_register(registers, free_registers),
+                    alloc_register(state.registers, state.free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
+                state
+                    .instr_src
+                    .push((*output.last().unwrap(), *markers, current_src_file));
             }
             "input" => {
                 check_args_range!(args, 0, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
                 let id = if args.is_empty() {
-                    registers.push(Data::p_str("", string_pool));
-                    (registers.len() - 1) as u16
+                    state
+                        .registers
+                        .push(Data::p_str("", &mut state.pools.string_pool));
+                    (state.registers.len() - 1) as u16
                 } else {
-                    get_id(&args[0], v, p, output, None, false, offset, single_run)
+                    get_id(
+                        &args[0], v, ctx, state, output, None, false, offset, single_run,
+                    )
                 };
-                free_register(id, free_registers, v, const_registers);
+                free_register(id, state.free_registers, v, state.const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Input,
                     id,
-                    alloc_register(registers, free_registers),
+                    alloc_register(state.registers, state.free_registers),
                 ));
             }
             "range" => {
@@ -176,22 +178,30 @@ pub fn handle_functions(
                     check_arg_type(1, &[DataType::Int]);
                 }
 
-                let id_first_arg = get_id(&args[0], v, p, output, None, false, offset, single_run);
+                let id_first_arg = get_id(
+                    &args[0], v, ctx, state, output, None, false, offset, single_run,
+                );
                 let source_reg_id = if args.len() == 1 {
                     id_first_arg
                 } else {
-                    let id_second_arg =
-                        get_id(&args[1], v, p, output, None, false, offset, single_run);
+                    let id_second_arg = get_id(
+                        &args[1], v, ctx, state, output, None, false, offset, single_run,
+                    );
                     output.push(Instr::StoreFuncArg(id_first_arg));
-                    *allocated_arg_count += 1;
+                    *state.allocated_arg_count += 1;
                     id_second_arg
                 };
-                free_register(id_first_arg, free_registers, v, const_registers);
-                free_register(source_reg_id, free_registers, v, const_registers);
+                free_register(id_first_arg, state.free_registers, v, state.const_registers);
+                free_register(
+                    source_reg_id,
+                    state.free_registers,
+                    v,
+                    state.const_registers,
+                );
                 output.push(Instr::CallLibFunc(
                     LibFunc::Range,
                     source_reg_id,
-                    alloc_register(registers, free_registers),
+                    alloc_register(state.registers, state.free_registers),
                 ));
             }
             "the_answer" => {
@@ -199,7 +209,7 @@ pub fn handle_functions(
                 output.push(Instr::CallLibFunc(
                     LibFunc::TheAnswer,
                     0,
-                    alloc_register(registers, free_registers),
+                    alloc_register(state.registers, state.free_registers),
                 ));
             }
             "argv" => {
@@ -207,79 +217,87 @@ pub fn handle_functions(
                 output.push(Instr::CallLibFunc(
                     LibFunc::Argv,
                     0,
-                    alloc_register(registers, free_registers),
+                    alloc_register(state.registers, state.free_registers),
                 ));
             }
             fn_name => {
                 // Lookup function by name in function registry
                 // Registry is (fn_name, fn_args, fn_code, fn_data (per implementation: loc, args_loc, arg_types) )
-                let function_id = fns
+                let function_id = state
+                    .fns
                     .iter_mut()
                     .position(|func| func.name == fn_name)
                     .unwrap_or_else(|| {
                         throw_parser_error(src, markers, ErrType::UnknownFunction(fn_name));
                     });
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
-                let fn_id = fns[function_id].id;
-                let is_recursive = fns[function_id].is_recursive;
-                let fn_args = &fns[function_id].args;
-                let fn_code = &fns[function_id].code;
-                let fn_impls = &fns[function_id].impls;
-                let fn_returns_void = &fns[function_id].returns_void;
+                let fn_id = state.fns[function_id].id;
+                let is_recursive = state.fns[function_id].is_recursive;
+                // Clone so we don't hold borrows across mutable state access
+                let fn_args: Box<[SmolStr]> = state.fns[function_id].args.clone();
+                let fn_code: Box<[Expr]> = state.fns[function_id].code.clone();
+                let fn_returns_void = state.fns[function_id].returns_void;
 
+                // Check if the arguments are correct
                 let args_len = fn_args.len();
                 check_args!(args, args_len, fn_name, src, markers);
 
                 // Infer arg types
                 let infered_arg_types = args
                     .iter()
-                    .map(|x| infer_type(x, v, fns, src, dyn_libs))
+                    .map(|x| infer_type(x, v, state.fns, src, state.dyn_libs))
                     .collect::<Vec<DataType>>();
 
                 // Try to check if function has already been compiled for these specific arg types
-                let fn_loc_data = if let Some(idx) = fn_impls
+                let fn_impl_idx = state.fns[function_id]
+                    .impls
                     .iter()
-                    .position(|fn_impl| *fn_impl.arg_types == infered_arg_types)
-                {
-                    &fn_impls[idx]
-                } else {
+                    .position(|fn_impl| *fn_impl.arg_types == infered_arg_types);
+
+                if fn_impl_idx.is_none() {
                     // If it hasn't, compile it (which adds it to the function's implementation list)
                     compile_function(
                         output,
                         v,
-                        p,
+                        ctx,
+                        state,
                         function_id,
-                        fn_args,
+                        &fn_args,
                         fn_name,
                         &infered_arg_types,
                         args,
-                        fn_code,
+                        &fn_code,
                         fn_id,
                         is_recursive,
                         offset,
                     );
-                    fns.get(function_id).unwrap().impls.last().unwrap()
-                };
+                }
+                // Re-derive index after possible mutation
+                let fn_impl_idx =
+                    fn_impl_idx.unwrap_or_else(|| state.fns[function_id].impls.len() - 1);
+                let loc = state.fns[function_id].impls[fn_impl_idx].loc;
+                let args_loc: Vec<u16> =
+                    state.fns[function_id].impls[fn_impl_idx].args_loc.to_vec();
 
                 let saveframe_loc = output.len();
                 let callsite_id = if is_recursive {
-                    let id = fn_registers.len() as u16;
-                    fn_registers.push(Vec::new());
+                    let id = state.fn_registers.len() as u16;
+                    state.fn_registers.push(Vec::new());
                     output.push(Instr::SaveFrame(0, 0, 0));
-                    *allocated_call_depth += 2;
+                    *state.allocated_call_depth += 2;
                     Some(id)
                 } else {
                     None
                 };
                 // Move evaluated call args into the expected arg slots
-                let fn_args = fn_loc_data.args_loc.to_vec();
-                for (x, tgt_id) in fn_args.iter().enumerate() {
+                for (x, tgt_id) in args_loc.iter().enumerate() {
                     let start_len = output.len();
 
                     let arg_id = get_id(
                         &args[x],
                         v,
-                        p,
+                        ctx,
+                        state,
                         output,
                         Some(*tgt_id),
                         false,
@@ -294,15 +312,15 @@ pub fn handle_functions(
                     }
                 }
                 if !is_recursive {
-                    fn_registers
+                    state
+                        .fn_registers
                         .get_mut(fn_id as usize)
                         .unwrap()
                         .extend(get_tgt_ids(&output[saveframe_loc..]));
                 }
-                let loc = fn_loc_data.loc;
 
-                let return_register_id = if !*fn_returns_void {
-                    alloc_register(registers, free_registers)
+                let return_register_id = if !fn_returns_void {
+                    alloc_register(state.registers, state.free_registers)
                 } else {
                     0
                 };
@@ -310,9 +328,9 @@ pub fn handle_functions(
                     output.push(Instr::CallFuncRecursive(loc, return_register_id));
                 } else {
                     output.push(Instr::CallFunc(loc, return_register_id));
-                    *allocated_call_depth += 2;
+                    *state.allocated_call_depth += 2;
                 }
-                debug!("REGLEN {}", registers.len() - 1);
+                debug!("REGLEN {}", state.registers.len() - 1);
 
                 if is_recursive {
                     debug!("OUTPUT LEN IS {}", output.len() - 1);
@@ -331,111 +349,144 @@ pub fn handle_functions(
             "read" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
-                let id = get_id(&args[0], v, p, output, None, false, offset, single_run);
-                free_register(id, free_registers, v, const_registers);
+                let id = get_id(
+                    &args[0], v, ctx, state, output, None, false, offset, single_run,
+                );
+                free_register(id, state.free_registers, v, state.const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::FsRead,
                     id,
-                    alloc_register(registers, free_registers),
+                    alloc_register(state.registers, state.free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
+                state
+                    .instr_src
+                    .push((*output.last().unwrap(), *markers, current_src_file));
             }
             "exists" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
-                let id = get_id(&args[0], v, p, output, None, false, offset, single_run);
-                free_register(id, free_registers, v, const_registers);
+                let id = get_id(
+                    &args[0], v, ctx, state, output, None, false, offset, single_run,
+                );
+                free_register(id, state.free_registers, v, state.const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::FsExists,
                     id,
-                    alloc_register(registers, free_registers),
+                    alloc_register(state.registers, state.free_registers),
                 ));
-                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
+                state
+                    .instr_src
+                    .push((*output.last().unwrap(), *markers, current_src_file));
             }
             "write" => {
                 check_args!(args, 2, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
                 check_arg_type(1, &[DataType::String]);
-                let filepath = get_id(&args[0], v, p, output, None, false, offset, single_run);
-                let contents = get_id(&args[1], v, p, output, None, false, offset, single_run);
-                free_register(filepath, free_registers, v, const_registers);
-                free_register(contents, free_registers, v, const_registers);
+                let filepath = get_id(
+                    &args[0], v, ctx, state, output, None, false, offset, single_run,
+                );
+                let contents = get_id(
+                    &args[1], v, ctx, state, output, None, false, offset, single_run,
+                );
+                free_register(filepath, state.free_registers, v, state.const_registers);
+                free_register(contents, state.free_registers, v, state.const_registers);
                 output.push(Instr::CallLibFuncVoid(
                     LibFuncVoid::FsWrite,
                     filepath,
                     contents,
                 ));
-                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
+                state
+                    .instr_src
+                    .push((*output.last().unwrap(), *markers, current_src_file));
             }
             "append" => {
                 check_args!(args, 2, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
                 check_arg_type(1, &[DataType::String]);
-                let filepath = get_id(&args[0], v, p, output, None, false, offset, single_run);
-                let contents = get_id(&args[1], v, p, output, None, false, offset, single_run);
-                free_register(filepath, free_registers, v, const_registers);
-                free_register(contents, free_registers, v, const_registers);
+                let filepath = get_id(
+                    &args[0], v, ctx, state, output, None, false, offset, single_run,
+                );
+                let contents = get_id(
+                    &args[1], v, ctx, state, output, None, false, offset, single_run,
+                );
+                free_register(filepath, state.free_registers, v, state.const_registers);
+                free_register(contents, state.free_registers, v, state.const_registers);
                 output.push(Instr::CallLibFuncVoid(
                     LibFuncVoid::FsAppend,
                     filepath,
                     contents,
                 ));
-                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
+                state
+                    .instr_src
+                    .push((*output.last().unwrap(), *markers, current_src_file));
             }
             "delete" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
-                let path = get_id(&args[0], v, p, output, None, false, offset, single_run);
-                free_register(path, free_registers, v, const_registers);
+                let path = get_id(
+                    &args[0], v, ctx, state, output, None, false, offset, single_run,
+                );
+                free_register(path, state.free_registers, v, state.const_registers);
                 output.push(Instr::CallLibFuncVoid(LibFuncVoid::FsDelete, path, 0));
-                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
+                state
+                    .instr_src
+                    .push((*output.last().unwrap(), *markers, current_src_file));
             }
             "delete_dir" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
-                let path = get_id(&args[0], v, p, output, None, false, offset, single_run);
-                free_register(path, free_registers, v, const_registers);
+                let path = get_id(
+                    &args[0], v, ctx, state, output, None, false, offset, single_run,
+                );
+                free_register(path, state.free_registers, v, state.const_registers);
                 output.push(Instr::CallLibFuncVoid(LibFuncVoid::FsDeleteDir, path, 0));
-                instr_src.push((*output.last().unwrap(), *markers, current_src_file));
+                state
+                    .instr_src
+                    .push((*output.last().unwrap(), *markers, current_src_file));
             }
             name => {
                 throw_parser_error(src, markers, ErrType::UnknownFunction(name));
             }
         }
-    } else if let Some(lib) = dyn_libs.iter().find(|l| l.name == namespace[0]) {
-        if let Some(FnSignature {
-            name: fn_name,
-            args: fn_args,
-            return_type: fn_return_type,
-            id,
-        }) = lib.fns.iter().find(|x| x.name == name)
-        {
-            check_args!(args, fn_args.len(), fn_name, src, markers);
-            for (i, a) in fn_args.iter().enumerate() {
-                check_arg_type(i, slice::from_ref(a));
-            }
-
-            for arg in args {
-                let arg_id = get_id(arg, v, p, output, None, false, offset, single_run);
-                output.push(Instr::StoreFuncArg(arg_id));
-                // This may break stuff
-                free_register(arg_id, free_registers, v, const_registers);
-                *allocated_arg_count += 1;
-            }
-
-            let register_id = if fn_return_type == &DataType::Null {
-                0u16
-            } else {
-                registers.push(NULL);
-                (registers.len() - 1) as u16
-            };
-            output.push(Instr::CallDynamicLibFunc(*id, register_id));
-            instr_src.push((
-                Instr::CallDynamicLibFunc(*id, register_id),
-                *markers,
-                current_src_file,
-            ));
+    } else if let Some((fn_name, fn_args, fn_return_type, dyn_id)) = state
+        .dyn_libs
+        .iter()
+        .find(|l| l.name == namespace[0])
+        .and_then(|lib| lib.fns.iter().find(|x| x.name == name))
+        .map(|sig| {
+            (
+                sig.name.clone(),
+                sig.args.clone(),
+                sig.return_type.clone(),
+                sig.id,
+            )
+        })
+    {
+        check_args!(args, fn_args.len(), &fn_name, src, markers);
+        for (i, a) in fn_args.iter().enumerate() {
+            check_arg_type(i, slice::from_ref(a));
         }
+
+        for arg in args {
+            let arg_id = get_id(arg, v, ctx, state, output, None, false, offset, single_run);
+            output.push(Instr::StoreFuncArg(arg_id));
+            // This may break stuff
+            free_register(arg_id, state.free_registers, v, state.const_registers);
+            *state.allocated_arg_count += 1;
+        }
+
+        let register_id = if fn_return_type == DataType::Null {
+            0u16
+        } else {
+            state.registers.push(NULL);
+            (state.registers.len() - 1) as u16
+        };
+        output.push(Instr::CallDynamicLibFunc(dyn_id, register_id));
+        state.instr_src.push((
+            Instr::CallDynamicLibFunc(dyn_id, register_id),
+            *markers,
+            current_src_file,
+        ));
     } else {
         throw_parser_error(
             src,
@@ -456,7 +507,8 @@ pub fn handle_functions(
 fn compile_function(
     output: &mut Vec<Instr>,
     v: &mut Vec<Variable>,
-    p: &ParserData,
+    ctx: Ctx<'_>,
+    state: &mut State<'_>,
     function_id: usize,
     fn_args: &[SmolStr],
     fn_name: &str,
@@ -467,33 +519,20 @@ fn compile_function(
     is_recursive: bool,
     offset: u16,
 ) {
-    let (
-        registers,
-        fns,
-        _,
-        _,
-        fn_registers,
-        _,
-        src,
-        _,
-        _,
-        dyn_libs,
-        _,
-        _,
-        _,
-        _,
-        sources,
-        current_src_file,
-    ) = p.destructure();
+    let src = ctx.src;
+    let current_src_file = ctx.current_src_file;
+
     debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
     // Use the function's own source file for error reporting inside the function body
-    let fn_src_file = fns[function_id].src_file;
+    let fn_src_file = state.fns[function_id].src_file;
+
     let fn_src: (&str, &str) = if fn_src_file != current_src_file {
-        let name: &str = sources[fn_src_file as usize].0.as_str();
-        let content: &str = sources[fn_src_file as usize].1.as_str();
-        (name, content)
+        (
+            &state.sources[fn_src_file as usize].0.clone(),
+            &state.sources[fn_src_file as usize].1.clone(),
+        )
     } else {
-        src
+        (src.0, src.1)
     };
 
     // Local vector vars and recorded_types to allow the inner body to type-check correctly
@@ -501,13 +540,13 @@ fn compile_function(
         .iter()
         .enumerate()
         .map(|(i, x)| {
-            let infered_type = infer_type(&args[i], v, fns, fn_src, dyn_libs);
+            let infered_type = infer_type(&args[i], v, state.fns, fn_src, state.dyn_libs);
 
             // Allocate a registers slot for each func arg
-            registers.push(NULL);
+            state.registers.push(NULL);
             Variable {
                 name: x.clone(),
-                register_id: (registers.len() - 1) as u16,
+                register_id: (state.registers.len() - 1) as u16,
                 infered_type,
             }
         })
@@ -528,7 +567,7 @@ fn compile_function(
     let v_len_before_args = v.len();
     let mut arg_types: Vec<usize> = Vec::with_capacity(args.len());
     args.iter().enumerate().for_each(|(i, x)| {
-        let infered_type = infer_type(x, v, fns, fn_src, dyn_libs);
+        let infered_type = infer_type(x, v, state.fns, fn_src, state.dyn_libs);
         arg_types.push(v.len());
         // 0 => placeholder id, it's never used
         v.push(Variable {
@@ -537,7 +576,7 @@ fn compile_function(
             infered_type,
         });
     });
-    let fn_type = track_returns(fn_code, v, fns, fn_src, fn_name, true, dyn_libs);
+    let fn_type = track_returns(fn_code, v, state.fns, fn_src, fn_name, true, state.dyn_libs);
     let return_type = if !fn_type.is_empty() {
         // If function returns anything, check if it returns the same thing each time
         check_poly(DataType::Poly(Box::from(fn_type)))
@@ -549,24 +588,30 @@ fn compile_function(
     v.truncate(v_len_before_args);
 
     // Add this func specialization to the func's metadata, storing start location, location of args, and infered arg types
-    fns.get_mut(function_id).unwrap().impls.push(FunctionImpl {
-        loc,
-        args_loc: Box::from(args_loc),
-        arg_types: Box::from(infered_arg_types),
-        return_type,
-    });
+    state
+        .fns
+        .get_mut(function_id)
+        .unwrap()
+        .impls
+        .push(FunctionImpl {
+            loc,
+            args_loc: Box::from(args_loc),
+            arg_types: Box::from(infered_arg_types),
+            return_type,
+        });
 
     // Compile the function into instructions using local vars
     let parsed = compile_expr(
         fn_code,
         &mut v_temp,
-        &ParserData {
+        Ctx {
             is_parsing_recursive: is_recursive,
             parsing_fn_id: Some(fn_id),
             src: fn_src,
             current_src_file: fn_src_file,
-            ..*p
+            ..ctx
         },
+        state,
         output.len() as u16,
         false,
     );
@@ -597,11 +642,12 @@ fn compile_function(
                 }
                 live_regs.sort_unstable();
                 live_regs.dedup();
-                *fn_registers.get_mut(callsite_id as usize).unwrap() = live_regs;
+                *state.fn_registers.get_mut(callsite_id as usize).unwrap() = live_regs;
             }
         }
     } else {
-        fn_registers
+        state
+            .fn_registers
             .get_mut(fn_id as usize)
             .unwrap()
             .extend(get_tgt_ids(&parsed));

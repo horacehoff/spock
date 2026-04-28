@@ -58,71 +58,28 @@ pub struct Pools {
     pub string_pool: StringPool,
 }
 
-pub struct ParserData<'a> {
-    pub registers: *mut Vec<Data>,
-    pub fns: *mut Vec<Function>,
-    pub pools: *mut Pools,
+#[derive(Clone, Copy)]
+pub struct Ctx<'src> {
     pub block_id: u16,
-    pub src: (&'a str, &'a str),
-    pub instr_src: *mut Vec<(Instr, (usize, usize), u16)>,
-    /// Indicates if the current expression being compiled is part of a recursive function
+    pub src: (&'src str, &'src str),
     pub is_parsing_recursive: bool,
-    /// Each element is specific to a callsite and indicates the registers that need to be "saved" before a recursive call
-    pub fn_registers: *mut Vec<Vec<u16>>,
     pub parsing_fn_id: Option<u16>,
-    pub dyn_libs: *mut Vec<Dynamiclib>,
-    /// Used for Vec::with_capacity()
-    pub allocated_arg_count: *mut usize,
-    /// Used for Vec::with_capacity()
-    pub allocated_call_depth: *mut usize,
-    pub const_registers: *mut Vec<u16>,
-    pub free_registers: *mut Vec<u16>,
-    /// All source files: index 0 = main file
-    /// Vec<(name, content)>
-    pub sources: *mut Vec<(SmolStr, String)>,
-    /// Index of the file currently being compiled
     pub current_src_file: u16,
 }
-impl ParserData<'_> {
-    pub fn destructure(
-        &self,
-    ) -> (
-        &mut Vec<Data>,
-        &mut Vec<Function>,
-        &mut Pools,
-        &mut Vec<(Instr, (usize, usize), u16)>,
-        &mut Vec<Vec<u16>>,
-        u16,
-        (&str, &str),
-        bool,
-        Option<u16>,
-        &mut Vec<Dynamiclib>,
-        &mut usize,
-        &mut usize,
-        &mut Vec<u16>,
-        &mut Vec<u16>,
-        &mut Vec<(SmolStr, String)>,
-        u16,
-    ) {
-        (
-            unsafe { &mut *self.registers },
-            unsafe { &mut *self.fns },
-            unsafe { &mut *self.pools },
-            unsafe { &mut *self.instr_src },
-            unsafe { &mut *self.fn_registers },
-            self.block_id,
-            self.src,
-            self.is_parsing_recursive,
-            self.parsing_fn_id,
-            unsafe { &mut *self.dyn_libs },
-            unsafe { &mut *self.allocated_arg_count },
-            unsafe { &mut *self.allocated_call_depth },
-            unsafe { &mut *self.const_registers },
-            unsafe { &mut *self.free_registers },
-            unsafe { &mut *self.sources },
-            self.current_src_file,
-        )
-    }
+
+/// Shared mutable compilation state. Passed as `&mut State` — no unsafe needed.
+pub struct State<'a> {
+    pub registers: &'a mut Vec<Data>,
+    pub fns: &'a mut Vec<Function>,
+    pub pools: &'a mut Pools,
+    pub instr_src: &'a mut Vec<(Instr, (usize, usize), u16)>,
+    pub fn_registers: &'a mut Vec<Vec<u16>>,
+    pub dyn_libs: &'a mut Vec<Dynamiclib>,
+    pub allocated_arg_count: &'a mut usize,
+    pub allocated_call_depth: &'a mut usize,
+    pub const_registers: &'a mut Vec<u16>,
+    pub free_registers: &'a mut Vec<u16>,
+    pub sources: &'a mut Vec<(SmolStr, String)>,
 }
 
 #[derive(Debug, Clone)]
