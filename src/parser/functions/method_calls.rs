@@ -9,8 +9,8 @@ use crate::instr::LibFuncVoid;
 use crate::parser::Expr;
 use crate::parser::alloc_register;
 use crate::parser::free_register;
-use crate::parser_data::ParserData;
 use crate::parser_data::Variable;
+use crate::parser_data::{Ctx, State};
 use crate::type_system::DataType;
 use crate::type_system::infer_type;
 use inline_colorization::*;
@@ -20,7 +20,8 @@ use smol_str::ToSmolStr;
 pub fn handle_method_calls(
     output: &mut Vec<Instr>,
     v: &mut Vec<Variable>,
-    p: &ParserData,
+    ctx: Ctx<'_>,
+    state: &mut State<'_>,
     obj: &Expr,
     args: &[Expr],
     namespace: &[SmolStr],
@@ -30,41 +31,25 @@ pub fn handle_method_calls(
     offset: u16,
     single_run: bool,
 ) {
-    let (
-        registers,
-        fns,
-        _,
-        instr_src,
-        _,
-        _,
-        src,
-        _,
-        _,
-        dyn_libs,
-        allocated_arg_count,
-        _,
-        const_registers,
-        free_registers,
-        _,
-        current_src_file,
-    ) = p.destructure();
+    let src = ctx.src;
+    let current_src_file = ctx.current_src_file;
 
     let len = namespace.len() - 1;
     let name = namespace[len].as_str();
     // not in use for now
     // let namespace = &namespace[0..len];
 
-    let obj_type = infer_type(obj, v, fns, src, dyn_libs);
-    let id = get_id(obj, v, p, output, None, false, offset, single_run);
-    free_register(id, free_registers, v, const_registers);
+    let obj_type = infer_type(obj, v, state.fns, src, state.dyn_libs);
+    let id = get_id(obj, v, ctx, state, output, None, false, offset, single_run);
+    free_register(id, state.free_registers, v, state.const_registers);
 
     macro_rules! add_args {
         () => {
             for arg in args.iter().rev() {
-                let arg_id = get_id(&arg, v, p, output, None, false, offset, single_run);
+                let arg_id = get_id(&arg, v, ctx, state, output, None, false, offset, single_run);
                 output.push(Instr::StoreFuncArg(arg_id));
-                *allocated_arg_count += 1;
-                free_register(arg_id, free_registers, v, const_registers);
+                *state.allocated_arg_count += 1;
+                free_register(arg_id, state.free_registers, v, state.const_registers);
             }
         };
     }
@@ -123,7 +108,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Uppercase,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "lowercase" => {
@@ -131,7 +116,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Lowercase,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "starts_with" => {
@@ -140,7 +125,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::StartsWith,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "ends_with" => {
@@ -149,7 +134,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::EndsWith,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "replace" => {
@@ -158,7 +143,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Replace,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "len" => {
@@ -166,13 +151,13 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Len,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "contains" => {
             check!(DataType::Array(_) | DataType::String, "Array or String", 1);
 
-            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
             if obj_type == DataType::String && arg_type != DataType::String {
                 throw_parser_error(
                     src,
@@ -186,7 +171,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Contains,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "trim" => {
@@ -194,13 +179,13 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Trim,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "trim_sequence" => {
             check!(DataType::String, "String", 1);
 
-            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
             if arg_type != DataType::String {
                 throw_parser_error(
                     src,
@@ -213,13 +198,13 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::TrimSequence,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "find" => {
             check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
-            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
             if let DataType::Array(array_elem_type) = &obj_type {
                 if **array_elem_type != arg_type {
                     throw_parser_error(
@@ -241,16 +226,18 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Find,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
-            instr_src.push((*output.last().unwrap(), *fn_markers, current_src_file))
+            state
+                .instr_src
+                .push((*output.last().unwrap(), *fn_markers, current_src_file))
         }
         "is_float" => {
             check!(DataType::String, "String", 0);
             output.push(Instr::CallLibFunc(
                 LibFunc::IsFloat,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "is_int" => {
@@ -258,7 +245,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::IsInt,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "trim_left" => {
@@ -266,7 +253,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::TrimLeft,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "trim_right" => {
@@ -274,13 +261,13 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::TrimRight,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "trim_sequence_left" => {
             check!(DataType::String, "String", 1);
 
-            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
             if arg_type != DataType::String {
                 throw_parser_error(
                     src,
@@ -293,13 +280,13 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::TrimSequenceLeft,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "trim_sequence_right" => {
             check!(DataType::String, "String", 1);
 
-            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
             if arg_type != DataType::String {
                 throw_parser_error(
                     src,
@@ -312,13 +299,13 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::TrimSequenceRight,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "repeat" => {
             check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
-            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
             if arg_type != DataType::Int {
                 throw_parser_error(
                     src,
@@ -332,13 +319,13 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Repeat,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "push" => {
             check!(DataType::Array(_), "Array", 1);
 
-            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
             if let DataType::Array(array_elem_type) = &obj_type
                 && **array_elem_type != arg_type
             {
@@ -349,8 +336,10 @@ pub fn handle_method_calls(
                 );
             }
 
-            let arg_id = get_id(&args[0], v, p, output, None, false, offset, single_run);
-            free_register(id, free_registers, v, const_registers);
+            let arg_id = get_id(
+                &args[0], v, ctx, state, output, None, false, offset, single_run,
+            );
+            free_register(id, state.free_registers, v, state.const_registers);
             output.push(Instr::Push(id, arg_id));
         }
         "sqrt" => {
@@ -358,7 +347,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::SqrtFloat,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "round" => {
@@ -366,7 +355,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Round,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "floor" => {
@@ -374,7 +363,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Floor,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "abs" => {
@@ -382,7 +371,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Abs,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "reverse" => {
@@ -391,7 +380,7 @@ pub fn handle_method_calls(
                 output.push(Instr::CallLibFunc(
                     LibFunc::Reverse,
                     id,
-                    alloc_register(registers, free_registers),
+                    alloc_register(state.registers, state.free_registers),
                 ));
             } else {
                 output.push(Instr::CallLibFuncVoid(LibFuncVoid::Reverse, id, 0));
@@ -400,7 +389,7 @@ pub fn handle_method_calls(
         "split" => {
             check!(DataType::String, "String", 1);
 
-            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
             if obj_type != arg_type {
                 throw_parser_error(
                     src,
@@ -412,13 +401,13 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Split,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "partition" => {
             check!(DataType::Array(_), "Array", 1);
 
-            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
             if let DataType::Array(array_elem_type) = obj_type
                 && *array_elem_type != arg_type
             {
@@ -432,7 +421,7 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::Split,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "join" => {
@@ -448,7 +437,7 @@ pub fn handle_method_calls(
             }
             check_args_range!(args, 0, 1, "join", src, fn_markers);
             if !args.is_empty() {
-                let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+                let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
                 if arg_type != DataType::String {
                     throw_parser_error(
                         src,
@@ -461,13 +450,13 @@ pub fn handle_method_calls(
             output.push(Instr::CallLibFunc(
                 LibFunc::JoinStringArray,
                 id,
-                alloc_register(registers, free_registers),
+                alloc_register(state.registers, state.free_registers),
             ));
         }
         "remove" => {
             check!(DataType::Array(_), "Array", 1);
 
-            let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+            let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
             if arg_type != DataType::Int {
                 throw_parser_error(
                     src,
@@ -475,10 +464,14 @@ pub fn handle_method_calls(
                     ErrType::InvalidType(DataType::Int, &arg_type),
                 );
             }
-            let arg_id = get_id(&args[0], v, p, output, None, false, offset, single_run);
-            free_register(arg_id, free_registers, v, const_registers);
+            let arg_id = get_id(
+                &args[0], v, ctx, state, output, None, false, offset, single_run,
+            );
+            free_register(arg_id, state.free_registers, v, state.const_registers);
             output.push(Instr::Remove(id, arg_id));
-            instr_src.push((*output.last().unwrap(), *fn_markers, current_src_file));
+            state
+                .instr_src
+                .push((*output.last().unwrap(), *fn_markers, current_src_file));
         }
         "sort" => {
             check!(DataType::Array(_), "Array", 0);

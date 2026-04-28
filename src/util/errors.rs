@@ -16,7 +16,7 @@ pub fn dev_error(file: &str, function: &str, additional_data: Arguments) -> ! {
     );
 }
 
-impl<'a> From<std::io::ErrorKind> for ErrType<'a> {
+impl From<std::io::ErrorKind> for ErrType<'_> {
     #[inline(never)]
     fn from(value: std::io::ErrorKind) -> Self {
         match value {
@@ -39,7 +39,7 @@ impl<'a> From<std::io::ErrorKind> for ErrType<'a> {
     }
 }
 
-impl<'a> From<std::num::IntErrorKind> for ErrType<'a> {
+impl From<std::num::IntErrorKind> for ErrType<'_> {
     #[inline(never)]
     fn from(value: std::num::IntErrorKind) -> Self {
         match value {
@@ -127,7 +127,7 @@ pub enum ErrType<'a> {
     IsNotAnIterator(&'a DataType),
 }
 
-impl<'a> From<ErrType<'a>> for SmolStr {
+impl From<ErrType<'_>> for SmolStr {
     #[inline(always)]
     fn from(value: ErrType) -> Self {
         match value {

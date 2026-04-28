@@ -37,8 +37,6 @@ mod functions;
 mod instr;
 #[path = "./parser/functions/method_calls.rs"]
 mod method_calls;
-#[path = "./parser/optimizations.rs"]
-mod optimizations;
 #[path = "./parser/parser.rs"]
 mod parser;
 #[path = "./parser/parser_data.rs"]
