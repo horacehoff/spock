@@ -97,7 +97,7 @@ pub fn handle_functions(
         match name {
             "print" => {
                 for arg in args {
-                    let id = get_id(arg, v, p, output, None, false, false, offset, single_run);
+                    let id = get_id(arg, v, p, output, None, false, offset, single_run);
                     output.push(Instr::Print(id));
                     free_register(id, free_registers, v, const_registers);
                 }
@@ -110,9 +110,7 @@ pub fn handle_functions(
             "float" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String, DataType::Int]);
-                let id = get_id(
-                    &args[0], v, p, output, None, false, false, offset, single_run,
-                );
+                let id = get_id(&args[0], v, p, output, None, false, offset, single_run);
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Float,
@@ -124,9 +122,7 @@ pub fn handle_functions(
             "int" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String, DataType::Float]);
-                let id = get_id(
-                    &args[0], v, p, output, None, false, false, offset, single_run,
-                );
+                let id = get_id(&args[0], v, p, output, None, false, offset, single_run);
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Int,
@@ -137,9 +133,7 @@ pub fn handle_functions(
             }
             "str" => {
                 check_args!(args, 1, name, src, markers);
-                let id = get_id(
-                    &args[0], v, p, output, None, false, false, offset, single_run,
-                );
+                let id = get_id(&args[0], v, p, output, None, false, offset, single_run);
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Str,
@@ -150,9 +144,7 @@ pub fn handle_functions(
             "bool" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
-                let id = get_id(
-                    &args[0], v, p, output, None, false, false, offset, single_run,
-                );
+                let id = get_id(&args[0], v, p, output, None, false, offset, single_run);
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::Bool,
@@ -168,9 +160,7 @@ pub fn handle_functions(
                     registers.push(Data::p_str("", string_pool));
                     (registers.len() - 1) as u16
                 } else {
-                    get_id(
-                        &args[0], v, p, output, None, false, false, offset, single_run,
-                    )
+                    get_id(&args[0], v, p, output, None, false, offset, single_run)
                 };
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
@@ -186,15 +176,12 @@ pub fn handle_functions(
                     check_arg_type(1, &[DataType::Int]);
                 }
 
-                let id_first_arg = get_id(
-                    &args[0], v, p, output, None, false, false, offset, single_run,
-                );
+                let id_first_arg = get_id(&args[0], v, p, output, None, false, offset, single_run);
                 let source_reg_id = if args.len() == 1 {
                     id_first_arg
                 } else {
-                    let id_second_arg = get_id(
-                        &args[1], v, p, output, None, false, false, offset, single_run,
-                    );
+                    let id_second_arg =
+                        get_id(&args[1], v, p, output, None, false, offset, single_run);
                     output.push(Instr::StoreFuncArg(id_first_arg));
                     *allocated_arg_count += 1;
                     id_second_arg
@@ -296,7 +283,6 @@ pub fn handle_functions(
                         output,
                         Some(*tgt_id),
                         false,
-                        false,
                         offset,
                         single_run,
                     );
@@ -345,9 +331,7 @@ pub fn handle_functions(
             "read" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
-                let id = get_id(
-                    &args[0], v, p, output, None, false, false, offset, single_run,
-                );
+                let id = get_id(&args[0], v, p, output, None, false, offset, single_run);
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::FsRead,
@@ -359,9 +343,7 @@ pub fn handle_functions(
             "exists" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
-                let id = get_id(
-                    &args[0], v, p, output, None, false, false, offset, single_run,
-                );
+                let id = get_id(&args[0], v, p, output, None, false, offset, single_run);
                 free_register(id, free_registers, v, const_registers);
                 output.push(Instr::CallLibFunc(
                     LibFunc::FsExists,
@@ -374,12 +356,8 @@ pub fn handle_functions(
                 check_args!(args, 2, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
                 check_arg_type(1, &[DataType::String]);
-                let filepath = get_id(
-                    &args[0], v, p, output, None, false, false, offset, single_run,
-                );
-                let contents = get_id(
-                    &args[1], v, p, output, None, false, false, offset, single_run,
-                );
+                let filepath = get_id(&args[0], v, p, output, None, false, offset, single_run);
+                let contents = get_id(&args[1], v, p, output, None, false, offset, single_run);
                 free_register(filepath, free_registers, v, const_registers);
                 free_register(contents, free_registers, v, const_registers);
                 output.push(Instr::CallLibFuncVoid(
@@ -393,12 +371,8 @@ pub fn handle_functions(
                 check_args!(args, 2, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
                 check_arg_type(1, &[DataType::String]);
-                let filepath = get_id(
-                    &args[0], v, p, output, None, false, false, offset, single_run,
-                );
-                let contents = get_id(
-                    &args[1], v, p, output, None, false, false, offset, single_run,
-                );
+                let filepath = get_id(&args[0], v, p, output, None, false, offset, single_run);
+                let contents = get_id(&args[1], v, p, output, None, false, offset, single_run);
                 free_register(filepath, free_registers, v, const_registers);
                 free_register(contents, free_registers, v, const_registers);
                 output.push(Instr::CallLibFuncVoid(
@@ -411,9 +385,7 @@ pub fn handle_functions(
             "delete" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
-                let path = get_id(
-                    &args[0], v, p, output, None, false, false, offset, single_run,
-                );
+                let path = get_id(&args[0], v, p, output, None, false, offset, single_run);
                 free_register(path, free_registers, v, const_registers);
                 output.push(Instr::CallLibFuncVoid(LibFuncVoid::FsDelete, path, 0));
                 instr_src.push((*output.last().unwrap(), *markers, current_src_file));
@@ -421,9 +393,7 @@ pub fn handle_functions(
             "delete_dir" => {
                 check_args!(args, 1, name, src, markers);
                 check_arg_type(0, &[DataType::String]);
-                let path = get_id(
-                    &args[0], v, p, output, None, false, false, offset, single_run,
-                );
+                let path = get_id(&args[0], v, p, output, None, false, offset, single_run);
                 free_register(path, free_registers, v, const_registers);
                 output.push(Instr::CallLibFuncVoid(LibFuncVoid::FsDeleteDir, path, 0));
                 instr_src.push((*output.last().unwrap(), *markers, current_src_file));
@@ -446,7 +416,7 @@ pub fn handle_functions(
             }
 
             for arg in args {
-                let arg_id = get_id(arg, v, p, output, None, false, false, offset, single_run);
+                let arg_id = get_id(arg, v, p, output, None, false, offset, single_run);
                 output.push(Instr::StoreFuncArg(arg_id));
                 // This may break stuff
                 free_register(arg_id, free_registers, v, const_registers);

@@ -190,7 +190,7 @@ pub fn track_returns(
                     dyn_libs,
                 ))
             }
-            Expr::IntForLoop(var_name, _, end_expr, code, _, _) => {
+            Expr::IntForLoop(var_name, _, _, code, _, _) => {
                 let v_len = v.len();
                 v.push(Variable {
                     name: var_name.clone(),

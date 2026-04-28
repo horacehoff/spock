@@ -11,6 +11,7 @@ use crate::parser::parse;
 use crate::parser_data::DynamicLibFn;
 use crate::parser_data::Pools;
 use crate::util::likely;
+use crate::util::unlikely;
 use inline_colorization::*;
 use mimalloc::MiMalloc;
 use parser::*;
@@ -66,6 +67,25 @@ fn main() {
     }));
 
     let args: Vec<String> = std::env::args().collect();
+    if unlikely(args.len() == 1) {
+        println!(
+            "{}\n\nSpock is a fast, statically-typed interpreted language that aims to combine Rust-like syntax with Python's ease-of-use.\n\nUsage:\n  spock -v\n  spock file.spock [--debug] [--bench [--verbose]]",
+            util::SPOCK_LOGO
+        );
+        return;
+    }
+
+    if unlikely(args.iter().any(|x| x == "--version" || x == "-v")) {
+        if unlikely(args.len() > 2) {
+            eprintln!(
+                "{color_red}SPOCK ERROR{color_reset}\nInvalid arguments\nUsage:\n  spock -v\n  spock file.spock [--debug] [--bench [--verbose]]"
+            );
+            return;
+        }
+        println!("Spock {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+
     let debug = args.iter().any(|x| x == "--debug");
 
     #[cfg(debug_assertions)]
@@ -84,7 +104,7 @@ fn main() {
         std::process::exit(1);
     });
 
-    if !debug {
+    if likely(!debug) {
         let (
             instructions,
             mut registers,
@@ -125,7 +145,7 @@ fn main() {
     ) = parse(&contents, filename, false);
 
     println!("COMPILATION TIME: {:.2?}", now.elapsed());
-    if args.len() > 2 && args.iter().any(|x| x == "--bench") {
+    if args.iter().any(|x| x == "--bench") {
         crate::benchmark::benchmark(
             &instructions,
             &mut registers,
@@ -135,7 +155,7 @@ fn main() {
             &fn_registers,
             10,
             150,
-            args.len() > 3 && args.iter().any(|x| x == "--verbose"),
+            args.iter().any(|x| x == "--verbose"),
             &fn_dyn_libs,
             allocated_arg_count,
             allocated_call_depth,

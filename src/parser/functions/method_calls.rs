@@ -55,13 +55,13 @@ pub fn handle_method_calls(
     // let namespace = &namespace[0..len];
 
     let obj_type = infer_type(obj, v, fns, src, dyn_libs);
-    let id = get_id(obj, v, p, output, None, false, false, offset, single_run);
+    let id = get_id(obj, v, p, output, None, false, offset, single_run);
     free_register(id, free_registers, v, const_registers);
 
     macro_rules! add_args {
         () => {
             for arg in args.iter().rev() {
-                let arg_id = get_id(&arg, v, p, output, None, false, false, offset, single_run);
+                let arg_id = get_id(&arg, v, p, output, None, false, offset, single_run);
                 output.push(Instr::StoreFuncArg(arg_id));
                 *allocated_arg_count += 1;
                 free_register(arg_id, free_registers, v, const_registers);
@@ -349,9 +349,7 @@ pub fn handle_method_calls(
                 );
             }
 
-            let arg_id = get_id(
-                &args[0], v, p, output, None, false, false, offset, single_run,
-            );
+            let arg_id = get_id(&args[0], v, p, output, None, false, offset, single_run);
             free_register(id, free_registers, v, const_registers);
             output.push(Instr::Push(id, arg_id));
         }
@@ -477,9 +475,7 @@ pub fn handle_method_calls(
                     ErrType::InvalidType(DataType::Int, &arg_type),
                 );
             }
-            let arg_id = get_id(
-                &args[0], v, p, output, None, false, false, offset, single_run,
-            );
+            let arg_id = get_id(&args[0], v, p, output, None, false, offset, single_run);
             free_register(arg_id, free_registers, v, const_registers);
             output.push(Instr::Remove(id, arg_id));
             instr_src.push((*output.last().unwrap(), *fn_markers, current_src_file));

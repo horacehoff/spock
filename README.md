@@ -104,14 +104,6 @@ let the_answer = if my_number == 42 { "It's the answer!" } else { "It's not the 
 print(the_answer);
 ```
 
-### Inline conditions
-
-```rs
-let y = 10;
-print(if y == 10 {"y is: 10"} else {"y is something else"});
-let x = if y == 42 {5} else {10};
-```
-
 ### Loops
 
 Use `break` to exit the loop.\
@@ -202,7 +194,7 @@ match x {
 
 You can import other `.spock` files with the following syntax:
 ```spock
-use "fibonacci.spock"
+use "fibonacci_lib.spock"
 
 fn main() {print(fibonacci(25));}
 ```
@@ -224,7 +216,7 @@ import "dynamic_library_path" {
 For example:
 
 ```spock
-import "test.dylib" {
+import "my_test.dylib" {
     int add(int, int);
 }
 
@@ -232,11 +224,11 @@ function fib(n) {
     if n <= 1 {
         return n;
     }
-    return fib(test::add(n, -1)) + fib(test::add(n,-2));
+    return fib(my_test::add(n, -1)) + fib(my_test::add(n,-2));
 }
 
 function main() {
-print(test::add(6, 1));
+print(my_test::add(6, 1));
 print(fib(25));
 }
 ```
