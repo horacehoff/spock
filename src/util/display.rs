@@ -63,8 +63,8 @@ pub fn display_fn_signatures(f: Function) {
     }
 }
 
-pub fn get_type_name(x: &Data) -> SmolStr {
-    SmolStr::from(if x.is_array() {
+pub fn get_type_name(x: &Data) -> &str {
+    if x.is_array() {
         "Array"
     } else if x.is_bool() {
         "Boolean"
@@ -78,19 +78,19 @@ pub fn get_type_name(x: &Data) -> SmolStr {
         "Null"
     } else {
         unreachable!()
-    })
+    }
 }
 
-pub fn token_recognition(token: &str) -> SmolStr {
+pub fn token_recognition(token: &str) -> &str {
     match token {
-        "r#\"[a-zA-Z_]+\"#" => SmolStr::from("identifier"),
-        "r#\"([0-9]*[.])?[0-9]+\"#" => SmolStr::from("number"),
-        "\"true\"" => SmolStr::from("boolean"),
+        "r#\"[a-zA-Z_]+\"#" => "identifier",
+        "r#\"([0-9]*[.])?[0-9]+\"#" => "number",
+        "\"true\"" => "boolean",
         other => {
             if other.contains("|[^") {
-                SmolStr::from("string")
+                "string"
             } else {
-                other.trim_matches('\"').to_smolstr()
+                other.trim_matches('\"')
             }
         }
     }

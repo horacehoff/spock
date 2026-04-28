@@ -173,7 +173,7 @@ pub fn execute(
             Instr::CallDynamicLibFunc(fn_id, dest) => {
                 let func = &dyn_libs[fn_id as usize];
                 let args_len = args.len();
-                // Pointers are "owned" in arg_storage
+                // Pointers are "owned" in dyn_lib_args
                 dyn_lib_args.clear();
 
                 for (idx, register_id) in args.drain(..args_len).enumerate() {
