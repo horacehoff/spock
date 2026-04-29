@@ -27,6 +27,7 @@ use crate::type_system::track_returns;
 use inline_colorization::*;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
+use std::rc::Rc;
 use std::slice;
 
 pub fn handle_functions(
@@ -233,13 +234,10 @@ pub fn handle_functions(
                 // Retrieve list of args, code, and function data (loc, args_loc, arg_types)
                 let fn_id = state.fns[function_id].id;
                 let is_recursive = state.fns[function_id].is_recursive;
-                // Clone so we don't hold borrows across mutable state access
-                let fn_args: Box<[SmolStr]> = state.fns[function_id].args.clone();
-                let fn_code: Box<[Expr]> = state.fns[function_id].code.clone();
                 let fn_returns_void = state.fns[function_id].returns_void;
 
                 // Check if the arguments are correct
-                let args_len = fn_args.len();
+                let args_len = state.fns[function_id].args.len();
                 check_args!(args, args_len, fn_name, src, markers);
 
                 // Infer arg types
@@ -256,6 +254,10 @@ pub fn handle_functions(
 
                 if fn_impl_idx.is_none() {
                     // If it hasn't, compile it (which adds it to the function's implementation list)
+
+                    // Clone only when actually compiling a new specialisation
+                    let fn_args: Box<[SmolStr]> = state.fns[function_id].args.clone();
+                    let fn_code: Rc<[Expr]> = Rc::clone(&state.fns[function_id].code);
                     compile_function(
                         output,
                         v,
@@ -448,21 +450,14 @@ pub fn handle_functions(
                 throw_parser_error(src, markers, ErrType::UnknownFunction(name));
             }
         }
-    } else if let Some((fn_name, fn_args, fn_return_type, dyn_id)) = state
+    } else if let Some((fn_args, returns_void, dyn_id)) = state
         .dyn_libs
         .iter()
         .find(|l| l.name == namespace[0])
         .and_then(|lib| lib.fns.iter().find(|x| x.name == name))
-        .map(|sig| {
-            (
-                sig.name.clone(),
-                sig.args.clone(),
-                sig.return_type.clone(),
-                sig.id,
-            )
-        })
+        .map(|sig| (sig.args.clone(), sig.return_type == DataType::Null, sig.id))
     {
-        check_args!(args, fn_args.len(), &fn_name, src, markers);
+        check_args!(args, fn_args.len(), name, src, markers);
         for (i, a) in fn_args.iter().enumerate() {
             check_arg_type(i, slice::from_ref(a));
         }
@@ -475,7 +470,7 @@ pub fn handle_functions(
             *state.allocated_arg_count += 1;
         }
 
-        let register_id = if fn_return_type == DataType::Null {
+        let register_id = if returns_void {
             0u16
         } else {
             state.registers.push(NULL);

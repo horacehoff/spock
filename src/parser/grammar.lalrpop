@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::rc::Rc;
 use crate::parser::Expr;
 use crate::errors::throw_parser_error;
 use crate::errors::ErrType;
@@ -73,7 +74,7 @@ Block<T>: T = {
 
 pub Function:Expr = {
     <start: @L> "function" <o1:Var> <args: Args<Var>> <o3: Block<Code>> <end: @R> => {
-        Expr::FunctionDecl(Box::from([&[o1], args.as_slice()].concat()), o3, (start, end))
+        Expr::FunctionDecl(Box::from([&[o1], args.as_slice()].concat()), Rc::from(o3), (start, end))
     }
 }
 

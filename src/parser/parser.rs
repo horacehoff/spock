@@ -23,6 +23,7 @@ use smol_str::SmolStr;
 use smol_str::ToSmolStr;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::slice;
 
 lalrpop_mod!(pub grammar);
@@ -76,7 +77,7 @@ pub enum Expr {
         Box<[(usize, usize)]>,
     ),
     /// FunctionDecl(name+args, code, start, end)
-    FunctionDecl(Box<[SmolStr]>, Box<[Expr]>, (usize, usize)),
+    FunctionDecl(Box<[SmolStr]>, Rc<[Expr]>, (usize, usize)),
 
     ReturnVal(Box<Option<Expr>>),
 
@@ -2059,8 +2060,7 @@ fn parse_toplevel(
                         )
                     });
 
-                let s = sources[new_idx as usize].clone();
-                let import_src: (&str, &str) = { (s.0.as_str(), s.1.as_str()) };
+                let import_src: (&str, &str) = (file_name.as_str(), file_contents.as_str());
                 parse_toplevel(
                     file_code,
                     &file_path,

@@ -7,12 +7,13 @@ use crate::vm::StringPool;
 use libffi::middle::Type;
 use libloading::Library;
 use smol_str::SmolStr;
+use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: SmolStr,
     pub args: Box<[SmolStr]>,
-    pub code: Box<[Expr]>,
+    pub code: Rc<[Expr]>,
     pub impls: Vec<FunctionImpl>,
     pub is_recursive: bool,
     pub id: u16,
@@ -59,9 +60,9 @@ pub struct Pools {
 }
 
 #[derive(Clone, Copy)]
-pub struct Ctx<'src> {
+pub struct Ctx<'a> {
     pub block_id: u16,
-    pub src: (&'src str, &'src str),
+    pub src: (&'a str, &'a str),
     pub is_parsing_recursive: bool,
     pub parsing_fn_id: Option<u16>,
     pub current_src_file: u16,
