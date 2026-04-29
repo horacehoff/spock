@@ -109,6 +109,7 @@ impl Data {
         recursion_stack: &[Data],
         free_strings: &mut Vec<u16>,
         gc_string_threshold: &mut u32,
+        string_live: &mut Vec<bool>,
     ) -> Data {
         if s.len() <= 6 {
             Data::small_str(s)
@@ -121,6 +122,7 @@ impl Data {
                     free_strings,
                     registers,
                     recursion_stack,
+                    string_live,
                 );
             }
             if let Some(id) = free_strings.pop() {
@@ -142,6 +144,7 @@ impl Data {
         recursion_stack: &[Data],
         free_strings: &mut Vec<u16>,
         gc_string_threshold: &mut u32,
+        string_live: &mut Vec<bool>,
     ) -> Data {
         if s.len() <= 6 {
             Data::small_str(&s)
@@ -154,6 +157,7 @@ impl Data {
                     free_strings,
                     registers,
                     recursion_stack,
+                    string_live,
                 );
             }
             if let Some(id) = free_strings.pop() {

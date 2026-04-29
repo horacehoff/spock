@@ -513,7 +513,7 @@ fn compile_function(
     fn_args: &[SmolStr],
     fn_name: &str,
     infered_arg_types: &[DataType],
-    args: &[Expr],
+    _args: &[Expr],
     fn_code: &[Expr],
     fn_id: u16,
     is_recursive: bool,
@@ -540,14 +540,12 @@ fn compile_function(
         .iter()
         .enumerate()
         .map(|(i, x)| {
-            let infered_type = infer_type(&args[i], v, state.fns, fn_src, state.dyn_libs);
-
             // Allocate a registers slot for each func arg
             state.registers.push(NULL);
             Variable {
                 name: x.clone(),
                 register_id: (state.registers.len() - 1) as u16,
-                infered_type,
+                infered_type: infered_arg_types[i].clone(),
             }
         })
         .collect();
@@ -565,17 +563,17 @@ fn compile_function(
     let loc = fn_start as u16 + offset;
 
     let v_len_before_args = v.len();
-    let mut arg_types: Vec<usize> = Vec::with_capacity(args.len());
-    args.iter().enumerate().for_each(|(i, x)| {
-        let infered_type = infer_type(x, v, state.fns, fn_src, state.dyn_libs);
-        arg_types.push(v.len());
-        // 0 => placeholder id, it's never used
-        v.push(Variable {
-            name: fn_args[i].clone(),
-            register_id: 0,
-            infered_type,
+    infered_arg_types
+        .iter()
+        .enumerate()
+        .for_each(|(i, infered_type)| {
+            // 0 => placeholder id, it's never used
+            v.push(Variable {
+                name: fn_args[i].clone(),
+                register_id: 0,
+                infered_type: infered_type.clone(),
+            });
         });
-    });
     let fn_type = track_returns(fn_code, v, state.fns, fn_src, fn_name, true, state.dyn_libs);
     let return_type = if !fn_type.is_empty() {
         // If function returns anything, check if it returns the same thing each time
