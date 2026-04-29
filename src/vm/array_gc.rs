@@ -7,6 +7,7 @@ pub fn alloc_array(
     registers: &[Data],
     recursion_stack: &[Data],
     gc_array_threshold: &mut u32,
+    live: &mut Vec<bool>,
 ) -> u32 {
     if let Some(id) = free_arrays.pop() {
         array_pool[id as usize].clear();
@@ -14,7 +15,7 @@ pub fn alloc_array(
     } else {
         if free_arrays.is_empty() && array_pool.len() >= (*gc_array_threshold as usize) {
             *gc_array_threshold *= 2;
-            array_gc(array_pool, free_arrays, registers, recursion_stack);
+            array_gc(array_pool, free_arrays, registers, recursion_stack, live);
         }
         if let Some(id) = free_arrays.pop() {
             array_pool[id as usize].clear();
@@ -32,13 +33,15 @@ fn array_gc(
     free_arrays: &mut Vec<u16>,
     registers: &[Data],
     recursion_stack: &[Data],
+    live: &mut Vec<bool>,
 ) {
-    let mut live = vec![false; array_pool.len()];
+    live.clear();
+    live.resize(array_pool.len(), false);
 
     // Recursively find all "used" arrays
     for data in registers.iter().chain(recursion_stack.iter()) {
         if data.is_array() {
-            track_arrays(data.as_array(), array_pool, &mut live);
+            track_arrays(data.as_array(), array_pool, live);
         }
     }
 

@@ -8,13 +8,15 @@ pub fn string_gc(
     free_strings: &mut Vec<u16>,
     registers: &[Data],
     recursion_stack: &[Data],
+    live: &mut Vec<bool>,
 ) {
-    let mut live = vec![false; string_pool.len()];
+    live.clear();
+    live.resize(string_pool.len(), false);
     for data in registers.iter().chain(recursion_stack.iter()) {
         if data.is_large_str() {
             live[data.get_str_pool_id()] = true;
         } else if data.is_array() {
-            track_strings(array_pool, &array_pool[data.as_array()], &mut live);
+            track_strings(array_pool, &array_pool[data.as_array()], live);
         }
     }
 

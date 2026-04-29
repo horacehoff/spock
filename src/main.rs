@@ -9,7 +9,6 @@ use crate::instr::Instr;
 use crate::instr::LibFunc;
 use crate::parser::parse;
 use crate::parser_data::DynamicLibFn;
-use crate::parser_data::Pools;
 use crate::util::likely;
 use crate::util::unlikely;
 use inline_colorization::*;
@@ -85,9 +84,13 @@ fn main() {
     }
 
     let debug = args.iter().any(|x| x == "--debug");
+    if args.iter().any(|x| x == "--bench") {
+        crate::benchmark::benchmark();
+        return;
+    }
 
     #[cfg(debug_assertions)]
-    let filename = "test.spock";
+    let filename = args.get(1).map(String::as_str).unwrap_or("test.spock");
 
     #[cfg(not(debug_assertions))]
     let filename = &args.get(1).unwrap_or_else(|| {
@@ -143,37 +146,20 @@ fn main() {
     ) = parse(&contents, filename, false);
 
     println!("COMPILATION TIME: {:.2?}", now.elapsed());
-    if args.iter().any(|x| x == "--bench") {
-        crate::benchmark::benchmark(
-            &instructions,
-            &mut registers,
-            &mut arrays,
-            &instr_src,
-            &sources,
-            &fn_registers,
-            10,
-            150,
-            args.iter().any(|x| x == "--verbose"),
-            &fn_dyn_libs,
-            allocated_arg_count,
-            allocated_call_depth,
-        );
-    } else {
-        let now = Instant::now();
-        vm::execute(
-            &instructions,
-            &mut registers,
-            &mut arrays,
-            &instr_src,
-            &sources,
-            &fn_registers,
-            &fn_dyn_libs,
-            allocated_arg_count,
-            allocated_call_depth,
-        );
-        println!(
-            "EXECUTION TIME: {:.3}ms",
-            now.elapsed().as_nanos() / 1000000
-        );
-    }
+    let now = Instant::now();
+    vm::execute(
+        &instructions,
+        &mut registers,
+        &mut arrays,
+        &instr_src,
+        &sources,
+        &fn_registers,
+        &fn_dyn_libs,
+        allocated_arg_count,
+        allocated_call_depth,
+    );
+    println!(
+        "EXECUTION TIME: {:.3}ms",
+        now.elapsed().as_nanos() / 1000000
+    );
 }

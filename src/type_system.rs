@@ -390,7 +390,7 @@ pub fn infer_type(
                         name: _,
                         args: fn_args,
                         code: fn_code,
-                        impls: _,
+                        impls,
                         is_recursive: _,
                         id: _,
                         returns_void: _,
@@ -406,17 +406,26 @@ pub fn infer_type(
                             );
                         });
 
-                    let mut arg_types: Vec<usize> = Vec::with_capacity(args.len());
-                    args.iter().enumerate().for_each(|(i, x)| {
-                        let infered_type = infer_type(x, v, fns, src, dyn_libs);
-                        arg_types.push(v.len());
+                    let infered_arg_types = args
+                        .iter()
+                        .map(|x| infer_type(x, v, fns, src, dyn_libs))
+                        .collect::<Vec<DataType>>();
+                    if let Some(fn_impl) = impls
+                        .iter()
+                        .find(|fn_impl| *fn_impl.arg_types == infered_arg_types)
+                    {
+                        return fn_impl.return_type.clone();
+                    }
+
+                    let v_len_before_args = v.len();
+                    for (i, infered_type) in infered_arg_types.into_iter().enumerate() {
                         // 0 => placeholder id, it's never used
                         v.push(Variable {
                             name: fn_args[i].clone(),
                             register_id: 0,
                             infered_type,
                         });
-                    });
+                    }
 
                     // ----- MORE COMPLEX SOLUTION (DOES NOT ALLOW NULL OPS) -----
                     // let mut fn_type = [
@@ -437,9 +446,7 @@ pub fn infer_type(
                         DataType::Null
                     };
 
-                    arg_types.iter().for_each(|i| {
-                        v.remove(*i);
-                    });
+                    v.truncate(v_len_before_args);
 
                     to_return
                 }

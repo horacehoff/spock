@@ -53,6 +53,8 @@ pub fn execute(
 
     let mut free_arrays: Vec<u16> = Vec::with_capacity(array_pool.len());
     let mut free_strings: Vec<u16> = Vec::with_capacity(string_pool.len());
+    let mut array_live: Vec<bool> = Vec::new();
+    let mut string_live: Vec<bool> = Vec::new();
 
     let mut dyn_lib_args: Vec<u64> = Vec::new();
 
@@ -69,6 +71,7 @@ pub fn execute(
                 &recursion_stack,
                 &mut free_strings,
                 &mut gc_string_threshold,
+                &mut string_live,
             )
         };
     }
@@ -82,6 +85,7 @@ pub fn execute(
                 &recursion_stack,
                 &mut free_strings,
                 &mut gc_string_threshold,
+                &mut string_live,
             )
         };
     }
@@ -263,6 +267,7 @@ pub fn execute(
                     registers,
                     &recursion_stack,
                     &mut gc_array_threshold,
+                    &mut array_live,
                 );
                 array_pool[array_id as usize] = combined;
                 registers[dest as usize] = Data::array(array_id);
@@ -693,6 +698,7 @@ pub fn execute(
                         registers,
                         &recursion_stack,
                         &mut gc_array_threshold,
+                        &mut array_live,
                     );
                     array_pool[array_id as usize] =
                         array_pool[reg.as_array()].repeat(repeat_count as usize);
@@ -757,12 +763,18 @@ pub fn execute(
                 }
             }
             Instr::CallLibFunc(LibFunc::Str, tgt, dest) => {
-                registers[dest as usize] = str!(&format_data(
-                    &registers[tgt as usize],
-                    array_pool,
-                    string_pool,
-                    false
-                ));
+                let value = registers[tgt as usize];
+                registers[dest as usize] = if value.is_str() {
+                    value
+                } else if value.is_int() {
+                    string!(value.as_int().to_string())
+                } else if value.is_float() {
+                    string!(value.as_float().to_string())
+                } else if value.is_bool() {
+                    str!(if value.as_bool() { "true" } else { "false" })
+                } else {
+                    str!(&format_data(&value, array_pool, string_pool, false))
+                };
             }
             Instr::CallLibFunc(LibFunc::Bool, tgt, dest) => {
                 let str = registers[tgt as usize].as_str(string_pool);
@@ -832,6 +844,7 @@ pub fn execute(
                         registers,
                         &recursion_stack,
                         &mut gc_array_threshold,
+                        &mut array_live,
                     );
                     array_pool[output_str_reg_id as usize] = source
                         .as_str(string_pool)
@@ -866,6 +879,7 @@ pub fn execute(
                             registers,
                             &recursion_stack,
                             &mut gc_array_threshold,
+                            &mut array_live,
                         ) as usize;
                         // Use split_at_mut to copy directly from the source array without having to clone it
                         if dest_array_id < source_array_id {
@@ -884,6 +898,7 @@ pub fn execute(
                         registers,
                         &recursion_stack,
                         &mut gc_array_threshold,
+                        &mut array_live,
                     );
                     array_pool[array_id as usize] = sub_array_ids
                         .iter()
@@ -906,6 +921,7 @@ pub fn execute(
                     registers,
                     &recursion_stack,
                     &mut gc_array_threshold,
+                    &mut array_live,
                 );
                 array_pool[output_array_id as usize].clear();
                 array_pool[output_array_id as usize].extend((min..max).map(Data::from));
@@ -1002,6 +1018,7 @@ pub fn execute(
                     registers,
                     &recursion_stack,
                     &mut gc_array_threshold,
+                    &mut array_live,
                 );
                 array_pool[array_id as usize] = std::env::args()
                     .skip(2)
