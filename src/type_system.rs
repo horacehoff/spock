@@ -9,9 +9,10 @@ use crate::parser_data::Function;
 use crate::parser_data::Variable;
 use libffi::middle::Type;
 
-#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone)]
 pub enum DataType {
-    Array(Box<DataType>),
+    /// Array(None) = unknown element type (e.g. empty array literal [])
+    Array(Option<Box<DataType>>),
     Float,
     Int,
     Bool,
@@ -21,6 +22,49 @@ pub enum DataType {
     Poly(Box<[DataType]>),
     /// Fn (\[arg_types ... return_type\]) => return_type is always specified
     Fn(Box<[DataType]>),
+}
+
+impl PartialEq for DataType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            // Array(None) is compatible with any array type
+            (DataType::Array(None), DataType::Array(_)) => true,
+            (DataType::Array(_), DataType::Array(None)) => true,
+            (DataType::Array(Some(a)), DataType::Array(Some(b))) => a == b,
+            (DataType::Float, DataType::Float) => true,
+            (DataType::Int, DataType::Int) => true,
+            (DataType::Bool, DataType::Bool) => true,
+            (DataType::String, DataType::String) => true,
+            (DataType::File, DataType::File) => true,
+            (DataType::Null, DataType::Null) => true,
+            (DataType::Poly(a), DataType::Poly(b)) => a == b,
+            (DataType::Fn(a), DataType::Fn(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl std::hash::Hash for DataType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // All Array variants hash identically, which is required because Array(None) == Array(Some(_))
+        match self {
+            DataType::Array(_) => 0u8.hash(state),
+            DataType::Float => 1u8.hash(state),
+            DataType::Int => 2u8.hash(state),
+            DataType::Bool => 3u8.hash(state),
+            DataType::String => 4u8.hash(state),
+            DataType::File => 5u8.hash(state),
+            DataType::Null => 6u8.hash(state),
+            DataType::Poly(p) => {
+                7u8.hash(state);
+                p.hash(state);
+            }
+            DataType::Fn(f) => {
+                8u8.hash(state);
+                f.hash(state);
+            }
+        }
+    }
 }
 
 pub fn is_indexable(x: &DataType) -> bool {
@@ -211,7 +255,7 @@ pub fn track_returns(
             Expr::ForLoop(var_name, array_code, _) => {
                 let array_expr = array_code.first().unwrap();
                 let elem_type = match infer_type(array_expr, v, fns, src, dyn_libs) {
-                    DataType::Array(inner) => *inner,
+                    DataType::Array(inner) => inner.map_or(DataType::Null, |t| *t),
                     DataType::String => DataType::String,
                     _ => unreachable!(),
                 };
@@ -273,7 +317,11 @@ pub fn infer_type(
         Expr::Int(_) => DataType::Int,
         Expr::String(_) => DataType::String,
         Expr::Bool(_) => DataType::Bool,
-        Expr::Array(x, _) => DataType::Array(Box::from(infer_type(&x[0], v, fns, src, dyn_libs))),
+        Expr::Array(x, _) => DataType::Array(if x.is_empty() {
+            None
+        } else {
+            Some(Box::from(infer_type(&x[0], v, fns, src, dyn_libs)))
+        }),
         Expr::Add(x, y, markers) => {
             match (
                 infer_type(x, v, fns, src, dyn_libs),
@@ -282,7 +330,7 @@ pub fn infer_type(
                 (DataType::Float, DataType::Float) => DataType::Float,
                 (DataType::Int, DataType::Int) => DataType::Int,
                 (DataType::String, DataType::String) => DataType::String,
-                (DataType::Array(type1), DataType::Array(_)) => DataType::Array(type1),
+                (DataType::Array(t1), DataType::Array(t2)) => DataType::Array(t1.or(t2)),
                 (l, r) => throw_parser_error(src, markers, ErrType::OpError(&l, &r, "+")),
             }
         }
@@ -335,10 +383,10 @@ pub fn infer_type(
         },
         Expr::GetIndex(array, index, _) => match infer_type(array, v, fns, src, dyn_libs) {
             DataType::Array(array_type) => {
-                let mut final_type: DataType = *array_type;
+                let mut final_type = array_type.map_or(DataType::Null, |t| *t);
                 for _ in 0..index.len() {
                     match final_type {
-                        DataType::Array(t) => final_type = *t,
+                        DataType::Array(t) => final_type = t.map_or(DataType::Null, |t| *t),
                         other => final_type = other,
                     }
                 }
@@ -363,9 +411,9 @@ pub fn infer_type(
                 "str" => DataType::String,
                 "bool" => DataType::Bool,
                 "input" => DataType::String,
-                "range" => DataType::Array(Box::from(DataType::Int)),
+                "range" => DataType::Array(Some(Box::from(DataType::Int))),
                 "the_answer" => DataType::Int,
-                "argv" => DataType::Array(Box::from(DataType::String)),
+                "argv" => DataType::Array(Some(Box::from(DataType::String))),
                 // File System
                 "read" => DataType::String,
                 "exists" => DataType::Bool,
@@ -505,11 +553,11 @@ pub fn infer_type(
                         unreachable!()
                     }
                 }
-                "split" => DataType::Array(Box::from(DataType::String)),
+                "split" => DataType::Array(Some(Box::from(DataType::String))),
                 "partition" => {
                     let obj_type = infer_type(obj, v, fns, src, dyn_libs);
                     if let DataType::Array(array_type) = obj_type {
-                        DataType::Array(Box::from(DataType::Array(array_type)))
+                        DataType::Array(Some(Box::from(DataType::Array(array_type))))
                     } else {
                         unreachable!()
                     }
@@ -564,16 +612,6 @@ pub fn check_poly(data: DataType) -> DataType {
             "check_poly",
             format_args!("Received data : {data} and not data : DataType::Poly"),
         )
-    }
-}
-
-pub fn is_array_with_incompatible_type(t: &DataType, array_elem_type: &DataType) -> bool {
-    if let DataType::Array(array_type) = t
-        && array_type.as_ref() != array_elem_type
-    {
-        true
-    } else {
-        false
     }
 }
 

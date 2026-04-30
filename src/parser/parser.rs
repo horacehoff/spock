@@ -13,7 +13,6 @@ use crate::parser_data::*;
 use crate::type_system::check_if_returns_void;
 use crate::type_system::contains_recursive_call;
 use crate::type_system::datatype_to_c_type;
-use crate::type_system::is_array_with_incompatible_type;
 use crate::type_system::is_indexable;
 use crate::type_system::{DataType, infer_type};
 use crate::{Data, Instr};
@@ -504,12 +503,14 @@ pub fn get_id(
             }
         }
         Expr::Array(elems, markers) => {
-            let first_type = infer_type(&elems[0], v, state.fns, src, state.dyn_libs);
-            if !elems
-                .iter()
-                .all(|x| infer_type(x, v, state.fns, src, state.dyn_libs) == first_type)
-            {
-                throw_parser_error(src, markers, ErrType::ArrayWithDiffType);
+            if let Some(first) = elems.first() {
+                let first_type = infer_type(first, v, state.fns, src, state.dyn_libs);
+                if !elems
+                    .iter()
+                    .all(|x| infer_type(x, v, state.fns, src, state.dyn_libs) == first_type)
+                {
+                    throw_parser_error(src, markers, ErrType::ArrayWithDiffType);
+                }
             }
             let array_id = {
                 state.pools.array_pool.push(Vec::new());
@@ -1274,7 +1275,7 @@ pub fn compile_expr(
                     output.push(to_push);
 
                     id = (state.registers.len() - 1) as u16;
-                    if let DataType::Array(array_type) = infered {
+                    if let DataType::Array(Some(array_type)) = infered {
                         infered = *array_type;
                     }
                 }
@@ -1322,7 +1323,7 @@ pub fn compile_expr(
 
                     id = dest_reg_id;
                     free_register(f_id, state.free_registers, v, state.const_registers);
-                    if let DataType::Array(inner) = array_type {
+                    if let DataType::Array(Some(inner)) = array_type {
                         array_type = *inner;
                     }
                 }
@@ -1353,8 +1354,15 @@ pub fn compile_expr(
                     single_run,
                 );
                 free_register(elem_id, state.free_registers, v, state.const_registers);
-                if is_array_with_incompatible_type(&array_type, &elem_type)
-                    || (array_type == DataType::String && elem_type != DataType::String)
+                if {
+                    if let DataType::Array(Some(array_type)) = &array_type
+                        && array_type.as_ref() != &elem_type
+                    {
+                        true
+                    } else {
+                        false
+                    }
+                } || (array_type == DataType::String && elem_type != DataType::String)
                 {
                     throw_parser_error(
                         src,
@@ -1585,7 +1593,7 @@ pub fn compile_expr(
                         register_id: current_element_id,
                         infered_type: match array_type {
                             DataType::String => DataType::String,
-                            DataType::Array(a_type) => *a_type,
+                            DataType::Array(a_type) => a_type.map_or(DataType::Null, |t| *t),
                             t => throw_parser_error(src, markers, ErrType::IsNotAnIterator(&t)),
                         },
                     });

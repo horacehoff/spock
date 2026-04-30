@@ -48,7 +48,10 @@ impl std::fmt::Display for DataType {
             DataType::Int => write!(f, "Integer"),
             DataType::Bool => write!(f, "Boolean"),
             DataType::String => write!(f, "String"),
-            DataType::Array(array_type) => write!(f, "Array<{}>", array_type),
+            DataType::Array(array_type) => match array_type {
+                Some(t) => write!(f, "Array<{}>", t),
+                None => write!(f, "Array<?>"),
+            },
             DataType::Null => write!(f, "Null"),
             DataType::File => write!(f, "File"),
             DataType::Poly(types) => write!(

@@ -1087,7 +1087,324 @@ pub fn int_range_loop_fn_called_twice() {
     );
 }
 
-// // --- mutual recursion ---
+#[test]
+pub fn inc_int_to_basic() {
+    // y = x + 1 where y != x  →  IncIntTo(x_reg, y_reg)
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 5;
+            let y = x + 1;
+            print(y);
+        }
+        ",
+        6.into()
+    );
+}
+
+#[test]
+pub fn dec_int_to_basic() {
+    // y = x - 1 where y != x  →  DecIntTo(x_reg, y_reg)
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 5;
+            let y = x - 1;
+            print(y);
+        }
+        ",
+        4.into()
+    );
+}
+
+#[test]
+pub fn inc_int_commutative() {
+    // y = 1 + x  (addition is commutative, same fast path)
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 10;
+            let y = 1 + x;
+            print(y);
+        }
+        ",
+        11.into()
+    );
+}
+
+#[test]
+pub fn inc_int_to_chained() {
+    // z = y + 1 where y = x + 1  (two successive IncIntTo)
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 3;
+            let y = x + 1;
+            let z = y + 1;
+            print(z);
+        }
+        ",
+        5.into()
+    );
+}
+
+#[test]
+pub fn inc_int_as_function_arg() {
+    // x + 1 passed directly as an argument
+    run_and_check_registers!(
+        "
+        function identity(n) { return n; }
+        function main() {
+            let x = 7;
+            print(identity(x + 1));
+        }
+        ",
+        8.into()
+    );
+}
+
+#[test]
+pub fn dec_int_as_return_value() {
+    // return x - 1 from a function
+    run_and_check_registers!(
+        "
+        function pred(n) { return n - 1; }
+        function main() {
+            print(pred(20));
+        }
+        ",
+        19.into()
+    );
+}
+
+#[test]
+pub fn inc_int_in_condition() {
+    // if (x + 1) > threshold — exercises IncIntTo inside a comparison
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 9;
+            let result = 0;
+            if x + 1 > 9 { result = 1; }
+            print(result);
+        }
+        ",
+        1.into()
+    );
+}
+
+#[test]
+pub fn inc_int_does_not_mutate_source() {
+    // After y = x + 1, x must still hold its original value
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 41;
+            let y = x + 1;
+            print(x);
+        }
+        ",
+        41.into()
+    );
+}
+
+#[test]
+pub fn dec_int_does_not_mutate_source() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 41;
+            let y = x - 1;
+            print(x);
+        }
+        ",
+        41.into()
+    );
+}
+
+#[test]
+pub fn int_wraps_on_overflow() {
+    // 2147483647 + 1 wraps to -2147483648 (i32 wrapping semantics)
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 2147483647;
+            x += 1;
+            print(x);
+        }
+        ",
+        (-2147483648_i32).into()
+    );
+}
+
+#[test]
+pub fn int_wraps_on_underflow() {
+    // -2147483648 can't be written as a literal (parser sees unary minus on 2147483648
+    // which overflows i32). Build i32::MIN through arithmetic instead.
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 0 - 2147483647;
+            x -= 1;
+            x -= 1;
+            print(x);
+        }
+        ",
+        2147483647_i32.into()
+    );
+}
+
+#[test]
+pub fn string_exactly_6_chars() {
+    // 6-char strings are stored inline (small string)
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "abcdef";
+            print(s.len());
+        }
+        "#,
+        6.into()
+    );
+}
+
+#[test]
+pub fn string_exactly_7_chars() {
+    // 7-char strings go into the pool (large string)
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "abcdefg";
+            print(s.len());
+        }
+        "#,
+        7.into()
+    );
+}
+
+#[test]
+pub fn string_small_to_large_concat() {
+    // Concatenating two small strings can produce a large one
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let a = "abc";
+            let b = "defgh";
+            let c = a + b;
+            print(c.len());
+        }
+        "#,
+        8.into()
+    );
+}
+
+#[test]
+pub fn empty_range_for_loop() {
+    // 0..0 should iterate zero times
+    run_and_check_registers!(
+        "
+        function main() {
+            let count = 99;
+            for _ in 0..0 { count += 1; }
+            print(count);
+        }
+        ",
+        99.into()
+    );
+}
+
+#[test]
+pub fn while_never_executes() {
+    // Condition false from the start
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = 5;
+            while x > 10 { x += 1; }
+            print(x);
+        }
+        ",
+        5.into()
+    );
+}
+
+#[test]
+pub fn break_only_breaks_inner_loop() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let outer = 0;
+            for i in 0..3 {
+                for j in 0..100 {
+                    if j == 2 { break; }
+                }
+                outer += 1;
+            }
+            print(outer);
+        }
+        ",
+        3.into()
+    );
+}
+
+#[test]
+pub fn empty_array_len() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let arr = [];
+            print(arr.len());
+        }
+        ",
+        0.into()
+    );
+}
+
+#[test]
+pub fn empty_array_iteration() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let arr = [];
+            let count = 0;
+            for _ in arr { count += 1; }
+            print(count);
+        }
+        ",
+        0.into()
+    );
+}
+
+#[test]
+pub fn single_element_array_len() {
+    run_and_check_registers!(
+        "
+        function main() {
+            let arr = [42];
+            print(arr.len());
+        }
+        ",
+        1.into()
+    );
+}
+
+#[test]
+pub fn array_after_all_removes() {
+    // Remove all elements one by one, check length reaches 0
+    run_and_check_registers!(
+        "
+        function main() {
+            let arr = [1, 2, 3];
+            arr.remove(0);
+            arr.remove(0);
+            arr.remove(0);
+            print(arr.len());
+        }
+        ",
+        0.into()
+    );
+}
+
 // #[test]
 // pub fn mutual_recursion() {
 //     run_and_check_registers!(

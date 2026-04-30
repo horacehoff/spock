@@ -205,15 +205,15 @@ pub fn handle_method_calls(
             check!(DataType::String | DataType::Array(_), "Array or String", 1);
 
             let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
-            if let DataType::Array(array_elem_type) = &obj_type {
-                if **array_elem_type != arg_type {
-                    throw_parser_error(
-                        src,
-                        &args_indexes[0],
-                        ErrType::InvalidType(*array_elem_type.clone(), &arg_type),
-                    );
-                }
-            } else if arg_type != obj_type {
+            if let DataType::Array(Some(array_elem_type)) = &obj_type
+                && **array_elem_type != arg_type
+            {
+                throw_parser_error(
+                    src,
+                    &args_indexes[0],
+                    ErrType::InvalidType(*array_elem_type.clone(), &arg_type),
+                );
+            } else if !matches!(obj_type, DataType::Array(None)) && arg_type != obj_type {
                 throw_parser_error(
                     src,
                     &args_indexes[0],
@@ -326,7 +326,7 @@ pub fn handle_method_calls(
             check!(DataType::Array(_), "Array", 1);
 
             let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
-            if let DataType::Array(array_elem_type) = &obj_type
+            if let DataType::Array(Some(array_elem_type)) = &obj_type
                 && **array_elem_type != arg_type
             {
                 throw_parser_error(
@@ -408,7 +408,7 @@ pub fn handle_method_calls(
             check!(DataType::Array(_), "Array", 1);
 
             let arg_type = infer_type(&args[0], v, state.fns, src, state.dyn_libs);
-            if let DataType::Array(array_elem_type) = obj_type
+            if let DataType::Array(Some(array_elem_type)) = obj_type
                 && *array_elem_type != arg_type
             {
                 throw_parser_error(
@@ -425,7 +425,7 @@ pub fn handle_method_calls(
             ));
         }
         "join" => {
-            let expected = DataType::Array(Box::from(DataType::String));
+            let expected = DataType::Array(Some(Box::from(DataType::String)));
             if !{
                 if let DataType::Poly(polytype) = &obj_type {
                     polytype.iter().all(|x| x == &expected)
