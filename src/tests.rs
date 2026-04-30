@@ -1239,18 +1239,30 @@ pub fn int_wraps_on_overflow() {
 
 #[test]
 pub fn int_wraps_on_underflow() {
-    // -2147483648 can't be written as a literal (parser sees unary minus on 2147483648
-    // which overflows i32). Build i32::MIN through arithmetic instead.
+    // -2147483648 is i32::MIN; subtracting 1 wraps around to i32::MAX = 2147483647
     run_and_check_registers!(
         "
         function main() {
-            let x = 0 - 2147483647;
-            x -= 1;
+            let x = -2147483648;
             x -= 1;
             print(x);
         }
         ",
         2147483647_i32.into()
+    );
+}
+
+#[test]
+pub fn negative_int_literal() {
+    // -2147483648 is i32::MIN and must parse without "integer too big" error
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = -2147483648;
+            print(x);
+        }
+        ",
+        (-2147483648_i32).into()
     );
 }
 
