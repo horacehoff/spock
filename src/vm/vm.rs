@@ -308,8 +308,15 @@ pub fn execute(
             Instr::PowInt(o1, o2, dest) => {
                 *w!(dest) = (r!(o1).as_int().pow(r!(o2).as_int() as u32)).into();
             }
-            Instr::IncInt(reg) => {
-                *w!(reg) = (r!(reg).as_int() + 1).into();
+            Instr::IncInt(reg) => w!(reg).inc_int(),
+            Instr::DecInt(reg) => w!(reg).dec_int(),
+            Instr::IncIntTo(src, dst) => {
+                let s = r!(src);
+                w!(dst).inc_into(s);
+            }
+            Instr::DecIntTo(src, dst) => {
+                let s = r!(src);
+                w!(dst).dec_into(s);
             }
             Instr::Eq(o1, o2, dest) => {
                 *w!(dest) = (r!(o1) == r!(o2)).into();

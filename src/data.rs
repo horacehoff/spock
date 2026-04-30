@@ -175,11 +175,7 @@ impl Data {
         debug_assert!(self.is_str());
         if (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_SMALL {
             let payload = self.0 & PAYLOAD_MASK;
-            let len = if payload == 0 {
-                0
-            } else {
-                (payload.ilog2() / 8 + 1) as usize
-            };
+            let len = ((64 - payload.leading_zeros()) as usize + 7) >> 3;
             let ptr = self as *const Data as *const u8;
             unsafe {
                 let slice = std::slice::from_raw_parts(ptr, len);
@@ -192,8 +188,32 @@ impl Data {
     }
     #[inline(always)]
     pub fn is_str(&self) -> bool {
-        (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_SMALL
-            || (self.0 & !PAYLOAD_MASK) == NAN_TAG_STRING_LARGE
+        // this works because NAN_TAG_STRING_LARGE == NAN_TAG_STRING_SMALL + (1 << 48)
+        (self.0 & !PAYLOAD_MASK).wrapping_sub(NAN_TAG_STRING_SMALL) <= const { 1u64 << 48 }
+    }
+    /// Increments the integer stored in this Data in-place. Wraps.
+    #[inline(always)]
+    pub fn inc_int(&mut self) {
+        debug_assert!(self.is_int());
+        self.0 = NAN_TAG_INT | (self.0.wrapping_add(1) & 0xFFFF_FFFF);
+    }
+    /// Decrements the integer stored in this Data in-place. Wraps.
+    #[inline(always)]
+    pub fn dec_int(&mut self) {
+        debug_assert!(self.is_int());
+        self.0 = NAN_TAG_INT | (self.0.wrapping_sub(1) & 0xFFFF_FFFF);
+    }
+    /// Writes src + 1 into self. Wraps.
+    #[inline(always)]
+    pub fn inc_into(&mut self, src: Data) {
+        debug_assert!(src.is_int());
+        self.0 = NAN_TAG_INT | (src.0.wrapping_add(1) & 0xFFFF_FFFF);
+    }
+    /// Writes src - 1 into self. Wraps.
+    #[inline(always)]
+    pub fn dec_into(&mut self, src: Data) {
+        debug_assert!(src.is_int());
+        self.0 = NAN_TAG_INT | (src.0.wrapping_sub(1) & 0xFFFF_FFFF);
     }
     #[inline(always)]
     pub fn is_large_str(&self) -> bool {

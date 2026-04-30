@@ -50,7 +50,7 @@ All times are measured with [hyperfine](https://github.com/sharkdp/hyperfine) (`
 end</code></pre></td>
 </tr>
 <tr>
-  <td><b>93.9ms</b></td>
+  <td><b>52.3ms</b></td>
   <td>684ms</td>
   <td>35.8ms</td>
   <td>62.4ms</td>
@@ -97,7 +97,7 @@ end
 print(fib(30))</code></pre></td>
 </tr>
 <tr>
-  <td><b>39.5ms</b></td>
+  <td><b>40.4ms</b></td>
   <td>114.5ms</td>
   <td>45.6ms</td>
   <td>36.9ms</td>
@@ -158,7 +158,7 @@ end
 print(result)</code></pre></td>
 </tr>
 <tr>
-  <td><b>18.2ms</b></td>
+  <td><b>18ms</b></td>
   <td>137.8ms</td>
   <td>39.7ms</td>
   <td>25.6ms</td>
@@ -202,7 +202,7 @@ end
 print(x)</code></pre></td>
 </tr>
 <tr>
-  <td><b>121ms</b></td>
+  <td><b>96.2ms</b></td>
   <td>992ms</td>
   <td>50ms</td>
   <td>173.8ms</td>
@@ -420,7 +420,7 @@ end
 print(last)</code></pre></td>
 </tr>
 <tr>
-  <td><b>26.7ms</b></td>
+  <td><b>26.6ms</b></td>
   <td>172.5ms</td>
   <td>48.9ms</td>
   <td>84.3ms</td>

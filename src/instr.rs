@@ -52,6 +52,14 @@ pub enum Instr {
     PowInt(u16, u16, u16),
     /// Increments the integer in-place by 1.
     IncInt(u16),
+    /// Decrements the integer in-place by 1.
+    DecInt(u16),
+    /// IncIntTo(src, dst)\
+    /// dst = src + 1
+    IncIntTo(u16, u16),
+    /// DecIntTo(src, dst)\
+    /// dst = src - 1
+    DecIntTo(u16, u16),
     Eq(u16, u16, u16),
     NotEq(u16, u16, u16),
     ArrayEq(u16, u16, u16),
@@ -160,7 +168,7 @@ pub enum LibFunc {
     JoinStringArray = 30,
     Reverse = 31,
     FsRead = 32,
-    FsExists = 323,
+    FsExists = 33,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -166,6 +166,8 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         || matches!(
             x.last().unwrap(),
             Instr::ArrayMov(_, _, _) // | Instr::IoDelete(_)
+            | Instr::IncInt(_)
+            | Instr::DecInt(_)
         )
     {
         return;
@@ -214,7 +216,9 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::GetIndexArray(_, _, y)
         | Instr::GetIndexString(_, _, y)
         | Instr::SaveFrame(_, y, _)
-        | Instr::CallDynamicLibFunc(_, y) => *y = tgt_id,
+        | Instr::CallDynamicLibFunc(_, y)
+        | Instr::IncIntTo(_, y)
+        | Instr::DecIntTo(_, y) => *y = tgt_id,
         Instr::CallFuncRecursive(_, y_func) => {
             *y_func = tgt_id;
             for i in 1..x.len() - 1 {
@@ -308,7 +312,10 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         // | Instr::IoOpen(_, y, _)
         | Instr::SetElementString(y, _, _)
         | Instr::CallDynamicLibFunc(_, y)
-        | Instr::IncInt(y) => Some(y),
+        | Instr::IncInt(y)
+        | Instr::DecInt(y)
+        | Instr::IncIntTo(_, y)
+        | Instr::DecIntTo(_, y) => Some(y),
 
     }
 }
@@ -385,11 +392,8 @@ pub fn get_id(
             let id_r = get_id($r, v, ctx, state, output, None, false, offset, single_run);
             free_register(id_l, state.free_registers, v, state.const_registers);
             free_register(id_r, state.free_registers, v, state.const_registers);
-            let id = if let Some(tgt_register_id) = tgt_id {
-                tgt_register_id
-            } else {
-                alloc_register(state.registers, state.free_registers)
-            };
+            let id =
+                tgt_id.unwrap_or_else(|| alloc_register(state.registers, state.free_registers));
             output.push(Instr::$instr(id_l, id_r, id));
             id
         }};
@@ -405,11 +409,8 @@ pub fn get_id(
             let id_r = get_id($r, v, ctx, state, output, None, false, offset, single_run);
             free_register(id_l, state.free_registers, v, state.const_registers);
             free_register(id_r, state.free_registers, v, state.const_registers);
-            let id = if let Some(tgt_register_id) = tgt_id {
-                tgt_register_id
-            } else {
-                alloc_register(state.registers, state.free_registers)
-            };
+            let id =
+                tgt_id.unwrap_or_else(|| alloc_register(state.registers, state.free_registers));
             output.push(if t_l == $type1 {
                 Instr::$instr(id_l, id_r, id)
             } else {
@@ -573,6 +574,30 @@ pub fn get_id(
             {
                 throw_parser_error(src, markers, ErrType::OpError(&t_l, &t_r, "+"));
             }
+            // Fast path: intVar + 1  or  1 + intVar  →  IncInt / IncIntTo
+            if t_l == DataType::Int {
+                let var_side = if matches!(r.as_ref(), Expr::Int(1)) {
+                    Some(l.as_ref())
+                } else if matches!(l.as_ref(), Expr::Int(1)) {
+                    Some(r.as_ref())
+                } else {
+                    None
+                };
+                if let Some(Expr::Var(src_name, _)) = var_side {
+                    if let Some(src_var) = v.iter().rfind(|x| x.name == *src_name) {
+                        let src_id = src_var.register_id;
+                        let id = tgt_id.unwrap_or_else(|| {
+                            alloc_register(state.registers, state.free_registers)
+                        });
+                        output.push(if src_id == id {
+                            Instr::IncInt(id)
+                        } else {
+                            Instr::IncIntTo(src_id, id)
+                        });
+                        return id;
+                    }
+                }
+            }
             let id_l = get_id(l, v, ctx, state, output, None, false, offset, single_run);
             let id_r = get_id(r, v, ctx, state, output, None, false, offset, single_run);
             free_register(id_l, state.free_registers, v, state.const_registers);
@@ -588,22 +613,53 @@ pub fn get_id(
                 output.push(Instr::AddStr(id_l, id_r, id));
             } else if t_l == DataType::Float {
                 output.push(Instr::AddFloat(id_l, id_r, id));
-            } else if t_l == DataType::Int {
+            } else {
                 output.push(Instr::AddInt(id_l, id_r, id));
             }
             id
         }
         Expr::Sub(l, r, markers) => {
-            uniform_op!(
-                SubFloat,
-                SubInt,
-                "-",
-                l,
-                r,
-                markers,
-                DataType::Float,
-                DataType::Int
-            )
+            let t_l = infer_type(l, v, state.fns, src, state.dyn_libs);
+            let t_r = infer_type(r, v, state.fns, src, state.dyn_libs);
+            if !((t_l == DataType::Float && t_r == DataType::Float)
+                || (t_l == DataType::Int && t_r == DataType::Int))
+            {
+                throw_parser_error(src, markers, ErrType::OpError(&t_l, &t_r, "-"));
+            }
+            // Fast path: intVar - 1  →  DecInt / DecIntTo
+            if t_l == DataType::Int {
+                if matches!(r.as_ref(), Expr::Int(1)) {
+                    if let Expr::Var(src_name, _) = l.as_ref() {
+                        if let Some(src_var) = v.iter().rfind(|x| x.name == *src_name) {
+                            let src_id = src_var.register_id;
+                            let id = tgt_id.unwrap_or_else(|| {
+                                alloc_register(state.registers, state.free_registers)
+                            });
+                            output.push(if src_id == id {
+                                Instr::DecInt(id)
+                            } else {
+                                Instr::DecIntTo(src_id, id)
+                            });
+                            return id;
+                        }
+                    }
+                }
+            }
+            let id_l = get_id(l, v, ctx, state, output, None, false, offset, single_run);
+            let id_r = get_id(r, v, ctx, state, output, None, false, offset, single_run);
+            free_register(id_l, state.free_registers, v, state.const_registers);
+            free_register(id_r, state.free_registers, v, state.const_registers);
+            let id = if let Some(tgt_register_id) = tgt_id {
+                tgt_register_id
+            } else {
+                alloc_register(state.registers, state.free_registers)
+            };
+            output.push(if t_l == DataType::Float {
+                Instr::SubFloat(id_l, id_r, id)
+            } else {
+                Instr::SubInt(id_l, id_r, id)
+            });
+            id
         }
         Expr::Mod(l, r, markers) => {
             uniform_op!(
@@ -1031,6 +1087,9 @@ pub fn for_each_read_reg(instr: Instr, mut f: impl FnMut(u16)) {
 
         Instr::Mov(a, _)
         | Instr::IncInt(a)
+        | Instr::DecInt(a)
+        | Instr::IncIntTo(a, _)
+        | Instr::DecIntTo(a, _)
         | Instr::NegFloat(a, _)
         | Instr::NegInt(a, _)
         | Instr::CallLibFunc(_, a, _)
@@ -1763,6 +1822,68 @@ pub fn compile_expr(
                         throw_parser_error(src, markers, ErrType::UnknownVariable(name));
                     })
                     .register_id;
+
+                // Fast path:
+                //   x += 1  / x = x + 1  → IncInt(id)       (in-place)
+                //   x -= 1  / x = x - 1  → DecInt(id)       (in-place)
+                //   x = y + 1 / x = 1 + y → IncIntTo(y, id) (cross-register)
+                //   x = y - 1             → DecIntTo(y, id)  (cross-register)
+                if var_type == DataType::Int {
+                    // Returns (is_inc, src_var_name) for any `<intVar> ± 1` pattern.
+                    let inc_dec: Option<(bool, &str)> = match y.as_ref() {
+                        Expr::Add(l, r, _) => {
+                            let src = if matches!(r.as_ref(), Expr::Int(1)) {
+                                Some(l.as_ref())
+                            } else if matches!(l.as_ref(), Expr::Int(1)) {
+                                Some(r.as_ref())
+                            } else {
+                                None
+                            };
+                            src.and_then(|e| {
+                                if let Expr::Var(src_name, _) = e {
+                                    v.iter()
+                                        .rfind(|x| x.name == *src_name)
+                                        .filter(|x| x.infered_type == DataType::Int)
+                                        .map(|_| (true, src_name.as_str()))
+                                } else {
+                                    None
+                                }
+                            })
+                        }
+                        Expr::Sub(l, r, _) => {
+                            if matches!(r.as_ref(), Expr::Int(1)) {
+                                if let Expr::Var(src_name, _) = l.as_ref() {
+                                    v.iter()
+                                        .rfind(|x| x.name == *src_name)
+                                        .filter(|x| x.infered_type == DataType::Int)
+                                        .map(|_| (false, src_name.as_str()))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    };
+                    if let Some((is_inc, src_name)) = inc_dec {
+                        let src_id = v.iter().rfind(|x| x.name == src_name).unwrap().register_id;
+                        output.push(if src_id == id {
+                            if is_inc {
+                                Instr::IncInt(id)
+                            } else {
+                                Instr::DecInt(id)
+                            }
+                        } else {
+                            if is_inc {
+                                Instr::IncIntTo(src_id, id)
+                            } else {
+                                Instr::DecIntTo(src_id, id)
+                            }
+                        });
+                        continue;
+                    }
+                }
 
                 let output_len = output.len();
                 let obj_id = get_id(
