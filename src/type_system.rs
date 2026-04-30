@@ -8,6 +8,16 @@ use crate::parser_data::FnSignature;
 use crate::parser_data::Function;
 use crate::parser_data::Variable;
 use libffi::middle::Type;
+use smol_str::SmolStr;
+use std::cell::RefCell;
+use std::collections::HashSet;
+
+// Tracks which user-defined functions are currently being analysed for their
+// return type. Used to break mutual-recursion cycles in type inference
+thread_local! {
+    static RETURN_TYPE_INFERRING: RefCell<HashSet<SmolStr>> =
+        RefCell::new(HashSet::new());
+}
 
 #[derive(Debug, Clone)]
 pub enum DataType {
@@ -283,7 +293,10 @@ pub fn track_returns(
                     let contains_call = contains_recursive_call_expr(val, fn_name);
                     if !contains_call {
                         let infered = infer_type(val, v, fns, src, dyn_libs);
-                        if !return_types.contains(&infered) {
+                        // Discard Null inferred from a value expression -> it means
+                        // the cycle guard fired (mutual recursion) rather than the
+                        // expression genuinely evaluating to void/null
+                        if infered != DataType::Null && !return_types.contains(&infered) {
                             return_types.push(infered);
                         }
                     }
@@ -475,6 +488,18 @@ pub fn infer_type(
                         });
                     }
 
+                    // Mutual-recursion cycle guard -> if we are already in the
+                    // middle of inferring this function's return type, return Null to break the cycle
+                    let already_inferring =
+                        RETURN_TYPE_INFERRING.with(|s| s.borrow().contains(function_name));
+                    if already_inferring {
+                        v.truncate(v_len_before_args);
+                        return DataType::Null;
+                    }
+
+                    RETURN_TYPE_INFERRING
+                        .with(|s| s.borrow_mut().insert(SmolStr::from(function_name)));
+
                     // ----- MORE COMPLEX SOLUTION (DOES NOT ALLOW NULL OPS) -----
                     // let mut fn_type = [
                     //     track_returns(fn_code, var_types, fns, src, function, false),
@@ -486,6 +511,9 @@ pub fn infer_type(
 
                     let fn_type =
                         track_returns(fn_code, v, fns, src, function_name, true, dyn_libs);
+
+                    RETURN_TYPE_INFERRING.with(|s| s.borrow_mut().remove(function_name));
+
                     let to_return = if !fn_type.is_empty() {
                         // If function returns anything, check if it returns the same thing each time
                         check_poly(DataType::Poly(Box::from(fn_type)))

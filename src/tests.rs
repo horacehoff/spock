@@ -1417,22 +1417,22 @@ pub fn array_after_all_removes() {
     );
 }
 
-// #[test]
-// pub fn mutual_recursion() {
-//     run_and_check_registers!(
-//         "
-//         function is_even(n) {
-//             if n == 0 { return true; }
-//             return is_odd(n - 1);
-//         }
-//         function is_odd(n) {
-//             if n == 0 { return false; }
-//             return is_even(n - 1);
-//         }
-//         function main() {
-//             print(is_even(10));
-//         }
-//         ",
-//         true.into()
-//     );
-// }
+#[test]
+pub fn mutual_recursion() {
+    run_and_check_registers!(
+        "
+        function is_even(n) {
+            if n == 0 { return true; }
+            return is_odd(n - 1);
+        }
+        function is_odd(n) {
+            if n == 0 { return false; }
+            return is_even(n - 1);
+        }
+        function main() {
+            print(is_even(10));
+        }
+        ",
+        true.into()
+    );
+}
