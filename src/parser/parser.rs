@@ -263,6 +263,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::VoidReturn
         | Instr::Remove(_, _)
         | Instr::CallLibFuncVoid(_, _, _)
+        | Instr::Halt
 
         => None,
         Instr::Mov(_, y)
@@ -1056,7 +1057,8 @@ pub fn for_each_read_reg(instr: Instr, mut f: impl FnMut(u16)) {
         | Instr::SaveFrame(_, _, _)
         | Instr::CallDynamicLibFunc(_, _)
         | Instr::SetInt(_, _)
-        | Instr::SetBool(_, _) => {}
+        | Instr::SetBool(_, _)
+        | Instr::Halt => {}
     }
 }
 
@@ -2163,7 +2165,7 @@ pub fn parse(
         free_registers: &mut free_registers,
         sources: &mut sources,
     };
-    let instructions = compile_expr(
+    let mut instructions = compile_expr(
         &state.fns
             .iter()
             .find(|func| func.name == "main")
@@ -2181,6 +2183,7 @@ pub fn parse(
         0,
         true
     );
+    instructions.push(Instr::Halt);
     for x in fn_registers.iter_mut() {
         x.sort();
         x.dedup();

@@ -120,6 +120,9 @@ pub enum Instr {
 
     /// Remove(array_reg_id, elem_index_reg_id)
     Remove(u16, u16),
+
+    /// Sentinel: terminates the interpreter loop.
+    Halt,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
