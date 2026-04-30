@@ -33,6 +33,7 @@ pub enum Expr {
     Float(f64),
     Int(i32),
     Bool(bool),
+    Null,
     String(SmolStr),
     /// Var(name, start, end)
     Var(SmolStr, (usize, usize)),
@@ -470,6 +471,23 @@ pub fn get_id(
                 state
                     .registers
                     .push(Data::p_str(str, &mut state.pools.string_pool));
+                (state.registers.len() - 1) as u16
+            }
+        }
+        Expr::Null => {
+            if var_assignment {
+                state.registers.push(NULL);
+                return (state.registers.len() - 1) as u16;
+            }
+            if let Some(id) = state
+                .const_registers
+                .iter()
+                .find(|x| state.registers[**x as usize].is_null())
+            {
+                *id
+            } else {
+                state.const_registers.push(state.registers.len() as u16);
+                state.registers.push(NULL);
                 (state.registers.len() - 1) as u16
             }
         }
@@ -1171,6 +1189,7 @@ pub fn compile_expr(
             Expr::Float(num) => state.registers.push((*num).into()),
             Expr::Int(num) => state.registers.push((*num).into()),
             Expr::Bool(bool) => state.registers.push((*bool).into()),
+            Expr::Null => state.registers.push(NULL),
             Expr::String(str) => state
                 .registers
                 .push(Data::p_str(str, &mut state.pools.string_pool)),

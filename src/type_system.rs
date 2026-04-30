@@ -330,6 +330,7 @@ pub fn infer_type(
         Expr::Int(_) => DataType::Int,
         Expr::String(_) => DataType::String,
         Expr::Bool(_) => DataType::Bool,
+        Expr::Null => DataType::Null,
         Expr::Array(x, _) => DataType::Array(if x.is_empty() {
             None
         } else {

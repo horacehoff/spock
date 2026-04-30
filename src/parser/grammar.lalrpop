@@ -451,6 +451,7 @@ Term: Expr = {
     <i: Integer> => Expr::Int(i),
     <t: Float> => Expr::Float(t),
     <b: Bool> => Expr::Bool(b),
+    <n: Null> => n,
     <start: @L> <v: Var> <end: @R> => Expr::Var(v, (start, end)),
     <s: String> => Expr::String(s),
     <a: Array> => <>,
@@ -496,6 +497,10 @@ Integer: i32 = {
 Bool: bool = {
     "true" => true,
     "false" => false,
+}
+
+Null: Expr = {
+    "null" => Expr::Null,
 }
 
 String: SmolStr = {

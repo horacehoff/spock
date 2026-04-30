@@ -1436,3 +1436,32 @@ pub fn mutual_recursion() {
         true.into()
     );
 }
+
+#[test]
+pub fn null_literal_store_and_compare() {
+    // null literal should be expressible, storable, and equal to itself
+    run_and_check_registers!(
+        "
+        function main() {
+            let x = null;
+            print(x == null);
+        }
+        ",
+        true.into()
+    );
+}
+
+#[test]
+pub fn null_literal_as_default() {
+    // null used as a sentinel / unset value, then overwritten
+    run_and_check_registers!(
+        "
+        function main() {
+            let result = null;
+            result = 42;
+            print(result);
+        }
+        ",
+        42.into()
+    );
+}
