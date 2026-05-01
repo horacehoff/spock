@@ -46,13 +46,17 @@ pub enum Instr {
     SubInt(u16, u16, u16),
     DivFloat(u16, u16, u16),
     DivInt(u16, u16, u16),
+    /// DivInt without a runtime zero-check
+    DivIntUnchecked(u16, u16, u16),
     ModFloat(u16, u16, u16),
     ModInt(u16, u16, u16),
+    /// ModInt without a runtime zero-check
+    ModIntUnchecked(u16, u16, u16),
     PowFloat(u16, u16, u16),
     PowInt(u16, u16, u16),
-    /// Increments the integer in-place by 1.
+    /// Increments the integer in-place by 1
     IncInt(u16),
-    /// Decrements the integer in-place by 1.
+    /// Decrements the integer in-place by 1
     DecInt(u16),
     /// IncIntTo(src, dst)\
     /// dst = src + 1

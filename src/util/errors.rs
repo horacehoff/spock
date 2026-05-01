@@ -125,6 +125,8 @@ pub enum ErrType<'a> {
     /// DuplicateFunctionInImport(fn_name, file_path)
     DuplicateFunctionInImport(&'a str, &'a str),
     IsNotAnIterator(&'a DataType),
+    DivisionByZero,
+    ModuloByZero,
 }
 
 impl From<ErrType<'_>> for SmolStr {
@@ -211,7 +213,9 @@ impl From<ErrType<'_>> for SmolStr {
             ErrType::DuplicateFunctionInImport(fn_name, file_path) => format_args!(
                 "Function {color_bright_blue}{style_bold}{fn_name}{color_reset}{style_reset} imported from {color_bright_red}{style_bold}{file_path}{color_reset}{style_reset} is already defined"
             ).to_smolstr(),
-            ErrType::IsNotAnIterator(t) => format_args!("The type {color_bright_red}{style_bold}{t}{color_reset}{style_reset} is not a collection").to_smolstr()
+            ErrType::IsNotAnIterator(t) => format_args!("The type {color_bright_red}{style_bold}{t}{color_reset}{style_reset} is not a collection").to_smolstr(),
+            ErrType::DivisionByZero => "Division by zero".into(),
+            ErrType::ModuloByZero => "Modulo by zero".into()
         }
     }
 }

@@ -1,17 +1,17 @@
 use crate::Data;
 use crate::DynamicLibFn;
-use crate::ErrType;
 use crate::FALSE;
 use crate::Instr;
 use crate::LibFunc;
 use crate::NULL;
 use crate::alloc_array;
+use crate::errors::ErrType;
+use crate::errors::throw_error;
 use crate::format_data;
 use crate::fs;
 use crate::instr::LibFuncVoid;
 use crate::likely;
 use crate::parser_data::Pools;
-use crate::throw_error;
 use crate::util::unlikely;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
@@ -288,6 +288,19 @@ pub fn execute(
                 *w!(dest) = (r!(o1).as_float() / r!(o2).as_float()).into();
             }
             Instr::DivInt(o1, o2, dest) => {
+                let b = r!(o2).as_int();
+                if unlikely(b == 0) {
+                    cold_path();
+                    throw_error(
+                        instr_src,
+                        sources,
+                        &Instr::DivInt(o1, o2, dest),
+                        ErrType::DivisionByZero,
+                    );
+                }
+                *w!(dest) = (r!(o1).as_int() / b).into();
+            }
+            Instr::DivIntUnchecked(o1, o2, dest) => {
                 *w!(dest) = (r!(o1).as_int() / r!(o2).as_int()).into();
             }
             Instr::SubFloat(o1, o2, dest) => {
@@ -300,6 +313,19 @@ pub fn execute(
                 *w!(dest) = (r!(o1).as_float() % r!(o2).as_float()).into();
             }
             Instr::ModInt(o1, o2, dest) => {
+                let b = r!(o2).as_int();
+                if unlikely(b == 0) {
+                    cold_path();
+                    throw_error(
+                        instr_src,
+                        sources,
+                        &Instr::ModInt(o1, o2, dest),
+                        ErrType::ModuloByZero,
+                    );
+                }
+                *w!(dest) = (r!(o1).as_int() % b).into();
+            }
+            Instr::ModIntUnchecked(o1, o2, dest) => {
                 *w!(dest) = (r!(o1).as_int() % r!(o2).as_int()).into();
             }
             Instr::PowFloat(o1, o2, dest) => {

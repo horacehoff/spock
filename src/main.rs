@@ -3,8 +3,6 @@ use crate::data::Data;
 use crate::data::FALSE;
 use crate::data::NULL;
 use crate::display::format_data;
-use crate::errors::ErrType;
-use crate::errors::throw_error;
 use crate::instr::Instr;
 use crate::instr::LibFunc;
 use crate::parser::parse;

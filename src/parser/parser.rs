@@ -192,8 +192,10 @@ pub fn move_to_id(x: &mut [Instr], tgt_id: u16) {
         | Instr::SubInt(_, _, y)
         | Instr::DivFloat(_, _, y)
         | Instr::DivInt(_, _, y)
+        | Instr::DivIntUnchecked(_, _, y)
         | Instr::ModFloat(_, _, y)
         | Instr::ModInt(_, _, y)
+        | Instr::ModIntUnchecked(_, _, y)
         | Instr::PowFloat(_, _, y)
         | Instr::PowInt(_, _, y)
         | Instr::Eq(_, _, y)
@@ -286,8 +288,10 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::SubInt(_, _, y)
         | Instr::DivFloat(_, _, y)
         | Instr::DivInt(_, _, y)
+        | Instr::DivIntUnchecked(_, _, y)
         | Instr::ModFloat(_, _, y)
         | Instr::ModInt(_, _, y)
+        | Instr::ModIntUnchecked(_, _, y)
         | Instr::PowFloat(_, _, y)
         | Instr::PowInt(_, _, y)
         | Instr::Eq(_, _, y)
@@ -571,7 +575,16 @@ pub fn get_id(
             )
         }
         Expr::Div(l, r, markers) => {
-            uniform_op!(
+            // Check for a constant integer divisor at compile time
+            let const_divisor = if let Expr::Int(n) = r.as_ref() {
+                if *n == 0 {
+                    throw_parser_error(src, markers, ErrType::DivisionByZero);
+                }
+                true
+            } else {
+                false
+            };
+            let id = uniform_op!(
                 DivFloat,
                 DivInt,
                 "/",
@@ -580,7 +593,20 @@ pub fn get_id(
                 markers,
                 DataType::Float,
                 DataType::Int
-            )
+            );
+            if matches!(output.last(), Some(Instr::DivInt(..))) {
+                if const_divisor {
+                    // Skip the runtime check if the divisor is known to be non-zero
+                    if let Some(Instr::DivInt(o1, o2, dest)) = output.pop() {
+                        output.push(Instr::DivIntUnchecked(o1, o2, dest));
+                    }
+                } else {
+                    state
+                        .instr_src
+                        .push((*output.last().unwrap(), *markers, ctx.current_src_file));
+                }
+            }
+            id
         }
         Expr::Add(l, r, markers) => {
             let t_l = infer_type(l, v, state.fns, src, state.dyn_libs);
@@ -681,7 +707,16 @@ pub fn get_id(
             id
         }
         Expr::Mod(l, r, markers) => {
-            uniform_op!(
+            // Check for a constant integer divisor at compile time
+            let const_divisor = if let Expr::Int(n) = r.as_ref() {
+                if *n == 0 {
+                    throw_parser_error(src, markers, ErrType::ModuloByZero);
+                }
+                true
+            } else {
+                false
+            };
+            let id = uniform_op!(
                 ModFloat,
                 ModInt,
                 "%",
@@ -690,7 +725,20 @@ pub fn get_id(
                 markers,
                 DataType::Float,
                 DataType::Int
-            )
+            );
+            if matches!(output.last(), Some(Instr::ModInt(..))) {
+                if const_divisor {
+                    // Skip the runtime check if the divisor is known to be non-zero
+                    if let Some(Instr::ModInt(o1, o2, dest)) = output.pop() {
+                        output.push(Instr::ModIntUnchecked(o1, o2, dest));
+                    }
+                } else {
+                    state
+                        .instr_src
+                        .push((*output.last().unwrap(), *markers, ctx.current_src_file));
+                }
+            }
+            id
         }
         Expr::Pow(l, r, markers) => {
             uniform_op!(
@@ -987,11 +1035,6 @@ pub fn get_id(
     }
 }
 
-#[inline(always)]
-fn can_move(x: &Instr) -> bool {
-    !matches!(x, Instr::ArrayMov(_, _, _))
-}
-
 fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwards: bool) {
     if output.is_empty() {
         return output.push(Instr::IsFalseJmp(condition_id, *len));
@@ -1059,8 +1102,10 @@ pub fn for_each_read_reg(instr: Instr, mut f: impl FnMut(u16)) {
         | Instr::SubInt(a, b, _)
         | Instr::DivFloat(a, b, _)
         | Instr::DivInt(a, b, _)
+        | Instr::DivIntUnchecked(a, b, _)
         | Instr::ModFloat(a, b, _)
         | Instr::ModInt(a, b, _)
+        | Instr::ModIntUnchecked(a, b, _)
         | Instr::PowFloat(a, b, _)
         | Instr::PowInt(a, b, _)
         | Instr::Eq(a, b, _)
