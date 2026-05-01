@@ -27,6 +27,77 @@ macro_rules! debug {
     }
 }
 
+/// Strips the surrounding quotes from a raw string token and processes
+/// backslash escape sequences: \n \t \r \\ \\" \0
+pub fn unescape_string(raw: &str) -> SmolStr {
+    let inner = &raw[1..raw.len() - 1]; // strip surrounding "
+
+    // Fast path -> no backslash
+    let Some(first_bs) = inner.find('\\') else {
+        return SmolStr::from(inner);
+    };
+
+    let mut out = String::with_capacity(inner.len());
+
+    // Since find returns the first result, we know that inner[..first_bs] does not contain any backslash
+    // This allows us to only search the rest of the string
+    out.push_str(&inner[..first_bs]);
+    let mut rest = &inner[first_bs..];
+
+    loop {
+        match rest.find('\\') {
+            None => {
+                out.push_str(rest); // there are no more escapes
+                break;
+            }
+            Some(bs) => {
+                out.push_str(&rest[..bs]); // copy chunk before the backslash
+                let after = &rest[bs + 1..];
+                if after.is_empty() {
+                    out.push('\\'); // trailing lone backslash
+                    break;
+                }
+                // All recognised escape codes are ASCII, so index by byte
+                match after.as_bytes()[0] {
+                    b'n' => {
+                        out.push('\n');
+                        rest = &after[1..];
+                    }
+                    b't' => {
+                        out.push('\t');
+                        rest = &after[1..];
+                    }
+                    b'r' => {
+                        out.push('\r');
+                        rest = &after[1..];
+                    }
+                    b'\\' => {
+                        out.push('\\');
+                        rest = &after[1..];
+                    }
+                    b'"' => {
+                        out.push('"');
+                        rest = &after[1..];
+                    }
+                    b'0' => {
+                        out.push('\0');
+                        rest = &after[1..];
+                    }
+                    _ => {
+                        // Unknown escape -> keep backslash + character verbatim
+                        // Use chars() only here to correctly handle multi-byte UTF-8.
+                        let c = after.chars().next().unwrap();
+                        out.push('\\');
+                        out.push(c);
+                        rest = &after[c.len_utf8()..];
+                    }
+                }
+            }
+        }
+    }
+    SmolStr::from(out)
+}
+
 pub fn str_to_type(s: &str) -> DataType {
     if s == "int" {
         DataType::Int

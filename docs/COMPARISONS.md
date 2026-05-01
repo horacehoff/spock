@@ -426,3 +426,50 @@ print(last)</code></pre></td>
   <td>84.3ms</td>
 </tr>
 </table>
+
+---
+
+## C FFI call overhead × 10 000 000
+
+Both programs call the same shared C library function in a tight loop. The C function is intentionally trivial so the measured time reflects the cost of crossing the language–C boundary, not the C computation itself.
+
+**`bench_ffi.c`** (compiled with `-O2`):
+```c
+int increment(int x) {
+    return x + 1;
+}
+```
+
+<table>
+<tr>
+  <th>Spock</th>
+  <th>Python 3</th>
+</tr>
+<tr>
+<td><pre><code class="language-rust">import "./bench_ffi.dylib" {
+    int increment(int);
+}
+
+function main() {
+    let x = 0;
+    for _ in 0..10000000 {
+        x = bench_ffi::increment(x);
+    }
+    print(x);
+}</code></pre></td>
+<td><pre><code class="language-python">import ctypes
+
+lib = ctypes.CDLL("./bench_ffi.dylib")
+lib.increment.restype = ctypes.c_int
+lib.increment.argtypes = [ctypes.c_int]
+
+x = 0
+for _ in range(10_000_000):
+    x = lib.increment(x)
+print(x)</code></pre></td>
+</tr>
+<tr>
+  <td><b>211.6ms</b></td>
+  <td>2907ms</td>
+</tr>
+</table>

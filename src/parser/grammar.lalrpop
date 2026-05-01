@@ -7,6 +7,7 @@ use crate::type_system::DataType;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
 use crate::util::str_to_type;
+use crate::util::unescape_string;
 
 grammar(src: (&str, &str));
 
@@ -504,7 +505,7 @@ Null: Expr = {
 }
 
 String: SmolStr = {
-    <s: r#"\"(?:\"\"|[^\"])*\""#> => SmolStr::from(s.trim_matches('"'))
+    <s: r#"\"(?:[^\"\\]|\\.)*\""#> => unescape_string(s)
 }
 
 Var: SmolStr = {

@@ -1311,6 +1311,58 @@ pub fn string_small_to_large_concat() {
 }
 
 #[test]
+pub fn string_escape_newline() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "a\nb";
+            print(s.len());
+        }
+        "#,
+        3.into()
+    );
+}
+
+#[test]
+pub fn string_escape_tab() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "a\tb";
+            print(s.len());
+        }
+        "#,
+        3.into()
+    );
+}
+
+#[test]
+pub fn string_escape_backslash() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "a\\b";
+            print(s.len());
+        }
+        "#,
+        3.into()
+    );
+}
+
+#[test]
+pub fn string_escape_quote() {
+    run_and_check_registers!(
+        r#"
+        function main() {
+            let s = "say \"hello\"";
+            print(s.len());
+        }
+        "#,
+        11.into()
+    );
+}
+
+#[test]
 pub fn empty_range_for_loop() {
     // 0..0 should iterate zero times
     run_and_check_registers!(
