@@ -4,7 +4,6 @@ use crate::Instr;
 use crate::type_system::DataType;
 use crate::vm::ArrayPool;
 use crate::vm::StringPool;
-use libffi::middle::Type;
 use libloading::Library;
 use smol_str::SmolStr;
 use std::rc::Rc;
@@ -46,11 +45,22 @@ pub struct Dynamiclib {
 
 #[derive(Debug)]
 pub struct DynamicLibFn {
-    pub arg_types: Box<[Type]>,
-    pub return_type: Type,
-    pub lib: Library,
+    // [ return_type, arg_types... ]
+    pub types: Box<[DataType]>,
+    pub _lib: Library,
     pub ptr: libffi::middle::CodePtr,
     pub cif: libffi::middle::Cif,
+}
+
+impl DynamicLibFn {
+    #[inline(always)]
+    pub fn get_return_type(&self) -> &DataType {
+        return &self.types[0];
+    }
+    #[inline(always)]
+    pub fn get_nth_arg_type(&self, idx: usize) -> &DataType {
+        return &self.types[1 + idx];
+    }
 }
 
 #[derive(Clone)]

@@ -2185,10 +2185,13 @@ fn parse_toplevel(
                                     }),
                             )
                         };
+
+                        let mut types = vec![fn_return_type.clone()];
+                        types.extend(fn_args.clone());
+
                         dyn_lib_fns.push(DynamicLibFn {
-                            arg_types: Box::from(arg_types),
-                            return_type,
-                            lib,
+                            types: Box::from(types),
+                            _lib: lib,
                             ptr,
                             cif,
                         });

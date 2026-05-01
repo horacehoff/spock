@@ -12,10 +12,10 @@ use crate::fs;
 use crate::instr::LibFuncVoid;
 use crate::likely;
 use crate::parser_data::Pools;
+use crate::type_system::DataType;
 use crate::util::unlikely;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
-use std::any::Any;
 use std::hint::cold_path;
 use std::io::Write;
 
@@ -185,30 +185,40 @@ pub fn execute(
                 let args_len = args.len();
                 // Pointers are "owned" in dyn_lib_args
                 dyn_lib_args.clear();
+                // CStrings for string arguments must stay alive until after the call.
+                let mut cstring_storage: Vec<std::ffi::CString> = Vec::new();
 
                 for (idx, register_id) in args.drain(..args_len).enumerate() {
                     let data = r!(register_id);
                     dyn_lib_args.push({
-                        let t = func.arg_types[idx].type_id();
-                        if t == libffi::middle::Type::i32().type_id() {
-                            data.as_int() as u64
-                        } else if t == libffi::middle::Type::i64().type_id() {
-                            data.as_int() as i64 as u64
-                        } else if t == libffi::middle::Type::f32().type_id() {
-                            (data.as_float() as f32).to_bits() as u64
-                        } else if t == libffi::middle::Type::f64().type_id() {
-                            data.as_float().to_bits()
-                        } else if t == libffi::middle::Type::pointer().type_id() {
-                            data.0
-                        } else {
-                            throw_error(
+                        match func.get_nth_arg_type(idx) {
+                            DataType::Int => data.as_int() as u64,
+                            DataType::Float => data.as_float().to_bits(),
+                            DataType::String => {
+                                let s = data.as_str(string_pool);
+                                let cstring = std::ffi::CString::new(s).unwrap_or_else(|_| {
+                                    throw_error(
+                                        instr_src,
+                                        sources,
+                                        &instructions[i],
+                                        ErrType::Custom(
+                                            "String passed to C contains an interior null byte"
+                                                .into(),
+                                        ),
+                                    )
+                                });
+                                let ptr = cstring.as_ptr() as u64;
+                                cstring_storage.push(cstring);
+                                ptr
+                            }
+                            t => throw_error(
                                 instr_src,
                                 sources,
                                 &instructions[i],
                                 ErrType::Custom(
                                     format_args!("Invalid argument type: {t:?}").to_smolstr(),
                                 ),
-                            );
+                            ),
                         }
                     });
                 }
@@ -221,26 +231,30 @@ pub fn execute(
 
                 // Call the function, and convert the result back into Data
                 *w!(dest) = unsafe {
-                    let t = func.return_type.type_id();
-                    if t == libffi::middle::Type::i32().type_id() {
-                        func.cif.call::<i32>(func.ptr, &ffi_args).into()
-                    } else if t == libffi::middle::Type::i64().type_id() {
-                        (func.cif.call::<i64>(func.ptr, &ffi_args) as i32).into()
-                    } else if t == libffi::middle::Type::f32().type_id() {
-                        (func.cif.call::<f32>(func.ptr, &ffi_args) as f64).into()
-                    } else if t == libffi::middle::Type::f64().type_id() {
-                        func.cif.call::<f64>(func.ptr, &ffi_args).into()
-                    } else if t == libffi::middle::Type::void().type_id() {
-                        NULL
-                    } else {
-                        throw_error(
+                    match func.get_return_type() {
+                        DataType::Int => func.cif.call::<i32>(func.ptr, &ffi_args).into(),
+                        DataType::Float => func.cif.call::<f64>(func.ptr, &ffi_args).into(),
+                        DataType::String => {
+                            let ptr = func
+                                .cif
+                                .call::<*const std::ffi::c_char>(func.ptr, &ffi_args);
+                            if ptr.is_null() {
+                                NULL
+                            } else {
+                                string!(
+                                    std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned()
+                                )
+                            }
+                        }
+                        DataType::Null => NULL,
+                        t => throw_error(
                             instr_src,
                             sources,
                             &instructions[i],
                             ErrType::Custom(
                                 format_args!("Invalid return type: {t:?}").to_smolstr(),
                             ),
-                        );
+                        ),
                     }
                 };
             }
