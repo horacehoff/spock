@@ -52,6 +52,8 @@ impl Data {
         (self.0 & NAN_BASE) != NAN_BASE
     }
     #[inline(always)]
+    /// Convert the given integer to a NaN-boxed integer.
+    /// Integers are stored in the lower 32 bits
     pub fn int(n: i32) -> Data {
         Data(NAN_TAG_INT | (n as u32 as u64))
     }

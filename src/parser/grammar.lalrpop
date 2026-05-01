@@ -21,9 +21,14 @@ pub File:Vec<Expr> = {
     <f: FileStatement*> => f,
 }
 
+CType: DataType = {
+    <t: Var> => str_to_type(&t),
+    <t: Var> "[" "]" => DataType::Array(Some(Box::new(str_to_type(&t)))),
+}
+
 pub FnSignature:(SmolStr, Box<[DataType]>, DataType) = {
-    <return_type: Var?> <fn_name: Var> <args: Args<Var>> ";" => {
-        (fn_name, Box::from(args.iter().map(|a| str_to_type(a)).collect::<Vec<DataType>>()), if let Some(t) = return_type {str_to_type(&t)} else {DataType::Null})
+    <return_type: CType?> <fn_name: Var> <args: Args<CType>> ";" => {
+        (fn_name, Box::from(args), if let Some(t) = return_type { t } else { DataType::Null })
     }
 }
 

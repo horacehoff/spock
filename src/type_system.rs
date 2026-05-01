@@ -650,6 +650,7 @@ pub fn datatype_to_c_type(x: &DataType) -> Type {
         DataType::Int => libffi::middle::Type::i32(),
         DataType::Float => libffi::middle::Type::f64(),
         DataType::String => libffi::middle::Type::pointer(),
+        DataType::Array(_) => libffi::middle::Type::pointer(),
         DataType::Null => libffi::middle::Type::void(),
         _ => unreachable!(),
     }

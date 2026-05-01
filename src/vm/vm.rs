@@ -22,6 +22,77 @@ use std::io::Write;
 pub type ArrayPool = Vec<Vec<Data>>;
 pub type StringPool = Vec<String>;
 
+/// Converts a Spock array into a raw pointer suitable for passing to a C function via libffi.
+/// Box<\[u8\]> is used to store data because its address is stable.
+fn array_to_c_ptr(
+    data: Data,
+    elem_type: &DataType,
+    array_pool: &ArrayPool,
+    string_pool: &StringPool,
+    keep_alive: &mut Vec<Box<[u8]>>,
+) -> u64 {
+    // Every element is copied so that array_pool is no longer borrowed
+    let elems: Vec<Data> = array_pool[data.as_array()].iter().copied().collect();
+
+    match elem_type {
+        DataType::Int => {
+            // Converts every i32 to [u8; 4] and flattens it using flat_map
+            // This produces a contiguous [u8] array that C expects for ints
+            let bytes: Box<[u8]> = elems
+                .iter()
+                .flat_map(|e| e.as_int().to_ne_bytes())
+                .collect();
+            let ptr = bytes.as_ptr() as u64;
+            keep_alive.push(bytes); // hand ownership to keep_alive; the pointer stays valid
+            ptr
+        }
+
+        // Converts every f64 to [u8; 8] and flattens it using flat_map
+        // This produces a contiguous [u8] array that C expects for doubles
+        DataType::Float => {
+            let bytes: Box<[u8]> = elems
+                .iter()
+                .flat_map(|e| e.as_float().to_ne_bytes())
+                .collect();
+            let ptr = bytes.as_ptr() as u64;
+            keep_alive.push(bytes);
+            ptr
+        }
+        DataType::String => {
+            let mut ptrs: Vec<usize> = Vec::with_capacity(elems.len());
+            for e in &elems {
+                // Allocate one null-terminated C string per element.
+                let bytes = std::ffi::CString::new(e.as_str(string_pool))
+                    .expect("interior null byte in string passed to C")
+                    .into_bytes_with_nul() // Vec<u8> including '\0'
+                    .into_boxed_slice();
+                ptrs.push(bytes.as_ptr() as usize); // record char* before moving
+                keep_alive.push(bytes); // keep the string alive
+            }
+            // Serialise the pointer array itself into bytes
+            let ptr_bytes: Box<[u8]> = ptrs.iter().flat_map(|p| p.to_ne_bytes()).collect();
+            let ptr = ptr_bytes.as_ptr() as u64; // this is the char** value C receives
+            keep_alive.push(ptr_bytes);
+            ptr
+        }
+        DataType::Array(Some(inner)) => {
+            let mut ptrs: Vec<usize> = Vec::with_capacity(elems.len());
+            for e in &elems {
+                // Converts the inner array, pushes its allocations into keep_alive,
+                // and returns the pointer to its first element
+                ptrs.push(array_to_c_ptr(*e, inner, array_pool, string_pool, keep_alive) as usize);
+            }
+            // Box the pointer array so its address is stable, then add it to keep_alive
+            let ptr_bytes: Box<[u8]> = ptrs.iter().flat_map(|p| p.to_ne_bytes()).collect();
+            let ptr = ptr_bytes.as_ptr() as u64;
+            keep_alive.push(ptr_bytes);
+            ptr
+        }
+        // Any other element type has no C equivalent
+        t => unreachable!("Unsupported array element type for C FFI: {t:?}"),
+    }
+}
+
 struct CallFrame {
     return_addr: u32,
     return_reg: u16,
@@ -185,8 +256,10 @@ pub fn execute(
                 let args_len = args.len();
                 // Pointers are "owned" in dyn_lib_args
                 dyn_lib_args.clear();
-                // CStrings for string arguments must stay alive until after the call.
-                let mut cstring_storage: Vec<std::ffi::CString> = Vec::new();
+                // Universal keep-alive: every heap allocation that must outlive
+                // the FFI call is stored here as raw bytes. Box<[u8]> is a stable address on the heap,
+                // so pointers into it remain valid even as this vector grows
+                let mut keep_alive: Vec<Box<[u8]>> = Vec::new();
 
                 for (idx, register_id) in args.drain(..args_len).enumerate() {
                     let data = r!(register_id);
@@ -195,22 +268,31 @@ pub fn execute(
                             DataType::Int => data.as_int() as u64,
                             DataType::Float => data.as_float().to_bits(),
                             DataType::String => {
-                                let s = data.as_str(string_pool);
-                                let cstring = std::ffi::CString::new(s).unwrap_or_else(|_| {
-                                    throw_error(
-                                        instr_src,
-                                        sources,
-                                        &instructions[i],
-                                        ErrType::Custom(
-                                            "String passed to C contains an interior null byte"
-                                                .into(),
-                                        ),
-                                    )
-                                });
-                                let ptr = cstring.as_ptr() as u64;
-                                cstring_storage.push(cstring);
+                                let bytes = std::ffi::CString::new(data.as_str(string_pool))
+                                    .unwrap_or_else(|_| {
+                                        throw_error(
+                                            instr_src,
+                                            sources,
+                                            &instructions[i],
+                                            ErrType::Custom(
+                                                "String passed to C contains an interior null byte"
+                                                    .into(),
+                                            ),
+                                        )
+                                    })
+                                    .into_bytes_with_nul() // builds the null-terminated string
+                                    .into_boxed_slice();
+                                let ptr = bytes.as_ptr() as u64;
+                                keep_alive.push(bytes);
                                 ptr
                             }
+                            DataType::Array(Some(inner)) => array_to_c_ptr(
+                                data,
+                                inner,
+                                array_pool,
+                                string_pool,
+                                &mut keep_alive,
+                            ),
                             t => throw_error(
                                 instr_src,
                                 sources,
@@ -247,6 +329,14 @@ pub fn execute(
                             }
                         }
                         DataType::Null => NULL,
+                        DataType::Array(_) => throw_error(
+                            instr_src,
+                            sources,
+                            &instructions[i],
+                            ErrType::Custom(
+                                "Array return types are not supported: C does not convey the length of a returned array".into(),
+                            ),
+                        ),
                         t => throw_error(
                             instr_src,
                             sources,
