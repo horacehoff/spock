@@ -1,0 +1,123 @@
+name: Release
+
+# Triger on any tag named v.xxx
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.artifact }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macos-latest is Apple Silicon, so aarch64 is native and x86_64 is a cross-compile
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: spock-aarch64-apple-darwin
+            rustflags: ""
+
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: spock-x86_64-apple-darwin
+            rustflags: "-C target-cpu=x86-64-v3"
+
+          # Two tiers: v3 and baseline v1
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            artifact: spock-x86_64-linux-v3
+            rustflags: "-C target-cpu=x86-64-v3"
+
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            artifact: spock-x86_64-linux-v1
+            rustflags: "-C target-cpu=x86-64"
+
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            artifact: spock-aarch64-linux
+            rustflags: ""
+
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: spock-x86_64-windows
+            rustflags: "-C target-cpu=x86-64-v3"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # cargo-zigbuild uses Zig as the C cross-compiler, which correctly handles libffi
+      - name: Install Zig
+        if: runner.os == 'Linux'
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.13.0
+
+      - name: Install cargo-zigbuild
+        if: runner.os == 'Linux'
+        run: cargo install cargo-zigbuild --locked
+
+      - name: Build (macOS / Windows)
+        if: runner.os != 'Linux'
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Build (Linux via cargo-zigbuild)
+        if: runner.os == 'Linux'
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+        run: cargo zigbuild --release --target ${{ matrix.target }}
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cp target/${{ matrix.target }}/release/spock ${{ matrix.artifact }}
+          tar -czf ${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Copy-Item "target/${{ matrix.target }}/release/spock.exe" "${{ matrix.artifact }}.exe"
+          Compress-Archive -Path "${{ matrix.artifact }}.exe" -DestinationPath "${{ matrix.artifact }}.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.tar.gz
+            ${{ matrix.artifact }}.zip
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.zip
+          generate_release_notes: true

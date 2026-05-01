@@ -218,6 +218,9 @@ For example:
 ```spock
 import "my_test.dylib" {
     int add(int, int);
+    float add(float, float);
+    string add(string, string);
+    int sum(int[], int);
 }
 
 function fib(n) {
