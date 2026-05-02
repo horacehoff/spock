@@ -68,7 +68,7 @@ fn main() {
     if unlikely(args.iter().any(|x| x == "--version" || x == "-v")) {
         if unlikely(args.len() > 2) {
             eprintln!(
-                "{color_red}SPOCK ERROR{color_reset}\nInvalid arguments\nUsage:\n  spock -v\n  spock file.spock [--debug] [--bench [--verbose]]"
+                "{color_red}SPOCK ERROR{color_reset}\nInvalid arguments\nUsage:\n  spock -v\n  spock program.spock [--debug] [--bench [--verbose]]"
             );
             return;
         }
