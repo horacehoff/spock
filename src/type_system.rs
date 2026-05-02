@@ -288,6 +288,22 @@ pub fn track_returns(
                 ));
                 v.truncate(v_len);
             }
+            // When arr.push(x) is called on an Array(None) variable, upgrade
+            // its inferred type to Array(T) where T is the type of x
+            Expr::ObjFunctionCall(obj, args, namespace, _, _, _)
+                if namespace.last().unwrap().as_str() == "push" =>
+            {
+                if let Expr::Var(var_name, _) = obj.as_ref()
+                    && v.iter()
+                        .rfind(|var| &var.name == var_name)
+                        .map_or(false, |var| var.infered_type == DataType::Array(None))
+                {
+                    let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
+                    if let Some(var) = v.iter_mut().rfind(|var| &var.name == var_name) {
+                        var.infered_type = DataType::Array(Some(Box::new(arg_type)));
+                    }
+                }
+            }
             Expr::ReturnVal(return_val) => {
                 if let Some(val) = return_val.as_ref() {
                     let contains_call = contains_recursive_call_expr(val, fn_name);
