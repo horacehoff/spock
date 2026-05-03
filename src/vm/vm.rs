@@ -12,6 +12,7 @@ use crate::fs;
 use crate::instr::LibFuncVoid;
 use crate::likely;
 use crate::parser_data::Pools;
+use crate::string_gc::raise_string_gc_threshold;
 use crate::type_system::DataType;
 use crate::util::unlikely;
 use smol_str::SmolStr;
@@ -32,7 +33,7 @@ fn array_to_c_ptr(
     keep_alive: &mut Vec<Box<[u8]>>,
 ) -> u64 {
     // Every element is copied so that array_pool is no longer borrowed
-    let elems: Vec<Data> = array_pool[data.as_array()].iter().copied().collect();
+    let elems: Vec<Data> = array_pool[data.as_array()].to_vec();
 
     match elem_type {
         DataType::Int => {
@@ -612,6 +613,7 @@ pub fn execute(
                 if likely(array.len() > index) {
                     array[index] = r!(new_elem_reg_id);
                 } else {
+                    cold_path();
                     throw_error(
                         instr_src,
                         sources,
@@ -630,6 +632,7 @@ pub fn execute(
                     temp.insert_str(index, r!(new_str_reg_id).as_str(string_pool));
                     *w!(string_reg_id) = string!(temp);
                 } else {
+                    cold_path();
                     throw_error(
                         instr_src,
                         sources,
@@ -645,6 +648,7 @@ pub fn execute(
                 if likely(array.len() > idx) {
                     *w!(dest) = array[idx];
                 } else {
+                    cold_path();
                     throw_error(
                         instr_src,
                         sources,
@@ -655,16 +659,18 @@ pub fn execute(
             }
             Instr::GetIndexString(tgt, index, dest) => {
                 let idx = r!(index).as_int() as usize;
-                let _d_tgt = r!(tgt);
-                let str = _d_tgt.as_str(string_pool);
-                if likely(str.len() > idx) {
-                    *w!(dest) = str!(str.get(idx..=idx).unwrap());
+                let tgt_data = r!(tgt);
+                let s = tgt_data.as_str(string_pool);
+                if let Some(ch) = s.chars().nth(idx) {
+                    let mut buf = [0u8; 4];
+                    *w!(dest) = str!(ch.encode_utf8(&mut buf));
                 } else {
+                    cold_path();
                     throw_error(
                         instr_src,
                         sources,
                         &instructions[i],
-                        ErrType::IndexOutOfBounds(str.len(), idx),
+                        ErrType::IndexOutOfBounds(s.chars().count(), idx),
                     );
                 }
             }
@@ -678,6 +684,7 @@ pub fn execute(
                 let arr = &mut array_pool[r!(array).as_array()];
                 let index = r!(idx).as_int() as usize;
                 if unlikely(index >= arr.len()) {
+                    cold_path();
                     throw_error(
                         instr_src,
                         sources,
@@ -910,6 +917,7 @@ pub fn execute(
                     .ends_with(r!(args.pop().unwrap()).as_str(string_pool))
                     .into();
             }
+            #[allow(clippy::no_effect_replace)]
             Instr::CallLibFunc(LibFunc::Replace, source_register, dest_register) => {
                 *w!(dest_register) = string!(r!(source_register).as_str(string_pool).replace(
                     r!(args.pop().unwrap()).as_str(string_pool),
@@ -928,11 +936,32 @@ pub fn execute(
                         &mut gc_array_threshold,
                         &mut array_live,
                     );
-                    array_pool[output_str_reg_id as usize] = source
-                        .as_str(string_pool)
-                        .split(r!(separator).as_str(string_pool))
-                        .map(|x| str!(x))
-                        .collect();
+                    let source = source.as_str(string_pool);
+                    let separator_data = r!(separator);
+                    let separator = separator_data.as_str(string_pool);
+                    let output_len = if separator.is_empty() {
+                        source.len() + 2
+                    } else {
+                        source.matches(separator).count() + 1
+                    };
+                    let output = &mut array_pool[output_str_reg_id as usize];
+                    output.clear();
+                    output.reserve(output_len);
+                    for part in source.split(separator) {
+                        output.push({
+                            if part.len() <= 6 {
+                                Data::small_str(part)
+                            } else if let Some(id) = free_strings.pop() {
+                                string_pool[id as usize] = part.to_string();
+                                Data::large_str_id(id as u64)
+                            } else {
+                                let id = string_pool.len() as u64;
+                                string_pool.push(part.to_string());
+                                Data::large_str_id(id)
+                            }
+                        });
+                    }
+                    raise_string_gc_threshold(&mut gc_string_threshold, string_pool.len());
                     *w!(dest_register) = Data::array(output_str_reg_id);
                 } else if source.is_array() {
                     let source_array_id = source.as_array();

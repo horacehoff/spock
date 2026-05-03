@@ -620,28 +620,27 @@ pub fn get_id(
                 throw_parser_error(src, markers, ErrType::OpError(&t_l, &t_r, "+"));
             }
             // Fast path: intVar + 1  or  1 + intVar  →  IncInt / IncIntTo
-            if t_l == DataType::Int {
-                let var_side = if matches!(r.as_ref(), Expr::Int(1)) {
-                    Some(l.as_ref())
-                } else if matches!(l.as_ref(), Expr::Int(1)) {
-                    Some(r.as_ref())
-                } else {
-                    None
-                };
-                if let Some(Expr::Var(src_name, _)) = var_side {
-                    if let Some(src_var) = v.iter().rfind(|x| x.name == *src_name) {
-                        let src_id = src_var.register_id;
-                        let id = tgt_id.unwrap_or_else(|| {
-                            alloc_register(state.registers, state.free_registers)
-                        });
-                        output.push(if src_id == id {
-                            Instr::IncInt(id)
-                        } else {
-                            Instr::IncIntTo(src_id, id)
-                        });
-                        return id;
+            if t_l == DataType::Int
+                && let Some(Expr::Var(src_name, _)) = {
+                    if matches!(r.as_ref(), Expr::Int(1)) {
+                        Some(l.as_ref())
+                    } else if matches!(l.as_ref(), Expr::Int(1)) {
+                        Some(r.as_ref())
+                    } else {
+                        None
                     }
                 }
+                && let Some(src_var) = v.iter().rfind(|x| x.name == *src_name)
+            {
+                let src_id = src_var.register_id;
+                let id =
+                    tgt_id.unwrap_or_else(|| alloc_register(state.registers, state.free_registers));
+                output.push(if src_id == id {
+                    Instr::IncInt(id)
+                } else {
+                    Instr::IncIntTo(src_id, id)
+                });
+                return id;
             }
             let id_l = get_id(l, v, ctx, state, output, None, false, offset, single_run);
             let id_r = get_id(r, v, ctx, state, output, None, false, offset, single_run);
@@ -672,23 +671,20 @@ pub fn get_id(
                 throw_parser_error(src, markers, ErrType::OpError(&t_l, &t_r, "-"));
             }
             // Fast path: intVar - 1  →  DecInt / DecIntTo
-            if t_l == DataType::Int {
-                if matches!(r.as_ref(), Expr::Int(1)) {
-                    if let Expr::Var(src_name, _) = l.as_ref() {
-                        if let Some(src_var) = v.iter().rfind(|x| x.name == *src_name) {
-                            let src_id = src_var.register_id;
-                            let id = tgt_id.unwrap_or_else(|| {
-                                alloc_register(state.registers, state.free_registers)
-                            });
-                            output.push(if src_id == id {
-                                Instr::DecInt(id)
-                            } else {
-                                Instr::DecIntTo(src_id, id)
-                            });
-                            return id;
-                        }
-                    }
-                }
+            if t_l == DataType::Int
+                && matches!(r.as_ref(), Expr::Int(1))
+                && let Expr::Var(src_name, _) = l.as_ref()
+                && let Some(src_var) = v.iter().rfind(|x| x.name == *src_name)
+            {
+                let src_id = src_var.register_id;
+                let id =
+                    tgt_id.unwrap_or_else(|| alloc_register(state.registers, state.free_registers));
+                output.push(if src_id == id {
+                    Instr::DecInt(id)
+                } else {
+                    Instr::DecIntTo(src_id, id)
+                });
+                return id;
             }
             let id_l = get_id(l, v, ctx, state, output, None, false, offset, single_run);
             let id_r = get_id(r, v, ctx, state, output, None, false, offset, single_run);
@@ -1024,7 +1020,14 @@ pub fn get_id(
             get_last_tgt_id(output).unwrap_or_else(|| (state.registers.len() - 1) as u16)
         }),
         other => {
-            let output_code = compile_expr(slice::from_ref(other), v, ctx, state, 0, single_run);
+            let output_code = compile_expr(
+                slice::from_ref(other),
+                v,
+                ctx,
+                state,
+                offset + output.len() as u16,
+                single_run,
+            );
             if !output_code.is_empty() {
                 output.extend(output_code);
                 get_last_tgt_id(output).unwrap_or((state.registers.len() - 1) as u16)
@@ -2251,11 +2254,7 @@ fn parse_toplevel(
                         file_contents.as_str(),
                     )
                     .unwrap_or_else(|x| {
-                        lalrpop_error::<usize, Token<'_>, &str>(
-                            x,
-                            file_contents.as_str(),
-                            file_name.as_str(),
-                        )
+                        lalrpop_error::<Token<'_>>(x, file_contents.as_str(), file_name.as_str())
                     });
 
                 let import_src: (&str, &str) = (file_name.as_str(), file_contents.as_str());
@@ -2296,7 +2295,7 @@ pub fn parse(
     let now = std::time::Instant::now();
     let code: Vec<Expr> = grammar::FileParser::new()
         .parse((filename, contents), contents)
-        .unwrap_or_else(|x| lalrpop_error::<usize, Token<'_>, &str>(x, contents, filename));
+        .unwrap_or_else(|x| lalrpop_error::<Token<'_>>(x, contents, filename));
     if debug {
         println!("PARSING TIME: {:.2?}", now.elapsed());
     }
@@ -2345,7 +2344,6 @@ pub fn parse(
         block_id: 0,
         src: (filename, contents),
         is_parsing_recursive: false,
-        parsing_fn_id: None,
         current_src_file: 0,
     };
     let mut state = State {

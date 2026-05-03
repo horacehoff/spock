@@ -179,6 +179,7 @@ macro_rules! check_args {
 #[macro_export]
 macro_rules! check_args_range {
     ($args:expr, $min_args_len:expr,$max_args_len:expr, $fn_name:expr, $src:expr,$markers:expr) => {
+        #[allow(unused_comparisons)]
         if $args.len() < $min_args_len || $args.len() > $max_args_len {
             throw_parser_error(
                 $src,

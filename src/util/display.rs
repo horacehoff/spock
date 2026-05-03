@@ -40,7 +40,7 @@ pub fn format_data(
     }
 }
 
-pub fn display_fn_signatures(f: Function) {
+pub fn _display_fn_signatures(f: Function) {
     for fn_impl in f.impls {
         println!(
             "{} : ({}) -> {}",

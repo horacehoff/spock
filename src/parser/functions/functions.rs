@@ -599,13 +599,12 @@ fn compile_function(
         &mut v_temp,
         Ctx {
             is_parsing_recursive: is_recursive,
-            parsing_fn_id: Some(fn_id),
             src: fn_src,
             current_src_file: fn_src_file,
             ..ctx
         },
         state,
-        output.len() as u16,
+        offset + output.len() as u16,
         false,
     );
 

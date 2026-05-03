@@ -337,12 +337,11 @@ pub fn handle_method_calls(
             }
 
             // If the array was declared as empty, upgrade its type so downstream indexing resolves correctly
-            if obj_type == DataType::Array(None) {
-                if let Expr::Var(var_name, _) = obj {
-                    if let Some(var) = v.iter_mut().rfind(|var| &var.name == var_name) {
-                        var.infered_type = DataType::Array(Some(Box::new(arg_type.clone())));
-                    }
-                }
+            if obj_type == DataType::Array(None)
+                && let Expr::Var(var_name, _) = obj
+                && let Some(var) = v.iter_mut().rfind(|var| &var.name == var_name)
+            {
+                var.infered_type = DataType::Array(Some(Box::new(arg_type.clone())));
             }
 
             let arg_id = get_id(

@@ -1,4 +1,4 @@
-use crate::{string_gc::string_gc, vm::ArrayPool};
+use crate::{string_gc::raise_string_gc_threshold, string_gc::string_gc, vm::ArrayPool};
 
 // 51 bits of total payload -- 3 bits for data type => 48 bits of actual payload
 // 1111_1111_1111_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000
@@ -91,6 +91,10 @@ impl Data {
         Data(NAN_TAG_STRING_SMALL | (payload & PAYLOAD_MASK))
     }
     #[inline(always)]
+    pub fn large_str_id(id: u64) -> Data {
+        Data(NAN_TAG_STRING_LARGE | id)
+    }
+    #[inline(always)]
     /// Allocates a string at runtime. This never runs the GC.
     pub fn p_str(s: &str, string_pool: &mut Vec<String>) -> Data {
         let len = s.len();
@@ -117,7 +121,7 @@ impl Data {
             Data::small_str(s)
         } else {
             if free_strings.is_empty() && string_pool.len() >= (*gc_string_threshold as usize) {
-                *gc_string_threshold *= 2;
+                raise_string_gc_threshold(gc_string_threshold, string_pool.len());
                 string_gc(
                     array_pool,
                     string_pool,
@@ -152,7 +156,7 @@ impl Data {
             Data::small_str(&s)
         } else {
             if free_strings.is_empty() && string_pool.len() >= (*gc_string_threshold as usize) {
-                *gc_string_threshold *= 2;
+                raise_string_gc_threshold(gc_string_threshold, string_pool.len());
                 string_gc(
                     array_pool,
                     string_pool,

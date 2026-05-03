@@ -1517,3 +1517,85 @@ pub fn null_literal_as_default() {
         42.into()
     );
 }
+
+// Regression test for the Array(None) type inference bug
+#[test]
+pub fn array_push_type_inference_propagation() {
+    run_and_check_registers!(
+        "
+        function build_sieve(limit) {
+            let sieve = range(limit);
+            sieve[0] = 0;
+            sieve[1] = 0;
+            let i = 2;
+            while (i * i) <= limit {
+                if sieve[i] != 0 {
+                    let j = i * i;
+                    while j < limit {
+                        sieve[j] = 0;
+                        j += i;
+                    }
+                }
+                i += 1;
+            }
+            return sieve;
+        }
+
+        function collect_primes(sieve) {
+            let primes = [];
+            for x in sieve {
+                if x != 0 {
+                    primes.push(x);
+                }
+            }
+            return primes;
+        }
+
+        function largest_gap(primes) {
+            let max = 0;
+            let i = 1;
+            while i < primes.len() {
+                let gap = primes[i] - primes[i - 1];
+                if gap > max {
+                    max = gap;
+                }
+                i += 1;
+            }
+            return max;
+        }
+
+        function main() {
+            let primes = collect_primes(build_sieve(50));
+            print(largest_gap(primes));
+        }
+        ",
+        6.into()
+    );
+}
+
+#[test]
+pub fn split_result_survives_string_gc() {
+    let text = "a abcdefghijk ".repeat(140);
+    run_and_check_registers!(
+        &format!(
+            r#"
+            function longest_word(words) {{
+                let longest = "";
+                for word in words {{
+                    if word.len() > longest.len() {{
+                        longest = word;
+                    }}
+                }}
+                return longest;
+            }}
+
+            function main() {{
+                let text = "{text}";
+                let words = text.split(" ");
+                print(longest_word(words).len());
+            }}
+        "#
+        ),
+        11.into()
+    );
+}

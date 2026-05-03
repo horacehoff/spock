@@ -296,7 +296,7 @@ pub fn track_returns(
                 if let Expr::Var(var_name, _) = obj.as_ref()
                     && v.iter()
                         .rfind(|var| &var.name == var_name)
-                        .map_or(false, |var| var.infered_type == DataType::Array(None))
+                        .is_some_and(|var| var.infered_type == DataType::Array(None))
                 {
                     let arg_type = infer_type(&args[0], v, fns, src, dyn_libs);
                     if let Some(var) = v.iter_mut().rfind(|var| &var.name == var_name) {
@@ -452,16 +452,15 @@ pub fn infer_type(
                 "delete" => DataType::Null,
                 "delete_dir" => DataType::Null,
                 function_name => {
-                    if let Some(lib) = dyn_libs.iter().find(|l| l.name == namespace[0]) {
-                        if let Some(FnSignature {
+                    if let Some(lib) = dyn_libs.iter().find(|l| l.name == namespace[0])
+                        && let Some(FnSignature {
                             name: _,
                             args: _,
                             return_type: fn_return_type,
                             id: _,
                         }) = lib.fns.iter().find(|x| x.name == function_name)
-                        {
-                            return fn_return_type.clone();
-                        }
+                    {
+                        return fn_return_type.clone();
                     }
 
                     let Function {

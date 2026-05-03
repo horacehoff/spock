@@ -17,7 +17,6 @@ pub fn dev_error(file: &str, function: &str, additional_data: Arguments) -> ! {
 }
 
 impl From<std::io::ErrorKind> for ErrType<'_> {
-    #[inline(never)]
     fn from(value: std::io::ErrorKind) -> Self {
         match value {
             std::io::ErrorKind::AlreadyExists => ErrType::IOAlreadyExists,
@@ -40,7 +39,6 @@ impl From<std::io::ErrorKind> for ErrType<'_> {
 }
 
 impl From<std::num::IntErrorKind> for ErrType<'_> {
-    #[inline(never)]
     fn from(value: std::num::IntErrorKind) -> Self {
         match value {
             std::num::IntErrorKind::Empty => ErrType::IntEmpty,
@@ -130,7 +128,6 @@ pub enum ErrType<'a> {
 }
 
 impl From<ErrType<'_>> for SmolStr {
-    #[inline(always)]
     fn from(value: ErrType) -> Self {
         match value {
             ErrType::Custom(m) => m,
@@ -228,7 +225,11 @@ pub fn throw_error(
     instr: &Instr,
     t: ErrType,
 ) -> ! {
-    let (_, (start, end), file_idx) = instr_src.iter().find(|(x, _, _)| x == instr).unwrap();
+    let (_, (start, end), file_idx) =
+        instr_src
+            .iter()
+            .find(|(x, _, _)| x == instr)
+            .unwrap_or(&(Instr::Halt, (0, 0), 0));
     let src = &sources[*file_idx as usize];
     let err_message: SmolStr = t.into();
     eprintln!("{color_red}SPOCK ERROR{color_reset}");
@@ -263,7 +264,7 @@ pub fn throw_parser_error(src: (&str, &str), (start, end): &(usize, usize), t: E
 
 #[cold]
 #[inline(never)]
-pub fn lalrpop_error<'a, L, T, E>(x: ParseError<usize, T, &str>, file: &str, filename: &str) -> !
+pub fn lalrpop_error<'a, T>(x: ParseError<usize, T, &str>, file: &str, filename: &str) -> !
 where
     Token<'a>: From<T>,
 {

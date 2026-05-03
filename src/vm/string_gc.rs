@@ -33,16 +33,24 @@ pub fn string_gc(
 }
 
 fn track_strings(array_pool: &ArrayPool, array: &[Data], live: &mut [bool]) {
-    if array.is_empty() {
-        return;
+    if let Some(first) = array.first() {
+        if first.is_str() {
+            for x in array {
+                if x.is_large_str() {
+                    live[x.get_str_pool_id()] = true;
+                }
+            }
+        } else if first.is_array() {
+            for x in array {
+                track_strings(array_pool, &array_pool[x.as_array()], live);
+            }
+        }
     }
-    if array[0].is_large_str() {
-        for x in array {
-            live[x.get_str_pool_id()] = true;
-        }
-    } else if array[0].is_array() {
-        for x in array {
-            track_strings(array_pool, &array_pool[x.as_array()], live);
-        }
+}
+
+#[inline(always)]
+pub fn raise_string_gc_threshold(gc_string_threshold: &mut u32, string_pool_len: usize) {
+    if string_pool_len >= *gc_string_threshold as usize {
+        *gc_string_threshold = string_pool_len.next_power_of_two().min(u32::MAX as usize) as u32;
     }
 }

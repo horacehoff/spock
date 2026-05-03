@@ -1,3 +1,6 @@
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 use crate::array_gc::alloc_array;
 use crate::data::Data;
 use crate::data::FALSE;

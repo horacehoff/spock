@@ -55,11 +55,11 @@ pub struct DynamicLibFn {
 impl DynamicLibFn {
     #[inline(always)]
     pub fn get_return_type(&self) -> &DataType {
-        return &self.types[0];
+        &self.types[0]
     }
     #[inline(always)]
     pub fn get_nth_arg_type(&self, idx: usize) -> &DataType {
-        return &self.types[1 + idx];
+        &self.types[1 + idx]
     }
 }
 
@@ -74,7 +74,6 @@ pub struct Ctx<'a> {
     pub block_id: u16,
     pub src: (&'a str, &'a str),
     pub is_parsing_recursive: bool,
-    pub parsing_fn_id: Option<u16>,
     pub current_src_file: u16,
 }
 
