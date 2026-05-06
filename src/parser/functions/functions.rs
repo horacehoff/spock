@@ -3,7 +3,6 @@ use crate::check_args;
 use crate::check_args_range;
 use crate::data::Data;
 use crate::data::NULL;
-use crate::debug;
 use crate::errors::ErrType;
 use crate::errors::throw_parser_error;
 use crate::get_id;
@@ -306,7 +305,6 @@ pub fn handle_functions(
                         offset,
                         single_run,
                     );
-                    debug!("MOVING ARG TO {tgt_id}");
                     if output.len() != start_len {
                         move_to_id(output, *tgt_id);
                     } else {
@@ -332,10 +330,8 @@ pub fn handle_functions(
                     output.push(Instr::CallFunc(loc, return_register_id));
                     *state.allocated_call_depth += 2;
                 }
-                debug!("REGLEN {}", state.registers.len() - 1);
 
                 if is_recursive {
-                    debug!("OUTPUT LEN IS {}", output.len() - 1);
                     output[saveframe_loc] = Instr::SaveFrame(
                         (output.len() - 1 - saveframe_loc) as u16,
                         return_register_id,
@@ -517,7 +513,6 @@ fn compile_function(
     let src = ctx.src;
     let current_src_file = ctx.current_src_file;
 
-    debug!("CREATING FUNCTION {fn_name}, ARG TYPES ARE {infered_arg_types:?}");
     // Use the function's own source file for error reporting inside the function body
     let fn_src_file = state.fns[function_id].src_file;
 

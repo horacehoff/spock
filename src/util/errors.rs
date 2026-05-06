@@ -329,12 +329,7 @@ where
                 .print((filename, Source::from(file)))
                 .unwrap();
         }
-        ParseError::ExtraToken { .. } => {
-            unreachable!("ExtraTokenError")
-        }
-        ParseError::User { .. } => {
-            unreachable!("UserError")
-        }
+        _ => unreachable!(),
     }
     std::process::exit(1);
 }

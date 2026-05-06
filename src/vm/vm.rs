@@ -5,16 +5,15 @@ use crate::Instr;
 use crate::LibFunc;
 use crate::NULL;
 use crate::alloc_array;
+use crate::data::TRUE;
 use crate::errors::ErrType;
 use crate::errors::throw_error;
 use crate::format_data;
 use crate::fs;
 use crate::instr::LibFuncVoid;
-use crate::likely;
 use crate::parser_data::Pools;
 use crate::string_gc::raise_string_gc_threshold;
 use crate::type_system::DataType;
-use crate::util::unlikely;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
 use std::hint::cold_path;
@@ -252,6 +251,12 @@ pub fn execute(
                     continue;
                 }
             }
+            Instr::IsTrueJmp(cond_id, size) => {
+                if r!(cond_id) == TRUE {
+                    i += size as usize;
+                    continue;
+                }
+            }
             Instr::CallDynamicLibFunc(fn_id, dest) => {
                 let func = &dyn_libs[fn_id as usize];
                 let args_len = args.len();
@@ -394,7 +399,7 @@ pub fn execute(
             }
             Instr::DivInt(o1, o2, dest) => {
                 let b = r!(o2).as_int();
-                if unlikely(b == 0) {
+                if b == 0 {
                     cold_path();
                     throw_error(
                         instr_src,
@@ -419,7 +424,7 @@ pub fn execute(
             }
             Instr::ModInt(o1, o2, dest) => {
                 let b = r!(o2).as_int();
-                if unlikely(b == 0) {
+                if b == 0 {
                     cold_path();
                     throw_error(
                         instr_src,
@@ -610,9 +615,7 @@ pub fn execute(
             Instr::SetElementArray(array_reg_id, new_elem_reg_id, idx) => {
                 let array = array_pool.get_mut(r!(array_reg_id).as_array()).unwrap();
                 let index = r!(idx).as_int() as usize;
-                if likely(array.len() > index) {
-                    array[index] = r!(new_elem_reg_id);
-                } else {
+                if index >= array.len() {
                     cold_path();
                     throw_error(
                         instr_src,
@@ -621,17 +624,13 @@ pub fn execute(
                         ErrType::IndexOutOfBounds(array.len(), index),
                     );
                 }
+                array[index] = r!(new_elem_reg_id);
             }
             Instr::SetElementString(string_reg_id, new_str_reg_id, idx) => {
                 let index = r!(idx).as_int() as usize;
                 let temp_str_reg_id = r!(string_reg_id);
                 let source_string = temp_str_reg_id.as_str(string_pool);
-                if likely(source_string.len() > index) {
-                    let mut temp = source_string.to_string();
-                    temp.remove(index);
-                    temp.insert_str(index, r!(new_str_reg_id).as_str(string_pool));
-                    *w!(string_reg_id) = string!(temp);
-                } else {
+                if index >= source_string.len() {
                     cold_path();
                     throw_error(
                         instr_src,
@@ -640,14 +639,16 @@ pub fn execute(
                         ErrType::IndexOutOfBounds(source_string.len(), index),
                     );
                 }
+                let mut temp = source_string.to_string();
+                temp.remove(index);
+                temp.insert_str(index, r!(new_str_reg_id).as_str(string_pool));
+                *w!(string_reg_id) = string!(temp);
             }
             // takes tgt from  registers, index is index, dest is registers index destination
             Instr::GetIndexArray(array_reg_id, index, dest) => {
                 let idx = r!(index).as_int() as usize;
                 let array = &array_pool[r!(array_reg_id).as_array()];
-                if likely(array.len() > idx) {
-                    *w!(dest) = array[idx];
-                } else {
+                if idx >= array.len() {
                     cold_path();
                     throw_error(
                         instr_src,
@@ -656,23 +657,24 @@ pub fn execute(
                         ErrType::IndexOutOfBounds(array.len(), idx),
                     );
                 }
+                *w!(dest) = array[idx];
             }
             Instr::GetIndexString(tgt, index, dest) => {
                 let idx = r!(index).as_int() as usize;
                 let tgt_data = r!(tgt);
-                let s = tgt_data.as_str(string_pool);
-                if let Some(ch) = s.chars().nth(idx) {
-                    let mut buf = [0u8; 4];
-                    *w!(dest) = str!(ch.encode_utf8(&mut buf));
-                } else {
+                let bytes = tgt_data.as_str(string_pool).as_bytes();
+                if idx >= bytes.len() {
                     cold_path();
                     throw_error(
                         instr_src,
                         sources,
                         &instructions[i],
-                        ErrType::IndexOutOfBounds(s.chars().count(), idx),
+                        ErrType::IndexOutOfBounds(bytes.len(), idx),
                     );
                 }
+                *w!(dest) = str!(unsafe {
+                    std::str::from_utf8_unchecked(std::slice::from_ref(bytes.get_unchecked(idx)))
+                });
             }
             Instr::Push(array, element) => {
                 array_pool
@@ -683,7 +685,7 @@ pub fn execute(
             Instr::Remove(array, idx) => {
                 let arr = &mut array_pool[r!(array).as_array()];
                 let index = r!(idx).as_int() as usize;
-                if unlikely(index >= arr.len()) {
+                if index >= arr.len() {
                     cold_path();
                     throw_error(
                         instr_src,

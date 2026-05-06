@@ -11,6 +11,7 @@ use libffi::middle::Type;
 use smol_str::SmolStr;
 use std::cell::RefCell;
 use std::collections::HashSet;
+use std::slice;
 
 // Tracks which user-defined functions are currently being analysed for their
 // return type. Used to break mutual-recursion cycles in type inference
@@ -29,6 +30,8 @@ pub enum DataType {
     String,
     File,
     Null,
+    /// Internal inference placeholder used while breaking recursive return-type cycles
+    Unknown,
     Poly(Box<[DataType]>),
     /// Fn (\[arg_types ... return_type\]) => return_type is always specified
     Fn(Box<[DataType]>),
@@ -47,6 +50,7 @@ impl PartialEq for DataType {
             (DataType::String, DataType::String) => true,
             (DataType::File, DataType::File) => true,
             (DataType::Null, DataType::Null) => true,
+            (DataType::Unknown, DataType::Unknown) => true,
             (DataType::Poly(a), DataType::Poly(b)) => a == b,
             (DataType::Fn(a), DataType::Fn(b)) => a == b,
             _ => false,
@@ -65,12 +69,13 @@ impl std::hash::Hash for DataType {
             DataType::String => 4u8.hash(state),
             DataType::File => 5u8.hash(state),
             DataType::Null => 6u8.hash(state),
+            DataType::Unknown => 7u8.hash(state),
             DataType::Poly(p) => {
-                7u8.hash(state);
+                8u8.hash(state);
                 p.hash(state);
             }
             DataType::Fn(f) => {
-                8u8.hash(state);
+                9u8.hash(state);
                 f.hash(state);
             }
         }
@@ -78,14 +83,131 @@ impl std::hash::Hash for DataType {
 }
 
 pub fn is_indexable(x: &DataType) -> bool {
-    matches!(x, DataType::String | DataType::Array(_))
+    matches!(x, DataType::String | DataType::Array(_) | DataType::Unknown)
 }
 
-fn contains_recursive_call_expr(expr: &Expr, fn_name: &str) -> bool {
-    contains_recursive_call(std::slice::from_ref(expr), fn_name)
+/// Collect every function name that is directly called in the given code
+fn collect_direct_calls(content: &[Expr], out: &mut Vec<smol_str::SmolStr>) {
+    for node in content {
+        match node {
+            Expr::FunctionCall(_, namespace, _, _) => {
+                out.push(namespace.last().unwrap().clone());
+            }
+            Expr::Condition(x, y, _) | Expr::InlineCondition(x, y, _) => {
+                collect_direct_calls(slice::from_ref(x), out);
+                collect_direct_calls(y, out);
+            }
+            Expr::ElseIfBlock(x, y) => {
+                collect_direct_calls(slice::from_ref(x), out);
+                collect_direct_calls(y, out);
+            }
+            Expr::ElseBlock(x) | Expr::EvalBlock(x) | Expr::LoopBlock(x) => {
+                collect_direct_calls(x, out);
+            }
+            Expr::WhileBlock(x, y) => {
+                collect_direct_calls(slice::from_ref(x), out);
+                collect_direct_calls(y, out);
+            }
+            Expr::ObjFunctionCall(x, y, _, _, _, _) => {
+                collect_direct_calls(slice::from_ref(x), out);
+                collect_direct_calls(y, out);
+            }
+            Expr::ReturnVal(code) => {
+                if let Some(code) = code.as_ref() {
+                    collect_direct_calls(slice::from_ref(code), out);
+                }
+            }
+            Expr::FunctionDecl(_, x, _) => collect_direct_calls(x, out),
+            Expr::GetIndex(x, y, _) => {
+                collect_direct_calls(slice::from_ref(x), out);
+                collect_direct_calls(y, out);
+            }
+            Expr::VarDeclare(_, x) | Expr::VarAssign(_, x, _) => {
+                collect_direct_calls(slice::from_ref(x), out);
+            }
+            Expr::ForLoop(_, code, _) => collect_direct_calls(code, out),
+            Expr::IntForLoop(_, start, end, code, _, _) => {
+                collect_direct_calls(slice::from_ref(start), out);
+                collect_direct_calls(slice::from_ref(end), out);
+                collect_direct_calls(code, out);
+            }
+            Expr::ArrayModify(array, index, value, _, _) => {
+                collect_direct_calls(slice::from_ref(array), out);
+                collect_direct_calls(index, out);
+                collect_direct_calls(slice::from_ref(value), out);
+            }
+            Expr::Array(elems, _) => {
+                for e in elems {
+                    collect_direct_calls(slice::from_ref(e), out);
+                }
+            }
+            Expr::Mul(x, y, _)
+            | Expr::Div(x, y, _)
+            | Expr::Add(x, y, _)
+            | Expr::Sub(x, y, _)
+            | Expr::Mod(x, y, _)
+            | Expr::Pow(x, y, _)
+            | Expr::Eq(x, y)
+            | Expr::NotEq(x, y)
+            | Expr::Sup(x, y, _)
+            | Expr::SupEq(x, y, _)
+            | Expr::Inf(x, y, _)
+            | Expr::InfEq(x, y, _)
+            | Expr::BoolAnd(x, y, _)
+            | Expr::BoolOr(x, y, _) => {
+                collect_direct_calls(slice::from_ref(x), out);
+                collect_direct_calls(slice::from_ref(y), out);
+            }
+            Expr::Neg(x, _) => collect_direct_calls(slice::from_ref(x), out),
+            _ => {}
+        }
+    }
 }
 
-// Check if given function body contains a call to that same function
+/// Check if the function `from` (by name) can transitively call `target`
+fn can_reach(from: &str, target: &str, fns: &[Function], visited: &mut Vec<SmolStr>) -> bool {
+    if let Some(from_fn) = fns.iter().find(|f| f.name.as_str() == from) {
+        let mut callees = Vec::new();
+        collect_direct_calls(&from_fn.code, &mut callees);
+        for callee in callees {
+            if callee.as_str() == target {
+                return true;
+            }
+            if !visited.contains(&callee) {
+                visited.push(callee.clone());
+                if can_reach(&callee, target, fns, visited) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Mark every function that is part of a mutual recursion cycle as recursive
+pub fn mark_mutually_recursive(fns: &mut [Function]) {
+    for i in 0..fns.len() {
+        if fns[i].is_recursive {
+            continue;
+        }
+        let fn_name = fns[i].name.clone();
+        let fn_code = fns[i].code.clone();
+        let mut callees = Vec::new();
+        collect_direct_calls(&fn_code, &mut callees);
+        for callee in callees {
+            if callee == fn_name {
+                continue; // this is a direct self-call, which is already handled
+            }
+            let mut visited = vec![fn_name.clone()];
+            if can_reach(&callee, &fn_name, fns, &mut visited) {
+                fns[i].is_recursive = true;
+                break;
+            }
+        }
+    }
+}
+
+/// Check if given function body contains a call to that same function
 pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
     for content in content {
         match content {
@@ -95,13 +217,17 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                 }
             }
             Expr::Condition(x, y, _) | Expr::InlineCondition(x, y, _) => {
-                if contains_recursive_call_expr(x, fn_name) || contains_recursive_call(y, fn_name) {
+                if contains_recursive_call(slice::from_ref(x), fn_name)
+                    || contains_recursive_call(y, fn_name)
+                {
                     return true;
                 }
             }
 
             Expr::ElseIfBlock(x, y) => {
-                if contains_recursive_call_expr(x, fn_name) || contains_recursive_call(y, fn_name) {
+                if contains_recursive_call(slice::from_ref(x), fn_name)
+                    || contains_recursive_call(y, fn_name)
+                {
                     return true;
                 }
             }
@@ -111,13 +237,15 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                 }
             }
             Expr::ObjFunctionCall(x, y, _, _, _, _) => {
-                if contains_recursive_call_expr(x, fn_name) || contains_recursive_call(y, fn_name) {
+                if contains_recursive_call(slice::from_ref(x), fn_name)
+                    || contains_recursive_call(y, fn_name)
+                {
                     return true;
                 }
             }
             Expr::ReturnVal(code) => {
                 if let Some(code) = code.as_ref()
-                    && contains_recursive_call_expr(code, fn_name)
+                    && contains_recursive_call(slice::from_ref(code), fn_name)
                 {
                     return true;
                 }
@@ -129,7 +257,9 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
                 }
             }
             Expr::GetIndex(x, y, _) => {
-                if contains_recursive_call_expr(x, fn_name) || contains_recursive_call(y, fn_name) {
+                if contains_recursive_call(slice::from_ref(x), fn_name)
+                    || contains_recursive_call(y, fn_name)
+                {
                     return true;
                 }
             }
@@ -147,14 +277,14 @@ pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
             | Expr::InfEq(x, y, _)
             | Expr::BoolAnd(x, y, _)
             | Expr::BoolOr(x, y, _) => {
-                if contains_recursive_call_expr(x, fn_name)
-                    || contains_recursive_call_expr(y, fn_name)
+                if contains_recursive_call(slice::from_ref(x), fn_name)
+                    || contains_recursive_call(slice::from_ref(y), fn_name)
                 {
                     return true;
                 }
             }
             Expr::Neg(x, _) => {
-                if contains_recursive_call_expr(x, fn_name) {
+                if contains_recursive_call(slice::from_ref(x), fn_name) {
                     return true;
                 }
             }
@@ -306,13 +436,15 @@ pub fn track_returns(
             }
             Expr::ReturnVal(return_val) => {
                 if let Some(val) = return_val.as_ref() {
-                    let contains_call = contains_recursive_call_expr(val, fn_name);
+                    let contains_call = contains_recursive_call(slice::from_ref(val), fn_name);
                     if !contains_call {
                         let infered = infer_type(val, v, fns, src, dyn_libs);
-                        // Discard Null inferred from a value expression -> it means
-                        // the cycle guard fired (mutual recursion) rather than the
+                        // Discard Null inferred from a value expression -> it means the cycle guard fired (mutual recursion) rather than the
                         // expression genuinely evaluating to void/null
-                        if infered != DataType::Null && !return_types.contains(&infered) {
+                        if infered != DataType::Null
+                            && infered != DataType::Unknown
+                            && !return_types.contains(&infered)
+                        {
                             return_types.push(infered);
                         }
                     }
@@ -350,13 +482,19 @@ pub fn infer_type(
         Expr::Array(x, _) => DataType::Array(if x.is_empty() {
             None
         } else {
-            Some(Box::from(infer_type(&x[0], v, fns, src, dyn_libs)))
+            let elem_type = x
+                .iter()
+                .map(|elem| infer_type(elem, v, fns, src, dyn_libs))
+                .find(|elem_type| *elem_type != DataType::Unknown)
+                .unwrap_or(DataType::Unknown);
+            Some(Box::from(elem_type))
         }),
         Expr::Add(x, y, markers) => {
             match (
                 infer_type(x, v, fns, src, dyn_libs),
                 infer_type(y, v, fns, src, dyn_libs),
             ) {
+                (DataType::Unknown, t) | (t, DataType::Unknown) => t,
                 (DataType::Float, DataType::Float) => DataType::Float,
                 (DataType::Int, DataType::Int) => DataType::Int,
                 (DataType::String, DataType::String) => DataType::String,
@@ -373,6 +511,11 @@ pub fn infer_type(
                 infer_type(x, v, fns, src, dyn_libs),
                 infer_type(y, v, fns, src, dyn_libs),
             ) {
+                (DataType::Unknown, t) | (t, DataType::Unknown)
+                    if matches!(t, DataType::Float | DataType::Int | DataType::Unknown) =>
+                {
+                    t
+                }
                 (DataType::Float, DataType::Float) => DataType::Float,
                 (DataType::Int, DataType::Int) => DataType::Int,
                 (l, r) => {
@@ -390,6 +533,8 @@ pub fn infer_type(
                 infer_type(x, v, fns, src, dyn_libs),
                 infer_type(y, v, fns, src, dyn_libs),
             ) {
+                (DataType::Unknown, DataType::Float | DataType::Int | DataType::Unknown)
+                | (DataType::Float | DataType::Int, DataType::Unknown) => DataType::Bool,
                 (DataType::Float, DataType::Float) => DataType::Bool,
                 (DataType::Int, DataType::Int) => DataType::Bool,
                 (l, r) => {
@@ -402,6 +547,8 @@ pub fn infer_type(
                 infer_type(x, v, fns, src, dyn_libs),
                 infer_type(y, v, fns, src, dyn_libs),
             ) {
+                (DataType::Unknown, DataType::Bool | DataType::Unknown)
+                | (DataType::Bool, DataType::Unknown) => DataType::Bool,
                 (DataType::Bool, DataType::Bool) => DataType::Bool,
                 (l, r) => throw_parser_error(src, markers, ErrType::OpError(&l, &r, "||")),
             }
@@ -409,6 +556,7 @@ pub fn infer_type(
         Expr::Neg(x, _) => match infer_type(x, v, fns, src, dyn_libs) {
             DataType::Float => DataType::Float,
             DataType::Int => DataType::Int,
+            DataType::Unknown => DataType::Unknown,
             _ => unreachable!(),
         },
         Expr::GetIndex(array, index, _) => match infer_type(array, v, fns, src, dyn_libs) {
@@ -423,6 +571,7 @@ pub fn infer_type(
                 final_type
             }
             DataType::String => DataType::String,
+            DataType::Unknown => DataType::Unknown,
             _ => unreachable!(),
         },
         Expr::FunctionCall(args, namespace, markers, _) => {
@@ -510,7 +659,7 @@ pub fn infer_type(
                         RETURN_TYPE_INFERRING.with(|s| s.borrow().contains(function_name));
                     if already_inferring {
                         v.truncate(v_len_before_args);
-                        return DataType::Null;
+                        return DataType::Unknown;
                     }
 
                     RETURN_TYPE_INFERRING
@@ -636,13 +785,17 @@ pub fn infer_type(
 
 pub fn check_poly(data: DataType) -> DataType {
     if let DataType::Poly(ref elems) = data {
-        if !elems.is_empty() {
-            let first_type = &elems[0];
-            if elems.iter().all(|x| x == first_type) {
+        let mut concrete = elems
+            .iter()
+            .filter(|elem_type| **elem_type != DataType::Unknown);
+        if let Some(first_type) = concrete.next() {
+            if concrete.all(|x| x == first_type) {
                 first_type.clone()
             } else {
                 data
             }
+        } else if !elems.is_empty() {
+            DataType::Unknown
         } else {
             dev_error(
                 "type_inference.rs",
@@ -659,7 +812,7 @@ pub fn check_poly(data: DataType) -> DataType {
     }
 }
 
-// WIP
+/// WIP
 pub fn datatype_to_c_type(x: &DataType) -> Type {
     match x {
         DataType::Int => libffi::middle::Type::i32(),

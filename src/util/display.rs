@@ -121,6 +121,7 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], pools: &Pools) {
         match instr {
             Instr::Jmp(jump_size)
             | Instr::IsFalseJmp(_, jump_size)
+            | Instr::IsTrueJmp(_, jump_size)
             | Instr::SupEqFloatJmp(_, _, jump_size)
             | Instr::SupEqIntJmp(_, _, jump_size)
             | Instr::SupFloatJmp(_, _, jump_size)
@@ -142,6 +143,31 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], pools: &Pools) {
             _ => continue,
         }
     }
+
+    // Assign each flow to the leftmost column it can share without overlapping another flow
+    let mut sorted_indices: Vec<usize> = (0..flows.len()).collect();
+    sorted_indices.sort_by_key(|&i| flows[i].0.min(flows[i].1));
+
+    let mut flow_column: Vec<usize> = vec![0; flows.len()];
+    // lane_end[k] = last row (inclusive) currently occupied in lane k
+    let mut lane_end: Vec<usize> = Vec::new();
+
+    for &fi in &sorted_indices {
+        let (from, to) = flows[fi];
+        let span_start = from.min(to);
+        let span_end = from.max(to);
+        let lane = lane_end
+            .iter()
+            .position(|&end| end < span_start)
+            .unwrap_or_else(|| {
+                lane_end.push(0);
+                lane_end.len() - 1
+            });
+        flow_column[fi] = lane;
+        lane_end[lane] = span_end;
+    }
+    let num_lanes = lane_end.len();
+
     let instr_str = instructions
         .iter()
         .enumerate()
@@ -150,31 +176,38 @@ pub fn print_debug(instructions: &[Instr], registers: &[Data], pools: &Pools) {
     let max_len = instr_str.iter().max_by_key(|x| x.len()).unwrap().len();
     let margins = instr_str
         .iter()
-        .map(|str| " ".repeat(max_len - str.len()).to_smolstr())
-        .collect::<Vec<SmolStr>>();
+        .map(|str| " ".repeat(max_len - str.len()))
+        .collect::<Vec<String>>();
+
     for (i, instr) in instr_str.iter().enumerate() {
-        let mut indicators: String = String::new();
-        for x in &flows {
-            if i == x.0 {
-                if x.1 > x.0 {
-                    indicators.push_str("  ─┐");
+        let mut indicators = String::new();
+        for lane in 0..num_lanes {
+            let seg = flows.iter().enumerate().find_map(|(fi, &(from, to))| {
+                if flow_column[fi] == lane && from.min(to) <= i && i <= from.max(to) {
+                    Some((from, to))
                 } else {
-                    indicators.push_str("  ─┘");
+                    None
                 }
-            } else if i == x.1 {
-                if x.1 > x.0 {
-                    indicators.push_str(" <─┘");
-                } else {
-                    indicators.push_str(" <─┐");
+            });
+            match seg {
+                None => indicators.push_str("    "),
+                Some((from, to)) => {
+                    if i == from {
+                        if to > from {
+                            indicators.push_str("  ─┐");
+                        } else {
+                            indicators.push_str("  ─┘");
+                        }
+                    } else if i == to {
+                        if to > from {
+                            indicators.push_str(" <─┘");
+                        } else {
+                            indicators.push_str(" <─┐");
+                        }
+                    } else {
+                        indicators.push_str("   │");
+                    }
                 }
-            } else if (x.0..x.1).contains(&i) || (x.1..x.0).contains(&i) {
-                if i == instr_str.len() - 1 {
-                    indicators.push_str("   X");
-                } else {
-                    indicators.push_str("   │");
-                }
-            } else {
-                indicators.push_str("    ");
             }
         }
         println!("{instr}{}{}", margins[i], indicators);

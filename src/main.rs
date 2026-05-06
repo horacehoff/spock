@@ -10,13 +10,11 @@ use crate::instr::Instr;
 use crate::instr::LibFunc;
 use crate::parser::parse;
 use crate::parser_data::DynamicLibFn;
-use crate::util::likely;
-use crate::util::unlikely;
 use inline_colorization::*;
 use mimalloc::MiMalloc;
 use parser::*;
 use std::fs;
-use std::time::Instant;
+use std::hint::cold_path;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -60,18 +58,21 @@ fn main() {
     }));
 
     let args: Vec<String> = std::env::args().collect();
-    if unlikely(args.len() == 1) {
+
+    if args.len() == 1 {
+        cold_path();
         println!(
-            "{}\n\nSpock is a fast, statically-typed interpreted language that aims to combine Rust-like syntax with Python's ease-of-use.\n\nUsage:\n  spock -v\n  spock file.spock [--debug] [--bench [--verbose]]",
+            "{}\n\nSpock is a fast, statically-typed interpreted language that aims to combine Rust-like syntax with Python's ease-of-use.\n\nUsage:\n  spock -v\n  spock file.spock [--bench [--verbose]]",
             util::SPOCK_LOGO
         );
         return;
     }
 
-    if unlikely(args.iter().any(|x| x == "--version" || x == "-v")) {
-        if unlikely(args.len() > 2) {
+    if args.iter().any(|x| x == "--version" || x == "-v") {
+        cold_path();
+        if args.len() > 2 {
             eprintln!(
-                "{color_red}SPOCK ERROR{color_reset}\nInvalid arguments\nUsage:\n  spock -v\n  spock program.spock [--debug] [--bench [--verbose]]"
+                "{color_red}SPOCK ERROR{color_reset}\nInvalid arguments\nUsage:\n  spock -v\n  spock program.spock [--bench [--verbose]]"
             );
             return;
         }
@@ -79,8 +80,8 @@ fn main() {
         return;
     }
 
-    let debug = args.iter().any(|x| x == "--debug");
     if args.iter().any(|x| x == "--bench") {
+        cold_path();
         crate::benchmark::benchmark();
         return;
     }
@@ -101,7 +102,9 @@ fn main() {
         std::process::exit(1);
     });
 
-    if likely(!debug) {
+    #[cfg(debug_assertions)]
+    if args.iter().any(|x| x == "--debug") {
+        let now = std::time::Instant::now();
         let (
             instructions,
             mut registers,
@@ -113,6 +116,8 @@ fn main() {
             allocated_call_depth,
             sources,
         ) = parse(&contents, filename, false);
+        println!("COMPILATION TIME: {:.2?}", now.elapsed());
+        let now = std::time::Instant::now();
         vm::execute(
             &instructions,
             &mut registers,
@@ -124,10 +129,12 @@ fn main() {
             allocated_arg_count,
             allocated_call_depth,
         );
+        println!(
+            "EXECUTION TIME: {:.3}ms",
+            now.elapsed().as_nanos() / 1000000
+        );
         return;
     }
-
-    let now = Instant::now();
 
     let (
         instructions,
@@ -140,9 +147,6 @@ fn main() {
         allocated_call_depth,
         sources,
     ) = parse(&contents, filename, false);
-
-    println!("COMPILATION TIME: {:.2?}", now.elapsed());
-    let now = Instant::now();
     vm::execute(
         &instructions,
         &mut registers,
@@ -153,9 +157,5 @@ fn main() {
         &fn_dyn_libs,
         allocated_arg_count,
         allocated_call_depth,
-    );
-    println!(
-        "EXECUTION TIME: {:.3}ms",
-        now.elapsed().as_nanos() / 1000000
     );
 }

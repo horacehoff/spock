@@ -9,6 +9,7 @@ pub enum Instr {
     /// Jumps x instructions backwards
     JmpBack(u16),
     IsFalseJmp(u16, u16),
+    IsTrueJmp(u16, u16),
     SupEqFloatJmp(u16, u16, u16),
     SupEqIntJmp(u16, u16, u16),
     SupFloatJmp(u16, u16, u16),

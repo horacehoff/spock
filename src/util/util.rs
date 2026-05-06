@@ -1,31 +1,6 @@
 use crate::type_system::DataType;
 use smol_str::SmolStr;
 use smol_str::ToSmolStr;
-use std::hint::cold_path;
-
-#[inline(always)]
-pub const fn likely(b: bool) -> bool {
-    if !b {
-        cold_path();
-    }
-    b
-}
-
-#[inline(always)]
-pub const fn unlikely(b: bool) -> bool {
-    if b {
-        cold_path();
-    }
-    b
-}
-
-#[macro_export]
-macro_rules! debug {
-    ($($x:tt)*) => {
-        #[cfg(debug_assertions)]
-        println!("[DEBUG] {}", format_args!($($x)*))
-    }
-}
 
 /// Strips the surrounding quotes from a raw string token and processes
 /// backslash escape sequences: \n \t \r \\ \\" \0
@@ -124,6 +99,7 @@ impl std::fmt::Display for DataType {
                 None => write!(f, "Array<?>"),
             },
             DataType::Null => write!(f, "Null"),
+            DataType::Unknown => write!(f, "Unknown"),
             DataType::File => write!(f, "File"),
             DataType::Poly(types) => write!(
                 f,

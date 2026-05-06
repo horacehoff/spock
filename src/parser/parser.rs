@@ -1,6 +1,5 @@
 use crate::LibFunc;
 use crate::data::NULL;
-use crate::debug;
 use crate::errors::ErrType;
 use crate::errors::dev_error;
 use crate::errors::lalrpop_error;
@@ -14,6 +13,7 @@ use crate::type_system::check_if_returns_void;
 use crate::type_system::contains_recursive_call;
 use crate::type_system::datatype_to_c_type;
 use crate::type_system::is_indexable;
+use crate::type_system::mark_mutually_recursive;
 use crate::type_system::{DataType, infer_type};
 use crate::{Data, Instr};
 use inline_colorization::*;
@@ -246,6 +246,7 @@ fn get_tgt_id(x: Instr) -> Option<u16> {
         | Instr::Jmp(_)
         | Instr::JmpBack(_)
         | Instr::IsFalseJmp(_, _)
+        | Instr::IsTrueJmp(_, _)
         | Instr::NotEqJmp(_, _, _)
         | Instr::ArrayNotEqJmp(_, _, _)
         | Instr::EqJmp(_, _, _)
@@ -382,7 +383,6 @@ pub fn get_id(
     single_run: bool,
 ) -> u16 {
     let src = ctx.src;
-    let block_id = ctx.block_id;
     macro_rules! uniform_op {
         ($instr: ident,$symbol:expr, $l: expr, $r: expr, $markers: expr, $type:expr) => {{
             let (t_l, t_r) = (
@@ -547,7 +547,7 @@ pub fn get_id(
                     output.extend(x);
                     output.push(Instr::ArrayMov(
                         c_id,
-                        block_id,
+                        array_id as u16,
                         (state.pools.array_pool[array_id].len() - 1) as u16,
                     ));
                 } else {
@@ -894,7 +894,7 @@ pub fn get_id(
                 offset,
                 single_run,
             );
-            add_cmp(condition_id, &mut 0, output, false);
+            add_cmp_false(condition_id, &mut 0, output, false);
             cmp_markers.push(output.len() - 1);
 
             let v_len = v.len();
@@ -904,7 +904,7 @@ pub fn get_id(
                 v,
                 ctx,
                 state,
-                output.len() as u16,
+                offset + output.len() as u16,
                 single_run,
             );
             v.truncate(v_len);
@@ -930,12 +930,18 @@ pub fn get_id(
                     let condition_id = get_id(
                         condition, v, ctx, state, output, None, false, offset, single_run,
                     );
-                    add_cmp(condition_id, &mut 0, output, false);
+                    add_cmp_false(condition_id, &mut 0, output, false);
                     free_register(condition_id, state.free_registers, v, state.const_registers);
                     cmp_markers.push(output.len() - 1);
                     let v_len = v.len();
-                    let cond_code =
-                        compile_expr(code, v, ctx, state, output.len() as u16, single_run);
+                    let cond_code = compile_expr(
+                        code,
+                        v,
+                        ctx,
+                        state,
+                        offset + output.len() as u16,
+                        single_run,
+                    );
                     v.truncate(v_len);
                     let is_empty = cond_code.is_empty();
                     output.extend(cond_code);
@@ -953,8 +959,14 @@ pub fn get_id(
                     else_exists = true;
                     condition_markers.push(output.len());
                     let v_len = v.len();
-                    let cond_code =
-                        compile_expr(code, v, ctx, state, output.len() as u16, single_run);
+                    let cond_code = compile_expr(
+                        code,
+                        v,
+                        ctx,
+                        state,
+                        offset + output.len() as u16,
+                        single_run,
+                    );
                     v.truncate(v_len);
                     let is_empty = cond_code.is_empty();
                     output.extend(cond_code);
@@ -1038,7 +1050,9 @@ pub fn get_id(
     }
 }
 
-fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwards: bool) {
+/// Fuses the last comparison instruction into a false-jump variant (jumps when condition is false).
+#[inline(always)]
+fn add_cmp_false(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwards: bool) {
     if output.is_empty() {
         return output.push(Instr::IsFalseJmp(condition_id, *len));
     }
@@ -1062,6 +1076,140 @@ fn add_cmp(condition_id: u16, len: &mut u16, output: &mut Vec<Instr>, jmp_backwa
     };
     if jmp_backwards {
         *len -= 1;
+    }
+}
+
+/// Fuses the last comparison instruction into a true-jump variant (jumps when condition is true).
+#[inline(always)]
+fn add_cmp_true(condition_id: u16, output: &mut Vec<Instr>) {
+    if output.is_empty() {
+        return output.push(Instr::IsTrueJmp(condition_id, 0));
+    }
+    let new_instr = match *output.last().unwrap() {
+        Instr::InfFloat(o1, o2, o3) if o3 == condition_id => Instr::InfFloatJmp(o1, o2, 0),
+        Instr::InfInt(o1, o2, o3) if o3 == condition_id => Instr::InfIntJmp(o1, o2, 0),
+        Instr::InfEqFloat(o1, o2, o3) if o3 == condition_id => Instr::InfEqFloatJmp(o1, o2, 0),
+        Instr::InfEqInt(o1, o2, o3) if o3 == condition_id => Instr::InfEqIntJmp(o1, o2, 0),
+        Instr::SupFloat(o1, o2, o3) if o3 == condition_id => Instr::SupFloatJmp(o1, o2, 0),
+        Instr::SupInt(o1, o2, o3) if o3 == condition_id => Instr::SupIntJmp(o1, o2, 0),
+        Instr::SupEqFloat(o1, o2, o3) if o3 == condition_id => Instr::SupEqFloatJmp(o1, o2, 0),
+        Instr::SupEqInt(o1, o2, o3) if o3 == condition_id => Instr::SupEqIntJmp(o1, o2, 0),
+        Instr::Eq(o1, o2, o3) if o3 == condition_id => Instr::EqJmp(o1, o2, 0),
+        Instr::ArrayEq(o1, o2, o3) if o3 == condition_id => Instr::ArrayEqJmp(o1, o2, 0),
+        Instr::NotEq(o1, o2, o3) if o3 == condition_id => Instr::NotEqJmp(o1, o2, 0),
+        Instr::ArrayNotEq(o1, o2, o3) if o3 == condition_id => Instr::ArrayNotEqJmp(o1, o2, 0),
+        _ => {
+            output.push(Instr::IsTrueJmp(condition_id, 0));
+            return;
+        }
+    };
+    *output.last_mut().unwrap() = new_instr;
+}
+
+/// Sets the jump size field of a jump instruction
+#[inline(always)]
+fn set_jmp_size(instr: &mut Instr, size: u16) {
+    match instr {
+        Instr::IsFalseJmp(_, jump_size)
+        | Instr::IsTrueJmp(_, jump_size)
+        | Instr::Jmp(jump_size)
+        | Instr::SupEqFloatJmp(_, _, jump_size)
+        | Instr::SupEqIntJmp(_, _, jump_size)
+        | Instr::SupFloatJmp(_, _, jump_size)
+        | Instr::SupIntJmp(_, _, jump_size)
+        | Instr::InfEqFloatJmp(_, _, jump_size)
+        | Instr::InfEqIntJmp(_, _, jump_size)
+        | Instr::InfFloatJmp(_, _, jump_size)
+        | Instr::InfIntJmp(_, _, jump_size)
+        | Instr::InfIntJmpBack(_, _, jump_size)
+        | Instr::NotEqJmp(_, _, jump_size)
+        | Instr::EqJmp(_, _, jump_size)
+        | Instr::ArrayNotEqJmp(_, _, jump_size)
+        | Instr::ArrayEqJmp(_, _, jump_size) => *jump_size = size,
+        _ => unreachable!(),
+    }
+}
+
+/// Compiles `expr` as a short-circuit boolean condition.
+/// When `bool_or_mode` is true, sub-expression comparisons emit a true-jump that jumps to the body if the sub-expression is true.
+/// This is used for every operand that is the left-hand side of an OR operator.
+/// When `bool_or_mode` is false (the default), sub-expression comparisons emit a false-jump that jumps past the body if the sub-expression is false
+/// Returns:
+///   - `true_jump_idxs`  — indices into `output` whose targets must be set to the start of the body
+///   - `false_jump_idxs` — indices into `output` whose targets must be set to past the body
+#[allow(clippy::too_many_arguments)]
+fn compile_short_circuit_condition(
+    expr: &Expr,
+    v: &mut Vec<Variable>,
+    ctx: Ctx<'_>,
+    state: &mut State<'_>,
+    output: &mut Vec<Instr>,
+    offset: u16,
+    single_run: bool,
+    bool_or_mode: bool,
+) -> (Vec<usize>, Vec<usize>) {
+    match expr {
+        Expr::BoolOr(left, right, _) => {
+            // If true then jump to body (true-jump mode)
+            let (mut true_jumps, _) = compile_short_circuit_condition(
+                left, v, ctx, state, output, offset, single_run, true,
+            );
+            // Inherit the caller's mode
+            let (right_true, right_false) = compile_short_circuit_condition(
+                right,
+                v,
+                ctx,
+                state,
+                output,
+                offset,
+                single_run,
+                bool_or_mode,
+            );
+            true_jumps.extend(right_true);
+            (true_jumps, right_false)
+        }
+        Expr::BoolAnd(left, right, _) => {
+            if bool_or_mode {
+                // AND inside the left side of an OR
+                // Fall back to eager evaluation then a single true-jump
+                let id_l = get_id(left, v, ctx, state, output, None, false, offset, single_run);
+                let id_r = get_id(
+                    right, v, ctx, state, output, None, false, offset, single_run,
+                );
+                free_register(id_l, state.free_registers, v, state.const_registers);
+                free_register(id_r, state.free_registers, v, state.const_registers);
+                let id = alloc_register(state.registers, state.free_registers);
+                output.push(Instr::BoolAnd(id_l, id_r, id));
+                add_cmp_true(id, output);
+                free_register(id, state.free_registers, v, state.const_registers);
+                (vec![output.len() - 1], Vec::new())
+            } else {
+                // Normal AND
+                // If either side is false, jump past the body
+                let (_, mut false_jumps) = compile_short_circuit_condition(
+                    left, v, ctx, state, output, offset, single_run, false,
+                );
+                let (_, right_false) = compile_short_circuit_condition(
+                    right, v, ctx, state, output, offset, single_run, false,
+                );
+                false_jumps.extend(right_false);
+                (Vec::new(), false_jumps)
+            }
+        }
+        sub_expr => {
+            let cond_id = get_id(
+                sub_expr, v, ctx, state, output, None, false, offset, single_run,
+            );
+            if bool_or_mode {
+                add_cmp_true(cond_id, output);
+                free_register(cond_id, state.free_registers, v, state.const_registers);
+                (vec![output.len() - 1], Vec::new())
+            } else {
+                add_cmp_false(cond_id, &mut 0, output, false);
+                free_register(cond_id, state.free_registers, v, state.const_registers);
+                (Vec::new(), vec![output.len() - 1])
+            }
+        }
     }
 }
 
@@ -1164,7 +1312,8 @@ pub fn for_each_read_reg(instr: Instr, mut f: impl FnMut(u16)) {
         | Instr::StoreFuncArg(a)
         | Instr::Return(a)
         | Instr::RecursiveReturn(a)
-        | Instr::IsFalseJmp(a, _) => f(a),
+        | Instr::IsFalseJmp(a, _)
+        | Instr::IsTrueJmp(a, _) => f(a),
 
         Instr::ArrayMov(a, _, _) => f(a),
 
@@ -1287,7 +1436,7 @@ pub fn compile_expr(
                         state.pools.array_pool.get_mut(array_id).unwrap().push(NULL);
                         output.push(Instr::ArrayMov(
                             c_id,
-                            block_id,
+                            array_id as u16,
                             (state.pools.array_pool[array_id].len() - 1) as u16,
                         ));
                     }
@@ -1457,26 +1606,30 @@ pub fn compile_expr(
                     .unwrap_or(code.len());
 
                 let condition_blocks_count = code.len() - main_code_limit;
-                let mut conditional_jmp_instr_idx: Vec<usize> =
-                    Vec::with_capacity(condition_blocks_count);
+                // Each entry is the list of false-jump instruction indices for one condition block.
+                let mut conditional_false_jmp_idxs: Vec<Vec<usize>> =
+                    Vec::with_capacity(condition_blocks_count + 1);
                 let mut jmp_instr_idx: Vec<usize> = Vec::with_capacity(condition_blocks_count);
                 let mut condition_markers: Vec<usize> = Vec::with_capacity(condition_blocks_count);
 
-                // parse the main condition
-                let condition_id = get_id(
+                // Compile the main condition with short-circuit evaluation
+                let (true_jump_idxs, false_jump_idxs) = compile_short_circuit_condition(
                     main_condition,
                     v,
                     ctx,
                     state,
                     &mut output,
-                    None,
-                    false,
                     offset,
                     single_run,
+                    false,
                 );
-                add_cmp(condition_id, &mut 0, &mut output, false);
-                free_register(condition_id, state.free_registers, v, state.const_registers);
-                conditional_jmp_instr_idx.push(output.len() - 1);
+                conditional_false_jmp_idxs.push(false_jump_idxs);
+
+                // Modify true-jump instructions to point to body_start
+                let body_start = output.len();
+                for j in true_jump_idxs {
+                    set_jmp_size(&mut output[j], (body_start - j) as u16);
+                }
 
                 let v_len = v.len();
                 // parse the main code block
@@ -1485,7 +1638,7 @@ pub fn compile_expr(
                     v,
                     ctx,
                     state,
-                    output.len() as u16,
+                    offset + output.len() as u16,
                     single_run,
                 );
                 v.truncate(v_len);
@@ -1510,23 +1663,33 @@ pub fn compile_expr(
                             single_run,
                         );
                         free_register(condition_id, state.free_registers, v, state.const_registers);
-                        add_cmp(condition_id, &mut 0, &mut output, false);
-                        conditional_jmp_instr_idx.push(output.len() - 1);
+                        add_cmp_false(condition_id, &mut 0, &mut output, false);
+                        conditional_false_jmp_idxs.push(vec![output.len() - 1]);
                         let v_len = v.len();
-                        let cond_code =
-                            compile_expr(code, v, ctx, state, output.len() as u16, single_run);
+                        let cond_code = compile_expr(
+                            code,
+                            v,
+                            ctx,
+                            state,
+                            offset + output.len() as u16,
+                            single_run,
+                        );
                         v.truncate(v_len);
-                        debug!("COND CODE IS {cond_code:?}");
                         output.extend(cond_code);
                         output.push(Instr::Jmp(0));
                         jmp_instr_idx.push(output.len() - 1);
                     } else if let Expr::ElseBlock(code) = elem {
                         condition_markers.push(output.len());
                         let v_len = v.len();
-                        let cond_code =
-                            compile_expr(code, v, ctx, state, output.len() as u16, single_run);
+                        let cond_code = compile_expr(
+                            code,
+                            v,
+                            ctx,
+                            state,
+                            offset + output.len() as u16,
+                            single_run,
+                        );
                         v.truncate(v_len);
-                        debug!("COND CODE IS {cond_code:?}");
                         output.extend(cond_code);
                     }
                 }
@@ -1535,55 +1698,35 @@ pub fn compile_expr(
                     let diff = output.len() - y;
                     output[y] = Instr::Jmp(diff as u16);
                 }
-                for (i, y) in conditional_jmp_instr_idx.iter().enumerate() {
-                    let diff = if i >= condition_markers.len() {
-                        output.len() - y
+                // Fix all false-jump instructions for each condition block
+                for (cm_idx, false_idxs) in conditional_false_jmp_idxs.iter().enumerate() {
+                    let target = if cm_idx < condition_markers.len() {
+                        condition_markers[cm_idx]
                     } else {
-                        condition_markers[i] - y
+                        output.len()
                     };
-                    if let Some(
-                        Instr::IsFalseJmp(_, jump_size)
-                        | Instr::SupEqFloatJmp(_, _, jump_size)
-                        | Instr::SupEqIntJmp(_, _, jump_size)
-                        | Instr::SupFloatJmp(_, _, jump_size)
-                        | Instr::SupIntJmp(_, _, jump_size)
-                        | Instr::InfEqFloatJmp(_, _, jump_size)
-                        | Instr::InfEqIntJmp(_, _, jump_size)
-                        | Instr::InfFloatJmp(_, _, jump_size)
-                        | Instr::InfIntJmp(_, _, jump_size)
-                        | Instr::NotEqJmp(_, _, jump_size)
-                        | Instr::EqJmp(_, _, jump_size),
-                    ) = output.get_mut(*y)
-                    {
-                        *jump_size = diff as u16;
+                    for &y in false_idxs {
+                        set_jmp_size(&mut output[y], (target - y) as u16);
                     }
                 }
             }
             Expr::WhileBlock(condition, code) => {
-                // try to optimize it (if it's a summation loop)
-                // if while_loop_summation(&mut output, ctx, state, condition, code) {
-                //     continue;
-                // }
-                // parse the condition, get its id
-                // track how many instructions get_id emits
                 let output_len_before = output.len();
-                let condition_id = get_id(
+
+                let (true_jump_idxs, false_jump_idxs) = compile_short_circuit_condition(
                     condition,
                     v,
                     ctx,
                     state,
                     &mut output,
-                    None,
-                    false,
                     offset,
                     single_run,
+                    false,
                 );
-                // preamble = all instructions get_id pushed except the final comparison (which
-                // add_cmp will fold into a fused branch, replacing it in-place, not adding one)
-                let condition_preamble_len =
-                    (output.len() - output_len_before).saturating_sub(1) as u16;
-                if single_run {
-                    free_register(condition_id, state.free_registers, v, state.const_registers);
+
+                let body_start = output.len();
+                for j in true_jump_idxs {
+                    set_jmp_size(&mut output[j], (body_start - j) as u16);
                 }
 
                 // parse the code block, clone the vars to avoid overriding anything
@@ -1594,12 +1737,16 @@ pub fn compile_expr(
                     compile_expr(code, v, ctx, state, offset + output.len() as u16, false);
                 v.truncate(v_len);
 
-                // get length of the code, then add Cmp/OpCmp (decided by add_cmp), and add the condition logic
-                let mut len = (cond_code.len() + 2) as u16;
-                add_cmp(condition_id, &mut len, &mut output, true);
-                // include preamble instructions in the back-jump so we re-evaluate the full condition
-                len += condition_preamble_len;
-                parse_loop_flow_control(&mut cond_code, loop_id, len, false, false);
+                let exit = output.len() + cond_code.len() + 1;
+                for j in false_jump_idxs {
+                    set_jmp_size(&mut output[j], (exit - j) as u16);
+                }
+
+                let cond_len = (output.len() - output_len_before) as u16;
+                let body_len = cond_code.len() as u16;
+                let len = cond_len + body_len; // full span used by JmpBack
+                // Break/continue offsets are relative to cond_code, so pass body_len+1 (body remaining + JmpBack)
+                parse_loop_flow_control(&mut cond_code, loop_id, body_len + 1, false, false);
                 output.extend(cond_code);
                 output.push(Instr::JmpBack(len));
             }
@@ -1684,7 +1831,7 @@ pub fn compile_expr(
 
                 // add the condition ('i < len') jumping logic
                 let mut len = (cond_code.len() + 3) as u16 + pending;
-                add_cmp(condition_id, &mut len, &mut output, true);
+                add_cmp_false(condition_id, &mut len, &mut output, true);
 
                 // instruction to make current_element actually hold the array index's value
                 if real_var {
@@ -1793,13 +1940,14 @@ pub fn compile_expr(
                 });
                 // Compile the code inside the loop
                 let loop_id = block_id + 1;
+
+                // (1) if i >= end_elem jump out -> push placeholder FIRST so that compile_expr sees the correct offset
+                let jmp_idx = output.len();
+                output.push(Instr::SupEqIntJmp(elem_id, end_elem_id, 0));
+
                 let compiled_loop_code =
                     compile_expr(code, v, ctx, state, offset + output.len() as u16, false);
                 let compiled_loop_code_len = compiled_loop_code.len() as u16;
-
-                // (1) if i >= end_elem jump out
-                let jmp_idx = output.len();
-                output.push(Instr::SupEqIntJmp(elem_id, end_elem_id, 0));
 
                 // (2) loop_body
                 output.extend(compiled_loop_code);
@@ -1983,7 +2131,6 @@ pub fn compile_expr(
                     free_register(obj_id, state.free_registers, v, state.const_registers);
                 }
                 v.iter_mut().find(|x| x.name == *name).unwrap().infered_type = var_type;
-                debug!("NEW VAR TYPES ARE {v:?}");
             }
 
             Expr::FunctionCall(args, namespace, markers, args_indexes) => {
@@ -2085,7 +2232,6 @@ pub fn compile_expr(
                     offset,
                     single_run,
                 );
-                // unreachable!("Not implemented {:?}", other);
             }
         }
     }
@@ -2339,6 +2485,9 @@ pub fn parse(
         &mut visited,
         &mut dyn_fn_id,
     );
+
+    // Detect mutual / indirect recursion cycles
+    mark_mutually_recursive(&mut functions);
 
     let ctx = Ctx {
         block_id: 0,

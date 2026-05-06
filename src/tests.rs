@@ -74,6 +74,29 @@ pub fn rec_fib_25() {
 }
 
 #[test]
+pub fn fn_call_in_if_in_for() {
+    run_and_check_registers!(
+        "
+        function is_digit(c) {
+            return c == \"0\" || c == \"1\" || c == \"2\" || c == \"3\" || c == \"4\" || c == \"5\" || c == \"6\" || c == \"7\" || c == \"8\" || c == \"9\";
+        }
+        function main() {
+            let count = 0;
+            for x in \"3 + 4\" {
+                if x != \" \" {
+                    if is_digit(x) {
+                        count += 1;
+                    }
+                }
+            }
+            print(count);
+        }
+        ",
+        2.into()
+    );
+}
+
+#[test]
 pub fn while_and_condition() {
     run_and_check_registers!(
         "
@@ -1597,5 +1620,130 @@ pub fn split_result_survives_string_gc() {
         "#
         ),
         11.into()
+    );
+}
+
+#[test]
+pub fn expr_eval_mutual_recursion() {
+    run_and_check_registers!(
+        r#"
+        function is_digit(c) {
+            return c == "0" || c == "1" || c == "2" || c == "3" || c == "4" || c == "5" || c == "6" || c == "7" || c == "8" || c == "9";
+        }
+        function digit_value(c) {
+            if c == "0" { return 0; } if c == "1" { return 1; } if c == "2" { return 2; }
+            if c == "3" { return 3; } if c == "4" { return 4; } if c == "5" { return 5; }
+            if c == "6" { return 6; } if c == "7" { return 7; } if c == "8" { return 8; }
+            return 9;
+        }
+        function skip_spaces(expr, pos) {
+            while pos < expr.len() && expr[pos] == " " { pos += 1; }
+            return pos;
+        }
+        function parse_number(expr, pos) {
+            let value = 0;
+            while pos < expr.len() && is_digit(expr[pos]) {
+                value = value * 10 + digit_value(expr[pos]);
+                pos += 1;
+            }
+            return [value, pos];
+        }
+        function parse_factor(expr, pos) {
+            pos = skip_spaces(expr, pos);
+            let c = expr[pos];
+            if c == "(" {
+                let parsed = parse_expr(expr, pos + 1);
+                let value = parsed[0];
+                pos = skip_spaces(expr, parsed[1]);
+                return [value, pos + 1];
+            }
+            if c == "-" {
+                let parsed = parse_factor(expr, pos + 1);
+                return [0 - parsed[0], parsed[1]];
+            }
+            return parse_number(expr, pos);
+        }
+        function parse_term(expr, pos) {
+            let parsed = parse_factor(expr, pos);
+            let value = parsed[0];
+            pos = parsed[1];
+            while pos < expr.len() {
+                pos = skip_spaces(expr, pos);
+                if pos >= expr.len() { break; }
+                let op = expr[pos];
+                if op != "*" && op != "/" && op != "%" { break; }
+                parsed = parse_factor(expr, pos + 1);
+                if op == "*" { value = value * parsed[0]; }
+                if op == "/" { value = value / parsed[0]; }
+                if op == "%" { value = value % parsed[0]; }
+                pos = parsed[1];
+            }
+            return [value, pos];
+        }
+        function parse_expr(expr, pos) {
+            let parsed = parse_term(expr, pos);
+            let value = parsed[0];
+            pos = parsed[1];
+            while pos < expr.len() {
+                pos = skip_spaces(expr, pos);
+                if pos >= expr.len() { break; }
+                let op = expr[pos];
+                if op != "+" && op != "-" { break; }
+                parsed = parse_term(expr, pos + 1);
+                if op == "+" { value += parsed[0]; }
+                if op == "-" { value -= parsed[0]; }
+                pos = parsed[1];
+            }
+            return [value, pos];
+        }
+        function eval_expr(expr) { return parse_expr(expr, 0)[0]; }
+        function main() {
+            let expressions = [
+                "17 + 5 * (31 - 12) + 144 / 3 - 8 % 5",
+                "((42 + 18) * 7 - 91) / 3 + 12 * (6 + 5)",
+                "1000 - (35 * 17) + (256 / 8) * (19 - 4)",
+                "-18 + 7 * (8 + 9 * (12 - 5)) - 64 / 4",
+                "9 * 9 * 9 - (123 + 45) / 6 + 77 % 10",
+                "(314 - 159) * (26 + 53) / 5 - 97",
+                "12345 % 97 + 88 * (14 - 6) - 432 / 9",
+                "7 + 11 * (13 + 17 * (19 - 23 + 29))",
+                "(81 / 9 + 64 / 8) * (45 - 32) + 99",
+                "2048 / 4 / 4 + 33 * (21 - 8) - 17"
+            ];
+            let checksum = 0;
+            for i in 0..8000 {
+                for expr in expressions {
+                    checksum += eval_expr(expr) + (i % 17);
+                }
+            }
+            print(checksum);
+        }
+        "#,
+        90023650.into()
+    );
+}
+
+#[test]
+pub fn fn_call_in_if_and_in_nested_for() {
+    run_and_check_registers!(
+        r#"
+        function is_digit(c) {
+            return c == "0" || c == "1" || c == "2" || c == "3" || c == "4" ||
+                   c == "5" || c == "6" || c == "7" || c == "8" || c == "9";
+        }
+
+        function main() {
+            let sum = 0;
+            for i in 0..2 {
+                for x in "3 + 4" {
+                    if x != " " && is_digit(x) {
+                        sum += int(x);
+                    }
+                }
+            }
+            print(sum);
+        }
+        "#,
+        14.into()
     );
 }
