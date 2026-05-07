@@ -2038,13 +2038,10 @@ pub fn compile_expr(
             }
             Expr::VarAssign(name, y, markers) => {
                 let var_type = infer_type(y, v, state.fns, src, state.dyn_libs);
-                let id = v
-                    .iter()
-                    .rfind(|x| x.name == *name)
-                    .unwrap_or_else(|| {
-                        throw_parser_error(src, markers, ErrType::UnknownVariable(name));
-                    })
-                    .register_id;
+                let var_pos = v.iter().rposition(|x| x.name == *name).unwrap_or_else(|| {
+                    throw_parser_error(src, markers, ErrType::UnknownVariable(name));
+                });
+                let id = v[var_pos].register_id;
 
                 // Fast path:
                 //   x += 1  / x = x + 1  → IncInt(id)       (in-place)
@@ -2130,7 +2127,7 @@ pub fn compile_expr(
                 if is_reg_free(v, obj_id, name) {
                     free_register(obj_id, state.free_registers, v, state.const_registers);
                 }
-                v.iter_mut().find(|x| x.name == *name).unwrap().infered_type = var_type;
+                v[var_pos].infered_type = var_type;
             }
 
             Expr::FunctionCall(args, namespace, markers, args_indexes) => {

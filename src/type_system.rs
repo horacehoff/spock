@@ -87,60 +87,55 @@ pub fn is_indexable(x: &DataType) -> bool {
 }
 
 /// Collect every function name that is directly called in the given code
-fn collect_direct_calls(content: &[Expr], out: &mut Vec<smol_str::SmolStr>) {
-    for node in content {
+fn collect_direct_calls(content: &[Expr], out: &mut Vec<SmolStr>) {
+    let mut stack: Vec<&Expr> = content.iter().collect();
+    while let Some(node) = stack.pop() {
         match node {
             Expr::FunctionCall(_, namespace, _, _) => {
                 out.push(namespace.last().unwrap().clone());
             }
             Expr::Condition(x, y, _) | Expr::InlineCondition(x, y, _) => {
-                collect_direct_calls(slice::from_ref(x), out);
-                collect_direct_calls(y, out);
+                stack.push(x);
+                stack.extend(y.iter());
             }
             Expr::ElseIfBlock(x, y) => {
-                collect_direct_calls(slice::from_ref(x), out);
-                collect_direct_calls(y, out);
+                stack.push(x);
+                stack.extend(y.iter());
             }
             Expr::ElseBlock(x) | Expr::EvalBlock(x) | Expr::LoopBlock(x) => {
-                collect_direct_calls(x, out);
+                stack.extend(x.iter());
             }
             Expr::WhileBlock(x, y) => {
-                collect_direct_calls(slice::from_ref(x), out);
-                collect_direct_calls(y, out);
+                stack.push(x);
+                stack.extend(y.iter());
             }
             Expr::ObjFunctionCall(x, y, _, _, _, _) => {
-                collect_direct_calls(slice::from_ref(x), out);
-                collect_direct_calls(y, out);
+                stack.push(x);
+                stack.extend(y.iter());
             }
             Expr::ReturnVal(code) => {
                 if let Some(code) = code.as_ref() {
-                    collect_direct_calls(slice::from_ref(code), out);
+                    stack.push(code);
                 }
             }
-            Expr::FunctionDecl(_, x, _) => collect_direct_calls(x, out),
+            Expr::FunctionDecl(_, x, _) => stack.extend(x.iter()),
             Expr::GetIndex(x, y, _) => {
-                collect_direct_calls(slice::from_ref(x), out);
-                collect_direct_calls(y, out);
+                stack.push(x);
+                stack.extend(y.iter());
             }
-            Expr::VarDeclare(_, x) | Expr::VarAssign(_, x, _) => {
-                collect_direct_calls(slice::from_ref(x), out);
-            }
-            Expr::ForLoop(_, code, _) => collect_direct_calls(code, out),
+            Expr::VarDeclare(_, x) | Expr::VarAssign(_, x, _) => stack.push(x),
+            Expr::ForLoop(_, code, _) => stack.extend(code.iter()),
             Expr::IntForLoop(_, start, end, code, _, _) => {
-                collect_direct_calls(slice::from_ref(start), out);
-                collect_direct_calls(slice::from_ref(end), out);
-                collect_direct_calls(code, out);
+                stack.push(start);
+                stack.push(end);
+                stack.extend(code.iter());
             }
             Expr::ArrayModify(array, index, value, _, _) => {
-                collect_direct_calls(slice::from_ref(array), out);
-                collect_direct_calls(index, out);
-                collect_direct_calls(slice::from_ref(value), out);
+                stack.push(array);
+                stack.extend(index.iter());
+                stack.push(value);
             }
-            Expr::Array(elems, _) => {
-                for e in elems {
-                    collect_direct_calls(slice::from_ref(e), out);
-                }
-            }
+            Expr::Array(elems, _) => stack.extend(elems.iter()),
             Expr::Mul(x, y, _)
             | Expr::Div(x, y, _)
             | Expr::Add(x, y, _)
@@ -155,17 +150,17 @@ fn collect_direct_calls(content: &[Expr], out: &mut Vec<smol_str::SmolStr>) {
             | Expr::InfEq(x, y, _)
             | Expr::BoolAnd(x, y, _)
             | Expr::BoolOr(x, y, _) => {
-                collect_direct_calls(slice::from_ref(x), out);
-                collect_direct_calls(slice::from_ref(y), out);
+                stack.push(x);
+                stack.push(y);
             }
-            Expr::Neg(x, _) => collect_direct_calls(slice::from_ref(x), out),
+            Expr::Neg(x, _) => stack.push(x),
             _ => {}
         }
     }
 }
 
 /// Check if the function `from` (by name) can transitively call `target`
-fn can_reach(from: &str, target: &str, fns: &[Function], visited: &mut Vec<SmolStr>) -> bool {
+fn can_reach(from: &str, target: &str, fns: &[Function], visited: &mut HashSet<SmolStr>) -> bool {
     if let Some(from_fn) = fns.iter().find(|f| f.name.as_str() == from) {
         let mut callees = Vec::new();
         collect_direct_calls(&from_fn.code, &mut callees);
@@ -173,11 +168,8 @@ fn can_reach(from: &str, target: &str, fns: &[Function], visited: &mut Vec<SmolS
             if callee.as_str() == target {
                 return true;
             }
-            if !visited.contains(&callee) {
-                visited.push(callee.clone());
-                if can_reach(&callee, target, fns, visited) {
-                    return true;
-                }
+            if visited.insert(callee.clone()) && can_reach(&callee, target, fns, visited) {
+                return true;
             }
         }
     }
@@ -191,23 +183,27 @@ pub fn mark_mutually_recursive(fns: &mut [Function]) {
             continue;
         }
         let fn_name = fns[i].name.clone();
-        let fn_code = fns[i].code.clone();
         let mut callees = Vec::new();
-        collect_direct_calls(&fn_code, &mut callees);
+        collect_direct_calls(&fns[i].code, &mut callees);
+        let mut found = false;
         for callee in callees {
             if callee == fn_name {
-                continue; // this is a direct self-call, which is already handled
+                continue; // direct self-call, already handled
             }
-            let mut visited = vec![fn_name.clone()];
+            let mut visited: HashSet<SmolStr> = HashSet::new();
+            visited.insert(fn_name.clone());
             if can_reach(&callee, &fn_name, fns, &mut visited) {
-                fns[i].is_recursive = true;
+                found = true;
                 break;
             }
+        }
+        if found {
+            fns[i].is_recursive = true;
         }
     }
 }
 
-/// Check if given function body contains a call to that same function
+/// Check if given function body contains a direct call to `fn_name`
 pub fn contains_recursive_call(content: &[Expr], fn_name: &str) -> bool {
     for content in content {
         match content {
