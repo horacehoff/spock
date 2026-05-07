@@ -2511,7 +2511,7 @@ pub fn parse(
             .find(|func| func.name == "main")
             .unwrap_or_else(|| {
                 eprintln!(
-                    "--------------\n{color_red}SPOCK RUNTIME ERROR:{color_reset}\nCannot find {color_bright_blue}{style_bold}main{style_reset}{color_reset} function\n--------------",
+                    "--------------\n{color_red}KEEL RUNTIME ERROR:{color_reset}\nCannot find {color_bright_blue}{style_bold}main{style_reset}{color_reset} function\n--------------",
                 );
                 std::process::exit(1);
             })
