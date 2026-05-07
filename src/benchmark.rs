@@ -360,13 +360,13 @@ fn has_command(cmd: &str) -> bool {
 #[inline(never)]
 pub fn benchmark() {
     let exe = std::env::current_exe().unwrap_or_else(|e| {
-        eprintln!("{color_red}SPOCK ERROR{color_reset}\nCannot locate current executable: {e}");
+        eprintln!("{color_red}KEEL ERROR{color_reset}\nCannot locate current executable: {e}");
         std::process::exit(1);
     });
-    let temp_dir = std::env::temp_dir().join(format!("spock-bench-{}", std::process::id()));
+    let temp_dir = std::env::temp_dir().join(format!("keel-bench-{}", std::process::id()));
     fs::create_dir_all(&temp_dir).unwrap_or_else(|e| {
         eprintln!(
-            "{color_red}SPOCK ERROR{color_reset}\nCannot create benchmark directory {}: {e}",
+            "{color_red}KEEL ERROR{color_reset}\nCannot create benchmark directory {}: {e}",
             temp_dir.display()
         );
         std::process::exit(1);
@@ -397,22 +397,22 @@ pub fn benchmark() {
         .arg(&json_path);
 
     for program in PROGRAMS {
-        // Spock
-        let spock_path = temp_dir.join(format!("{}.spock", program.name));
-        fs::write(&spock_path, program.source).unwrap_or_else(|e| {
+        // Keel
+        let keel_path = temp_dir.join(format!("{}.keel", program.name));
+        fs::write(&keel_path, program.source).unwrap_or_else(|e| {
             eprintln!(
-                "{color_red}SPOCK ERROR{color_reset}\nCannot write benchmark program {}: {e}",
-                spock_path.display()
+                "{color_red}KEEL ERROR{color_reset}\nCannot write benchmark program {}: {e}",
+                keel_path.display()
             );
             std::process::exit(1);
         });
         hyperfine
             .arg("--command-name")
-            .arg(format!("{} [spock]", program.name))
+            .arg(format!("{} [keel]", program.name))
             .arg(format!(
                 "{} {}",
                 quote(&exe.to_string_lossy()),
-                quote(&spock_path.to_string_lossy())
+                quote(&keel_path.to_string_lossy())
             ));
 
         // Python
@@ -420,7 +420,7 @@ pub fn benchmark() {
             let py_path = temp_dir.join(format!("{}.py", program.name));
             fs::write(&py_path, py_src).unwrap_or_else(|e| {
                 eprintln!(
-                    "{color_red}SPOCK ERROR{color_reset}\nCannot write Python benchmark {}: {e}",
+                    "{color_red}KEEL ERROR{color_reset}\nCannot write Python benchmark {}: {e}",
                     py_path.display()
                 );
                 std::process::exit(1);
@@ -436,7 +436,7 @@ pub fn benchmark() {
             let lua_path = temp_dir.join(format!("{}.lua", program.name));
             fs::write(&lua_path, lua_src).unwrap_or_else(|e| {
                 eprintln!(
-                    "{color_red}SPOCK ERROR{color_reset}\nCannot write Lua benchmark {}: {e}",
+                    "{color_red}KEEL ERROR{color_reset}\nCannot write Lua benchmark {}: {e}",
                     lua_path.display()
                 );
                 std::process::exit(1);
@@ -452,12 +452,12 @@ pub fn benchmark() {
     }
 
     let output = hyperfine.output().unwrap_or_else(|e| {
-        eprintln!("{color_red}SPOCK ERROR{color_reset}\nCannot run hyperfine: {e}");
+        eprintln!("{color_red}KEEL ERROR{color_reset}\nCannot run hyperfine: {e}");
         std::process::exit(1);
     });
     if !output.status.success() {
         eprintln!(
-            "{color_red}SPOCK ERROR{color_reset}\nhyperfine failed with status {}\n{}",
+            "{color_red}KEEL ERROR{color_reset}\nhyperfine failed with status {}\n{}",
             output.status,
             String::from_utf8_lossy(&output.stderr)
         );
@@ -466,7 +466,7 @@ pub fn benchmark() {
 
     let json = fs::read_to_string(&json_path).unwrap_or_else(|e| {
         eprintln!(
-            "{color_red}SPOCK ERROR{color_reset}\nCannot read hyperfine results {}: {e}",
+            "{color_red}KEEL ERROR{color_reset}\nCannot read hyperfine results {}: {e}",
             json_path.display()
         );
         std::process::exit(1);
@@ -498,14 +498,14 @@ pub fn benchmark() {
     // Group by program and print with relative speedup ratios
     println!();
     for program in PROGRAMS {
-        let spock_ms = results
+        let keel_ms = results
             .iter()
-            .find(|(n, _)| n == &format!("{} [spock]", program.name))
+            .find(|(n, _)| n == &format!("{} [keel]", program.name))
             .map(|(_, v)| *v);
 
         println!("{color_cyan}{}{color_reset}", program.name);
-        if let Some(ms) = spock_ms {
-            println!("  {color_green}spock  {color_reset}: {ms:.3} ms");
+        if let Some(ms) = keel_ms {
+            println!("  {color_green}keel  {color_reset}: {ms:.3} ms");
         }
 
         if has_python
@@ -513,8 +513,8 @@ pub fn benchmark() {
                 .iter()
                 .find(|(n, _)| n == &format!("{} [python]", program.name))
         {
-            if let Some(spock_ms) = spock_ms {
-                let ratio = ms / spock_ms;
+            if let Some(keel_ms) = keel_ms {
+                let ratio = ms / keel_ms;
                 if ratio >= 1.0 {
                     println!(
                         "  {color_yellow}python {color_reset}: {ms:.3} ms  ({ratio:.2}x slower)"
@@ -535,8 +535,8 @@ pub fn benchmark() {
                 .iter()
                 .find(|(n, _)| n == &format!("{} [luajit]", program.name))
         {
-            if let Some(spock_ms) = spock_ms {
-                let ratio = ms / spock_ms;
+            if let Some(keel_ms) = keel_ms {
+                let ratio = ms / keel_ms;
                 if ratio >= 1.0 {
                     println!(
                         "  {color_blue}luajit {color_reset}: {ms:.3} ms  ({ratio:.2}x slower)"

@@ -4,7 +4,7 @@ use crate::parse;
 macro_rules! run_and_check_registers {
     ($contents:expr, $expected:expr) => {
         let contents = $contents;
-        let filename = "test.spock";
+        let filename = "test.keel";
         let (
             instructions,
             mut registers,
@@ -463,11 +463,11 @@ pub fn string_replace() {
         r#"
         function main() {
             let s = "hello world";
-            let r = s.replace("world", "spock");
+            let r = s.replace("world", "keel");
             print(r.len());
         }
         "#,
-        11.into()
+        10.into()
     );
 }
 

@@ -226,6 +226,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "keel"
+version = "0.1.3"
+dependencies = [
+ "ariadne",
+ "inline_colorization",
+ "lalrpop",
+ "lalrpop-util",
+ "libffi",
+ "libloading",
+ "mimalloc",
+ "smol_str",
+]
+
+[[package]]
 name = "lalrpop"
 version = "0.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -518,20 +532,6 @@ checksum = "4aaa7368fcf4852a4c2dd92df0cace6a71f2091ca0a23391ce7f3a31833f1523"
 dependencies = [
  "borsh",
  "serde_core",
-]
-
-[[package]]
-name = "spock"
-version = "0.1.3"
-dependencies = [
- "ariadne",
- "inline_colorization",
- "lalrpop",
- "lalrpop-util",
- "libffi",
- "libloading",
- "mimalloc",
- "smol_str",
 ]
 
 [[package]]

@@ -11,7 +11,7 @@ use std::fmt::Arguments;
 #[inline(always)]
 pub fn dev_error(file: &str, function: &str, additional_data: Arguments) -> ! {
     unreachable!(
-        "\n--------------\n{color_red}SPOCK COMPILATION ERROR:{color_reset}\nFROM FILE: {}\nFROM FUNCTION: {}\nADDITIONAL DATA: {}\n--------------",
+        "\n--------------\n{color_red}KEEL COMPILATION ERROR:{color_reset}\nFROM FILE: {}\nFROM FUNCTION: {}\nADDITIONAL DATA: {}\n--------------",
         file, function, additional_data
     );
 }
@@ -232,7 +232,7 @@ pub fn throw_error(
             .unwrap_or(&(Instr::Halt, (0, 0), 0));
     let src = &sources[*file_idx as usize];
     let err_message: SmolStr = t.into();
-    eprintln!("{color_red}SPOCK ERROR{color_reset}");
+    eprintln!("{color_red}KEEL ERROR{color_reset}");
     Report::build(ReportKind::Error, (src.0.as_str(), *start..*end))
         .with_label(
             Label::new((src.0.as_str(), *start..*end))
@@ -249,7 +249,7 @@ pub fn throw_error(
 #[inline(never)]
 pub fn throw_parser_error(src: (&str, &str), (start, end): &(usize, usize), t: ErrType) -> ! {
     let err_message: SmolStr = t.into();
-    eprintln!("{color_red}SPOCK ERROR{color_reset}");
+    eprintln!("{color_red}KEEL ERROR{color_reset}");
     Report::build(ReportKind::Error, (src.0, *start..*end))
         .with_label(
             Label::new((src.0, *start..*end))
@@ -268,7 +268,7 @@ pub fn lalrpop_error<'a, T>(x: ParseError<usize, T, &str>, file: &str, filename:
 where
     Token<'a>: From<T>,
 {
-    eprintln!("{color_red}SPOCK ERROR{color_reset}");
+    eprintln!("{color_red}KEEL ERROR{color_reset}");
     match x {
         ParseError::InvalidToken { location } => {
             Report::build(ReportKind::Error, (filename, location..location + 1))

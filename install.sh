@@ -1,4 +1,4 @@
-# SPOCK INSTALLER
+# KEEL INSTALLER
 
 #!/bin/sh
 
@@ -14,8 +14,8 @@ else
     RED="" GREEN="" BOLD="" RESET=""
 fi
 
-info()  { printf "${BOLD}[spock]${RESET} %s\n" "$*"; }
-error() { printf "${RED}[spock] error:${RESET} %s\n" "$*" >&2; exit 1; }
+info()  { printf "${BOLD}[keel]${RESET} %s\n" "$*"; }
+error() { printf "${RED}[keel] error:${RESET} %s\n" "$*" >&2; exit 1; }
 
 if command -v curl >/dev/null 2>&1; then
     # Fail silently on HTTP errors & show errors even when silent & follow redirects & show progress bar
@@ -37,8 +37,8 @@ ARCH=$(uname -m)
 case "$OS" in
     Darwin)
         case "$ARCH" in
-            x86_64)  ARTIFACT="spock-x86_64-apple-darwin" ;;
-            arm64)   ARTIFACT="spock-aarch64-apple-darwin" ;;
+            x86_64)  ARTIFACT="keel-x86_64-apple-darwin" ;;
+            arm64)   ARTIFACT="keel-aarch64-apple-darwin" ;;
             *)       error "Unsupported macOS architecture: $ARCH" ;;
         esac
         ;;
@@ -47,23 +47,23 @@ case "$OS" in
             x86_64)
                 # Quietly check if AVX2 is supported by the current CPU on Linux
                 if grep -q avx2 /proc/cpuinfo 2>/dev/null; then
-                    ARTIFACT="spock-x86_64-linux-v3"
+                    ARTIFACT="keel-x86_64-linux-v3"
                 else
                     # Fallback for older CPUs
-                    ARTIFACT="spock-x86_64-linux-v1"
+                    ARTIFACT="keel-x86_64-linux-v1"
                 fi
                 ;;
-            aarch64) ARTIFACT="spock-aarch64-linux" ;;
+            aarch64) ARTIFACT="keel-aarch64-linux" ;;
             *)       error "Unsupported Linux architecture: $ARCH" ;;
         esac
         ;;
     *)
         # Windows will eventually be supported by a Powershell script or an installer
-        error "Unsupported OS: $OS. On Windows, download the .zip from https://github.com/horacehoff/spock/releases/latest"
+        error "Unsupported OS: $OS. On Windows, download the .zip from https://github.com/horacehoff/keel/releases/latest"
         ;;
 esac
 
-URL="https://github.com/horacehoff/spock/releases/latest/download/$ARTIFACT.tar.gz"
+URL="https://github.com/horacehoff/keel/releases/latest/download/$ARTIFACT.tar.gz"
 
 info "Detected platform: $OS/$ARCH → downloading $ARTIFACT"
 
@@ -78,17 +78,17 @@ $DOWNLOAD_CMD "$URL" | tar -xz -C "$TMP"
 
 # If the downloaded archive contains a directory, return an error
 if [ ! -f "$TMP/$ARTIFACT" ]; then
-    error "Archive downloaded but binary not found inside. Please file a bug at https://github.com/horacehoff/spock/issues"
+    error "Archive downloaded but binary not found inside. Please file a bug at https://github.com/horacehoff/keel/issues"
 fi
 
-if install -m755 "$TMP/$ARTIFACT" "$INSTALL_DIR/spock" 2>/dev/null; then
+if install -m755 "$TMP/$ARTIFACT" "$INSTALL_DIR/keel" 2>/dev/null; then
     :
 elif command -v sudo >/dev/null 2>&1; then
     info "Asking for sudo to write to $INSTALL_DIR ..."
-    sudo install -m755 "$TMP/$ARTIFACT" "$INSTALL_DIR/spock"
+    sudo install -m755 "$TMP/$ARTIFACT" "$INSTALL_DIR/keel"
 else
     error "Cannot write to $INSTALL_DIR and sudo is not available. Re-run as root or install sudo."
 fi
 
-printf "${GREEN}[spock]${RESET} Installed $("$INSTALL_DIR/spock" --version) in $INSTALL_DIR/spock\n"
-printf "${GREEN}[spock]${RESET} Run 'spock' to get started.\n"
+printf "${GREEN}[keel]${RESET} Installed $("$INSTALL_DIR/keel" --version) in $INSTALL_DIR/keel\n"
+printf "${GREEN}[keel]${RESET} Run 'keel' to get started.\n"

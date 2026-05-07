@@ -1,14 +1,14 @@
-![Spock logo](assets/spock_logo_horizontal.png#gh-light-mode-only)
-![Spock logo](assets/spock_logo_horizontal_dark.png#gh-dark-mode-only)
+![Keel logo](assets/keel_banner.png#gh-light-mode-only)
+![Keel logo](assets/keel_banner_dark.png#gh-dark-mode-only)
 
 > [!WARNING]
-> Spock is experimental. Expect bugs and breaking changes.
+> Keel is experimental. Expect bugs and breaking changes.
 
-Spock is a fast, statically-typed interpreted language that aims to combine Rust-like syntax with Python's ease-of-use.
+Keel is a fast, statically-typed interpreted language that aims to combine Rust-like syntax with Python's ease-of-use.
 
 Its goal is to provide a faster alternative to Python that sits closer to low-level languages while remaining accessible to a wide audience.
 
-## Why Spock?
+## Why Keel?
 
 - ~2-10x faster than Python in most cases.
   [Comparisons](docs/COMPARISONS.md)
@@ -23,7 +23,7 @@ Its goal is to provide a faster alternative to Python that sits closer to low-le
 
 ## Installation
 
-No binaries are provided yet. You need to compile Spock yourself.
+No binaries are provided yet. You need to compile Keel yourself.
 
 1. [Install Rust](https://rustup.rs/)
 2. Clone the repo
@@ -31,12 +31,12 @@ No binaries are provided yet. You need to compile Spock yourself.
 ```sh
 # 1. Install Rust: https://rustup.rs/
 # 2. Clone
-git clone https://github.com/horacehoff/spock
-cd spock
+git clone https://github.com/horacehoff/keel
+cd keel
 # 3. Build
 cargo build --release
 # 4. Run
-./target/release/spock myfile.spock
+./target/release/keel myfile.keel
 ```
 
 ## Language tour
@@ -47,7 +47,7 @@ Types are inferred and are never written explicitly.
 
 ```rs
 let x = 42;
-let name = "Spock";
+let name = "Keel";
 let ratio = 3.14;
 let flag = true;
 let numbers = [1, 2, 3, 4, 5];
@@ -57,7 +57,7 @@ Built-in types: `Integer` (i32), `Float` (f64), `Boolean`, `String`, `Array<T>`.
 
 ### Functions
 
-> A `main()` function is required when executing a `.spock` file.\
+> A `main()` function is required when executing a `.keel` file.\
 > It is the starting point for the execution of the program.
 
 ```rs
@@ -190,11 +190,11 @@ match x {
 }
 ```
 
-### Importing other `.spock` files
+### Importing other `.keel` files
 
-You can import other `.spock` files with the following syntax:
-```spock
-use "fibonacci_lib.spock"
+You can import other `.keel` files with the following syntax:
+```keel
+use "fibonacci_lib.keel"
 
 fn main() {print(fibonacci(25));}
 ```
@@ -207,7 +207,7 @@ Imports can be nested, and circular imports trigger an error and crash the progr
 You can load functions from dynamic libraries by specifying each function's
 signature, with the following syntax:
 
-```spock
+```keel
 import "dynamic_library_path" {
   function_return_type function_name(function_arg_type_1, function_arg_type_1, ..., function_arg_type_n);
 }
@@ -215,7 +215,7 @@ import "dynamic_library_path" {
 
 For example:
 
-```spock
+```keel
 import "my_test.dylib" {
     int add(int, int);
     float add(float, float);

@@ -388,6 +388,6 @@ print(arr); // Prints "[1,2,3]"
 Returns the arguments passed to the script, excluding the interpreter path and script name.
 Example:
 ```
-// ./spock script.spock foo bar
+// ./keel script.keel foo bar
 argv() // Returns ["foo", "bar"]
 ```

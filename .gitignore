@@ -1,7 +1,7 @@
 /target
 /.zed
 /.idea
-test.spock
+test.keel
 *.dylib
 *.c
 /lib_testing

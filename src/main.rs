@@ -54,7 +54,7 @@ mod vm;
 /// Live long and prosper
 fn main() {
     std::panic::set_hook(Box::new(|info| {
-        eprintln!("{color_red}SPOCK ERROR{color_reset}\n{info}");
+        eprintln!("{color_red}KEEL ERROR{color_reset}\n{info}");
     }));
 
     let args: Vec<String> = std::env::args().collect();
@@ -62,8 +62,8 @@ fn main() {
     if args.len() == 1 {
         cold_path();
         println!(
-            "{}\n\nSpock is a fast, statically-typed interpreted language that aims to combine Rust-like syntax with Python's ease-of-use.\n\nUsage:\n  spock -v\n  spock file.spock [--bench [--verbose]]",
-            util::SPOCK_LOGO
+            "{}\nKeel is a fast, statically-typed interpreted language that aims to combine Rust-like syntax with Python's ease-of-use.\n\nUsage:\n  keel [-v | --version]\n  keel file.keel [--bench [--verbose]]",
+            util::KEEL_LOGO
         );
         return;
     }
@@ -72,11 +72,11 @@ fn main() {
         cold_path();
         if args.len() > 2 {
             eprintln!(
-                "{color_red}SPOCK ERROR{color_reset}\nInvalid arguments\nUsage:\n  spock -v\n  spock program.spock [--bench [--verbose]]"
+                "{color_red}KEEL ERROR{color_reset}\nInvalid arguments\nUsage:\n  keel -v\n  keel program.keel [--bench [--verbose]]"
             );
             return;
         }
-        println!("Spock {}", env!("CARGO_PKG_VERSION"));
+        println!("Keel {}", env!("CARGO_PKG_VERSION"));
         return;
     }
 
@@ -87,17 +87,17 @@ fn main() {
     }
 
     #[cfg(debug_assertions)]
-    let filename = args.get(1).map(String::as_str).unwrap_or("test.spock");
+    let filename = args.get(1).map(String::as_str).unwrap_or("test.keel");
 
     #[cfg(not(debug_assertions))]
     let filename = &args.get(1).unwrap_or_else(|| {
-        println!("{}", util::SPOCK_LOGO);
+        println!("{}", util::KEEL_LOGO);
         std::process::exit(0);
     });
 
     let contents = fs::read_to_string(filename).unwrap_or_else(|_| {
         eprintln!(
-            "--------------\n{color_red}SPOCK RUNTIME ERROR:{color_reset}\nCannot read {color_bright_red}{style_bold}{filename}{style_reset}{color_reset}\n--------------",
+            "--------------\n{color_red}KEEL RUNTIME ERROR:{color_reset}\nCannot read {color_bright_red}{style_bold}{filename}{style_reset}{color_reset}\n--------------",
         );
         std::process::exit(1);
     });

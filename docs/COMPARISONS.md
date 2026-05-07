@@ -1,4 +1,4 @@
-> Spock is experimental — more optimizations are still to come.
+> Keel is experimental — more optimizations are still to come.
 
 All times are measured with [hyperfine](https://github.com/sharkdp/hyperfine) (`--runs 150 --warmup 10`). All benchmarks are run on the same machine.
 
@@ -8,7 +8,7 @@ All times are measured with [hyperfine](https://github.com/sharkdp/hyperfine) (`
 
 <table>
 <tr>
-  <th>Spock</th>
+  <th>Keel</th>
   <th>Python 3</th>
   <th>Node.js</th>
   <th>LuaJIT (-joff)</th>
@@ -63,7 +63,7 @@ end</code></pre></td>
 
 <table>
 <tr>
-  <th>Spock</th>
+  <th>Keel</th>
   <th>Python 3</th>
   <th>Node.js</th>
   <th>LuaJIT (-joff)</th>
@@ -110,7 +110,7 @@ print(fib(30))</code></pre></td>
 
 <table>
 <tr>
-  <th>Spock</th>
+  <th>Keel</th>
   <th>Python 3</th>
   <th>Node.js</th>
   <th>LuaJIT (-joff)</th>
@@ -171,7 +171,7 @@ print(result)</code></pre></td>
 
 <table>
 <tr>
-  <th>Spock</th>
+  <th>Keel</th>
   <th>Python 3</th>
   <th>Node.js</th>
   <th>LuaJIT (-joff)</th>
@@ -215,7 +215,7 @@ print(x)</code></pre></td>
 
 <table>
 <tr>
-  <th>Spock</th>
+  <th>Keel</th>
   <th>Python 3</th>
   <th>Node.js</th>
   <th>LuaJIT (-joff)</th>
@@ -309,7 +309,7 @@ print(count)</code></pre></td>
 
 <table>
 <tr>
-  <th>Spock</th>
+  <th>Keel</th>
   <th>Python 3</th>
   <th>Node.js</th>
   <th>LuaJIT (-joff)</th>
@@ -365,7 +365,7 @@ print(count)</code></pre></td>
 
 <table>
 <tr>
-  <th>Spock</th>
+  <th>Keel</th>
   <th>Python 3</th>
   <th>Node.js</th>
   <th>LuaJIT (-joff)</th>
@@ -442,7 +442,7 @@ int increment(int x) {
 
 <table>
 <tr>
-  <th>Spock</th>
+  <th>Keel</th>
   <th>Python 3</th>
 </tr>
 <tr>

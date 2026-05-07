@@ -22,7 +22,7 @@ use std::io::Write;
 pub type ArrayPool = Vec<Vec<Data>>;
 pub type StringPool = Vec<String>;
 
-/// Converts a Spock array into a raw pointer suitable for passing to a C function via libffi.
+/// Converts a Keel array into a raw pointer suitable for passing to a C function via libffi.
 /// Box<\[u8\]> is used to store data because its address is stable.
 fn array_to_c_ptr(
     data: Data,

@@ -171,11 +171,9 @@ macro_rules! check_args_range {
     };
 }
 
-pub const SPOCK_LOGO: &str = r#"
- @@@@@@  @@@@@@@   @@@@@@@@    @@@@@@  @@@  @@@
-@@@      @@@  @@  @@@    @@@  @@@      @@@#@@
- @@@@@@  @@@@@@@ @@@      @@  @@       @@@@@
-     @@  @@@      @@@    @@@  @@@      @@@ @@@
-@@@@@@@  @@@       @@@@@@@@    @@@@@@  @@@  @@@
+pub const KEEL_LOGO: &str = "
+  \x1b[34m// /\x1b[0m
+ \x1b[34m// /\x1b[0m  keel
+\x1b[34m// /\x1b[0m
 
-by Horace Hoff."#;
+by Horace Hoff.";

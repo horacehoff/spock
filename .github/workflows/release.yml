@@ -23,33 +23,33 @@ jobs:
           # macos-latest is Apple Silicon, so aarch64 is native and x86_64 is a cross-compile
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact: spock-aarch64-apple-darwin
+            artifact: keel-aarch64-apple-darwin
             rustflags: ""
 
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact: spock-x86_64-apple-darwin
+            artifact: keel-x86_64-apple-darwin
             rustflags: "-C target-cpu=x86-64-v3"
 
           # Two tiers: v3 and baseline v1
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            artifact: spock-x86_64-linux-v3
+            artifact: keel-x86_64-linux-v3
             rustflags: "-C target-cpu=x86-64-v3"
 
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            artifact: spock-x86_64-linux-v1
+            artifact: keel-x86_64-linux-v1
             rustflags: "-C target-cpu=x86-64"
 
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
-            artifact: spock-aarch64-linux
+            artifact: keel-aarch64-linux
             rustflags: ""
 
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact: spock-x86_64-windows
+            artifact: keel-x86_64-windows
             rustflags: "-C target-cpu=x86-64-v3"
 
     steps:
@@ -86,13 +86,13 @@ jobs:
       - name: Package (Unix)
         if: runner.os != 'Windows'
         run: |
-          cp target/${{ matrix.target }}/release/spock ${{ matrix.artifact }}
+          cp target/${{ matrix.target }}/release/keel ${{ matrix.artifact }}
           tar -czf ${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
         run: |
-          Copy-Item "target/${{ matrix.target }}/release/spock.exe" "${{ matrix.artifact }}.exe"
+          Copy-Item "target/${{ matrix.target }}/release/keel.exe" "${{ matrix.artifact }}.exe"
           Compress-Archive -Path "${{ matrix.artifact }}.exe" -DestinationPath "${{ matrix.artifact }}.zip"
 
       - name: Upload artifact
